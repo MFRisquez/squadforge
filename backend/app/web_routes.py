@@ -314,6 +314,9 @@ def team_page(request: Request, db: Session = Depends(get_db)):
 
     view = _resolve_gw(request, db)
     gw = view["gw"]
+    # Bank FTs + restore any expired Free Hit *before* reading ownership
+    ft_state = squad_svc.bank_free_transfers(db, manager.id, view["current_gw"].number)
+    chips_svc.restore_free_hits_if_needed(db, manager_id=manager.id, current_gw=view["current_gw"])
     owned = squad_svc.owned_players(db, manager.id)
     spend = squad_svc.squad_spend(owned)
     picks = (
@@ -332,13 +335,13 @@ def team_page(request: Request, db: Session = Depends(get_db)):
     td = td_svc.current_td(db, manager.id, gw.number)
     can_set_td = td_svc.can_select_td(db, manager.id, gw.number) and not view["edits_locked"]
     clubs = db.query(Club).order_by(Club.name).all()
-    ft_state = squad_svc.bank_free_transfers(db, manager.id, view["current_gw"].number)
     unlimited = squad_svc.transfers_are_unlimited(db, manager.id, view["current_gw"])
     transfers_gw = (
         db.query(TransferLog)
         .filter(TransferLog.manager_id == manager.id, TransferLog.gameweek_id == gw.id)
         .count()
     )
+    hits_gw = squad_svc.hit_transfers_this_gw(db, manager.id, gw.id)
     return templates.TemplateResponse(
         "team.html",
         _ctx(
@@ -355,6 +358,8 @@ def team_page(request: Request, db: Session = Depends(get_db)):
             ft_left=ft_state.free_transfers,
             unlimited_transfers=unlimited,
             transfers_gw=transfers_gw,
+            hits_gw=hits_gw,
+            hit_cost=squad_svc.HIT_COST,
             players_json=_players_payload(db),
             initial_squad={
                 "selected": [p.id for p in owned],
@@ -363,12 +368,16 @@ def team_page(request: Request, db: Session = Depends(get_db)):
                 "unlimited": unlimited and not view["edits_locked"],
                 "hasSquad": len(owned) == settings.squad_size,
                 "ft": ft_state.free_transfers,
+                "hitCost": squad_svc.HIT_COST,
                 "locked": view["edits_locked"],
             },
             player_count=db.query(Player).count(),
             ok=request.query_params.get("ok"),
             error=request.query_params.get("error") or request.query_params.get("chip_error"),
-            notice="Transfer done." if request.query_params.get("ok") else None,
+            notice=(
+                request.query_params.get("notice")
+                or ("Transfer done." if request.query_params.get("ok") else None)
+            ),
             **view,
         ),
     )
@@ -468,6 +477,8 @@ async def team_save(request: Request, db: Session = Depends(get_db)):
                 ft_left=ft_state.free_transfers,
                 unlimited_transfers=unlimited,
                 transfers_gw=0,
+                hits_gw=0,
+                hit_cost=squad_svc.HIT_COST,
                 players_json=_players_payload(db),
                 initial_squad={
                     "selected": player_ids,
@@ -476,6 +487,7 @@ async def team_save(request: Request, db: Session = Depends(get_db)):
                     "unlimited": unlimited,
                     "hasSquad": False,
                     "ft": ft_state.free_transfers,
+                    "hitCost": squad_svc.HIT_COST,
                 },
                 player_count=db.query(Player).count(),
                 error=str(exc),
@@ -490,11 +502,15 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
     manager = current_manager(request, db)
     if not manager:
         return RedirectResponse("/login", status_code=303)
+    from app.services import chips as chips_svc
+
+    view = _resolve_gw(request, db)
+    gw = view["gw"]
+    squad_svc.bank_free_transfers(db, manager.id, view["current_gw"].number)
+    chips_svc.restore_free_hits_if_needed(db, manager_id=manager.id, current_gw=view["current_gw"])
     owned = squad_svc.owned_players(db, manager.id)
     if len(owned) != settings.squad_size:
         return RedirectResponse("/team", status_code=303)
-    view = _resolve_gw(request, db)
-    gw = view["gw"]
     picks = (
         db.query(SquadPick)
         .filter(SquadPick.manager_id == manager.id, SquadPick.gameweek_id == gw.id)
@@ -591,6 +607,7 @@ def transfers_make(
     if not deadline_svc.can_edit(gw):
         return RedirectResponse("/team?error=Deadline+passed+—+transfers+locked", status_code=303)
     try:
+        before_hits = squad_svc.hit_transfers_this_gw(db, manager.id, gw.id)
         squad_svc.make_transfer(
             db,
             manager_id=manager.id,
@@ -598,8 +615,14 @@ def transfers_make(
             player_out_id=player_out_id,
             player_in_id=player_in_id,
         )
+        after_hits = squad_svc.hit_transfers_this_gw(db, manager.id, gw.id)
     except squad_svc.SquadError as exc:
         return RedirectResponse(f"/team?error={exc}", status_code=303)
+    if after_hits > before_hits:
+        from urllib.parse import quote
+
+        notice = quote(f"Transfer done (−{squad_svc.HIT_COST} hit).")
+        return RedirectResponse(f"/team?ok=1&notice={notice}", status_code=303)
     return RedirectResponse("/team?ok=1", status_code=303)
 
 

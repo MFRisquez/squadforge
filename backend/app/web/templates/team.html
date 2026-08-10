@@ -32,6 +32,11 @@
     <span class="stat-sub">{% if unlimited_transfers %}unlimited{% else %}banked{% endif %}</span>
   </div>
   <div class="stat">
+    <span class="stat-label">Hits</span>
+    <strong>{% if hits_gw %}−{{ hits_gw * hit_cost }}{% else %}0{% endif %}</strong>
+    <span class="stat-sub">{% if hits_gw %}{{ hits_gw }}× −{{ hit_cost }}{% else %}this GW{% endif %}</span>
+  </div>
+  <div class="stat">
     <span class="stat-label">Squad</span>
     <strong id="squadCount">{{ owned|length }}/15</strong>
     <span class="stat-sub">players</span>

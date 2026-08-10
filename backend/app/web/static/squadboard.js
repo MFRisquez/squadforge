@@ -5,6 +5,8 @@
   const MAX_CLUB = Number(INITIAL.maxPerClub || 3);
   const UNLIMITED = Boolean(INITIAL.unlimited);
   const LOCKED = Boolean(INITIAL.locked);
+  const FT_LEFT = Number(INITIAL.ft || 0);
+  const HIT_COST = Number(INITIAL.hitCost || 4);
   const NEED = { GK: 2, DEF: 5, MID: 5, ATT: 3 };
   const ORDER = ["GK", "DEF", "MID", "ATT"];
   const byId = Object.fromEntries(PLAYERS.map((p) => [p.id, p]));
@@ -122,7 +124,9 @@
       if (buildActions) buildActions.style.display = "";
     } else {
       modeHint.textContent =
-        `Tap a player to transfer out (${PLAYERS.length} in catalogue), then Confirm swap.`;
+        FT_LEFT < 1
+          ? `Tap to transfer (−${HIT_COST} hit each). Or play Wildcard / Free Hit.`
+          : `Tap a player to transfer out (${PLAYERS.length} in catalogue), then Confirm swap.`;
       if (saveSquadBtn) saveSquadBtn.hidden = true;
     }
     syncHidden();
@@ -144,11 +148,13 @@
       confirmSwap.disabled = false;
       const delta = inPlayer.price - outPlayer.price;
       const sign = delta >= 0 ? `+£${delta.toFixed(1)}m` : `−£${Math.abs(delta).toFixed(1)}m`;
-      swapSummary.textContent = `${outPlayer.name} → ${inPlayer.name} (${sign})`;
+      const hitNote = !UNLIMITED && FT_LEFT < 1 ? ` · −${HIT_COST} hit` : "";
+      swapSummary.textContent = `${outPlayer.name} → ${inPlayer.name} (${sign})${hitNote}`;
     } else {
       inIdEl.value = "";
       confirmSwap.disabled = true;
-      swapSummary.textContent = `Out: ${outPlayer.name} — choose who comes in`;
+      const hitHint = !UNLIMITED && FT_LEFT < 1 ? ` (−${HIT_COST} hit)` : "";
+      swapSummary.textContent = `Out: ${outPlayer.name}${hitHint} — choose who comes in`;
     }
   }
 

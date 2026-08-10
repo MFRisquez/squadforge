@@ -57,6 +57,11 @@ def _ensure_schema_patches() -> None:
         if "deadline_at" not in cols:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE gameweeks ADD COLUMN deadline_at VARCHAR(64)"))
+    if "transfer_logs" in tables:
+        cols = {c["name"] for c in inspect(engine).get_columns("transfer_logs")}
+        if "is_hit" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE transfer_logs ADD COLUMN is_hit INTEGER DEFAULT 0"))
 
 
 @app.on_event("startup")

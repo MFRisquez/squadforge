@@ -11,6 +11,7 @@
     {% if score %}
       Squad {{ '%.0f'|format(score.squad_points) }}
       {% if score.td_points %} · TD {{ '%+.0f'|format(score.td_points) }}{% endif %}
+      {% if breakdown.hit_points %} · Hits {{ '%+.0f'|format(breakdown.hit_points) }}{% endif %}
       · {{ breakdown.chip|default('—') }}
     {% else %}
       No score yet — refresh live points below (uses demo metrics until FPL GW goes live).

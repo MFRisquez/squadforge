@@ -463,10 +463,14 @@ def score_managers(db: Session, gw: Gameweek) -> int:
         td_pts = td_svc.td_points_for_gw(
             db, manager_id=manager.id, gw_number=gw.number, gameweek_id=gw.id
         )
-        total = round(squad_points + td_pts, 2)
+        hit_pts = squad_svc.transfer_hit_points(db, manager.id, gw.id)
+        hit_n = squad_svc.hit_transfers_this_gw(db, manager.id, gw.id)
+        total = round(squad_points + td_pts + hit_pts, 2)
         breakdown = {
             "squad": round(squad_points, 2),
             "td": td_pts,
+            "hits": hit_n,
+            "hit_points": hit_pts,
             "armband_player_id": armband,
             "chip": chip_name or "—",
             "players": player_lines,

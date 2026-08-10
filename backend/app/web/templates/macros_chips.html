@@ -14,6 +14,7 @@
   <div class="chip-strip" role="list">
     {% set items = [
       ('wildcard', 'WC', 'Wildcard', chips.wildcard_remaining if chips else 0, 'Unlimited transfers'),
+      ('free_hit', 'FH', 'Free Hit', chips.free_hit_remaining if chips else 0, 'Temp squad for 1 GW'),
       ('bench_boost', 'BB', 'Bench Boost', chips.bench_boost_remaining if chips else 0, 'Bench points count'),
       ('triple_captain', 'TC', 'Triple Captain', chips.triple_captain_remaining if chips else 0, 'Captain ×3'),
     ] %}
@@ -38,6 +39,6 @@
       </div>
     {% endfor %}
   </div>
-  <p class="chip-footnote muted tiny">One chip per GW · cancel before the deadline · Free Hit &amp; Super Sub soon</p>
+  <p class="chip-footnote muted tiny">One chip per GW · cancel before the deadline · FH restores your old 15 next GW · Super Sub soon</p>
 </section>
 {% endmacro %}

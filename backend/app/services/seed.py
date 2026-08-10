@@ -50,15 +50,24 @@ def seed_demo_fallback(db: Session) -> None:
             db.add(Club(code=code, name=name))
 
     if db.query(Player).count() == 0:
-        demo = []
-        for i in range(2):
-            demo.append((f"dgk-{i}", f"Demo GK {i+1}", "GK", "ARS", 4.5))
-        for i in range(5):
-            demo.append((f"ddef-{i}", f"Demo DEF {i+1}", "DEF", "LIV", 4.5))
-        for i in range(5):
-            demo.append((f"dmid-{i}", f"Demo MID {i+1}", "MID", "MCI", 5.0))
-        for i in range(3):
-            demo.append((f"datt-{i}", f"Demo ATT {i+1}", "ATT", "CHE", 5.5))
+        # Spread clubs so a legal 15 (max 3/club) can be built offline
+        demo = [
+            ("dgk-0", "Demo GK 1", "GK", "ARS", 4.5),
+            ("dgk-1", "Demo GK 2", "GK", "TOT", 4.5),
+            ("ddef-0", "Demo DEF 1", "DEF", "LIV", 4.5),
+            ("ddef-1", "Demo DEF 2", "DEF", "LIV", 4.5),
+            ("ddef-2", "Demo DEF 3", "DEF", "LIV", 4.5),
+            ("ddef-3", "Demo DEF 4", "DEF", "NEW", 4.5),
+            ("ddef-4", "Demo DEF 5", "DEF", "AVL", 4.5),
+            ("dmid-0", "Demo MID 1", "MID", "MCI", 5.0),
+            ("dmid-1", "Demo MID 2", "MID", "MCI", 5.0),
+            ("dmid-2", "Demo MID 3", "MID", "MCI", 5.0),
+            ("dmid-3", "Demo MID 4", "MID", "BHA", 5.0),
+            ("dmid-4", "Demo MID 5", "MID", "WHU", 5.0),
+            ("datt-0", "Demo ATT 1", "ATT", "CHE", 5.5),
+            ("datt-1", "Demo ATT 2", "ATT", "CHE", 5.5),
+            ("datt-2", "Demo ATT 3", "ATT", "MUN", 5.5),
+        ]
         for ext, name, pos, team, price in demo:
             db.add(Player(external_id=ext, name=name, position=pos, team_code=team, price=price))
 

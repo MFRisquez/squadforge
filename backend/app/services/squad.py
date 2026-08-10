@@ -21,6 +21,7 @@ from app.models import (
 REQUIRED = {"GK": 2, "DEF": 5, "MID": 5, "ATT": 3}
 STARTER_BANDS = {"DEF": (3, 5), "MID": (3, 5), "ATT": (1, 3)}
 FT_CAP = 5
+HIT_COST = 4  # FPL-style points deducted per transfer beyond free allowance
 
 
 class SquadError(ValueError):
@@ -49,6 +50,8 @@ def get_transfer_state(db: Session, manager_id: int) -> TransferState:
 
 def bank_free_transfers(db: Session, manager_id: int, gw_number: int) -> TransferState:
     """Each new GW after GW1 adds +1 FT (cumulative, capped)."""
+    from app.services import chips as chips_svc
+
     state = get_transfer_state(db, manager_id)
     if gw_number <= 1:
         state.last_banked_gw = max(state.last_banked_gw, 1)
@@ -60,11 +63,15 @@ def bank_free_transfers(db: Session, manager_id: int, gw_number: int) -> Transfe
             state.free_transfers = min(FT_CAP, state.free_transfers + 1)
     db.commit()
     db.refresh(state)
+    # After rolling into a new GW, restore any expired Free Hit squads
+    current = db.query(Gameweek).filter(Gameweek.number == gw_number).one_or_none()
+    if current:
+        chips_svc.restore_free_hits_if_needed(db, manager_id=manager_id, current_gw=current)
     return state
 
 
 def transfers_are_unlimited(db: Session, manager_id: int, gw: Gameweek) -> bool:
-    """GW1 = unlimited. Wildcard active this GW = unlimited. No squad yet = unlimited build."""
+    """GW1 = unlimited. Wildcard/Free Hit active this GW = unlimited. No squad yet = unlimited build."""
     state = get_transfer_state(db, manager_id)
     if not state.has_squad:
         return True
@@ -75,11 +82,28 @@ def transfers_are_unlimited(db: Session, manager_id: int, gw: Gameweek) -> bool:
         .filter(
             ChipPlay.manager_id == manager_id,
             ChipPlay.gameweek_id == gw.id,
-            ChipPlay.chip == "wildcard",
+            ChipPlay.chip.in_(("wildcard", "free_hit")),
         )
         .one_or_none()
     )
     return chip is not None
+
+
+def hit_transfers_this_gw(db: Session, manager_id: int, gameweek_id: int) -> int:
+    return (
+        db.query(TransferLog)
+        .filter(
+            TransferLog.manager_id == manager_id,
+            TransferLog.gameweek_id == gameweek_id,
+            TransferLog.is_hit == 1,
+        )
+        .count()
+    )
+
+
+def transfer_hit_points(db: Session, manager_id: int, gameweek_id: int) -> float:
+    """Negative points from paid transfers this GW (−4 each)."""
+    return float(-HIT_COST * hit_transfers_this_gw(db, manager_id, gameweek_id))
 
 
 def owned_players(db: Session, manager_id: int) -> list[Player]:
@@ -249,10 +273,12 @@ def make_transfer(
     validate_composition(players)
 
     unlimited = transfers_are_unlimited(db, manager_id, gameweek)
+    is_hit = 0
     if not unlimited:
-        if state.free_transfers < 1:
-            raise SquadError("No free transfers left (bank next GW, or play Wildcard)")
-        state.free_transfers -= 1
+        if state.free_transfers >= 1:
+            state.free_transfers -= 1
+        else:
+            is_hit = 1
 
     # Apply ownership change
     db.query(OwnedPlayer).filter(
@@ -266,7 +292,8 @@ def make_transfer(
             gameweek_id=gameweek.id,
             player_out_id=player_out_id,
             player_in_id=player_in_id,
-            free_transfers_after=state.free_transfers if not unlimited else state.free_transfers,
+            free_transfers_after=state.free_transfers,
+            is_hit=is_hit,
         )
     )
     db.commit()

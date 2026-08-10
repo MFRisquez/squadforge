@@ -140,6 +140,7 @@ class TransferLog(Base):
     player_out_id: Mapped[int] = mapped_column(ForeignKey("players.id"))
     player_in_id: Mapped[int] = mapped_column(ForeignKey("players.id"))
     free_transfers_after: Mapped[int] = mapped_column(Integer, default=0)
+    is_hit: Mapped[int] = mapped_column(Integer, default=0)  # 1 = −4 points that GW
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
