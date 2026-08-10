@@ -556,25 +556,26 @@ select {
 .squad-pitch-wrap {
   margin-top: 0.35rem;
   width: min(100%, 22rem);
-  margin-inline: auto;
+  margin-left: auto;
+  margin-right: auto;
 }
 .xi-pitch {
-  min-height: 38rem;
-  height: min(78vh, 42rem);
-  padding: 0.75rem 0.3rem 1.1rem;
-  gap: 1.1rem;
-  align-content: space-evenly;
+  min-height: 28rem;
+  height: min(62vh, 32rem);
+  padding: 0.45rem 0.3rem 1.35rem;
+  gap: 0.8rem;
+  align-content: start;
   background:
     linear-gradient(180deg, rgba(255,255,255,0.04), transparent 18%),
     url("/static/pitch.svg") center / cover no-repeat,
     linear-gradient(180deg, #2f8f4a, #21733a 48%, #1b5f31);
 }
 .squad-pitch {
-  min-height: 36rem;
-  height: min(76vh, 40rem);
-  gap: 1rem;
-  padding: 0.65rem 0.28rem 1rem;
-  align-content: space-evenly;
+  min-height: 26.5rem;
+  height: min(60vh, 30.5rem);
+  gap: 0.72rem;
+  padding: 0.4rem 0.28rem 1.25rem;
+  align-content: start;
 }
 .td-corner {
   position: absolute;
@@ -767,15 +768,16 @@ select {
   background: #fff;
   z-index: 2;
 }
-.xi-pitch .pitch-row { gap: 0.85rem; }
-.squad-pitch .pitch-row { gap: 0.7rem; }
-.xi-pitch { padding-top: 3.35rem; }
+.xi-pitch .pitch-row { gap: 0.85rem; justify-content: center; }
+.squad-pitch .pitch-row { gap: 0.7rem; justify-content: center; }
+.xi-pitch { padding-top: 2.55rem; }
+.squad-pitch { padding-top: 2.4rem; }
 .xi-header { display: none; }
-/* Slim FPL-like player tokens: tall jersey, narrow name/fixture plate */
-.xi-card { width: 3.35rem; }
+/* Slim FPL-like player tokens: +10% size, taller nameplates */
+.xi-card { width: 3.7rem; }
 .xi-shirt,
 .shirt.filled.jersey.xi-shirt {
-  width: 3.35rem;
+  width: 3.7rem;
   min-height: 0;
   padding: 0;
   gap: 0;
@@ -788,14 +790,14 @@ select {
   place-items: center;
   justify-items: center;
   width: 100%;
-  min-height: 4.15rem;
+  min-height: 4.55rem;
   border-radius: 0;
   background: transparent;
   padding: 0;
   overflow: visible;
 }
 .xi-shirt .jersey-img {
-  width: 2.7rem;
+  width: 3rem;
   height: auto;
   aspect-ratio: 66 / 87;
   object-fit: contain;
@@ -804,9 +806,9 @@ select {
 .xi-shirt .shirt-overlay {
   position: absolute;
   left: 50%;
-  bottom: 0.04rem;
+  bottom: 0.02rem;
   transform: translateX(-50%);
-  width: 2.85rem;
+  width: 3.15rem;
   z-index: 2;
   display: grid;
   gap: 0;
@@ -819,7 +821,7 @@ select {
   text-align: center;
   border-radius: 0;
   font-weight: 800;
-  line-height: 1.02;
+  line-height: 1.08;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -827,16 +829,16 @@ select {
 .xi-shirt .shirt-nameplate {
   background: #fff;
   color: #0b1b3f;
-  font-size: 0.45rem;
-  padding: 0.08rem 0.06rem 0.04rem;
+  font-size: 0.48rem;
+  padding: 0.12rem 0.08rem 0.06rem;
   box-shadow: none;
   text-shadow: none;
   filter: none;
   border-radius: 0.1rem 0.1rem 0 0;
 }
 .xi-shirt .shirt-foot {
-  font-size: 0.42rem;
-  padding: 0.03rem 0.06rem 0.08rem;
+  font-size: 0.44rem;
+  padding: 0.05rem 0.08rem 0.12rem;
   background: #fff;
   color: #102018;
   box-shadow: none;
@@ -898,16 +900,16 @@ select {
   justify-content: center;
   flex-wrap: nowrap;
 }
-.xi-bench-wrap .xi-card { width: 3.35rem; }
-.xi-bench-wrap .xi-shirt { width: 3.35rem; }
+.xi-bench-wrap .xi-card { width: 3.7rem; }
+.xi-bench-wrap .xi-shirt { width: 3.7rem; }
 .xi-bench-wrap .xi-shirt .shirt-kit {
-  min-height: 4.15rem;
+  min-height: 4.55rem;
   background: transparent;
 }
-.xi-bench-wrap .jersey-img { width: 2.7rem; }
-.xi-bench-wrap .shirt-overlay { width: 2.85rem; }
-.xi-bench-wrap .shirt-nameplate { font-size: 0.45rem; }
-.xi-bench-wrap .shirt-foot { font-size: 0.42rem; }
+.xi-bench-wrap .jersey-img { width: 3rem; }
+.xi-bench-wrap .shirt-overlay { width: 3.15rem; }
+.xi-bench-wrap .shirt-nameplate { font-size: 0.48rem; }
+.xi-bench-wrap .shirt-foot { font-size: 0.44rem; }
 
 .xi-header { margin-bottom: 0.35rem; }
 .xi-header h1 {
@@ -2291,37 +2293,41 @@ body.picker-open {
   .xi-pitch-wrap,
   .squad-pitch-wrap {
     width: min(100%, 22.5rem);
+    margin-left: auto;
+    margin-right: auto;
   }
   .xi-pitch {
-    min-height: 40rem;
-    height: min(80vh, 44rem);
-    padding: 1rem 0.45rem 1.25rem;
-    gap: 1.15rem;
+    min-height: 30rem;
+    height: min(64vh, 34rem);
+    padding: 0.55rem 0.4rem 1.5rem;
+    gap: 0.9rem;
+    padding-top: 2.7rem;
   }
   .squad-pitch {
-    min-height: 38rem;
-    height: min(78vh, 42rem);
-    gap: 1.05rem;
+    min-height: 28.5rem;
+    height: min(62vh, 32.5rem);
+    gap: 0.82rem;
+    padding-top: 2.55rem;
   }
-  .xi-card { width: 3.55rem; }
-  .xi-shirt { width: 3.55rem; }
-  .xi-shirt .shirt-kit { min-height: 4.35rem; }
-  .xi-shirt .jersey-img { width: 2.85rem; }
-  .xi-shirt .shirt-overlay { width: 3rem; }
-  .xi-shirt .shirt-nameplate { font-size: 0.48rem; padding: 0.1rem 0.08rem 0.04rem; }
-  .xi-shirt .shirt-foot { font-size: 0.44rem; padding: 0.03rem 0.08rem 0.1rem; }
+  .xi-card { width: 3.9rem; }
+  .xi-shirt { width: 3.9rem; }
+  .xi-shirt .shirt-kit { min-height: 4.8rem; }
+  .xi-shirt .jersey-img { width: 3.15rem; }
+  .xi-shirt .shirt-overlay { width: 3.3rem; }
+  .xi-shirt .shirt-nameplate { font-size: 0.5rem; padding: 0.13rem 0.09rem 0.06rem; }
+  .xi-shirt .shirt-foot { font-size: 0.46rem; padding: 0.05rem 0.09rem 0.13rem; }
   .xi-bench-wrap .bench { gap: 1.35rem; }
   .xi-bench-wrap .xi-card,
-  .xi-bench-wrap .xi-shirt { width: 3.55rem; }
-  .xi-bench-wrap .xi-shirt .shirt-kit { min-height: 4.35rem; }
-  .xi-bench-wrap .jersey-img { width: 2.85rem; }
-  .xi-bench-wrap .shirt-overlay { width: 3rem; }
-  .xi-bench-wrap .shirt-nameplate { font-size: 0.48rem; }
-  .xi-bench-wrap .shirt-foot { font-size: 0.44rem; }
+  .xi-bench-wrap .xi-shirt { width: 3.9rem; }
+  .xi-bench-wrap .xi-shirt .shirt-kit { min-height: 4.8rem; }
+  .xi-bench-wrap .jersey-img { width: 3.15rem; }
+  .xi-bench-wrap .shirt-overlay { width: 3.3rem; }
+  .xi-bench-wrap .shirt-nameplate { font-size: 0.5rem; }
+  .xi-bench-wrap .shirt-foot { font-size: 0.46rem; }
 
-  .squad-pitch-wrap .squad-card { width: 3.55rem; }
-  .squad-pitch-wrap .squad-shirt { width: 3.55rem; }
-  .squad-pitch-wrap .jersey-img { width: 2.85rem; }
+  .squad-pitch-wrap .squad-card { width: 3.9rem; }
+  .squad-pitch-wrap .squad-shirt { width: 3.9rem; }
+  .squad-pitch-wrap .jersey-img { width: 3.15rem; }
   .chip-strip-cards { justify-content: center; }
   .chip-card-fpl { width: 8rem; padding: 0.32rem 0.55rem 0.32rem 0.4rem; }
   .chip-card-fpl .chip-name { font-size: 0.78rem; }
@@ -2747,7 +2753,7 @@ body.picker-open {
   .budget-sub { font-size: 0.58rem; }
 
   .pitch-wrap {
-    margin: 0.2rem 0 0.2rem;
+    margin: 0.2rem auto;
     border-radius: 0.7rem;
   }
   .pitch {
@@ -2757,19 +2763,26 @@ body.picker-open {
   }
   .pitch-row { gap: 0.5rem; }
   .xi-pitch-wrap,
-  .squad-pitch-wrap { width: min(100%, 20.5rem); }
-  .xi-pitch .pitch-row { gap: 0.55rem; }
-  .squad-pitch .pitch-row { gap: 0.48rem; }
+  .squad-pitch-wrap {
+    width: min(100%, 21rem);
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .xi-pitch .pitch-row { gap: 0.55rem; justify-content: center; }
+  .squad-pitch .pitch-row { gap: 0.48rem; justify-content: center; }
   .xi-pitch {
-    padding-top: 3rem;
-    gap: 0.85rem;
-    min-height: 32rem;
-    height: min(72vh, 36rem);
+    padding-top: 2.2rem;
+    gap: 0.65rem;
+    min-height: 26rem;
+    height: min(58vh, 30rem);
+    padding-bottom: 1.15rem;
   }
   .squad-pitch {
-    gap: 0.75rem;
-    min-height: 30rem;
-    height: min(70vh, 34rem);
+    padding-top: 2.05rem;
+    gap: 0.58rem;
+    min-height: 24.5rem;
+    height: min(56vh, 28.5rem);
+    padding-bottom: 1.05rem;
   }
   .fx-badge { width: 1.45rem; height: 1.45rem; }
   .fx-club-name { display: none; }
@@ -2832,21 +2845,21 @@ body.picker-open {
   .shirt-card.is-vice .shirt {
     padding-bottom: 0.12rem;
   }
-  .xi-card { width: 3.15rem; }
-  .xi-shirt { width: 3.15rem; padding: 0; gap: 0; }
-  .xi-shirt .shirt-kit { min-height: 3.9rem; padding: 0; }
-  .xi-shirt .jersey-img { width: 2.5rem; }
-  .xi-shirt .shirt-overlay { width: 2.7rem; }
-  .xi-shirt .shirt-nameplate { font-size: 0.42rem; padding: 0.07rem 0.05rem 0.03rem; }
-  .xi-shirt .shirt-foot { font-size: 0.4rem; padding: 0.02rem 0.05rem 0.07rem; }
-  .xi-bench-wrap .bench { gap: 1rem; padding: 0.5rem 0.35rem; flex-wrap: nowrap; }
-  .xi-bench-wrap .xi-card { width: 3.15rem; }
-  .xi-bench-wrap .xi-shirt { width: 3.15rem; }
-  .xi-bench-wrap .xi-shirt .shirt-kit { min-height: 3.9rem; }
-  .xi-bench-wrap .jersey-img { width: 2.5rem; }
-  .xi-bench-wrap .shirt-overlay { width: 2.7rem; }
-  .xi-bench-wrap .shirt-nameplate { font-size: 0.42rem; }
-  .xi-bench-wrap .shirt-foot { font-size: 0.4rem; }
+  .xi-card { width: 3.45rem; }
+  .xi-shirt { width: 3.45rem; padding: 0; gap: 0; }
+  .xi-shirt .shirt-kit { min-height: 4.3rem; padding: 0; }
+  .xi-shirt .jersey-img { width: 2.75rem; }
+  .xi-shirt .shirt-overlay { width: 2.95rem; }
+  .xi-shirt .shirt-nameplate { font-size: 0.46rem; padding: 0.11rem 0.07rem 0.05rem; }
+  .xi-shirt .shirt-foot { font-size: 0.42rem; padding: 0.04rem 0.07rem 0.11rem; }
+  .xi-bench-wrap .bench { gap: 0.85rem; padding: 0.5rem 0.3rem; flex-wrap: nowrap; justify-content: center; }
+  .xi-bench-wrap .xi-card { width: 3.45rem; }
+  .xi-bench-wrap .xi-shirt { width: 3.45rem; }
+  .xi-bench-wrap .xi-shirt .shirt-kit { min-height: 4.3rem; }
+  .xi-bench-wrap .jersey-img { width: 2.75rem; }
+  .xi-bench-wrap .shirt-overlay { width: 2.95rem; }
+  .xi-bench-wrap .shirt-nameplate { font-size: 0.46rem; }
+  .xi-bench-wrap .shirt-foot { font-size: 0.42rem; }
   .picker-card { max-height: min(54vh, 24rem); }
   .pick-name { font-size: 0.9rem; }
   .pick-sub { font-size: 0.7rem; }
