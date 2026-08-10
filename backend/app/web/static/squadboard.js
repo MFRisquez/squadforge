@@ -268,10 +268,20 @@
 
   function setDetailPhoto(p) {
     if (!detailPhoto) return;
+    detailPhoto.onerror = null;
     if (p && p.photo) {
-      detailPhoto.src = p.photo;
       detailPhoto.hidden = false;
       detailPhoto.alt = p.name || "";
+      detailPhoto.dataset.fallbackTried = "";
+      detailPhoto.onerror = () => {
+        if (!detailPhoto.dataset.fallbackTried && p.photoFallback) {
+          detailPhoto.dataset.fallbackTried = "1";
+          detailPhoto.src = p.photoFallback;
+          return;
+        }
+        detailPhoto.hidden = true;
+      };
+      detailPhoto.src = p.photo;
     } else {
       detailPhoto.removeAttribute("src");
       detailPhoto.hidden = true;
@@ -385,6 +395,9 @@
       lockedNote.className = "muted tiny";
       lockedNote.textContent = "Transfers locked for this gameweek.";
       detailActions.appendChild(lockedNote);
+    }
+    if (playerDetail.parentElement !== document.body) {
+      document.body.appendChild(playerDetail);
     }
     playerDetail.hidden = false;
     loadPlayerProfile(p.id);

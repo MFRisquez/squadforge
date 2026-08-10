@@ -171,7 +171,7 @@ def td_view(db: Session, manager_id: int, gw_number: int, *, gameweek_id: int | 
         "pick": pick,
         "club_code": pick.club_code if pick else None,
         "club_name": club.name if club else (pick.club_code if pick else None),
-        "badge": badge_url(club.fpl_team_id) if club else None,
+        "badge": badge_url(club.code, kit_code=club.kit_code) if club else None,
         "start_gw": pick.start_gw if pick else None,
         "end_gw": pick.end_gw if pick else None,
         "banned_club": banned,

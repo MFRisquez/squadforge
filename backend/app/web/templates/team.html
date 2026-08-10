@@ -65,7 +65,7 @@
       <aside class="td-corner" aria-label="Technical Director">
         {% if td_info and td_info.club_code %}
           {% if td_info.badge %}
-          <img class="td-badge" src="{{ td_info.badge }}" alt="{{ td_info.club_code }} badge" width="36" height="36" />
+          <img class="td-badge" src="{{ td_info.badge }}" alt="{{ td_info.club_code }} badge" width="56" height="56" />
           {% endif %}
           <div class="td-corner-meta">
             <span class="td-kicker">{{ td_info.club_code }}</span>
@@ -84,21 +84,19 @@
           </div>
         {% endif %}
         {% if can_set_td %}
-        <details class="td-pick">
-          <summary>{% if td_info and td_info.club_code %}Change{% else %}Pick club{% endif %}</summary>
-          <div class="td-pick-form">
-            <label class="sr-only" for="tdClub">Club</label>
-            <select name="club_code" id="tdClub" form="tdForm" required>
-              {% for c in td_club_choices %}
-              <option value="{{ c.code }}" {% if td_info and td_info.club_code == c.code %}selected{% endif %}>{{ c.name }}</option>
-              {% endfor %}
-            </select>
-            <button class="chip-play" type="submit" form="tdForm">Save DT</button>
-          </div>
-          {% if td_info and td_info.banned_club %}
-          <p class="td-ban muted tiny">Not {{ td_info.banned_club }} (used last window)</p>
+        <label class="sr-only" for="tdClub">Technical Director club</label>
+        <select name="club_code" id="tdClub" class="td-select" form="tdForm" required
+          onchange="if (this.value) this.form.requestSubmit()">
+          {% if not td_info or not td_info.club_code %}
+          <option value="" selected disabled>Pick club…</option>
           {% endif %}
-        </details>
+          {% for c in td_club_choices %}
+          <option value="{{ c.code }}" {% if td_info and td_info.club_code == c.code %}selected{% endif %}>{{ c.name }}</option>
+          {% endfor %}
+        </select>
+        {% if td_info and td_info.banned_club %}
+        <p class="td-ban muted tiny">Not {{ td_info.banned_club }} next</p>
+        {% endif %}
         {% elif td_info and td_info.club_code %}
           <span class="td-locked muted tiny">Locked</span>
         {% endif %}

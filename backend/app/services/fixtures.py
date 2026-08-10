@@ -257,14 +257,14 @@ def fixtures_for_gameweek(db: Session, *, gw_number: int) -> list[dict[str, Any]
                     "name": home.name if home else fx.home_club_code,
                     "score": fx.home_score,
                     "difficulty": map_fdr(fx.home_difficulty),
-                    "badge": badge_url(home.fpl_team_id) if home else None,
+                    "badge": badge_url(fx.home_club_code, kit_code=home.kit_code if home else None),
                 },
                 "away": {
                     "code": fx.away_club_code,
                     "name": away.name if away else fx.away_club_code,
                     "score": fx.away_score,
                     "difficulty": map_fdr(fx.away_difficulty),
-                    "badge": badge_url(away.fpl_team_id) if away else None,
+                    "badge": badge_url(fx.away_club_code, kit_code=away.kit_code if away else None),
                 },
             }
         )

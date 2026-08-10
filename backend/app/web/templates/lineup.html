@@ -6,14 +6,12 @@
 {% set xi_title = (manager.team_name if manager.team_name else manager.display_name) %}
 {{ gw_bar(gw, deadline_label, edits_locked, prev_gw, next_gw, '/lineup') }}
 
-<div class="pick-header xi-header">
-  <div>
-    <h1>{% if edits_locked %}{{ xi_title }} · Live{% else %}{{ xi_title }} · Starting XI{% endif %}</h1>
-  </div>
-  <div class="budget-card xi-score-card {% if not edits_locked %}is-preview{% endif %}">
-    <span class="budget-label">GW{{ gw.number }} points</span>
+<div class="xi-top">
+  <h1 class="xi-title">{% if edits_locked %}{{ xi_title }} · Live{% else %}{{ xi_title }} · Starting XI{% endif %}</h1>
+  <div class="xi-score-pill {% if not edits_locked %}is-preview{% endif %}" aria-label="Gameweek points">
+    <span class="xi-score-label">GW{{ gw.number }}</span>
     <strong id="gwTotalScore">{% if gw_total is not none %}{{ '%.0f'|format(gw_total) }}{% else %}—{% endif %}</strong>
-    <span class="budget-sub">{% if edits_locked %}total score{% else %}after deadline{% endif %}</span>
+    <span class="xi-score-sub">pts</span>
   </div>
 </div>
 
@@ -47,7 +45,7 @@
       <aside class="td-corner td-corner-xi" aria-label="Technical Director">
         {% if td_info and td_info.club_code %}
           {% if td_info.badge %}
-          <img class="td-badge" src="{{ td_info.badge }}" alt="" width="36" height="36" />
+          <img class="td-badge" src="{{ td_info.badge }}" alt="" width="56" height="56" />
           {% endif %}
           <div class="td-corner-meta">
             <span class="td-kicker">{{ td_info.club_code }}</span>

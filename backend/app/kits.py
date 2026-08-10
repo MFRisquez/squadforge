@@ -1,8 +1,8 @@
-"""Premier League shirt assets (FPL CDN kit codes by short_name)."""
+"""Premier League shirt / badge / photo assets (FPL CDN)."""
 
 from __future__ import annotations
 
-# FPL team `code` used in shirt_{code}-66.webp (updated for current season bootstrap)
+# FPL team `code` used in shirt_{code}-66.webp and badges/{code}.svg
 KIT_CODE_BY_SHORT: dict[str, int] = {
     "ARS": 3,
     "AVL": 7,
@@ -31,6 +31,7 @@ KIT_CODE_BY_SHORT: dict[str, int] = {
 
 SHIRT_CDN = "https://fantasy.premierleague.com/dist/img/shirts/standard"
 PHOTO_CDN = "https://resources.premierleague.com/premierleague/photos/players/250x250"
+PHOTO_CDN_FALLBACK = "https://resources.premierleague.com/premierleague/photos/players/110x140"
 BADGE_CDN = "https://resources.premierleague.com/premierleague25/badges"
 
 
@@ -50,22 +51,41 @@ def shirt_url(team_code: str, *, position: str = "MID", kit_code: int | None = N
     return f"{SHIRT_CDN}/shirt_{code}-66.webp"
 
 
-def photo_url(photo: str | None) -> str | None:
-    """FPL headshot URL from bootstrap `photo` field (e.g. 80201.jpg)."""
+def photo_code(photo: str | None) -> str | None:
     raw = (photo or "").strip()
     if not raw:
         return None
     code = raw.split(".")[0]
-    if not code.isdigit():
+    return code if code.isdigit() else None
+
+
+def photo_url(photo: str | None) -> str | None:
+    """FPL headshot URL from bootstrap `photo` field (e.g. 80201.jpg)."""
+    code = photo_code(photo)
+    if not code:
         return None
     return f"{PHOTO_CDN}/p{code}.png"
 
 
-def badge_url(fpl_team_id: int | None) -> str | None:
-    """Official PL badge SVG from FPL team id."""
-    if not fpl_team_id:
+def photo_fallback_url(photo: str | None) -> str | None:
+    code = photo_code(photo)
+    if not code:
         return None
-    return f"{BADGE_CDN}/{int(fpl_team_id)}.svg"
+    return f"{PHOTO_CDN_FALLBACK}/p{code}.png"
+
+
+def badge_url(
+    team_code: str = "",
+    *,
+    kit_code: int | None = None,
+    fpl_team_id: int | None = None,
+) -> str | None:
+    """PL badge SVG — uses FPL kit/team *code* (not bootstrap team id)."""
+    code = kit_code_for(team_code, kit_code)
+    # Never use fpl_team_id here: badges are keyed by kit code (NEW=4, NFO=17).
+    if not code:
+        return None
+    return f"{BADGE_CDN}/{int(code)}.svg"
 
 
 def kit_for(
@@ -80,4 +100,6 @@ def kit_for(
         "kitCode": code,
         "shirt": shirt_url(team_code, position=position, kit_code=code),
         "photo": photo_url(photo),
+        "photoFallback": photo_fallback_url(photo),
+        "badge": badge_url(team_code, kit_code=code),
     }

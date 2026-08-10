@@ -268,10 +268,20 @@
     detailEyebrow.textContent = LOCKED ? `Match · GW${GW || ""}` : `XI · ${player.position}`;
     detailName.textContent = player.name;
     if (detailPhoto) {
+      detailPhoto.onerror = null;
       if (player.photo) {
-        detailPhoto.src = player.photo;
         detailPhoto.hidden = false;
         detailPhoto.alt = player.name;
+        detailPhoto.dataset.fallbackTried = "";
+        detailPhoto.onerror = () => {
+          if (!detailPhoto.dataset.fallbackTried && player.photoFallback) {
+            detailPhoto.dataset.fallbackTried = "1";
+            detailPhoto.src = player.photoFallback;
+            return;
+          }
+          detailPhoto.hidden = true;
+        };
+        detailPhoto.src = player.photo;
       } else {
         detailPhoto.removeAttribute("src");
         detailPhoto.hidden = true;
@@ -356,6 +366,9 @@
         squad.textContent = "Season stats on Squad";
         detailActions.appendChild(squad);
       }
+    }
+    if (playerDetail.parentElement !== document.body) {
+      document.body.appendChild(playerDetail);
     }
     playerDetail.hidden = false;
     if (LOCKED) loadMatchProfile(player.id);

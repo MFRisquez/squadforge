@@ -72,7 +72,11 @@
       }
       <p class="muted tiny">Kickoff ${formatKickoff(data.kickoff)} · GW${data.gw}</p>
     `;
+    if (matchDetail.parentElement !== document.body) {
+      document.body.appendChild(matchDetail);
+    }
     matchDetail.hidden = false;
+    matchDetail.scrollTop = 0;
   }
 
   function openMatch(id) {
@@ -86,6 +90,9 @@
         matchEyebrow.textContent = "Match";
         matchTitle.textContent = "Unavailable";
         matchBody.innerHTML = `<p class="muted">Couldn’t load match detail.</p>`;
+        if (matchDetail.parentElement !== document.body) {
+          document.body.appendChild(matchDetail);
+        }
         matchDetail.hidden = false;
       });
   }
