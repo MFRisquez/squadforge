@@ -1,22 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Select your Squad · {{ app_name }}{% endblock %}
+{% block title %}Squad · {{ app_name }}{% endblock %}
 {% block content %}
 {% from "macros_gw.html" import gw_bar %}
 {% from "macros_chips.html" import chip_strip %}
 
 {{ gw_bar(gw, deadline_label, edits_locked, prev_gw, next_gw, '/team') }}
 
-<section class="hero-block compact">
-  <p class="eyebrow">Squad &amp; Transfers</p>
-  <h1>Select your Squad</h1>
-  <p class="lede tight" id="modeHint">
-    {% if edits_locked %}
-      This gameweek is locked. Browse with the arrows above, or wait for the next deadline.
-    {% else %}
-      Tap a player → Transfer out → pick their replacement.
-    {% endif %}
-  </p>
-</section>
+<p class="sr-only" id="modeHint">
+  {% if edits_locked %}Gameweek locked.{% else %}Edit your squad and transfers.{% endif %}
+</p>
 
 {{ chip_strip(chips, active_chip, edits_locked, bench_options, group='squad', next_path='/team') }}
 

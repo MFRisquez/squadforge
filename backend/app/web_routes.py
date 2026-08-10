@@ -899,7 +899,12 @@ def td_save(
 
     from fastapi.responses import JSONResponse
 
-    wants_json = "application/json" in (request.headers.get("accept") or "")
+    accept = (request.headers.get("accept") or "").lower()
+    wants_json = (
+        "application/json" in accept
+        or request.query_params.get("format") == "json"
+        or (request.headers.get("x-requested-with") or "").lower() == "fetch"
+    )
     manager = current_manager(request, db)
     if not manager:
         if wants_json:

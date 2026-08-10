@@ -156,7 +156,7 @@
     budgetValue.classList.toggle("over", left < -0.01);
     squadCount.textContent = `${filledIds().length}/15`;
     if (LOCKED) {
-      modeHint.textContent = "Gameweek locked — tap a player for info.";
+      if (modeHint) modeHint.textContent = "Gameweek locked.";
       if (saveSquadBtn) saveSquadBtn.hidden = true;
       syncHidden();
       refreshSwapBar();
@@ -164,22 +164,30 @@
     }
     const canFree = freeEdit();
     if (canFree) {
-      modeHint.textContent = isComplete()
-        ? `Tap a player → Transfer out → choose a replacement (${PLAYERS.length} players).`
-        : `Tap empty slots to pick · tap a player to Transfer out (${PLAYERS.length} players).`;
+      if (modeHint) {
+        modeHint.textContent = isComplete()
+          ? "Squad full — tap a player to transfer them out."
+          : "Tap empty slots to build your 15.";
+      }
       if (saveSquadBtn) saveSquadBtn.hidden = false;
       if (buildActions) buildActions.style.display = "";
     } else if (outPlayer && !inPlayer) {
-      modeHint.textContent = `${outPlayer.name} out — pick a ${outPlayer.position} from the list.`;
+      if (modeHint) {
+        modeHint.textContent = `${outPlayer.name} out — pick a ${outPlayer.position} from the list.`;
+      }
       if (saveSquadBtn) saveSquadBtn.hidden = true;
     } else if (outPlayer && inPlayer) {
-      modeHint.textContent = `Confirm ${outPlayer.name} → ${inPlayer.name} below, or cancel.`;
+      if (modeHint) {
+        modeHint.textContent = `Confirm ${outPlayer.name} → ${inPlayer.name} below, or cancel.`;
+      }
       if (saveSquadBtn) saveSquadBtn.hidden = true;
     } else {
-      modeHint.textContent =
-        FT_LEFT < 1
-          ? `Tap a player → Transfer out (−${HIT_COST} hit). Or play WC / FH.`
-          : `Tap a player → Transfer out → pick their replacement.`;
+      if (modeHint) {
+        modeHint.textContent =
+          FT_LEFT < 1
+            ? `Tap a player → Transfer out (−${HIT_COST} hit). Or play WC / FH.`
+            : "Tap a player to transfer them out.";
+      }
       if (saveSquadBtn) saveSquadBtn.hidden = true;
     }
     syncHidden();
@@ -740,86 +748,116 @@
     }
   }
 
-  if (!PLAYERS.length) {
+  if (!PLAYERS.length && modeHint) {
     modeHint.textContent =
       "No players loaded — go Home and tap Refresh players from FPL.";
   }
 
   function paintTdCorner(info) {
     const corner = document.querySelector(".td-corner");
-    if (!corner || !info) return;
-    const select = corner.querySelector("#tdClub");
-    const selectHtml = select ? select.outerHTML : "";
-    const ban = info.banned_club
-      ? `<p class="td-ban muted tiny">Not ${info.banned_club} next</p>`
-      : "";
+    if (!corner || !info || !info.club_code) return;
+
+    let badge = corner.querySelector(".td-badge");
+    if (info.badge) {
+      if (!badge) {
+        badge = document.createElement("img");
+        badge.className = "td-badge";
+        badge.width = 56;
+        badge.height = 56;
+        corner.insertBefore(badge, corner.firstChild);
+      }
+      badge.src = info.badge;
+      badge.alt = `${info.club_code} badge`;
+      badge.hidden = false;
+    } else if (badge) {
+      badge.hidden = true;
+    }
+
+    let meta = corner.querySelector(".td-corner-meta");
+    if (!meta) {
+      meta = document.createElement("div");
+      meta.className = "td-corner-meta";
+      const selectEl = corner.querySelector("#tdClub");
+      if (selectEl) corner.insertBefore(meta, selectEl);
+      else corner.appendChild(meta);
+    }
     const foot = info.fixture_line
       ? `<span class="td-foot fdr-${info.fixture_fdr || 3}">${info.fixture_line}</span>`
       : info.start_gw
         ? `<span class="td-window">GW${info.start_gw}–${info.end_gw}</span>`
         : "";
-    const badge = info.badge
-      ? `<img class="td-badge" src="${info.badge}" alt="${info.club_code || ""} badge" width="56" height="56" />`
-      : "";
-    corner.innerHTML = `
-      ${badge}
-      <div class="td-corner-meta">
-        <span class="td-kicker">${info.club_code || "Pick"}</span>
-        <strong>DT</strong>
-        ${foot}
-      </div>
-      ${selectHtml}
-      ${ban}
+    meta.innerHTML = `
+      <span class="td-kicker">${info.club_code}</span>
+      <strong>DT</strong>
+      ${foot}
     `;
-    const nextSelect = corner.querySelector("#tdClub");
-    if (nextSelect && info.club_code) {
-      nextSelect.value = info.club_code;
+
+    const select = corner.querySelector("#tdClub");
+    if (select) {
+      select.value = info.club_code;
+      // Drop placeholder once a club is chosen.
+      const placeholder = select.querySelector('option[value=""]');
+      if (placeholder) placeholder.remove();
     }
-    bindTdSelect(nextSelect);
+
+    let ban = corner.querySelector(".td-ban");
+    if (info.banned_club) {
+      if (!ban) {
+        ban = document.createElement("p");
+        ban.className = "td-ban muted tiny";
+        corner.appendChild(ban);
+      }
+      ban.textContent = `Not ${info.banned_club} next`;
+    } else if (ban) {
+      ban.remove();
+    }
   }
 
-  function bindTdSelect(select) {
-    if (!select || select.dataset.softBound) return;
-    select.dataset.softBound = "1";
-    select.addEventListener("change", async () => {
-      const club = select.value;
-      if (!club) return;
-      const corner = document.querySelector(".td-corner");
-      select.disabled = true;
-      if (corner) corner.classList.add("is-updating");
-      try {
-        const body = new URLSearchParams({ club_code: club });
-        const res = await fetch("/td/save", {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body,
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || data.error) {
-          throw new Error(data.error || "Could not update DT");
-        }
-        paintTdCorner(data.td || data);
-      } catch (err) {
-        alert(err.message || "Could not update DT");
-      } finally {
-        const next = document.getElementById("tdClub");
-        if (next) next.disabled = false;
-        const painted = document.querySelector(".td-corner");
-        if (painted) painted.classList.remove("is-updating");
+  async function saveTdClub(select) {
+    const club = select && select.value;
+    if (!club) return;
+    const corner = document.querySelector(".td-corner");
+    select.disabled = true;
+    if (corner) corner.classList.add("is-updating");
+    try {
+      const body = new URLSearchParams({ club_code: club });
+      const res = await fetch("/td/save?format=json", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-Requested-With": "fetch",
+        },
+        credentials: "same-origin",
+        redirect: "manual",
+        body,
+      });
+      if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
+        throw new Error("Could not update DT — try again");
       }
-    });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.error || !data.td) {
+        throw new Error(data.error || "Could not update DT");
+      }
+      paintTdCorner(data.td);
+    } catch (err) {
+      alert(err.message || "Could not update DT");
+    } finally {
+      select.disabled = false;
+      if (corner) corner.classList.remove("is-updating");
+    }
   }
 
   const tdForm = document.getElementById("tdForm");
-  const tdClub = document.getElementById("tdClub");
-  if (tdForm && tdClub) {
-    // Soft update — block the full-page form submit flash.
+  const tdCorner = document.querySelector(".td-corner");
+  if (tdForm) {
     tdForm.addEventListener("submit", (e) => e.preventDefault());
-    tdClub.removeAttribute("onchange");
-    bindTdSelect(tdClub);
+  }
+  if (tdCorner) {
+    tdCorner.addEventListener("change", (e) => {
+      const select = e.target && e.target.id === "tdClub" ? e.target : null;
+      if (select) saveTdClub(select);
+    });
   }
 
   render();
