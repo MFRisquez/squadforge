@@ -14,7 +14,11 @@
 }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 body {
   margin: 0;
   min-height: 100vh;
@@ -510,6 +514,7 @@ input, select {
   background: #102a1a;
   color: #e8ffe8;
 }
+.swap-bar[hidden] { display: none !important; }
 .swap-summary {
   flex: 1 1 10rem;
   margin: 0;
@@ -1560,15 +1565,272 @@ table.standings th { color: var(--muted); font-weight: 700; font-size: 0.75rem; 
   padding-bottom: calc(0.55rem + env(safe-area-inset-bottom, 0px));
 }
 
-@media (max-width: 420px) {
-  .chip-pill { min-width: 7.6rem; }
-  .chip-pill-ss { min-width: 10.2rem; }
+/* Phone density — desktop/laptop unchanged above this breakpoint */
+@media (max-width: 640px) {
+  :root {
+    --shadow: 0 6px 16px rgba(15, 35, 80, 0.07);
+  }
+
+  .top {
+    gap: 0.35rem;
+    padding: 0.35rem 0.6rem;
+    padding-top: calc(0.35rem + env(safe-area-inset-top, 0px));
+    padding-left: calc(0.6rem + env(safe-area-inset-left, 0px));
+    padding-right: calc(0.6rem + env(safe-area-inset-right, 0px));
+  }
+  .brand { font-size: 0.9rem; }
+  .who { font-size: 0.68rem; max-width: 5.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pill { padding: 0.08rem 0.35rem; font-size: 0.62rem; }
+
+  .nav {
+    gap: 0.08rem;
+    padding: 0.2rem 0.3rem;
+    top: calc(2.1rem + env(safe-area-inset-top, 0px));
+  }
+  .nav a {
+    padding: 0.22rem 0.4rem;
+    font-size: 0.68rem;
+    gap: 0.15rem;
+  }
+  .nav-ico { font-size: 0.72rem; }
+
+  .shell {
+    padding: 0.4rem 0.45rem calc(0.7rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .eyebrow { font-size: 0.58rem; margin-bottom: 0.12rem; }
+  h1 {
+    font-size: clamp(1.1rem, 4.8vw, 1.35rem);
+    margin-bottom: 0.15rem;
+  }
+  h2 { font-size: 0.86rem; margin-bottom: 0.28rem; }
+  .lede { margin-bottom: 0.4rem; font-size: 0.8rem; line-height: 1.3; }
+  .lede.tight { margin-bottom: 0.25rem; font-size: 0.76rem; }
+  .hero-block { margin-bottom: 0.4rem; }
+  .hero-block.compact { margin-bottom: 0.2rem; }
+  .hero-block.compact .lede { display: none; }
+
+  .panel {
+    padding: 0.55rem 0.6rem;
+    margin-bottom: 0.45rem;
+    border-radius: 0.7rem;
+  }
+  .panel.soft { padding: 0.45rem 0.55rem; }
+
+  .btn {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.8rem;
+  }
+  .btn.mini-btn,
+  .mini-btn {
+    padding: 0.28rem 0.45rem;
+    font-size: 0.68rem;
+  }
+
+  .gw-bar {
+    padding: 0.35rem 0.45rem;
+    margin-bottom: 0.35rem;
+    border-radius: 0.65rem;
+  }
+  .gw-arrow { width: 1.55rem; height: 1.55rem; font-size: 0.9rem; }
+  .gw-title strong { font-size: 0.84rem; }
+  .gw-deadline { font-size: 0.64rem; }
+  .gw-status { margin-top: 0.2rem; font-size: 0.66rem; }
+
+  .chip-strip-wrap { margin-bottom: 0.35rem; }
+  .chip-strip-head { margin-bottom: 0.15rem; }
+  .chip-strip-head h2 { font-size: 0.78rem; }
+  .chip-pill {
+    min-width: 5.6rem;
+    gap: 0.22rem;
+    padding: 0.22rem 0.32rem;
+  }
+  .chip-pill-ss { min-width: 7.6rem; }
+  .chip-short {
+    width: 1.2rem;
+    height: 1.2rem;
+    font-size: 0.5rem;
+  }
+  .chip-meta strong { font-size: 0.6rem; }
+  .chip-meta em { font-size: 0.52rem; }
+  .chip-play,
+  .chip-state { font-size: 0.58rem; padding: 0.18rem 0.4rem; }
+  .chip-footnote { display: none; }
+  .chip-ss-form { display: none; }
+
+  .stat-strip {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.22rem;
+    margin-bottom: 0.3rem;
+  }
+  .stat {
+    padding: 0.28rem 0.2rem;
+    border-radius: 0.45rem;
+    box-shadow: none;
+  }
+  .stat-label { font-size: 0.48rem; letter-spacing: 0.02em; }
+  .stat strong { font-size: 0.8rem; margin: 0; }
+  .stat-sub { display: none; }
+
+  .budget-card {
+    padding: 0.32rem 0.45rem;
+    min-width: 4.8rem;
+    border-radius: 0.6rem;
+  }
+  .budget-label { font-size: 0.55rem; }
+  .budget-card strong { font-size: 0.92rem; }
+  .budget-sub { font-size: 0.58rem; }
+
+  .pitch-wrap {
+    margin: 0.2rem 0 0.2rem;
+    border-radius: 0.7rem;
+  }
+  .pitch {
+    padding: 0.3rem 0.12rem 0.35rem;
+    min-height: 0;
+    gap: 0.12rem;
+  }
+  .pitch.pitch-photo { min-height: 0; }
+  .pitch-row { gap: 0.08rem; }
+  .pitch-meta {
+    margin: 0.1rem 0 0.25rem;
+    font-size: 0.66rem;
+  }
+
+  .shirt {
+    width: 3.15rem;
+    min-height: 3.7rem;
+    padding: 0.06rem 0.05rem 0.12rem;
+    border-radius: 0.35rem;
+  }
+  .shirt.empty,
+  .shirt.jersey-empty {
+    min-height: 3.5rem;
+    border-radius: 0.45rem;
+    border-width: 1.5px;
+  }
+  .jersey-img {
+    width: 2.15rem;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.28));
+  }
+  .shirt-price { font-size: 0.5rem; }
+  .shirt-name {
+    font-size: 0.5rem;
+    max-width: 3rem;
+    line-height: 1.05;
+  }
+  .shirt-team, .shirt-hint { font-size: 0.46rem; }
+  .shirt-action { display: none; }
+  .plus { font-size: 0.85rem; }
+  .role-badge {
+    width: 1.05rem;
+    height: 1.05rem;
+    top: -0.2rem;
+    right: -0.2rem;
+    font-size: 0.52rem;
+    border-width: 1.5px;
+  }
+  .role-badge.role-v { left: -0.2rem; }
+  .shirt-fdr {
+    top: 0.05rem;
+    left: 0.04rem;
+    padding: 0.06rem 0.14rem;
+    font-size: 0.42rem;
+    border-radius: 0.2rem;
+  }
+  .shirt-fdr em { font-size: 0.38rem; }
+  .shirt-pts { font-size: 0.62rem; }
+
+  .bench {
+    gap: 0.18rem;
+    padding: 0.35rem;
+    border-radius: 0.65rem;
+  }
+  .bench-wrap h2 { margin-bottom: 0.2rem; font-size: 0.8rem; }
+  .slot-row .shirt.empty,
+  .bench .shirt.empty {
+    min-width: 3.05rem;
+    min-height: 3.5rem;
+  }
+
+  .browse-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.22rem;
+    margin: 0.15rem 0 0.3rem;
+  }
+  .pick-actions {
+    padding: 0.28rem;
+    gap: 0.28rem;
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .pick-actions .btn { flex: 1 1 auto; text-align: center; }
+
+  .howto { margin-bottom: 0.4rem; }
+  .howto-grid { gap: 0.28rem; }
+  .howto-card {
+    padding: 0.4rem 0.45rem;
+    border-radius: 0.6rem;
+    gap: 0.05rem;
+  }
+  .howto-card strong { font-size: 0.8rem; }
+  .howto-card span:last-child { font-size: 0.64rem; }
+  .howto-step {
+    width: 1.05rem;
+    height: 1.05rem;
+    font-size: 0.6rem;
+  }
+  .section-title {
+    font-size: 0.7rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .step-card { gap: 0.45rem; }
+  .step-num { width: 1.4rem; height: 1.4rem; font-size: 0.75rem; }
+  .welcome-row { gap: 0.35rem; }
+  .soft-form { padding: 0.45rem; border-radius: 0.6rem; }
+  .split-forms { gap: 0.4rem; margin-top: 0.4rem; }
+  .action-row { margin-bottom: 0.35rem; gap: 0.35rem; }
+
+  .captain-panel { padding: 0.45rem 0.55rem; }
+  .cap-grid { gap: 0.35rem; }
+  .captain-ready { gap: 0.5rem; margin-top: 0.4rem; font-size: 0.82rem; }
+  label { font-size: 0.76rem; gap: 0.2rem; }
+  input, select { padding: 0.42rem 0.5rem; border-radius: 0.5rem; font-size: 0.86rem; }
+
+  .kit-portrait { width: 52px; height: 66px; }
+  .kit-portrait .kit-shirt { width: 48px; height: 62px; }
+  .kit-portrait .kit-face { width: 28px; height: 28px; }
+  .icon-btn { width: 1.7rem; height: 1.7rem; font-size: 0.82rem; }
+  .pick-info-btn { width: 1.85rem; font-size: 0.72rem; }
+  .pick-row { padding: 0.45rem 0.35rem; gap: 0.4rem; }
+  .pick-jersey { width: 1.4rem; }
+
+  .flash { padding: 0.4rem 0.55rem; margin-bottom: 0.4rem; border-radius: 0.55rem; font-size: 0.8rem; }
+  .td-inline { margin-top: 0.4rem; }
+  .td-inline .muted { font-size: 0.72rem; }
+  .h2h-card { padding: 0.45rem 0.4rem; gap: 0.3rem; }
+  .h2h-pts { font-size: 1.15rem; }
+  .standings-actions { margin: 0.5rem 0 0.85rem; gap: 0.35rem; }
+  .league-list li { padding: 0.45rem 0; }
+  .empty-state { padding: 0.85rem 0.55rem; }
+
   .standings th:nth-child(5),
   .standings td:nth-child(5),
   .standings th:nth-child(6),
   .standings td:nth-child(6) {
     display: none;
   }
-  .howto-grid { gap: 0.4rem; }
-  .howto-card { padding: 0.7rem; border-radius: 0.85rem; }
+}
+
+/* Extra-tight phones (SE / mini / zoomed) */
+@media (max-width: 390px) {
+  .shirt { width: 2.95rem; min-height: 3.45rem; }
+  .jersey-img { width: 2rem; }
+  .shirt-name { max-width: 2.85rem; font-size: 0.48rem; }
+  .stat-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .stat:nth-child(n + 4) { display: none; }
+  .nav a { padding: 0.2rem 0.32rem; }
+  .chip-pill { min-width: 5.2rem; }
 }
