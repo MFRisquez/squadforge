@@ -13,7 +13,7 @@
     {% if edits_locked %}
       This gameweek is locked. Browse with the arrows above, or wait for the next deadline.
     {% else %}
-      Tap a player for season stats & fixtures · replace / transfer from the sheet.
+      Tap a player → remove from squad → tap the empty slot to search for a replacement.
     {% endif %}
   </p>
 </section>
@@ -69,12 +69,6 @@
   </section>
   <p class="pitch-meta" id="pitchMeta">2 GK · 5 DEF · 5 MID · 3 ATT</p>
   {% if not edits_locked %}
-  <div class="browse-row" id="browseRow">
-    <button type="button" class="btn ghost mini-btn" data-browse="GK">Browse GK</button>
-    <button type="button" class="btn ghost mini-btn" data-browse="DEF">Browse DEF</button>
-    <button type="button" class="btn ghost mini-btn" data-browse="MID">Browse MID</button>
-    <button type="button" class="btn ghost mini-btn" data-browse="ATT">Browse ATT</button>
-  </div>
   <div class="pick-actions" id="buildActions">
     <button class="btn" type="submit" id="saveSquadBtn">Save squad</button>
     <a class="btn ghost" href="/lineup">Set lineup · C / V</a>

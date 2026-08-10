@@ -18,8 +18,6 @@
   const bench = document.getElementById("bench");
   const formationLabel = document.getElementById("formationLabel");
   const hiddenFields = document.getElementById("hiddenFields");
-  const captainName = document.getElementById("captainName");
-  const viceName = document.getElementById("viceName");
   const playerDetail = document.getElementById("playerDetail");
   const detailEyebrow = document.getElementById("detailEyebrow");
   const detailName = document.getElementById("detailName");
@@ -100,14 +98,6 @@
     v.name = "vice_id";
     v.value = String(viceId || "");
     hiddenFields.appendChild(v);
-  }
-
-  function syncNames() {
-    ensureRoles();
-    const cap = byId[captainId];
-    const vice = byId[viceId];
-    if (captainName) captainName.textContent = cap ? cap.name : "—";
-    if (viceName) viceName.textContent = vice ? vice.name : "—";
   }
 
   function closeDetail() {
@@ -330,7 +320,7 @@
     formationLabel.textContent = LOCKED
       ? `Formation ${c.DEF}-${c.MID}-${c.ATT} · locked`
       : `Formation ${c.DEF}-${c.MID}-${c.ATT} · ${starterIds.size}/11 starters`;
-    syncNames();
+    ensureRoles();
     syncHidden();
   }
 

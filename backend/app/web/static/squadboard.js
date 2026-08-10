@@ -67,6 +67,7 @@
   let active = null; // { pos, index }
   let outPlayer = null;
   let inPlayer = null;
+  let removedSlot = null; // { pos, index } while a transfer is pending
   let pickerMode = "add"; // add | replace | transfer
   let detailContext = null; // { player, fromPicker, pos, index }
 
@@ -149,15 +150,21 @@
     const canFree = freeEdit();
     if (canFree) {
       modeHint.textContent = isComplete()
-        ? `Tap a player for stats · replace from the sheet (${PLAYERS.length} in catalogue).`
-        : `Tap empty slots to pick · tap a player for stats (${PLAYERS.length} players).`;
+        ? `Tap a player → Remove from squad → tap the empty slot to search (${PLAYERS.length} players).`
+        : `Tap empty slots to pick · tap a player to remove/replace (${PLAYERS.length} players).`;
       if (saveSquadBtn) saveSquadBtn.hidden = false;
       if (buildActions) buildActions.style.display = "";
+    } else if (outPlayer && !inPlayer) {
+      modeHint.textContent = `Removed ${outPlayer.name}. Tap the empty ${outPlayer.position} slot to search for a replacement.`;
+      if (saveSquadBtn) saveSquadBtn.hidden = true;
+    } else if (outPlayer && inPlayer) {
+      modeHint.textContent = `Confirm ${outPlayer.name} → ${inPlayer.name} below, or cancel.`;
+      if (saveSquadBtn) saveSquadBtn.hidden = true;
     } else {
       modeHint.textContent =
         FT_LEFT < 1
-          ? `Tap a player for stats / transfer (−${HIT_COST} hit). Or play WC / FH.`
-          : `Tap a player for stats, transfers, or XI / bench.`;
+          ? `Tap a player → Remove from squad to transfer (−${HIT_COST} hit). Or play WC / FH.`
+          : `Tap a player → Remove from squad, then fill the empty slot.`;
       if (saveSquadBtn) saveSquadBtn.hidden = true;
     }
     syncHidden();
@@ -185,8 +192,49 @@
       inIdEl.value = "";
       confirmSwap.disabled = true;
       const hitHint = !UNLIMITED && FT_LEFT < 1 ? ` (−${HIT_COST} hit)` : "";
-      swapSummary.textContent = `Out: ${outPlayer.name}${hitHint} — choose who comes in`;
+      swapSummary.textContent = `${outPlayer.name} out${hitHint} — tap empty ${outPlayer.position} slot to search`;
     }
+  }
+
+  function clearPendingTransfer() {
+    if (removedSlot && outPlayer) {
+      slots[removedSlot.pos][removedSlot.index] = outPlayer.id;
+    }
+    outPlayer = null;
+    inPlayer = null;
+    removedSlot = null;
+    active = null;
+    render();
+  }
+
+  function removeFromSquad(pos, index) {
+    const id = slots[pos][index];
+    if (!id || LOCKED) return;
+    const p = byId[id];
+    if (!p) return;
+
+    if (freeEdit()) {
+      slots[pos][index] = null;
+      outPlayer = null;
+      inPlayer = null;
+      removedSlot = null;
+      closeDetail();
+      render();
+      return;
+    }
+
+    if (outPlayer && (!removedSlot || removedSlot.pos !== pos || removedSlot.index !== index)) {
+      alert("Finish or cancel the current transfer first.");
+      return;
+    }
+
+    outPlayer = p;
+    inPlayer = null;
+    removedSlot = { pos, index };
+    active = { pos, index };
+    slots[pos][index] = null;
+    closeDetail();
+    render();
   }
 
   function statusLabel(p) {
@@ -277,29 +325,32 @@
         select.type = "button";
         select.className = "btn";
         select.textContent =
-          pickerMode === "transfer" ? "Select for transfer" : pickerMode === "replace" ? "Select player" : "Add to squad";
+          pickerMode === "transfer" ? "Bring into squad" : pickerMode === "replace" ? "Select player" : "Add to squad";
         select.addEventListener("click", () => {
           closeDetail();
           pickPlayer(p);
         });
         detailActions.appendChild(select);
       } else if (opts.pos != null && opts.index != null) {
-        const act = document.createElement("button");
-        act.type = "button";
-        act.className = "btn";
-        act.textContent = freeEdit() ? "Replace player" : "Transfer out";
-        act.addEventListener("click", () => {
-          closeDetail();
-          if (freeEdit()) {
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "btn danger-btn";
+        removeBtn.textContent = freeEdit() ? "Remove from squad" : "Remove from squad";
+        removeBtn.addEventListener("click", () => removeFromSquad(opts.pos, opts.index));
+        detailActions.appendChild(removeBtn);
+
+        if (freeEdit()) {
+          const replaceBtn = document.createElement("button");
+          replaceBtn.type = "button";
+          replaceBtn.className = "btn ghost";
+          replaceBtn.textContent = "Replace now";
+          replaceBtn.addEventListener("click", () => {
+            closeDetail();
             openPicker(opts.pos, opts.index, "replace");
-          } else {
-            outPlayer = p;
-            inPlayer = null;
-            active = { pos: opts.pos, index: opts.index };
-            openPicker(opts.pos, opts.index, "transfer");
-          }
-        });
-        detailActions.appendChild(act);
+          });
+          detailActions.appendChild(replaceBtn);
+        }
+
         const toLineup = document.createElement("a");
         toLineup.className = "btn ghost";
         toLineup.href = "/lineup";
@@ -383,18 +434,44 @@
         const p = id ? byId[id] : null;
         if (p) {
           const avail = p.availability || "ok";
+          const pendingIn =
+            inPlayer &&
+            removedSlot &&
+            removedSlot.pos === pos &&
+            removedSlot.index === index &&
+            inPlayer.id === p.id;
           btn.className =
             "shirt filled jersey avail-" +
             avail +
-            (outPlayer && outPlayer.id === p.id ? " is-out" : "");
+            (pendingIn ? " is-pending-in" : "");
           btn.innerHTML = shirtHtml(p);
           if (p.news) btn.title = p.news;
-          btn.addEventListener("click", () => openPlayerDetail(p, { pos, index }));
+          btn.addEventListener("click", () => {
+            if (pendingIn) {
+              openPicker(pos, index, "transfer");
+              return;
+            }
+            openPlayerDetail(p, { pos, index });
+          });
         } else {
-          btn.className = "shirt empty jersey-empty";
-          btn.innerHTML = `<span class="plus">+</span><span class="shirt-hint">${pos}</span>`;
+          const waitingTransfer =
+            outPlayer && removedSlot && removedSlot.pos === pos && removedSlot.index === index;
+          btn.className = "shirt empty jersey-empty" + (waitingTransfer ? " is-transfer-slot" : "");
+          btn.innerHTML = waitingTransfer
+            ? `<span class="plus">+</span><span class="shirt-hint">IN</span>`
+            : `<span class="plus">+</span><span class="shirt-hint">${pos}</span>`;
           if (!LOCKED) {
-            btn.addEventListener("click", () => openPicker(pos, index, "add"));
+            btn.addEventListener("click", () => {
+              if (outPlayer && !freeEdit()) {
+                if (pos !== outPlayer.position) {
+                  alert(`Pick a ${outPlayer.position} to replace ${outPlayer.name}.`);
+                  return;
+                }
+                openPicker(pos, index, "transfer");
+                return;
+              }
+              openPicker(pos, index, "add");
+            });
           } else {
             btn.disabled = true;
           }
@@ -509,11 +586,23 @@
     const currentPrice = byId[currentId]?.price || 0;
 
     if (pickerMode === "transfer") {
-      if (spend() - (outPlayer?.price || 0) + p.price > BUDGET + 1e-9) {
+      const previewId =
+        removedSlot != null ? slots[removedSlot.pos][removedSlot.index] : currentId;
+      const baseSpend = filledIds().reduce((s, id) => {
+        if (previewId && id === previewId) return s;
+        return s + (byId[id]?.price || 0);
+      }, 0);
+      if (baseSpend + p.price > BUDGET + 1e-9) {
         alert("Not enough budget for that transfer");
         return;
       }
+      if ((clubCounts(outPlayer?.id)[p.team] || 0) >= MAX_CLUB) {
+        alert(`Max ${MAX_CLUB} players from ${p.team}`);
+        return;
+      }
       inPlayer = p;
+      slots[active.pos][active.index] = p.id;
+      removedSlot = { pos: active.pos, index: active.index };
       closePicker();
       refreshSwapBar();
       render();
@@ -531,6 +620,7 @@
     slots[active.pos][active.index] = p.id;
     outPlayer = null;
     inPlayer = null;
+    removedSlot = null;
     closePicker();
     render();
   }
@@ -554,29 +644,8 @@
     filterMaxPrice.addEventListener("change", renderPicker);
 
     if (clearSwapBtn) {
-      clearSwapBtn.addEventListener("click", () => {
-        outPlayer = null;
-        inPlayer = null;
-        render();
-      });
+      clearSwapBtn.addEventListener("click", () => clearPendingTransfer());
     }
-
-    document.querySelectorAll("[data-browse]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const pos = btn.getAttribute("data-browse");
-        const idx = slots[pos].findIndex((x) => x == null);
-        const index = idx >= 0 ? idx : 0;
-        if (slots[pos][index] == null) {
-          openPicker(pos, index, "add");
-        } else if (freeEdit()) {
-          openPicker(pos, index, "replace");
-        } else {
-          outPlayer = byId[slots[pos][index]];
-          inPlayer = null;
-          openPicker(pos, index, "transfer");
-        }
-      });
-    });
 
     if (squadForm) {
       squadForm.addEventListener("submit", (e) => {

@@ -25,7 +25,7 @@
   {% if edits_locked %}
     Deadline passed — tap a player for <strong>this GW</strong> match KPIs. Refresh live scores below.
   {% else %}
-    Tap a starter to set <strong>C</strong> / <strong>V</strong> or bench them. Transfers live on <a href="/team">Squad</a>.
+    Tap a starter for <strong>C</strong> / <strong>V</strong> or to bench them. Transfers live on <a href="/team">Squad</a>.
   {% endif %}
 </p>
 
@@ -40,29 +40,6 @@
     <button class="btn ghost" type="submit">Demo scores</button>
   </form>
 </div>
-{% endif %}
-
-{% if not edits_locked %}
-<section class="cv-status" aria-label="Captain and vice">
-  <div class="cv-chip is-c">
-    <span class="cv-mark" aria-hidden="true">C</span>
-    <div>
-      <span class="cv-label">Captain ×2</span>
-      <strong id="captainName">—</strong>
-    </div>
-  </div>
-  <div class="cv-chip is-v">
-    <span class="cv-mark" aria-hidden="true">V</span>
-    <div>
-      <span class="cv-label">Vice</span>
-      <strong id="viceName">—</strong>
-    </div>
-  </div>
-  <p class="cv-hint muted">Tap a player on the pitch to assign</p>
-</section>
-{% else %}
-  <span id="captainName" hidden></span>
-  <span id="viceName" hidden></span>
 {% endif %}
 
 <form method="post" action="/lineup/save" id="lineupForm">
