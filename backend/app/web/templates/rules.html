@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Rules · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="hero-block compact">
+  <p class="eyebrow">SquadForge · v0.4</p>
+  <h1>Rules</h1>
+  <p class="lede tight">Private Fantasy Premier League scoring for the group.</p>
+</section>
+
+<section class="panel rules-panel">
+  <h2>Squad &amp; transfers</h2>
+  <ul class="rules-list">
+    <li>Squad of 15: 2 GK · 5 DEF · 5 MID · 3 ATT</li>
+    <li>Budget £100m · max 3 players per Premier League club</li>
+    <li>GW1: unlimited free transfers</li>
+    <li>After GW1: +1 free transfer each GW (banked, max 5)</li>
+    <li>Extra transfers beyond FTs: −4 hit each</li>
+    <li>Deadline locks transfers, XI, and chips for that GW</li>
+  </ul>
+</section>
+
+<section class="panel rules-panel">
+  <h2>XI</h2>
+  <ul class="rules-list">
+    <li>Each GW set Starting XI, bench, Captain (C) and Vice (V)</li>
+    <li>Captain scores ×2</li>
+    <li>If captain plays 0 minutes → vice gets the armband</li>
+    <li>Autosubs can bring a bench player in if someone in your XI doesn’t play</li>
+  </ul>
+</section>
+
+<section class="panel rules-panel">
+  <h2>Appearance (all positions)</h2>
+  <ul class="rules-list">
+    <li>2 pts if they play 60'+ minutes</li>
+    <li>2 pts if they play any minutes AND get a goal or assist</li>
+    <li>1 pt if they played but none of the above</li>
+    <li>0 if they didn’t play</li>
+  </ul>
+  <p class="muted tiny">Goal/assist points are extra on top of appearance.</p>
+</section>
+
+<section class="panel rules-panel">
+  <h2>Cards / mistakes</h2>
+  <ul class="rules-list">
+    <li>Yellow card: −1</li>
+    <li>Red card: −3</li>
+    <li>Own goal: −2</li>
+  </ul>
+</section>
+
+<section class="panel rules-panel">
+  <h2>By position</h2>
+  <div class="rules-grid">
+    <div>
+      <h3>Goalkeeper</h3>
+      <ul class="rules-list">
+        <li>Clean sheet: +4</li>
+        <li>Goals conceded: −1 per 2</li>
+        <li>Saves: +1 per 3</li>
+        <li>Goal +6 · Assist +3</li>
+        <li>Penalty saved +5 · missed −2</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Defender</h3>
+      <ul class="rules-list">
+        <li>Goal +6 · Assist +3 · CS +4</li>
+        <li>Goals conceded: −1 per 2</li>
+        <li>Defensive extras max +4</li>
+        <li>5+ tackles +2 · 4+ ints +1 · 3+ blocks +1 · 10+ clearances +1</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Midfielder</h3>
+      <ul class="rules-list">
+        <li>Goal +5 · Assist +3 · CS +1</li>
+        <li>Extras max +3</li>
+        <li>4+ key passes +2 · 5+ tackles +1 · 4+ ints +1</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Attacker</h3>
+      <ul class="rules-list">
+        <li>Goal +4 · Assist +3</li>
+        <li>Extras max +3</li>
+        <li>3+ shots on target +2 · 6+ shots +1</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="panel rules-panel">
+  <h2>Scouting bonus (+2)</h2>
+  <p class="muted">If only you own a player in the league and they score, assist, or keep a CS as GK/DEF → +2 that GW.</p>
+</section>
+
+<section class="panel rules-panel">
+  <h2>Technical Director</h2>
+  <ul class="rules-list">
+    <li>Pick a PL club when you don’t have an active TD window</li>
+    <li>Scores for exactly 3 gameweeks: Win +3 · Draw +1 · Loss −1</li>
+    <li>Locked during the window · can’t repeat the previous club</li>
+  </ul>
+</section>
+
+<section class="panel rules-panel">
+  <h2>Chips (1 per GW)</h2>
+  <ul class="rules-list">
+    <li><strong>Wildcard</strong> (×2) — unlimited transfers until deadline (2nd from GW20)</li>
+    <li><strong>Free Hit</strong> (×1) — temp squad for one GW, then restores</li>
+    <li><strong>Bench Boost</strong> (×1) — bench points count</li>
+    <li><strong>Triple Captain</strong> (×1) — captain ×3</li>
+    <li><strong>Super Sub</strong> (×1) — one bench pick ×2 if they play</li>
+  </ul>
+</section>
+
+<p class="muted tiny rules-foot">Official FPL bonus points (BPS) are not used. Questions → ask Manuel.</p>
+{% endblock %}

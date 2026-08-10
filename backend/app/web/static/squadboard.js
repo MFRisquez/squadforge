@@ -56,6 +56,7 @@
   const playerDetail = document.getElementById("playerDetail");
   const detailEyebrow = document.getElementById("detailEyebrow");
   const detailName = document.getElementById("detailName");
+  const detailPhoto = document.getElementById("detailPhoto");
   const detailBody = document.getElementById("detailBody");
   const detailActions = document.getElementById("detailActions");
   const closeDetailBtn = document.getElementById("closeDetail");
@@ -252,21 +253,17 @@
     detailContext = null;
   }
 
-  function playerHeroHtml(p, club) {
-    const shirt = p.shirt || "";
-    const photo = p.photo || "";
-    return `
-      <div class="player-detail-hero">
-        <div class="kit-portrait">
-          <img class="kit-shirt" src="${shirt}" alt="" width="66" height="87" />
-          ${photo ? `<img class="kit-face" src="${photo}" alt="" width="56" height="56" loading="lazy" />` : ""}
-        </div>
-        <div class="meta">
-          <strong>${club}</strong>
-          <span class="muted">${p.position} · £${Number(p.price).toFixed(1)}m</span>
-          <span class="avail-text-${(p.availability || "ok") === "ok" ? "ok" : p.availability || "ok"}">${statusLabel(p)}</span>
-        </div>
-      </div>`;
+  function setDetailPhoto(p) {
+    if (!detailPhoto) return;
+    if (p && p.photo) {
+      detailPhoto.src = p.photo;
+      detailPhoto.hidden = false;
+      detailPhoto.alt = p.name || "";
+    } else {
+      detailPhoto.removeAttribute("src");
+      detailPhoto.hidden = true;
+      detailPhoto.alt = "";
+    }
   }
 
   function openPlayerDetail(p, opts = {}) {
@@ -279,6 +276,7 @@
     };
     detailEyebrow.textContent = `Season · ${p.position}`;
     detailName.textContent = p.name;
+    setDetailPhoto(p);
     const club = p.club || p.team;
     const chance =
       p.chance == null || p.chance === ""
@@ -287,7 +285,13 @@
     const news = (p.news || "").trim();
     const avail = p.availability || "ok";
     detailBody.innerHTML = `
-      ${playerHeroHtml(p, club)}
+      <div class="player-detail-hero player-detail-hero-meta">
+        <div class="meta">
+          <strong>${club}</strong>
+          <span class="muted">${p.position} · £${Number(p.price).toFixed(1)}m</span>
+          <span class="avail-text-${(p.availability || "ok") === "ok" ? "ok" : p.availability || "ok"}">${statusLabel(p)}</span>
+        </div>
+      </div>
       <div class="player-detail-facts">
         <div class="fact"><span>Price</span><strong>£${Number(p.price).toFixed(1)}m</strong></div>
         <div class="fact"><span>Club</span><strong>${club}</strong></div>
@@ -373,16 +377,7 @@
         if (data.error) throw new Error(data.error);
         if (data.photo && detailContext.player) {
           detailContext.player.photo = data.photo;
-          const face = detailBody.querySelector(".kit-face");
-          const portrait = detailBody.querySelector(".kit-portrait");
-          if (!face && portrait && data.photo) {
-            const img = document.createElement("img");
-            img.className = "kit-face";
-            img.src = data.photo;
-            img.width = 56;
-            img.height = 56;
-            portrait.appendChild(img);
-          }
+          setDetailPhoto(detailContext.player);
         }
         if (kpis) {
           const items = data.kpis || [];

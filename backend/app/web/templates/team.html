@@ -18,7 +18,7 @@
   </p>
 </section>
 
-{{ chip_strip(chips, active_chip, edits_locked, bench_options) }}
+{{ chip_strip(chips, active_chip, edits_locked, bench_options, group='squad', next_path='/team') }}
 
 <div class="stat-strip" aria-label="Squad snapshot">
   <div class="stat">
@@ -140,10 +140,13 @@
 
 <div class="drawer" id="playerDetail" hidden>
   <div class="drawer-sheet player-detail-sheet">
-    <header class="drawer-head">
-      <div>
-        <p class="eyebrow" id="detailEyebrow">Player</p>
-        <h2 id="detailName">—</h2>
+    <header class="drawer-head player-detail-head">
+      <div class="player-detail-title">
+        <img class="player-detail-photo" id="detailPhoto" alt="" hidden />
+        <div>
+          <p class="eyebrow" id="detailEyebrow">Player</p>
+          <h2 id="detailName">—</h2>
+        </div>
       </div>
       <button type="button" class="icon-btn" id="closeDetail" aria-label="Close">✕</button>
     </header>

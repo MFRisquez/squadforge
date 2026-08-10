@@ -1,61 +1,79 @@
-{# Compact FPL-style chip strip. Expects chips, active_chip, edits_locked, bench_options #}
-{% macro chip_strip(chips, active_chip, edits_locked, bench_options=[]) %}
-<section class="chip-strip-wrap">
+{# Compact chip strip. group: 'squad' (WC/FH) | 'xi' (BB/TC/SS) | 'all' #}
+{% macro chip_strip(chips, active_chip, edits_locked, bench_options=[], group='all', next_path='/team') %}
+{% set squad_items = [
+  ('wildcard', 'WC', 'Wildcard', chips.wildcard_remaining if chips else 0),
+  ('free_hit', 'FH', 'Free Hit', chips.free_hit_remaining if chips else 0),
+] %}
+{% set xi_items = [
+  ('bench_boost', 'BB', 'Bench Boost', chips.bench_boost_remaining if chips else 0),
+  ('triple_captain', 'TC', 'Triple Captain', chips.triple_captain_remaining if chips else 0),
+  ('super_sub', 'SS', 'Super Sub', chips.super_sub_remaining if chips else 0),
+] %}
+{% if group == 'squad' %}
+  {% set items = squad_items %}
+{% elif group == 'xi' %}
+  {% set items = xi_items %}
+{% else %}
+  {% set items = squad_items + xi_items %}
+{% endif %}
+<section class="chip-strip-wrap chip-strip-{{ group }}">
+  {% if active_chip and (
+    (group == 'squad' and active_chip.chip in ['wildcard', 'free_hit']) or
+    (group == 'xi' and active_chip.chip in ['bench_boost', 'triple_captain', 'super_sub']) or
+    group == 'all'
+  ) %}
   <div class="chip-strip-head">
-    <h2>Chips</h2>
-    {% if active_chip %}
-      <form method="post" action="/team/chip/cancel" class="inline-form">
-        <button class="text-link" type="submit" {% if edits_locked %}disabled{% endif %}>
-          Cancel {{ active_chip.chip|replace('_',' ')|title }}
-        </button>
-      </form>
-    {% endif %}
+    <span class="chip-active-label">{{ active_chip.chip|replace('_',' ')|title }} on</span>
+    <form method="post" action="/team/chip/cancel" class="inline-form">
+      <input type="hidden" name="next" value="{{ next_path }}" />
+      <button class="text-link" type="submit" {% if edits_locked %}disabled{% endif %}>Cancel</button>
+    </form>
   </div>
-  <div class="chip-strip" role="list">
-    {% set items = [
-      ('wildcard', 'WC', 'Wildcard', chips.wildcard_remaining if chips else 0, 'Unlimited transfers'),
-      ('free_hit', 'FH', 'Free Hit', chips.free_hit_remaining if chips else 0, 'Temp squad for 1 GW'),
-      ('bench_boost', 'BB', 'Bench Boost', chips.bench_boost_remaining if chips else 0, 'Bench points count'),
-      ('triple_captain', 'TC', 'Triple Captain', chips.triple_captain_remaining if chips else 0, 'Captain ×3'),
-      ('super_sub', 'SS', 'Super Sub', chips.super_sub_remaining if chips else 0, 'Bench pick ×2'),
-    ] %}
-    {% for key, short, label, left, hint in items %}
+  {% endif %}
+  <div class="chip-strip chip-strip-compact" role="list">
+    {% for key, short, label, left in items %}
       {% set is_active = active_chip and active_chip.chip == key %}
-      <div class="chip-pill {% if is_active %}is-active{% endif %} {% if left < 1 and not is_active %}is-spent{% endif %} {% if key == 'super_sub' %}chip-pill-ss{% endif %}" role="listitem" title="{{ hint }}">
-        <span class="chip-short">{{ short }}</span>
-        <span class="chip-meta">
-          <strong>{{ label }}</strong>
-          <em>{{ left }} left</em>
-        </span>
+      <div class="chip-pill chip-pill-mini {% if is_active %}is-active{% endif %} {% if left < 1 and not is_active %}is-spent{% endif %}" role="listitem" title="{{ label }}{% if left < 1 and not is_active %} · used{% elif is_active %} · active{% else %} · {{ left }} left{% endif %}">
         {% if is_active %}
-          <span class="chip-state">Active</span>
+          <span class="chip-short" aria-hidden="true">{{ short }}</span>
+          <span class="chip-label">{{ short }}</span>
+          <span class="chip-state">On</span>
         {% elif edits_locked or left < 1 or active_chip %}
-          <span class="chip-state muted">—</span>
+          <span class="chip-short" aria-hidden="true">{{ short }}</span>
+          <span class="chip-label">{{ short }}</span>
         {% elif key == 'super_sub' %}
           {% if bench_options %}
             <form method="post" action="/team/chip" class="chip-ss-form">
               <input type="hidden" name="chip" value="super_sub" />
+              <input type="hidden" name="next" value="{{ next_path }}" />
+              <button class="chip-icon-btn" type="submit" title="Play Super Sub">
+                <span class="chip-short">{{ short }}</span>
+                <span class="chip-label">{{ short }}</span>
+              </button>
               <label class="sr-only" for="ssPlayer">Bench player</label>
               <select name="player_id" id="ssPlayer" required>
                 <option value="" disabled selected>Bench…</option>
                 {% for p in bench_options %}
-                  <option value="{{ p.id }}">{{ p.name }} ({{ p.position }})</option>
+                  <option value="{{ p.id }}">{{ p.name }}</option>
                 {% endfor %}
               </select>
-              <button class="chip-play" type="submit">Play</button>
             </form>
           {% else %}
-            <span class="chip-state muted" title="Set lineup first">Set XI</span>
+            <span class="chip-short" aria-hidden="true">{{ short }}</span>
+            <span class="chip-label">{{ short }}</span>
           {% endif %}
         {% else %}
-          <form method="post" action="/team/chip">
+          <form method="post" action="/team/chip" class="chip-play-form">
             <input type="hidden" name="chip" value="{{ key }}" />
-            <button class="chip-play" type="submit">Play</button>
+            <input type="hidden" name="next" value="{{ next_path }}" />
+            <button class="chip-icon-btn" type="submit" title="Play {{ label }}">
+              <span class="chip-short">{{ short }}</span>
+              <span class="chip-label">{{ short }}</span>
+            </button>
           </form>
         {% endif %}
       </div>
     {% endfor %}
   </div>
-  <p class="chip-footnote muted tiny">One chip per GW · cancel before deadline · FH restores next GW · Super Sub = one bench pick ×2</p>
 </section>
 {% endmacro %}

@@ -437,11 +437,19 @@ def team_page(request: Request, db: Session = Depends(get_db)):
     )
 
 
+def _safe_next_path(raw: str | None, default: str = "/team") -> str:
+    path = (raw or default).strip() or default
+    if not path.startswith("/") or path.startswith("//"):
+        return default
+    return path
+
+
 @router.post("/team/chip")
 def play_chip_from_squad(
     request: Request,
     chip: str = Form(...),
     player_id: Optional[int] = Form(None),
+    next: str = Form("/team"),
     db: Session = Depends(get_db),
 ):
     from app.services import chips as chips_svc
@@ -451,6 +459,7 @@ def play_chip_from_squad(
     if not manager:
         return RedirectResponse("/login", status_code=303)
     gw = squad_svc.current_gameweek(db)
+    dest = _safe_next_path(next, "/team")
     try:
         chips_svc.play_chip(
             db,
@@ -460,12 +469,16 @@ def play_chip_from_squad(
             player_id=player_id,
         )
     except ChipError as exc:
-        return RedirectResponse(f"/team?chip_error={exc}", status_code=303)
-    return RedirectResponse("/team?chip_ok=1", status_code=303)
+        return RedirectResponse(f"{dest}?chip_error={exc}", status_code=303)
+    return RedirectResponse(f"{dest}?chip_ok=1", status_code=303)
 
 
 @router.post("/team/chip/cancel")
-def cancel_chip_from_squad(request: Request, db: Session = Depends(get_db)):
+def cancel_chip_from_squad(
+    request: Request,
+    next: str = Form("/team"),
+    db: Session = Depends(get_db),
+):
     from app.services import chips as chips_svc
     from app.services.chips import ChipError
 
@@ -473,11 +486,12 @@ def cancel_chip_from_squad(request: Request, db: Session = Depends(get_db)):
     if not manager:
         return RedirectResponse("/login", status_code=303)
     gw = squad_svc.current_gameweek(db)
+    dest = _safe_next_path(next, "/team")
     try:
         chips_svc.cancel_chip(db, manager_id=manager.id, gameweek_id=gw.id)
     except ChipError as exc:
-        return RedirectResponse(f"/team?chip_error={exc}", status_code=303)
-    return RedirectResponse("/team?chip_ok=1", status_code=303)
+        return RedirectResponse(f"{dest}?chip_error={exc}", status_code=303)
+    return RedirectResponse(f"{dest}?chip_ok=1", status_code=303)
 
 
 @router.get("/team/edit", response_class=HTMLResponse)
@@ -642,6 +656,15 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
         if score:
             gw_total = float(score.total or 0)
 
+    chips = chips_svc.ensure_chip_state(db, manager.id)
+    active_chip = chips_svc.active_chip(db, manager.id, gw.id)
+    starter_set = set(starters)
+    bench_options = [p for p in owned if p.id not in starter_set]
+    notice = request.query_params.get("notice")
+    if request.query_params.get("chip_ok") and not notice:
+        notice = "Chip updated"
+    error = request.query_params.get("error") or request.query_params.get("chip_error")
+
     return templates.TemplateResponse(
         "lineup.html",
         _ctx(
@@ -658,8 +681,11 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
             },
             spend=squad_svc.squad_spend(owned),
             gw_total=gw_total,
-            notice=request.query_params.get("notice"),
-            error=request.query_params.get("error"),
+            chips=chips,
+            active_chip=active_chip,
+            bench_options=bench_options,
+            notice=notice,
+            error=error,
             **view,
         ),
     )
@@ -872,6 +898,14 @@ def score_run(
     from urllib.parse import quote
 
     return RedirectResponse(f"/lineup?gw={summary['gameweek']}&notice={quote(notice)}", status_code=303)
+
+
+@router.get("/rules", response_class=HTMLResponse)
+def rules_page(request: Request, db: Session = Depends(get_db)):
+    manager = current_manager(request, db)
+    if not manager:
+        return RedirectResponse("/login", status_code=303)
+    return templates.TemplateResponse("rules.html", _ctx(request, db))
 
 
 @router.get("/fixtures", response_class=HTMLResponse)

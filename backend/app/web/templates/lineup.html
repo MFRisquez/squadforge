@@ -2,32 +2,26 @@
 {% block title %}XI · {{ app_name }}{% endblock %}
 {% block content %}
 {% from "macros_gw.html" import gw_bar %}
+{% from "macros_chips.html" import chip_strip %}
+{% set xi_title = (manager.team_name if manager.team_name else manager.display_name) %}
 {{ gw_bar(gw, deadline_label, edits_locked, prev_gw, next_gw, '/lineup') }}
 
-<div class="pick-header">
+<div class="pick-header xi-header">
   <div>
-    <p class="eyebrow">{% if edits_locked %}Live scores{% else %}Starting XI{% endif %}</p>
-    <h1>{% if edits_locked %}GW{{ gw.number }} XI{% else %}XI{% endif %}</h1>
+    <h1>{% if edits_locked %}{{ xi_title }} · Live{% else %}{{ xi_title }} · Starting XI{% endif %}</h1>
   </div>
+  {% if edits_locked and gw_total is not none %}
   <div class="budget-card">
-    {% if edits_locked and gw_total is not none %}
-      <span class="budget-label">Your score</span>
-      <strong>{{ '%.0f'|format(gw_total) }}</strong>
-      <span class="budget-sub">this gameweek</span>
-    {% else %}
-      <span class="budget-label">Squad value</span>
-      <strong>£{{ '%.1f'|format(spend) }}m</strong>
-      <span class="budget-sub">from your 15</span>
-    {% endif %}
+    <span class="budget-label">Your score</span>
+    <strong>{{ '%.0f'|format(gw_total) }}</strong>
+    <span class="budget-sub">this gameweek</span>
   </div>
-</div>
-<p class="lede tight" id="xiHint">
-  {% if edits_locked %}
-    Deadline passed — tap a player for <strong>this GW</strong> match stats. Refresh live scores below.
-  {% else %}
-    Tap a player to set <strong>C</strong> / <strong>V</strong>, or swap XI ↔ bench. Transfers on <a href="/team">Squad</a>.
   {% endif %}
-</p>
+</div>
+
+{{ chip_strip(chips, active_chip, edits_locked, bench_options, group='xi', next_path='/lineup') }}
+
+<p class="sr-only" id="xiHint"></p>
 
 {% if edits_locked %}
 <div class="action-row">
@@ -57,7 +51,6 @@
       <div class="pitch-row zone-mid" data-row="mid"></div>
       <div class="pitch-row zone-att" data-row="att"></div>
     </div>
-    <p class="pitch-meta" id="formationLabel">Formation —</p>
   </section>
   <section class="bench-wrap xi-bench-wrap">
     <h2>Bench</h2>
@@ -73,10 +66,13 @@
 
 <div class="drawer" id="playerDetail" hidden>
   <div class="drawer-sheet player-detail-sheet">
-    <header class="drawer-head">
-      <div>
-        <p class="eyebrow" id="detailEyebrow">Player</p>
-        <h2 id="detailName">—</h2>
+    <header class="drawer-head player-detail-head">
+      <div class="player-detail-title">
+        <img class="player-detail-photo" id="detailPhoto" alt="" hidden />
+        <div>
+          <p class="eyebrow" id="detailEyebrow">Player</p>
+          <h2 id="detailName">—</h2>
+        </div>
       </div>
       <button type="button" class="icon-btn" id="closeDetail" aria-label="Close">✕</button>
     </header>

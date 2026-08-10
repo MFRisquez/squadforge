@@ -16,15 +16,14 @@
 
   const pitch = document.getElementById("pitch");
   const bench = document.getElementById("bench");
-  const formationLabel = document.getElementById("formationLabel");
   const hiddenFields = document.getElementById("hiddenFields");
   const playerDetail = document.getElementById("playerDetail");
   const detailEyebrow = document.getElementById("detailEyebrow");
   const detailName = document.getElementById("detailName");
+  const detailPhoto = document.getElementById("detailPhoto");
   const detailBody = document.getElementById("detailBody");
   const detailActions = document.getElementById("detailActions");
   const closeDetailBtn = document.getElementById("closeDetail");
-  const xiHint = document.getElementById("xiHint");
   const swapBar = document.getElementById("swapBar");
   const swapHint = document.getElementById("swapHint");
   const cancelSwapBtn = document.getElementById("cancelSwap");
@@ -213,7 +212,10 @@
   }
 
   function updateHints() {
-    if (LOCKED) return;
+    if (LOCKED) {
+      if (swapBar) swapBar.hidden = true;
+      return;
+    }
     if (swapPending) {
       const p = byId[swapPending.id];
       const name = p ? p.name : "player";
@@ -224,19 +226,9 @@
             ? `${name} out — tap a bench player to come in`
             : `${name} in — tap an XI player to go out`;
       }
-      if (xiHint) {
-        xiHint.textContent =
-          swapPending.side === "xi"
-            ? "Choose who comes in from the bench (legal formations only)."
-            : "Choose who drops to the bench from the XI.";
-      }
       return;
     }
     if (swapBar) swapBar.hidden = true;
-    if (xiHint) {
-      xiHint.innerHTML =
-        'Tap a player to set <strong>C</strong> / <strong>V</strong>, or swap XI ↔ bench. Transfers on <a href="/team">Squad</a>.';
-    }
   }
 
   function openDetail(player) {
@@ -256,12 +248,19 @@
       : "Fixture TBD";
     detailEyebrow.textContent = LOCKED ? `Match · GW${GW || ""}` : `XI · ${player.position}`;
     detailName.textContent = player.name;
+    if (detailPhoto) {
+      if (player.photo) {
+        detailPhoto.src = player.photo;
+        detailPhoto.hidden = false;
+        detailPhoto.alt = player.name;
+      } else {
+        detailPhoto.removeAttribute("src");
+        detailPhoto.hidden = true;
+        detailPhoto.alt = "";
+      }
+    }
     detailBody.innerHTML = `
-      <div class="player-detail-hero">
-        <div class="kit-portrait">
-          <img class="kit-shirt" src="${player.shirt || ""}" alt="" width="66" height="87" />
-          ${player.photo ? `<img class="kit-face" src="${player.photo}" alt="" width="56" height="56" loading="lazy" />` : ""}
-        </div>
+      <div class="player-detail-hero player-detail-hero-meta">
         <div class="meta">
           <strong>${player.team}</strong>
           <span class="muted">${player.position} · vs ${oppLine}</span>
@@ -337,16 +336,10 @@
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => {
         if (!detailPlayer || detailPlayer.id !== playerId) return;
-        if (data.photo) {
-          const portrait = detailBody.querySelector(".kit-portrait");
-          if (portrait && !portrait.querySelector(".kit-face")) {
-            const img = document.createElement("img");
-            img.className = "kit-face";
-            img.src = data.photo;
-            img.width = 56;
-            img.height = 56;
-            portrait.appendChild(img);
-          }
+        if (data.photo && detailPhoto) {
+          detailPhoto.src = data.photo;
+          detailPhoto.hidden = false;
+          detailPhoto.alt = detailPlayer.name || "";
         }
         if (data.gw_points != null) {
           const meta = detailBody.querySelector(".meta");
@@ -470,10 +463,6 @@
     bench.innerHTML = "";
     OWNED.filter((p) => !starterIds.has(p.id)).forEach((p) => bench.appendChild(shirtCard(p, true)));
 
-    const c = counts();
-    formationLabel.textContent = LOCKED
-      ? `Formation ${c.DEF}-${c.MID}-${c.ATT} · locked`
-      : `Formation ${c.DEF}-${c.MID}-${c.ATT} · ${starterIds.size}/11`;
     ensureRoles();
     syncHidden();
     updateHints();
