@@ -581,7 +581,8 @@ select {
   background: #fff;
   z-index: 2;
 }
-.xi-pitch .pitch-row { gap: 0.2rem; }
+.xi-pitch .pitch-row { gap: 0.55rem; }
+.squad-pitch .pitch-row { gap: 0.5rem; }
 .xi-card { width: 4.35rem; }
 .xi-shirt,
 .shirt.filled.jersey.xi-shirt {
@@ -682,8 +683,8 @@ select {
 }
 .xi-bench-wrap h2 { margin-bottom: 0.15rem; font-size: 0.85rem; }
 .xi-bench-wrap .bench {
-  gap: 0.08rem;
-  padding: 0.28rem 0.15rem;
+  gap: 0.4rem;
+  padding: 0.35rem 0.3rem;
   background: #dfe7d8;
   border: 0;
   border-radius: 0.65rem;
@@ -706,30 +707,30 @@ select {
   line-height: 1.15;
 }
 
-/* FPL-style chip cards: icon · name · Play */
+/* FPL-style chip cards: icon · name · Play (compact vs pitch) */
 .chip-strip-cards {
   display: flex;
-  gap: 0.45rem;
+  gap: 0.35rem;
   overflow-x: auto;
-  padding: 0.1rem 0.05rem 0.25rem;
+  padding: 0.05rem 0.05rem 0.15rem;
   justify-content: flex-start;
 }
 .chip-card-fpl {
   flex: 0 0 auto;
-  width: 5.6rem;
+  width: 4.55rem;
   display: grid;
   justify-items: center;
-  gap: 0.28rem;
-  padding: 0.45rem 0.35rem 0.4rem;
-  border-radius: 0.75rem;
+  gap: 0.16rem;
+  padding: 0.28rem 0.22rem 0.28rem;
+  border-radius: 0.55rem;
   background: #fff;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 12px rgba(15, 35, 80, 0.05);
+  box-shadow: 0 2px 8px rgba(15, 35, 80, 0.04);
   text-align: center;
 }
 .chip-card-fpl .chip-ico {
-  width: 2.35rem;
-  height: 2.35rem;
+  width: 1.7rem;
+  height: 1.7rem;
   display: grid;
   place-items: center;
   color: #0b2a16;
@@ -738,28 +739,28 @@ select {
   clip-path: polygon(25% 6%, 75% 6%, 94% 50%, 75% 94%, 25% 94%, 6% 50%);
 }
 .chip-card-fpl .chip-ico svg {
-  width: 1.35rem;
-  height: 1.35rem;
+  width: 0.95rem;
+  height: 0.95rem;
   display: block;
 }
 .chip-card-fpl .chip-name {
-  font-size: 0.62rem;
+  font-size: 0.55rem;
   font-weight: 800;
-  line-height: 1.15;
+  line-height: 1.1;
   color: #1a1630;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  min-height: 1.45em;
+  min-height: 1.25em;
 }
 .chip-card-fpl .chip-play {
   border: 1.5px solid #2a2448;
   background: #fff;
   color: #1a1630;
   border-radius: 999px;
-  padding: 0.22rem 0.7rem;
-  font-size: 0.62rem;
+  padding: 0.14rem 0.5rem;
+  font-size: 0.55rem;
   font-weight: 800;
   cursor: pointer;
   width: auto;
@@ -770,11 +771,11 @@ select {
   color: #fff;
 }
 .chip-card-fpl .chip-status {
-  font-size: 0.58rem;
+  font-size: 0.5rem;
   font-weight: 700;
   color: #8b93a7;
-  line-height: 1.2;
-  min-height: 1.4rem;
+  line-height: 1.15;
+  min-height: 1.1rem;
   display: grid;
   place-items: center;
 }
@@ -782,7 +783,7 @@ select {
   color: #0b2a16;
   background: #00ff87;
   border-radius: 999px;
-  padding: 0.18rem 0.55rem;
+  padding: 0.12rem 0.4rem;
   font-weight: 800;
 }
 .chip-card-fpl.is-active {
@@ -852,28 +853,110 @@ select {
   grid-template-columns: 1fr;
 }
 
-.rules-panel h2 { margin-bottom: 0.45rem; }
+.rules-page { display: grid; gap: 0.75rem; }
+.rules-panel {
+  padding: 0.9rem 1rem;
+}
+.rules-panel h2 {
+  margin: 0 0 0.65rem;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
 .rules-panel h3 {
-  margin: 0 0 0.35rem;
-  font-size: 0.92rem;
+  margin: 0 0 0.45rem;
+  font-size: 0.88rem;
+  color: #31416a;
 }
 .rules-list {
   margin: 0;
-  padding-left: 1.1rem;
+  padding: 0;
+  list-style: none;
   display: grid;
-  gap: 0.28rem;
+  gap: 0.45rem;
   color: var(--ink);
-  font-size: 0.92rem;
+  font-size: 0.95rem;
   line-height: 1.35;
 }
+.rules-list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.55rem 0.75rem;
+  align-items: baseline;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.55rem;
+  background: #f5f7fc;
+}
+.rules-list li > span:last-child {
+  font-weight: 800;
+  color: #0b2a16;
+  text-align: right;
+  white-space: nowrap;
+}
+.rules-list li.rules-note {
+  grid-template-columns: 1fr;
+  background: transparent;
+  padding: 0.15rem 0.2rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.rules-score {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+.rules-score th,
+.rules-score td {
+  padding: 0.45rem 0.4rem;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.rules-score th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.rules-score td:last-child,
+.rules-score th:last-child {
+  text-align: right;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.rules-score tr:last-child td { border-bottom: 0; }
 .rules-grid {
   display: grid;
-  gap: 0.85rem;
+  gap: 0.75rem;
+}
+.rules-pos {
+  padding: 0.65rem 0.7rem;
+  border-radius: 0.65rem;
+  background: #f5f7fc;
+}
+.rules-pos .rules-list li {
+  background: #fff;
+  padding: 0.35rem 0.45rem;
 }
 @media (min-width: 700px) {
   .rules-grid { grid-template-columns: 1fr 1fr; }
 }
-.rules-foot { margin: 0.5rem 0 1.5rem; }
+.rules-toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 0.25rem;
+}
+.rules-toc a {
+  text-decoration: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #31416a;
+  background: #eef2fb;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+}
+.rules-toc a:hover { background: #06143a; color: #fff; }
+.rules-foot { margin: 0.25rem 0 0.75rem; }
 .cv-action-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1922,8 +2005,10 @@ body.picker-open {
   .squad-pitch-wrap .squad-card { width: 5rem; }
   .squad-pitch-wrap .squad-shirt { width: 5rem; }
   .squad-pitch-wrap .jersey-img { width: 3.1rem; }
-  .chip-card-fpl { width: 6.1rem; }
-  .chip-card-fpl .chip-name { font-size: 0.68rem; }
+  .chip-card-fpl { width: 5rem; }
+  .chip-card-fpl .chip-name { font-size: 0.6rem; }
+  .xi-pitch .pitch-row { gap: 0.7rem; }
+  .squad-pitch .pitch-row { gap: 0.65rem; }
 }
 .soft-form {
   background: #f7f9ff;
