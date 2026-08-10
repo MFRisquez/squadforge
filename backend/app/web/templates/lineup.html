@@ -10,13 +10,11 @@
   <div>
     <h1>{% if edits_locked %}{{ xi_title }} · Live{% else %}{{ xi_title }} · Starting XI{% endif %}</h1>
   </div>
-  {% if edits_locked and gw_total is not none %}
-  <div class="budget-card">
-    <span class="budget-label">Your score</span>
-    <strong>{{ '%.0f'|format(gw_total) }}</strong>
-    <span class="budget-sub">this gameweek</span>
+  <div class="budget-card xi-score-card {% if not edits_locked %}is-preview{% endif %}">
+    <span class="budget-label">GW{{ gw.number }} points</span>
+    <strong id="gwTotalScore">{% if gw_total is not none %}{{ '%.0f'|format(gw_total) }}{% else %}—{% endif %}</strong>
+    <span class="budget-sub">{% if edits_locked %}total score{% else %}after deadline{% endif %}</span>
   </div>
-  {% endif %}
 </div>
 
 {{ chip_strip(chips, active_chip, edits_locked, bench_options, group='xi', next_path='/lineup') }}
@@ -46,6 +44,30 @@
   <section class="pitch-wrap xi-pitch-wrap">
     <div class="pitch field pitch-photo xi-pitch" id="pitch">
       <div class="pitch-markings" aria-hidden="true"></div>
+      <aside class="td-corner td-corner-xi" aria-label="Technical Director">
+        {% if td_info and td_info.club_code %}
+          {% if td_info.badge %}
+          <img class="td-badge" src="{{ td_info.badge }}" alt="" width="36" height="36" />
+          {% endif %}
+          <div class="td-corner-meta">
+            <span class="td-kicker">{{ td_info.club_code }}</span>
+            <strong>DT</strong>
+            {% if edits_locked and td_info.points is not none %}
+            <span class="td-foot td-pts">{% if td_info.points >= 0 %}+{% endif %}{{ '%.0f'|format(td_info.points) }}</span>
+            {% elif td_info.fixture_line %}
+            <span class="td-foot fdr-{{ td_info.fixture_fdr or 3 }}">{{ td_info.fixture_line }}</span>
+            {% else %}
+            <span class="td-foot">GW{{ td_info.start_gw }}–{{ td_info.end_gw }}</span>
+            {% endif %}
+          </div>
+        {% else %}
+          <div class="td-corner-meta">
+            <span class="td-kicker">Squad</span>
+            <strong>DT</strong>
+            <span class="td-foot"><a href="/team">Pick club</a></span>
+          </div>
+        {% endif %}
+      </aside>
       <div class="pitch-row zone-gk" data-row="gk"></div>
       <div class="pitch-row zone-def" data-row="def"></div>
       <div class="pitch-row zone-mid" data-row="mid"></div>

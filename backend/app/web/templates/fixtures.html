@@ -8,7 +8,7 @@
   <p class="eyebrow">Premier League</p>
   <h1>Fixtures</h1>
   <p class="lede tight">
-    Live GW{{ gw.number }} scores. Tap a match for goals &amp; assists.
+    GW{{ gw.number }} · tap a match for goals &amp; assists.
   </p>
 </section>
 
@@ -20,41 +20,52 @@
   <span class="muted tiny" id="fixturesMeta">{{ match_count }} matches</span>
 </div>
 
-<section class="panel fixtures-panel">
+<section class="fixtures-board" aria-label="Gameweek fixtures">
   {% if matches %}
   <ul class="fixture-list" id="fixtureList">
     {% for m in matches %}
     <li>
-      <button type="button" class="fixture-row status-{{ m.status }}" data-fixture-id="{{ m.id }}">
-        <span class="fx-time">
+      <button type="button" class="fx-card status-{{ m.status }}" data-fixture-id="{{ m.id }}">
+        <div class="fx-card-top">
           {% if m.status == 'live' %}<em class="live-dot">LIVE</em>
-          {% elif m.status == 'finished' %}FT
-          {% elif m.kickoff %}{{ m.kickoff[11:16] if m.kickoff|length > 16 else m.kickoff }}
-          {% else %}TBC{% endif %}
-        </span>
-        <span class="fx-teams">
-          <span class="fx-side">
-            <strong>{{ m.home.code }}</strong>
-            <span class="fdr-pip fdr-{{ m.home.difficulty }}" title="Home FDR {{ m.home.difficulty }}"></span>
-          </span>
-          <span class="fx-score">
-            {% if m.home.score is not none and m.away.score is not none %}
-              {{ m.home.score }}–{{ m.away.score }}
-            {% else %}
-              vs
+          {% elif m.status == 'finished' %}<span class="fx-status">Full time</span>
+          {% elif m.kickoff %}
+            <span class="fx-status">{{ m.kickoff[11:16] if m.kickoff|length > 16 else m.kickoff }} UTC</span>
+          {% else %}
+            <span class="fx-status">TBC</span>
+          {% endif %}
+        </div>
+        <div class="fx-card-match">
+          <div class="fx-club">
+            {% if m.home.badge %}
+            <img class="fx-badge" src="{{ m.home.badge }}" alt="" width="40" height="40" loading="lazy" />
             {% endif %}
-          </span>
-          <span class="fx-side away">
-            <span class="fdr-pip fdr-{{ m.away.difficulty }}" title="Away FDR {{ m.away.difficulty }}"></span>
+            <strong>{{ m.home.code }}</strong>
+            <span class="fx-club-name">{{ m.home.name }}</span>
+          </div>
+          <div class="fx-score-block">
+            {% if m.home.score is not none and m.away.score is not none %}
+              <span class="fx-score-num">{{ m.home.score }}</span>
+              <span class="fx-score-sep">–</span>
+              <span class="fx-score-num">{{ m.away.score }}</span>
+            {% else %}
+              <span class="fx-vs">vs</span>
+            {% endif %}
+          </div>
+          <div class="fx-club away">
+            {% if m.away.badge %}
+            <img class="fx-badge" src="{{ m.away.badge }}" alt="" width="40" height="40" loading="lazy" />
+            {% endif %}
             <strong>{{ m.away.code }}</strong>
-          </span>
-        </span>
+            <span class="fx-club-name">{{ m.away.name }}</span>
+          </div>
+        </div>
       </button>
     </li>
     {% endfor %}
   </ul>
   {% else %}
-  <div class="empty-state">
+  <div class="empty-state panel">
     <h2>No fixtures for GW{{ gw.number }}</h2>
     <p class="muted">Refresh from FPL, or sync players on Home first.</p>
     <form method="post" action="/fixtures/refresh">

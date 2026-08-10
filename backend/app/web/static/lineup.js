@@ -432,8 +432,10 @@
     const pts = POINTS[String(player.id)];
     const fdr = player.fdr;
     let footHtml;
-    if (LOCKED && pts != null) {
-      footHtml = `<span class="shirt-foot shirt-pts-plate">${Number(pts).toFixed(0)}</span>`;
+    if (LOCKED && pts != null && pts !== "") {
+      const n = Number(pts);
+      const cls = n < 0 ? "is-neg" : n > 0 ? "is-pos" : "";
+      footHtml = `<span class="shirt-foot shirt-opp shirt-pts-fx ${cls}">${n.toFixed(0)}</span>`;
     } else if (fdr) {
       const venue = fdr.venue === "H" ? "H" : "A";
       footHtml = `<span class="shirt-foot shirt-opp fdr-${fdr.difficulty}">${fdr.opponent} (${venue})</span>`;

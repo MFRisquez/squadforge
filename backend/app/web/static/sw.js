@@ -1,5 +1,5 @@
 /* SquadForge offline shell — cache static assets only */
-const CACHE = "squadforge-v15";
+const CACHE = "squadforge-v16";
 const PRECACHE = [
   "/static/styles.css",
   "/static/ui.js",

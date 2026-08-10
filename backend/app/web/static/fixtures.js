@@ -105,30 +105,38 @@
     }
     list.innerHTML = fixtures
       .map((m) => {
-        const score =
-          m.home.score != null && m.away.score != null
-            ? `${m.home.score}–${m.away.score}`
-            : "vs";
-        const time =
+        const scored = m.home.score != null && m.away.score != null;
+        const top =
           m.status === "live"
             ? `<em class="live-dot">LIVE</em>`
             : m.status === "finished"
-              ? "FT"
-              : formatKickoff(m.kickoff);
+              ? `<span class="fx-status">Full time</span>`
+              : `<span class="fx-status">${formatKickoff(m.kickoff)} UTC</span>`;
+        const scoreBlock = scored
+          ? `<span class="fx-score-num">${m.home.score}</span><span class="fx-score-sep">–</span><span class="fx-score-num">${m.away.score}</span>`
+          : `<span class="fx-vs">vs</span>`;
+        const homeBadge = m.home.badge
+          ? `<img class="fx-badge" src="${m.home.badge}" alt="" width="40" height="40" loading="lazy" />`
+          : "";
+        const awayBadge = m.away.badge
+          ? `<img class="fx-badge" src="${m.away.badge}" alt="" width="40" height="40" loading="lazy" />`
+          : "";
         return `<li>
-          <button type="button" class="fixture-row status-${m.status}" data-fixture-id="${m.id}">
-            <span class="fx-time">${time}</span>
-            <span class="fx-teams">
-              <span class="fx-side">
+          <button type="button" class="fx-card status-${m.status}" data-fixture-id="${m.id}">
+            <div class="fx-card-top">${top}</div>
+            <div class="fx-card-match">
+              <div class="fx-club">
+                ${homeBadge}
                 <strong>${m.home.code}</strong>
-                <span class="fdr-pip fdr-${m.home.difficulty}"></span>
-              </span>
-              <span class="fx-score">${score}</span>
-              <span class="fx-side away">
-                <span class="fdr-pip fdr-${m.away.difficulty}"></span>
+                <span class="fx-club-name">${m.home.name || ""}</span>
+              </div>
+              <div class="fx-score-block">${scoreBlock}</div>
+              <div class="fx-club away">
+                ${awayBadge}
                 <strong>${m.away.code}</strong>
-              </span>
-            </span>
+                <span class="fx-club-name">${m.away.name || ""}</span>
+              </div>
+            </div>
           </button>
         </li>`;
       })

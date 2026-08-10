@@ -8,6 +8,7 @@ from typing import Any
 import httpx
 from sqlalchemy.orm import Session
 
+from app.kits import badge_url
 from app.models import Club, Fixture, Gameweek, Player
 
 FPL_FIXTURES = "https://fantasy.premierleague.com/api/fixtures/"
@@ -256,12 +257,14 @@ def fixtures_for_gameweek(db: Session, *, gw_number: int) -> list[dict[str, Any]
                     "name": home.name if home else fx.home_club_code,
                     "score": fx.home_score,
                     "difficulty": map_fdr(fx.home_difficulty),
+                    "badge": badge_url(home.fpl_team_id) if home else None,
                 },
                 "away": {
                     "code": fx.away_club_code,
                     "name": away.name if away else fx.away_club_code,
                     "score": fx.away_score,
                     "difficulty": map_fdr(fx.away_difficulty),
+                    "badge": badge_url(away.fpl_team_id) if away else None,
                 },
             }
         )

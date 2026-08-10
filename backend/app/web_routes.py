@@ -368,7 +368,7 @@ def team_page(request: Request, db: Session = Depends(get_db)):
             pick_rows.append({"pick": pick, "player": player})
     chips = chips_svc.ensure_chip_state(db, manager.id)
     active_chip = chips_svc.active_chip(db, manager.id, gw.id)
-    td_info = td_svc.td_view(db, manager.id, gw.number)
+    td_info = td_svc.td_view(db, manager.id, gw.number, gameweek_id=gw.id)
     can_set_td = td_svc.can_change_td(db, manager.id, gw)
     clubs = db.query(Club).order_by(Club.name).all()
     td_club_choices = [c for c in clubs if c.code != td_info.get("banned_club")]
@@ -682,6 +682,7 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
         p.player_id: bool(getattr(p, "captain_armed", 0))
         for p in picks
     }
+    td_info = td_svc.td_view(db, manager.id, gw.number, gameweek_id=gw.id)
 
     return templates.TemplateResponse(
         "lineup.html",
@@ -699,6 +700,7 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
                 "captainArmed": armed,
                 "gw": gw.number,
                 "points": points_map,
+                "gwTotal": gw_total,
             },
             spend=squad_svc.squad_spend(owned),
             gw_total=gw_total,
@@ -706,6 +708,7 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
             active_chip=active_chip,
             bench_options=bench_options,
             captain_editable=captain_editable,
+            td_info=td_info,
             notice=notice,
             error=error,
             **view,

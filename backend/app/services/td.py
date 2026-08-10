@@ -137,13 +137,36 @@ def td_points_for_gw(db: Session, *, manager_id: int, gw_number: int, gameweek_i
     return sum(TD_POINTS.get(r.result, 0.0) for r in results)
 
 
-def td_view(db: Session, manager_id: int, gw_number: int) -> dict:
-    """Template/API helper for Squad pitch TD corner."""
+def td_view(db: Session, manager_id: int, gw_number: int, *, gameweek_id: int | None = None) -> dict:
+    """Template/API helper for Squad/XI pitch TD corner."""
+    from app.services import fixtures as fixtures_svc
+
     pick = active_td(db, manager_id, gw_number)
     club = None
     if pick:
         club = db.query(Club).filter(Club.code == pick.club_code).one_or_none()
     banned = previous_td_club(db, manager_id, exclude_id=pick.id if pick else None)
+
+    fixture_line = None
+    fixture_fdr = None
+    if pick:
+        matches = fixtures_svc.fixtures_for_gameweek(db, gw_number=gw_number)
+        for m in matches:
+            if m["home"]["code"] == pick.club_code:
+                fixture_line = f"{m['away']['code']} (H)"
+                fixture_fdr = m["home"]["difficulty"]
+                break
+            if m["away"]["code"] == pick.club_code:
+                fixture_line = f"{m['home']['code']} (A)"
+                fixture_fdr = m["away"]["difficulty"]
+                break
+
+    points = None
+    if pick and gameweek_id is not None:
+        points = td_points_for_gw(
+            db, manager_id=manager_id, gw_number=gw_number, gameweek_id=gameweek_id
+        )
+
     return {
         "pick": pick,
         "club_code": pick.club_code if pick else None,
@@ -152,6 +175,9 @@ def td_view(db: Session, manager_id: int, gw_number: int) -> dict:
         "start_gw": pick.start_gw if pick else None,
         "end_gw": pick.end_gw if pick else None,
         "banned_club": banned,
+        "fixture_line": fixture_line,
+        "fixture_fdr": fixture_fdr,
+        "points": points,
     }
 
 
