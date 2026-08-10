@@ -29,9 +29,11 @@ from app.models import (
     SquadPick,
 )
 from app.scoring import score_player
+from app.services import fixtures as fixtures_svc
 from app.services import squad as squad_svc
 from app.services import standings as standings_svc
 from app.services import td as td_svc
+from app.services.fpl_sync import availability_flag
 
 FPL_EVENT_LIVE = "https://fantasy.premierleague.com/api/event/{gw}/live/"
 FPL_FIXTURES = "https://fantasy.premierleague.com/api/fixtures/"
@@ -382,7 +384,50 @@ def _apply_autosubs(
     return effective, captain, vice
 
 
+def freeze_kickoff_captains(db: Session, gw: Gameweek) -> None:
+    """Mark current captains as armed once their club fixture has started."""
+    picks = (
+        db.query(SquadPick)
+        .filter(SquadPick.gameweek_id == gw.id, SquadPick.is_captain == 1)
+        .all()
+    )
+    if not picks:
+        return
+    players = {
+        p.id: p
+        for p in db.query(Player).filter(Player.id.in_([x.player_id for x in picks])).all()
+    }
+    dirty = False
+    for pick in picks:
+        if pick.captain_armed:
+            continue
+        pl = players.get(pick.player_id)
+        if not pl:
+            continue
+        if fixtures_svc.club_fixture_started(db, club_code=pl.team_code, gw_number=gw.number):
+            pick.captain_armed = 1
+            dirty = True
+    if dirty:
+        db.commit()
+
+
+def unavailable_xi_penalty(db: Session, picks: list[SquadPick], by_id: dict[int, Player]) -> tuple[float, list[int]]:
+    """−1 per injured/suspended/unavailable player left in the Starting XI at GW lock."""
+    flagged: list[int] = []
+    for pick in picks:
+        if not pick.is_starter:
+            continue
+        p = by_id.get(pick.player_id)
+        if not p:
+            continue
+        flag = availability_flag(getattr(p, "status", "a") or "a", getattr(p, "chance_of_playing", None))
+        if flag == "out":
+            flagged.append(p.id)
+    return (-1.0 * len(flagged), flagged)
+
+
 def score_managers(db: Session, gw: Gameweek) -> int:
+    freeze_kickoff_captains(db, gw)
     pts = player_points_map(db, gw)
     managers = db.query(Manager).all()
     scored = 0
@@ -436,14 +481,28 @@ def score_managers(db: Session, gw: Gameweek) -> int:
             vice_id,
             minutes,
         )
+        armed_ids = {p.player_id for p in picks if getattr(p, "captain_armed", 0)}
+        # Provisional: current captain still counts before their kickoff
+        if captain_id and captain_id not in armed_ids:
+            cap_player = next((p for p in owned if p.id == captain_id), None)
+            if cap_player and not fixtures_svc.club_fixture_started(
+                db, club_code=cap_player.team_code, gw_number=gw.number
+            ):
+                armed_ids.add(captain_id)
+        if not armed_ids and armband:
+            armed_ids.add(armband)
 
         player_lines = []
         squad_points = 0.0
         starter_ids = {p.player_id for p in picks if p.is_starter}
+        by_id = {p.id: p for p in owned}
         for pid in effective:
             base = pts.get(pid, 0.0)
             mult = 1.0
-            if pid == armband:
+            is_cap = pid in armed_ids or pid == armband
+            if pid in armed_ids:
+                mult = 3.0 if chip_name == "triple_captain" else 2.0
+            elif pid == armband:
                 mult = 3.0 if chip_name == "triple_captain" else 2.0
             elif ss_id and pid == ss_id:
                 mult = 2.0
@@ -455,7 +514,7 @@ def score_managers(db: Session, gw: Gameweek) -> int:
                     "points": scored_pts,
                     "base": base,
                     "mult": mult,
-                    "captain": pid == armband,
+                    "captain": is_cap,
                     "autosub": pid not in starter_ids,
                     "super_sub": bool(ss_id and pid == ss_id),
                 }
@@ -492,13 +551,17 @@ def score_managers(db: Session, gw: Gameweek) -> int:
         )
         hit_pts = squad_svc.transfer_hit_points(db, manager.id, gw.id)
         hit_n = squad_svc.hit_transfers_this_gw(db, manager.id, gw.id)
-        total = round(squad_points + td_pts + hit_pts, 2)
+        neglect_pts, neglect_ids = unavailable_xi_penalty(db, picks, by_id)
+        total = round(squad_points + td_pts + hit_pts + neglect_pts, 2)
         breakdown = {
             "squad": round(squad_points, 2),
             "td": td_pts,
             "hits": hit_n,
             "hit_points": hit_pts,
+            "unavailable_xi_penalty": neglect_pts,
+            "unavailable_xi_players": neglect_ids,
             "armband_player_id": armband,
+            "armed_captain_ids": sorted(armed_ids),
             "chip": chip_name or "—",
             "players": player_lines,
         }

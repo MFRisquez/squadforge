@@ -3,6 +3,8 @@
 TD is NOT a chip (Wildcard stays separate).
 You may start a TD assignment anytime you don't already have one active.
 Once set, that club scores for exactly 3 consecutive gameweeks, then you can pick again.
+You may change the pick until the first deadline of that window (pre-season / before kickoff).
+You may not pick the same club twice in a row.
 """
 
 from __future__ import annotations
@@ -12,7 +14,9 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.kits import badge_url
 from app.models import Club, ClubResult, TechnicalDirectorPick
+from app.services import deadline as deadline_svc
 
 TD_POINTS = {"W": 3.0, "D": 1.0, "L": -1.0}
 
@@ -47,29 +51,68 @@ def latest_td(db: Session, manager_id: int) -> Optional[TechnicalDirectorPick]:
     )
 
 
+def previous_td_club(db: Session, manager_id: int, *, exclude_id: int | None = None) -> str | None:
+    """Club from the most recent finished TD window (not the active one if excluded)."""
+    q = db.query(TechnicalDirectorPick).filter(TechnicalDirectorPick.manager_id == manager_id)
+    if exclude_id is not None:
+        q = q.filter(TechnicalDirectorPick.id != exclude_id)
+    prev = q.order_by(TechnicalDirectorPick.end_gw.desc()).first()
+    return prev.club_code if prev else None
+
+
 def can_select_td(db: Session, manager_id: int, gw_number: int) -> bool:
-    """Anytime — as long as there is no active 3-GW window covering this GW."""
+    """True when manager can start a new TD window (none active)."""
     return active_td(db, manager_id, gw_number) is None
 
 
+def can_change_td(db: Session, manager_id: int, gw) -> bool:
+    """
+    Can pick or re-pick TD.
+    - No active window → can select
+    - Active window starting this GW and deadline not passed → can change club
+    """
+    from app.models import Gameweek
+
+    gw_number = gw.number if isinstance(gw, Gameweek) else int(gw)
+    active = active_td(db, manager_id, gw_number)
+    if active is None:
+        return True
+    if active.start_gw != gw_number:
+        return False
+    if isinstance(gw, Gameweek):
+        return deadline_svc.can_edit(gw)
+    return True
+
+
 def set_td_pick(db: Session, *, manager_id: int, club_code: str, gw_number: int) -> TechnicalDirectorPick:
+    from app.services import squad as squad_svc
+
     club = db.query(Club).filter(Club.code == club_code.upper()).one_or_none()
     if not club:
         raise TDError("Unknown club")
 
+    gw = squad_svc.current_gameweek(db)
+    # Prefer the GW being set for; use current for deadline checks
     current = active_td(db, manager_id, gw_number)
     if current:
-        raise TDError(
-            f"TD already active ({current.club_code}) until GW{current.end_gw}. "
-            "Pick again after that window ends."
-        )
+        if current.start_gw != gw_number or not deadline_svc.can_edit(gw):
+            raise TDError(
+                f"TD already active ({current.club_code}) until GW{current.end_gw}. "
+                "Pick again after that window ends."
+            )
+        banned = previous_td_club(db, manager_id, exclude_id=current.id)
+        if banned and banned == club.code:
+            raise TDError(f"Pick a different club than last time ({banned})")
+        if current.club_code == club.code:
+            return current
+        db.delete(current)
+        db.flush()
+    else:
+        banned = previous_td_club(db, manager_id)
+        if banned and banned == club.code:
+            raise TDError(f"Pick a different club than last time ({banned})")
 
     start, end = window_for_start(gw_number)
-
-    prev = latest_td(db, manager_id)
-    if prev and prev.club_code == club.code:
-        raise TDError("Pick a different club than your last TD assignment")
-
     pick = TechnicalDirectorPick(
         manager_id=manager_id,
         club_code=club.code,
@@ -92,6 +135,24 @@ def td_points_for_gw(db: Session, *, manager_id: int, gw_number: int, gameweek_i
         .all()
     )
     return sum(TD_POINTS.get(r.result, 0.0) for r in results)
+
+
+def td_view(db: Session, manager_id: int, gw_number: int) -> dict:
+    """Template/API helper for Squad pitch TD corner."""
+    pick = active_td(db, manager_id, gw_number)
+    club = None
+    if pick:
+        club = db.query(Club).filter(Club.code == pick.club_code).one_or_none()
+    banned = previous_td_club(db, manager_id, exclude_id=pick.id if pick else None)
+    return {
+        "pick": pick,
+        "club_code": pick.club_code if pick else None,
+        "club_name": club.name if club else (pick.club_code if pick else None),
+        "badge": badge_url(club.fpl_team_id) if club else None,
+        "start_gw": pick.start_gw if pick else None,
+        "end_gw": pick.end_gw if pick else None,
+        "banned_club": banned,
+    }
 
 
 # Back-compat aliases used by routes

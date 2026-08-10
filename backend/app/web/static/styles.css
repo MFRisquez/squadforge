@@ -563,6 +563,93 @@ select {
   gap: 0.3rem;
   padding: 0.55rem 0.2rem 0.65rem;
 }
+.td-corner {
+  position: absolute;
+  top: 0.4rem;
+  left: 0.4rem;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.2rem 0.35rem;
+  align-items: center;
+  max-width: 7.2rem;
+  padding: 0.3rem 0.35rem;
+  border-radius: 0.55rem;
+  background: rgba(6, 20, 58, 0.72);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.22);
+}
+.td-badge {
+  width: 1.7rem;
+  height: 1.7rem;
+  object-fit: contain;
+  grid-row: span 2;
+}
+.td-corner-meta {
+  display: grid;
+  gap: 0.05rem;
+  min-width: 0;
+}
+.td-kicker {
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #00ff87;
+}
+.td-corner-meta strong {
+  font-size: 0.62rem;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.td-window {
+  font-size: 0.5rem;
+  opacity: 0.8;
+}
+.td-pick {
+  grid-column: 1 / -1;
+}
+.td-pick summary {
+  cursor: pointer;
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: #00ff87;
+  list-style: none;
+}
+.td-pick summary::-webkit-details-marker { display: none; }
+.td-pick-form {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+.td-pick-form select {
+  font-size: 0.62rem;
+  padding: 0.2rem;
+  border-radius: 0.35rem;
+  border: 0;
+  max-width: 100%;
+}
+.td-pick-form .chip-play {
+  justify-self: start;
+  font-size: 0.55rem;
+  padding: 0.15rem 0.45rem;
+}
+.td-ban, .td-locked {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.48rem;
+  opacity: 0.85;
+}
+.xi-shirt.avail-out .shirt-nameplate,
+.squad-shirt.avail-out .shirt-nameplate {
+  background: #ff1744;
+  color: #fff;
+}
+.xi-shirt.avail-out .shirt-opp,
+.squad-shirt.avail-out .shirt-opp {
+  outline: 1px solid rgba(255, 23, 68, 0.55);
+}
 .fact-price strong {
   color: #0b2a16;
   font-size: 1.05rem;
@@ -2370,29 +2457,29 @@ body.picker-open {
   .gw-deadline { font-size: 0.64rem; }
   .gw-status { margin-top: 0.2rem; font-size: 0.66rem; }
 
-  .chip-strip-wrap { margin-bottom: 0.3rem; }
-  .chip-strip-head { margin-bottom: 0.12rem; }
-  .chip-strip-cards { gap: 0.35rem; }
+  .chip-strip-wrap { margin-bottom: 0.25rem; }
+  .chip-strip-head { margin-bottom: 0.1rem; }
+  .chip-strip-cards { gap: 0.28rem; }
   .chip-card-fpl {
-    width: 5.15rem;
-    padding: 0.35rem 0.28rem 0.32rem;
-    gap: 0.2rem;
-    border-radius: 0.65rem;
+    width: 4.15rem;
+    padding: 0.22rem 0.18rem 0.22rem;
+    gap: 0.12rem;
+    border-radius: 0.5rem;
   }
   .chip-card-fpl .chip-ico {
-    width: 2.05rem;
-    height: 2.05rem;
+    width: 1.45rem;
+    height: 1.45rem;
   }
   .chip-card-fpl .chip-ico svg {
-    width: 1.15rem;
-    height: 1.15rem;
+    width: 0.82rem;
+    height: 0.82rem;
   }
-  .chip-card-fpl .chip-name { font-size: 0.56rem; min-height: 1.35em; }
+  .chip-card-fpl .chip-name { font-size: 0.5rem; min-height: 1.15em; }
   .chip-card-fpl .chip-play {
-    font-size: 0.56rem;
-    padding: 0.16rem 0.55rem;
+    font-size: 0.5rem;
+    padding: 0.1rem 0.4rem;
   }
-  .chip-card-fpl .chip-status { font-size: 0.52rem; min-height: 1.2rem; }
+  .chip-card-fpl .chip-status { font-size: 0.48rem; min-height: 1rem; }
   .chip-footnote { display: none; }
 
   .stat-strip {
@@ -2428,7 +2515,17 @@ body.picker-open {
     gap: 0.12rem;
   }
   .pitch.pitch-photo { min-height: 0; }
-  .pitch-row { gap: 0.08rem; }
+  .pitch-row { gap: 0.32rem; }
+  .xi-pitch .pitch-row { gap: 0.38rem; }
+  .squad-pitch .pitch-row { gap: 0.35rem; }
+  .td-corner {
+    top: 0.28rem;
+    left: 0.28rem;
+    max-width: 6.4rem;
+    padding: 0.22rem 0.28rem;
+  }
+  .td-badge { width: 1.4rem; height: 1.4rem; }
+  .td-corner-meta strong { font-size: 0.55rem; }
   .pitch-meta {
     margin: 0.1rem 0 0.25rem;
     font-size: 0.66rem;
@@ -2484,7 +2581,7 @@ body.picker-open {
   .xi-shirt .jersey-img { width: 2.2rem; }
   .xi-shirt .shirt-nameplate { font-size: 0.55rem; padding: 0.14rem 0.08rem; }
   .xi-shirt .shirt-foot { font-size: 0.52rem; padding: 0.12rem 0.06rem; }
-  .xi-bench-wrap .bench { gap: 0.05rem; padding: 0.22rem 0.1rem; flex-wrap: nowrap; }
+  .xi-bench-wrap .bench { gap: 0.28rem; padding: 0.28rem 0.2rem; flex-wrap: nowrap; }
   .xi-bench-wrap .xi-card { width: 3.25rem; }
   .xi-bench-wrap .xi-shirt { width: 3.25rem; }
   .xi-bench-wrap .jersey-img { width: 2.05rem; }

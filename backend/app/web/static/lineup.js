@@ -10,8 +10,19 @@
   let captainId = INITIAL.captain || [...starterIds][0] || null;
   let viceId = INITIAL.vice || null;
   const LOCKED = Boolean(INITIAL.locked);
+  const CAPTAIN_EDITABLE = Boolean(INITIAL.captainEditable);
+  const FIXTURE_STARTED = INITIAL.fixtureStarted || {};
+  const CAPTAIN_ARMED = INITIAL.captainArmed || {};
   if (!viceId || viceId === captainId) {
     viceId = [...starterIds].find((id) => id !== captainId) || null;
+  }
+
+  function matchStarted(playerId) {
+    return Boolean(FIXTURE_STARTED[String(playerId)] || FIXTURE_STARTED[playerId]);
+  }
+
+  function canPickAsCaptain(playerId) {
+    return starterIds.has(playerId) && !matchStarted(playerId);
   }
 
   const pitch = document.getElementById("pitch");
@@ -93,6 +104,10 @@
 
   function setCaptain(id) {
     if (!starterIds.has(id)) return;
+    if (CAPTAIN_EDITABLE && !canPickAsCaptain(id)) {
+      alert("That player's match already started — pick someone still to play.");
+      return;
+    }
     if (id === viceId) viceId = captainId;
     captainId = id;
     ensureRoles();
@@ -102,6 +117,10 @@
 
   function setVice(id) {
     if (!starterIds.has(id)) return;
+    if (CAPTAIN_EDITABLE && !canPickAsCaptain(id)) {
+      alert("That player's match already started — pick someone still to play.");
+      return;
+    }
     if (id === captainId) captainId = viceId;
     viceId = id;
     ensureRoles();
@@ -281,8 +300,8 @@
       </div>
     `;
     detailActions.innerHTML = "";
-    if (!LOCKED) {
-      if (!onBench) {
+    if (!LOCKED || CAPTAIN_EDITABLE) {
+      if (!onBench && (!LOCKED || CAPTAIN_EDITABLE)) {
         const cvRow = document.createElement("div");
         cvRow.className = "cv-action-row";
         const cBtn = actionBtn(
@@ -290,40 +309,53 @@
           `btn cv-btn is-c${isCap ? " is-active" : ""}`,
           () => setCaptain(player.id)
         );
-        if (isCap) cBtn.disabled = true;
+        if (isCap || (CAPTAIN_EDITABLE && !canPickAsCaptain(player.id))) cBtn.disabled = true;
+        if (CAPTAIN_EDITABLE && !canPickAsCaptain(player.id) && !isCap) {
+          cBtn.title = "Match already started";
+        }
         const vBtn = actionBtn(
           isVice ? "Vice ✓" : "Make vice",
           `btn cv-btn is-v${isVice ? " is-active" : ""}`,
           () => setVice(player.id)
         );
-        if (isVice) vBtn.disabled = true;
+        if (isVice || (CAPTAIN_EDITABLE && !canPickAsCaptain(player.id))) vBtn.disabled = true;
         cvRow.appendChild(cBtn);
         cvRow.appendChild(vBtn);
         detailActions.appendChild(cvRow);
+        if (CAPTAIN_EDITABLE && LOCKED) {
+          const note = document.createElement("p");
+          note.className = "muted tiny";
+          note.textContent = matchStarted(player.id)
+            ? "This match has started — captain points for them are locked."
+            : "Tap Save captain below after changing C/V.";
+          detailActions.appendChild(note);
+        }
       }
-      const swapBtn = actionBtn(
-        onBench ? "Swap into XI" : "Swap to bench",
-        "btn",
-        () => beginSwap(player)
-      );
-      if (!partners.length) {
-        swapBtn.disabled = true;
-        swapBtn.title = "No legal partner for this formation";
+      if (!LOCKED) {
+        const swapBtn = actionBtn(
+          onBench ? "Swap into XI" : "Swap to bench",
+          "btn",
+          () => beginSwap(player)
+        );
+        if (!partners.length) {
+          swapBtn.disabled = true;
+          swapBtn.title = "No legal partner for this formation";
+        }
+        detailActions.appendChild(swapBtn);
+        if (partners.length) {
+          const note = document.createElement("p");
+          note.className = "muted tiny";
+          note.textContent = onBench
+            ? `Then tap who leaves the XI (${partners.length} options).`
+            : `Then tap who comes in from the bench (${partners.length} options).`;
+          detailActions.appendChild(note);
+        }
+        const squad = document.createElement("a");
+        squad.className = "btn ghost";
+        squad.href = "/team";
+        squad.textContent = "Season stats on Squad";
+        detailActions.appendChild(squad);
       }
-      detailActions.appendChild(swapBtn);
-      if (partners.length) {
-        const note = document.createElement("p");
-        note.className = "muted tiny";
-        note.textContent = onBench
-          ? `Then tap who leaves the XI (${partners.length} options).`
-          : `Then tap who comes in from the bench (${partners.length} options).`;
-        detailActions.appendChild(note);
-      }
-      const squad = document.createElement("a");
-      squad.className = "btn ghost";
-      squad.href = "/team";
-      squad.textContent = "Season stats on Squad";
-      detailActions.appendChild(squad);
     }
     playerDetail.hidden = false;
     if (LOCKED) loadMatchProfile(player.id);
@@ -477,6 +509,24 @@
   if (cancelSwapBtn) cancelSwapBtn.addEventListener("click", clearSwap);
 
   document.getElementById("lineupForm").addEventListener("submit", (e) => {
+    if (LOCKED && CAPTAIN_EDITABLE) {
+      ensureRoles();
+      if (!captainId || !starterIds.has(captainId) || !canPickAsCaptain(captainId)) {
+        e.preventDefault();
+        alert("Pick a captain whose match has not started yet.");
+        return;
+      }
+      if (!viceId || !starterIds.has(viceId) || viceId === captainId) {
+        e.preventDefault();
+        alert("Pick a different vice-captain.");
+        return;
+      }
+      if (!canPickAsCaptain(viceId) && !(CAPTAIN_ARMED[String(viceId)] || CAPTAIN_ARMED[viceId])) {
+        // allow existing vice if already set and match started only if unchanged — server validates
+      }
+      syncHidden();
+      return;
+    }
     if (LOCKED) {
       e.preventDefault();
       return;

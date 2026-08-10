@@ -197,6 +197,59 @@ def effective_captain_id(
     return captain_id
 
 
+def save_captain_roles(
+    db: Session,
+    *,
+    manager_id: int,
+    gameweek_id: int,
+    gw_number: int,
+    captain_id: int,
+    vice_id: int,
+) -> None:
+    """Mid-GW captain/vice change among starters whose fixtures have not started."""
+    from app.services import fixtures as fixtures_svc
+
+    picks = (
+        db.query(SquadPick)
+        .filter(SquadPick.manager_id == manager_id, SquadPick.gameweek_id == gameweek_id)
+        .all()
+    )
+    if not picks:
+        raise SquadError("Save your XI first")
+    by_pid = {p.player_id: p for p in picks}
+    starters = {p.player_id for p in picks if p.is_starter}
+    if captain_id not in starters or vice_id not in starters:
+        raise SquadError("Captain and vice must be in your XI")
+    if captain_id == vice_id:
+        raise SquadError("Captain and vice-captain must be different")
+
+    players = {p.id: p for p in db.query(Player).filter(Player.id.in_(list(starters))).all()}
+
+    def started(pid: int) -> bool:
+        pl = players.get(pid)
+        if not pl:
+            return True
+        return fixtures_svc.club_fixture_started(db, club_code=pl.team_code, gw_number=gw_number)
+
+    old_cap = next((p for p in picks if p.is_captain), None)
+    if old_cap and old_cap.player_id != captain_id and started(old_cap.player_id):
+        old_cap.captain_armed = 1
+
+    if started(captain_id):
+        raise SquadError("That player's match already started — pick someone still to play")
+    if started(vice_id):
+        # Vice can stay if unchanged; only block moving vice onto a started player
+        old_vice = next((p for p in picks if p.is_vice_captain), None)
+        if not old_vice or old_vice.player_id != vice_id:
+            raise SquadError("Vice must be a starter whose match has not started")
+
+    for p in picks:
+        p.is_captain = 1 if p.player_id == captain_id else 0
+        p.is_vice_captain = 1 if p.player_id == vice_id else 0
+    # New captain not started yet — arming happens at their kickoff
+    db.commit()
+
+
 def save_lineup(
     db: Session,
     *,

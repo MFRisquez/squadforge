@@ -1,7 +1,7 @@
 """Technical Director window behaviour."""
 
 from app.db import Base, SessionLocal, engine
-from app.models import Manager
+from app.models import Gameweek, Manager
 from app.services.seed import seed_if_empty
 from app.services import td as td_svc
 
@@ -39,5 +39,51 @@ def test_td_can_start_anytime_then_locks_for_three_gw():
         assert td_svc.can_select_td(db, manager.id, 10) is True
         nxt = td_svc.set_td_pick(db, manager_id=manager.id, club_code="ARS", gw_number=10)
         assert nxt.start_gw == 10 and nxt.end_gw == 12
+    finally:
+        db.close()
+
+
+def test_td_cannot_repeat_consecutive_club_but_can_later():
+    db = SessionLocal()
+    try:
+        manager = Manager(display_name="TDRepeat", pin="1234", team_name="Repeat FC")
+        db.add(manager)
+        db.commit()
+        db.refresh(manager)
+
+        td_svc.set_td_pick(db, manager_id=manager.id, club_code="LIV", gw_number=1)
+        assert td_svc.can_select_td(db, manager.id, 4) is True
+        try:
+            td_svc.set_td_pick(db, manager_id=manager.id, club_code="LIV", gw_number=4)
+            assert False, "same club twice in a row"
+        except td_svc.TDError:
+            pass
+        td_svc.set_td_pick(db, manager_id=manager.id, club_code="ARS", gw_number=4)
+        # After ARS window, LIV is allowed again
+        nxt = td_svc.set_td_pick(db, manager_id=manager.id, club_code="LIV", gw_number=7)
+        assert nxt.club_code == "LIV"
+    finally:
+        db.close()
+
+
+def test_td_can_change_before_first_deadline():
+    db = SessionLocal()
+    try:
+        manager = Manager(display_name="TDChange", pin="1234", team_name="Change FC")
+        db.add(manager)
+        db.commit()
+        db.refresh(manager)
+        gw = db.query(Gameweek).filter(Gameweek.number == 1).one()
+        # Far-future deadline so can_edit is true
+        gw.deadline_at = "2099-08-21T17:30:00Z"
+        gw.is_current = 1
+        db.commit()
+
+        first = td_svc.set_td_pick(db, manager_id=manager.id, club_code="LIV", gw_number=1)
+        assert first.club_code == "LIV"
+        assert td_svc.can_change_td(db, manager.id, gw) is True
+        second = td_svc.set_td_pick(db, manager_id=manager.id, club_code="ARS", gw_number=1)
+        assert second.club_code == "ARS"
+        assert second.start_gw == 1
     finally:
         db.close()

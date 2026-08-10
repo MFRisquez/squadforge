@@ -368,9 +368,10 @@ def team_page(request: Request, db: Session = Depends(get_db)):
             pick_rows.append({"pick": pick, "player": player})
     chips = chips_svc.ensure_chip_state(db, manager.id)
     active_chip = chips_svc.active_chip(db, manager.id, gw.id)
-    td = td_svc.current_td(db, manager.id, gw.number)
-    can_set_td = td_svc.can_select_td(db, manager.id, gw.number) and not view["edits_locked"]
+    td_info = td_svc.td_view(db, manager.id, gw.number)
+    can_set_td = td_svc.can_change_td(db, manager.id, gw)
     clubs = db.query(Club).order_by(Club.name).all()
+    td_club_choices = [c for c in clubs if c.code != td_info.get("banned_club")]
     unlimited = squad_svc.transfers_are_unlimited(db, manager.id, view["current_gw"])
     transfers_gw = (
         db.query(TransferLog)
@@ -401,9 +402,11 @@ def team_page(request: Request, db: Session = Depends(get_db)):
             chips=chips,
             active_chip=active_chip,
             bench_options=bench_options,
-            td=td,
+            td=td_info.get("pick"),
+            td_info=td_info,
             can_set_td=can_set_td,
             clubs=clubs,
+            td_club_choices=td_club_choices,
             ft_left=ft_state.free_transfers,
             unlimited_transfers=unlimited,
             transfers_gw=transfers_gw,
@@ -665,6 +668,21 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
         notice = "Chip updated"
     error = request.query_params.get("error") or request.query_params.get("chip_error")
 
+    from app.services import deadline as deadline_svc
+    from app.services import fixtures as fixtures_svc
+
+    captain_editable = False
+    if view["gw"].id == view["current_gw"].id:
+        captain_editable = deadline_svc.can_edit_captain(view["current_gw"])
+    fixture_started = {
+        p.id: fixtures_svc.club_fixture_started(db, club_code=p.team_code, gw_number=gw.number)
+        for p in owned
+    }
+    armed = {
+        p.player_id: bool(getattr(p, "captain_armed", 0))
+        for p in picks
+    }
+
     return templates.TemplateResponse(
         "lineup.html",
         _ctx(
@@ -676,6 +694,9 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
                 "captain": captain,
                 "vice": vice,
                 "locked": view["edits_locked"],
+                "captainEditable": captain_editable,
+                "fixtureStarted": fixture_started,
+                "captainArmed": armed,
                 "gw": gw.number,
                 "points": points_map,
             },
@@ -684,6 +705,7 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
             chips=chips,
             active_chip=active_chip,
             bench_options=bench_options,
+            captain_editable=captain_editable,
             notice=notice,
             error=error,
             **view,
@@ -693,18 +715,44 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/lineup/save")
 async def lineup_save(request: Request, db: Session = Depends(get_db)):
+    from urllib.parse import quote
+
     from app.services import deadline as deadline_svc
 
     manager = current_manager(request, db)
     if not manager:
         return RedirectResponse("/login", status_code=303)
     gw = squad_svc.current_gameweek(db)
-    if not deadline_svc.can_edit(gw):
-        return RedirectResponse("/lineup?error=Deadline+passed+—+lineup+is+locked", status_code=303)
     form = await request.form()
-    starter_ids = [int(x) for x in form.getlist("starter_id")]
+    roles_only = str(form.get("roles_only") or "") == "1"
     captain_id = int(form.get("captain_id") or 0)
     vice_id = int(form.get("vice_id") or 0)
+
+    if roles_only:
+        if not deadline_svc.can_edit_captain(gw):
+            return RedirectResponse("/lineup?error=Captain+changes+are+locked", status_code=303)
+        try:
+            squad_svc.save_captain_roles(
+                db,
+                manager_id=manager.id,
+                gameweek_id=gw.id,
+                gw_number=gw.number,
+                captain_id=captain_id,
+                vice_id=vice_id,
+            )
+        except squad_svc.SquadError as exc:
+            return RedirectResponse(f"/lineup?error={quote(str(exc))}", status_code=303)
+        from app.services.live_scoring import run_gameweek_scoring
+
+        try:
+            run_gameweek_scoring(db, gw, mode="auto")
+        except Exception:
+            pass
+        return RedirectResponse("/lineup?notice=Captain+updated", status_code=303)
+
+    if not deadline_svc.can_edit(gw):
+        return RedirectResponse("/lineup?error=Deadline+passed+—+lineup+is+locked", status_code=303)
+    starter_ids = [int(x) for x in form.getlist("starter_id")]
     try:
         squad_svc.save_lineup(
             db,
@@ -842,6 +890,8 @@ def td_save(
     club_code: str = Form(...),
     db: Session = Depends(get_db),
 ):
+    from urllib.parse import quote
+
     manager = current_manager(request, db)
     if not manager:
         return RedirectResponse("/login", status_code=303)
@@ -849,25 +899,8 @@ def td_save(
     try:
         td_svc.set_td_pick(db, manager_id=manager.id, club_code=club_code, gw_number=gw.number)
     except td_svc.TDError as exc:
-        pick = td_svc.current_td(db, manager.id, gw.number)
-        clubs = db.query(Club).order_by(Club.name).all()
-        can_set = td_svc.can_select_td(db, manager.id, gw.number)
-        preview_start, preview_end = td_svc.window_for_start(gw.number)
-        return templates.TemplateResponse(
-            "td.html",
-            _ctx(
-                request,
-                db,
-                clubs=clubs,
-                pick=pick,
-                block_start=pick.start_gw if pick else preview_start,
-                block_end=pick.end_gw if pick else preview_end,
-                can_set=can_set,
-                error=str(exc),
-            ),
-            status_code=400,
-        )
-    return RedirectResponse("/td", status_code=303)
+        return RedirectResponse(f"/team?error={quote(str(exc))}", status_code=303)
+    return RedirectResponse("/team?notice=Technical+Director+updated", status_code=303)
 
 
 @router.post("/score/run")

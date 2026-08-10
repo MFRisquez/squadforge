@@ -59,6 +59,12 @@
   <div class="pick-actions">
     {% if not edits_locked %}
     <button class="btn" type="submit">Save XI</button>
+    {% elif captain_editable %}
+    <input type="hidden" name="roles_only" value="1" />
+    <button class="btn" type="submit" id="saveCaptainBtn">Save captain</button>
+    <p class="muted tiny" style="margin:0;width:100%;text-align:center">
+      XI locked — you can still change C/V to players yet to play.
+    </p>
     {% endif %}
     <a class="btn ghost" href="/team?gw={{ gw.number }}">Squad &amp; Transfers</a>
   </div>

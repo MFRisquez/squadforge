@@ -202,6 +202,31 @@ def next_fixtures_for_player(db: Session, *, player_id: int, limit: int = 3) -> 
     return next_fixtures_for_club(db, club_code=player.team_code, from_gw=from_gw, limit=limit)
 
 
+def club_match_state(db: Session, *, club_code: str, gw_number: int) -> str:
+    """upcoming | live | finished for a club in a GW (DGW: live if any live, else finished if all done)."""
+    rows = (
+        db.query(Fixture)
+        .filter(
+            Fixture.gameweek_number == gw_number,
+            ((Fixture.home_club_code == club_code) | (Fixture.away_club_code == club_code)),
+        )
+        .all()
+    )
+    if not rows:
+        return "upcoming"
+    if any(r.started and not r.finished for r in rows):
+        return "live"
+    if all(r.finished for r in rows):
+        return "finished"
+    if any(r.started or r.finished for r in rows):
+        return "live"
+    return "upcoming"
+
+
+def club_fixture_started(db: Session, *, club_code: str, gw_number: int) -> bool:
+    return club_match_state(db, club_code=club_code, gw_number=gw_number) in {"live", "finished"}
+
+
 def fixtures_for_gameweek(db: Session, *, gw_number: int) -> list[dict[str, Any]]:
     clubs = {c.code: c for c in db.query(Club).all()}
     rows = (

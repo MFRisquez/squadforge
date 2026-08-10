@@ -46,6 +46,13 @@ def can_edit(gw: Gameweek) -> bool:
     return not deadline_passed(gw)
 
 
+def can_edit_captain(gw: Gameweek) -> bool:
+    """After deadline, C/V can still move until the gameweek is finished."""
+    if (gw.status or "").lower() == "finished":
+        return False
+    return deadline_passed(gw)
+
+
 def deadline_label(gw: Gameweek) -> str:
     dl = parse_deadline(gw)
     if not dl:

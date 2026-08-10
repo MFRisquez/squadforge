@@ -51,6 +51,9 @@ def _ensure_schema_patches() -> None:
         if "is_vice_captain" not in cols:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE squad_picks ADD COLUMN is_vice_captain INTEGER DEFAULT 0"))
+        if "captain_armed" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE squad_picks ADD COLUMN captain_armed INTEGER DEFAULT 0"))
     if "clubs" in tables:
         cols = {c["name"] for c in inspect(engine).get_columns("clubs")}
         if "kit_code" not in cols:

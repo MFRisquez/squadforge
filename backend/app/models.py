@@ -135,6 +135,8 @@ class SquadPick(Base):
     is_vice_captain: Mapped[int] = mapped_column(Integer, default=0)
     is_starter: Mapped[int] = mapped_column(Integer, default=1)
     bench_order: Mapped[int] = mapped_column(Integer, default=0)
+    # 1 = was captain when their club's GW fixture kicked off (keeps ×2 after mid-GW C change)
+    captain_armed: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class OwnedPlayer(Base):

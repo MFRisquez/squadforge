@@ -4,7 +4,7 @@
 <section class="hero-block compact">
   <p class="eyebrow">SquadForge · v0.4</p>
   <h1>Rules</h1>
-  <p class="lede tight">Quick reference for scoring, transfers, and chips.</p>
+  <p class="lede tight">Quick reference for scoring, transfers, DT, and chips.</p>
 </section>
 
 <nav class="rules-toc" aria-label="Rules sections">
@@ -12,7 +12,7 @@
   <a href="#xi">XI</a>
   <a href="#scoring">Scoring</a>
   <a href="#positions">Positions</a>
-  <a href="#extras">Extras</a>
+  <a href="#dt">DT</a>
   <a href="#chips">Chips</a>
 </nav>
 
@@ -26,7 +26,7 @@
       <li><span>GW1 transfers</span><span>Unlimited</span></li>
       <li><span>Each later GW</span><span>+1 FT (max 5)</span></li>
       <li><span>Extra transfer</span><span>−4 hit</span></li>
-      <li class="rules-note">Deadline locks transfers, XI, and chips for that GW.</li>
+      <li class="rules-note">Deadline locks transfers, XI shape, and chips for that GW.</li>
     </ul>
   </section>
 
@@ -36,6 +36,9 @@
       <li><span>Pick each GW</span><span>XI · bench · C · V</span></li>
       <li><span>Captain</span><span>×2</span></li>
       <li><span>If C plays 0 mins</span><span>Vice gets ×2</span></li>
+      <li><span>Injured / suspended in XI</span><span>Name in red</span></li>
+      <li><span>Still in XI at deadline</span><span>−1 each</span></li>
+      <li class="rules-note">After the deadline, XI/bench are locked — but you may change captain/vice to a starter whose match has not started yet (e.g. Friday captain locks at kickoff; Saturday you can move the armband).</li>
       <li class="rules-note">Autosubs can bring a bench player in if someone in your XI doesn’t play.</li>
     </ul>
   </section>
@@ -54,9 +57,10 @@
         <tr><td>Yellow card</td><td>−1</td></tr>
         <tr><td>Red card</td><td>−3</td></tr>
         <tr><td>Own goal</td><td>−2</td></tr>
+        <tr><td>Unavailable player left in XI</td><td>−1</td></tr>
       </tbody>
     </table>
-    <p class="muted tiny" style="margin:0.55rem 0 0">Goal / assist points are on top of appearance.</p>
+    <p class="muted tiny" style="margin:0.55rem 0 0">Goal / assist points are on top of appearance. “Unavailable” = injured, suspended, or 0% chance.</p>
   </section>
 
   <section class="panel rules-panel" id="positions">
@@ -100,13 +104,15 @@
     </div>
   </section>
 
-  <section class="panel rules-panel" id="extras">
-    <h2>Extras</h2>
+  <section class="panel rules-panel" id="dt">
+    <h2>Technical Director (DT)</h2>
     <ul class="rules-list">
-      <li><span>Scouting bonus</span><span>+2</span></li>
-      <li class="rules-note">Only you own them in the league, and they score, assist, or keep a CS as GK/DEF.</li>
-      <li><span>Technical Director</span><span>3 GWs</span></li>
-      <li class="rules-note">Pick a club: Win +3 · Draw +1 · Loss −1. Locked in the window · can’t repeat the previous club.</li>
+      <li><span>Where</span><span>Squad pitch · top-left</span></li>
+      <li><span>Window</span><span>3 gameweeks</span></li>
+      <li><span>Win / Draw / Loss</span><span>+3 / +1 / −1</span></li>
+      <li><span>Same club twice in a row</span><span>Not allowed</span></li>
+      <li class="rules-note">Shown with the club badge (not a shirt). You can change the DT until the deadline of the first GW in that window (including before the season starts). After that the club is locked for the 3 GWs. Next window must be a different club than the one you just finished; later windows can reuse older clubs.</li>
+      <li class="rules-note">Scouting bonus: only you own a player and they score/assist/CS (GK/DEF) → +2 that GW.</li>
     </ul>
   </section>
 
@@ -114,7 +120,7 @@
     <h2>Chips <span class="muted" style="font-weight:600;font-size:0.85rem">(1 per GW)</span></h2>
     <ul class="rules-list">
       <li><span>Wildcard ×2</span><span>Unlimited transfers</span></li>
-      <li class="rules-note">2nd Wildcard from GW20.</li>
+      <li class="rules-note">2nd Wildcard from GW20. DT is not a chip.</li>
       <li><span>Free Hit ×1</span><span>1 GW temp squad</span></li>
       <li><span>Bench Boost ×1</span><span>Bench pts count</span></li>
       <li><span>Triple Captain ×1</span><span>Captain ×3</span></li>

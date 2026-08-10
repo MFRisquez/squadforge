@@ -31,6 +31,7 @@ KIT_CODE_BY_SHORT: dict[str, int] = {
 
 SHIRT_CDN = "https://fantasy.premierleague.com/dist/img/shirts/standard"
 PHOTO_CDN = "https://resources.premierleague.com/premierleague/photos/players/250x250"
+BADGE_CDN = "https://resources.premierleague.com/premierleague25/badges"
 
 
 def kit_code_for(team_code: str, stored: int | None = None) -> int | None:
@@ -58,6 +59,13 @@ def photo_url(photo: str | None) -> str | None:
     if not code.isdigit():
         return None
     return f"{PHOTO_CDN}/p{code}.png"
+
+
+def badge_url(fpl_team_id: int | None) -> str | None:
+    """Official PL badge SVG from FPL team id."""
+    if not fpl_team_id:
+        return None
+    return f"{BADGE_CDN}/{int(fpl_team_id)}.svg"
 
 
 def kit_for(
