@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 640" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="grass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3cb371"/>
+      <stop offset="45%" stop-color="#2e8b57"/>
+      <stop offset="100%" stop-color="#1f6b3f"/>
+    </linearGradient>
+    <pattern id="stripes" width="400" height="64" patternUnits="userSpaceOnUse">
+      <rect width="400" height="32" fill="rgba(255,255,255,0.05)"/>
+    </pattern>
+    <radialGradient id="vignette" cx="50%" cy="50%" r="70%">
+      <stop offset="55%" stop-color="rgba(0,0,0,0)"/>
+      <stop offset="100%" stop-color="rgba(0,40,20,0.35)"/>
+    </radialGradient>
+  </defs>
+  <rect width="400" height="640" fill="url(#grass)"/>
+  <rect width="400" height="640" fill="url(#stripes)"/>
+  <rect width="400" height="640" fill="url(#vignette)"/>
+  <!-- touchline -->
+  <rect x="28" y="36" width="344" height="568" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="3" rx="4"/>
+  <!-- halfway -->
+  <line x1="28" y1="320" x2="372" y2="320" stroke="rgba(255,255,255,0.5)" stroke-width="2.5"/>
+  <circle cx="200" cy="320" r="52" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2.5"/>
+  <circle cx="200" cy="320" r="4" fill="rgba(255,255,255,0.7)"/>
+  <!-- top penalty -->
+  <rect x="95" y="36" width="210" height="95" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2.5"/>
+  <rect x="140" y="36" width="120" height="42" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+  <path d="M 150 131 A 50 50 0 0 0 250 131" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+  <!-- bottom penalty -->
+  <rect x="95" y="509" width="210" height="95" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2.5"/>
+  <rect x="140" y="562" width="120" height="42" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+  <path d="M 150 509 A 50 50 0 0 1 250 509" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+</svg>

@@ -23,6 +23,8 @@ class Club(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     code: Mapped[str] = mapped_column(String(8), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(80))
+    # FPL bootstrap teams[].code — used for shirt_{code}-66.webp artwork
+    kit_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
 
 class Player(Base):
@@ -48,6 +50,8 @@ class Gameweek(Base):
     status: Mapped[str] = mapped_column(String(24), default="upcoming")
     name: Mapped[str] = mapped_column(String(64), default="")
     is_current: Mapped[int] = mapped_column(Integer, default=0)
+    # ISO timestamp from FPL events[].deadline_time
+    deadline_at: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
 
 class League(Base):
@@ -99,6 +103,7 @@ class SquadPick(Base):
     gameweek_id: Mapped[int] = mapped_column(ForeignKey("gameweeks.id"), index=True)
     player_id: Mapped[int] = mapped_column(ForeignKey("players.id"), index=True)
     is_captain: Mapped[int] = mapped_column(Integer, default=0)
+    is_vice_captain: Mapped[int] = mapped_column(Integer, default=0)
     is_starter: Mapped[int] = mapped_column(Integer, default=1)
     bench_order: Mapped[int] = mapped_column(Integer, default=0)
 

@@ -115,12 +115,17 @@ def test_home_login_squad_lineup_transfer():
         data={
             "starter_id": [str(i) for i in starters],
             "captain_id": str(starters[-1]),
+            "vice_id": str(starters[0]),
         },
         follow_redirects=False,
     )
     assert r.status_code == 303, r.text[:500]
 
-    assert client.get("/transfers").status_code == 200
+    # transfers now live on /team
+    r = client.get("/transfers", follow_redirects=False)
+    assert r.status_code == 303
+    assert "/team" in r.headers.get("location", "")
+    assert client.get("/team").status_code == 200
     r = client.post(
         "/transfers/make",
         data={"player_out_id": out_player.id, "player_in_id": replacement.id},

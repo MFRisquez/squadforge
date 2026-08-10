@@ -32,7 +32,9 @@
       <tr>
         <td>{{ row.rank }}</td>
         <td>{{ row.team_name }}</td>
-        <td>{{ row.manager.display_name }}</td>
+        <td>{{ row.manager.display_name }}
+          <a class="text-link" href="/league/{{ league.id }}/opponent/{{ row.manager.id }}?gw={{ gw.number }}">XI</a>
+        </td>
         <td>{{ '%.0f'|format(row.gw_points) }}</td>
         <td><strong>{{ '%.0f'|format(row.total_points) }}</strong></td>
         <td>{{ '%.1f'|format(row.squad_value) }}</td>
@@ -43,7 +45,7 @@
       {% endfor %}
     </tbody>
   </table>
-  <p class="muted tiny">GW/Total stay 0 until live scoring is wired — columns match Fantasy PL classic leagues.</p>
+  <p class="muted tiny">GW and Total update when you run scoring from Points → Refresh live scores.</p>
 </section>
 {% else %}
 <section class="panel table-wrap">
@@ -94,6 +96,11 @@
           <span class="muted">{{ '%.0f'|format(fx.away_points) }}</span>
           <strong>{{ fx.away.team_name if fx.away and fx.away.team_name else fx.away.display_name }}</strong>
           <span class="pill">{{ fx.result }}</span>
+          <span class="peek-links">
+            <a class="text-link" href="/league/{{ league.id }}/opponent/{{ fx.home.id }}?gw={{ gw.number }}">Home XI</a>
+            ·
+            <a class="text-link" href="/league/{{ league.id }}/opponent/{{ fx.away.id }}?gw={{ gw.number }}">Away XI</a>
+          </span>
         </li>
       {% endfor %}
     </ul>
@@ -104,4 +111,5 @@
 {% endif %}
 
 <a class="btn ghost" href="/league/{{ league.id }}">Back to league</a>
+<a class="btn ghost" href="/leagues">All leagues</a>
 {% endblock %}

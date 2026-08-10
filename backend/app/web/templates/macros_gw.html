@@ -1,0 +1,30 @@
+{# Sticky FPL-style gameweek bar. Expects: gw, deadline_label, edits_locked, view_gw optional siblings #}
+{% macro gw_bar(gw, deadline_label, edits_locked, prev_gw=None, next_gw=None, base_path='/team') %}
+<div class="gw-bar {% if edits_locked %}is-locked{% endif %}">
+  <div class="gw-nav">
+    {% if prev_gw %}
+      <a class="gw-arrow" href="{{ base_path }}?gw={{ prev_gw }}" aria-label="Previous gameweek">‹</a>
+    {% else %}
+      <span class="gw-arrow is-disabled">‹</span>
+    {% endif %}
+    <div class="gw-title">
+      <strong>Gameweek {{ gw.number }}</strong>
+      <span class="gw-deadline">
+        {% if edits_locked %}
+          Locked · {{ deadline_label }}
+        {% else %}
+          Deadline · {{ deadline_label }}
+        {% endif %}
+      </span>
+    </div>
+    {% if next_gw %}
+      <a class="gw-arrow" href="{{ base_path }}?gw={{ next_gw }}" aria-label="Next gameweek">›</a>
+    {% else %}
+      <span class="gw-arrow is-disabled">›</span>
+    {% endif %}
+  </div>
+  {% if edits_locked %}
+    <p class="gw-lock-note">Transfers &amp; lineup changes are locked for this GW.</p>
+  {% endif %}
+</div>
+{% endmacro %}

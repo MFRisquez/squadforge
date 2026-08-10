@@ -1,70 +1,118 @@
 {% extends "base.html" %}
 {% block content %}
-<p class="eyebrow">Private fantasy · {{ formula_version }}</p>
-<h1>{{ app_name }}</h1>
-<p class="lede">Custom Premier League scoring for your friend group — squad, captain ×2, chips, and Technical Director.</p>
+<section class="hero-block">
+  <p class="eyebrow">Private fantasy · {{ formula_version }}</p>
+  <h1>{{ app_name }}</h1>
+  <p class="lede">Build your 15, set this week’s lineup, play chips — like FPL, tuned for your friends.</p>
+</section>
 
 {% if not manager %}
-<section class="panel">
-  <h2>Start here</h2>
-  <p>Create a manager profile (name + PIN). Share it with nobody except yourself.</p>
-  <a class="btn" href="/login">Sign in / Register</a>
+<section class="panel step-card">
+  <div class="step-num">1</div>
+  <div>
+    <h2>Create your manager</h2>
+    <p class="muted">Pick a name and a PIN only you know. Takes 10 seconds.</p>
+    <a class="btn" href="/login">Sign in / Register</a>
+  </div>
 </section>
 {% else %}
-<section class="panel">
-  <h2>Hi, {{ manager.display_name }}</h2>
-  <p>Team: <strong>{{ manager.team_name }}</strong></p>
+<section class="panel welcome-row">
+  <div>
+    <h2>Hi, {{ manager.display_name }}</h2>
+    <p class="muted">Team · <strong>{{ manager.team_name }}</strong></p>
+  </div>
   <form method="post" action="/logout"><button type="submit" class="btn ghost">Log out</button></form>
 </section>
 
-<section class="panel">
+<section class="howto">
+  <h2 class="section-title">How to play this week</h2>
+  <div class="howto-grid">
+    <a class="howto-card" href="/team">
+      <span class="howto-step">1</span>
+      <strong>Squad &amp; Transfers</strong>
+      <span>Pick 15 on the pitch · swap later</span>
+    </a>
+    <a class="howto-card" href="/lineup">
+      <span class="howto-step">2</span>
+      <strong>Set lineup</strong>
+      <span>XI · Captain C · Vice V</span>
+    </a>
+    <a class="howto-card" href="/points">
+      <span class="howto-step">3</span>
+      <strong>My Points</strong>
+      <span>GW score on the pitch</span>
+    </a>
+    <a class="howto-card" href="/team">
+      <span class="howto-step">4</span>
+      <strong>Chips &amp; TD</strong>
+      <span>On the same Squad screen</span>
+    </a>
+    <a class="howto-card" href="/leagues">
+      <span class="howto-step">5</span>
+      <strong>Standings / H2H</strong>
+      <span>Table + weekly fixtures</span>
+    </a>
+  </div>
+</section>
+
+<section class="panel" id="leagues">
   <h2>Your leagues</h2>
   {% if leagues %}
-    <ul class="list">
+    <ul class="league-list">
       {% for league in leagues %}
         <li>
-          <a href="/league/{{ league.id }}">{{ league.name }}</a>
-          <span class="muted">code {{ league.invite_code }}</span>
+          <div>
+            <a class="league-name" href="/league/{{ league.id }}">{{ league.name }}</a>
+            <span class="muted">{% if league.league_type == 'h2h' %}H2H{% else %}Classic{% endif %} · code {{ league.invite_code }}</span>
+          </div>
+          <a class="btn ghost mini-btn" href="/standings/{{ league.id }}">{% if league.league_type == 'h2h' %}H2H{% else %}Table{% endif %}</a>
         </li>
       {% endfor %}
     </ul>
   {% else %}
-    <p class="muted">Join with a code or create one for your friends.</p>
+    <p class="muted">Join a friend’s code or create a league below.</p>
   {% endif %}
 
-  <form class="stack" method="post" action="/league/join">
-    <label>Invite code
-      <input name="invite_code" placeholder="FORGE1" required />
-    </label>
-    <button class="btn" type="submit">Join league</button>
-  </form>
+  <div class="split-forms">
+    <form class="stack soft-form" method="post" action="/league/join">
+      <h3>Join</h3>
+      <label>Invite code
+        <input name="invite_code" placeholder="FORGE1" required />
+      </label>
+      <button class="btn" type="submit">Join league</button>
+    </form>
 
-  <form class="stack" method="post" action="/league/create">
-    <label>Or create a league
-      <input name="league_name" placeholder="Manuel's Cup" />
-    </label>
-    <label>Format
-      <select name="league_type">
-        <option value="classic">Classic (total points)</option>
-        <option value="h2h">Head to Head (even # of friends)</option>
-      </select>
-    </label>
-    <button class="btn ghost" type="submit">Create league</button>
-  </form>
-</section>
-
-<section class="panel">
-  <h2>Quick links</h2>
-  <div class="row">
-    <a class="btn" href="/team">Squad sheet</a>
-    <a class="btn ghost" href="/lineup">Lineup</a>
-    <a class="btn ghost" href="/transfers">Transfers</a>
+    <form class="stack soft-form" method="post" action="/league/create">
+      <h3>Create</h3>
+      <label>League name
+        <input name="league_name" placeholder="Manuel's Cup" />
+      </label>
+      <label>Format
+        <select name="league_type">
+          <option value="classic">Classic (total points)</option>
+          <option value="h2h">Head to Head (even #)</option>
+        </select>
+      </label>
+      <button class="btn ghost" type="submit">Create league</button>
+    </form>
   </div>
 </section>
 
-<section class="panel">
-  <h2>Player database</h2>
-  <p class="muted">Uses the live Fantasy Premier League list (refresh after weekly price/squad changes).</p>
+<section class="panel subtle">
+  <h2>Scores</h2>
+  <p class="muted">Pull FPL live stats (or demo data before kickoff) and update standings.</p>
+  <div class="row">
+    <a class="btn" href="/points">My Points</a>
+    <form method="post" action="/score/run">
+      <input type="hidden" name="mode" value="auto" />
+      <button class="btn ghost" type="submit">Refresh scores</button>
+    </form>
+  </div>
+</section>
+
+<section class="panel subtle">
+  <h2>Keep players updated</h2>
+  <p class="muted">Pull the latest FPL prices, injuries, and availability (yellow/red statuses).</p>
   <form method="post" action="/sync/players">
     <button class="btn ghost" type="submit">Refresh players from FPL</button>
   </form>

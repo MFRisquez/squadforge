@@ -12,14 +12,19 @@
       <li>{{ m.manager.display_name }} <span class="muted">{{ m.manager.team_name }}</span></li>
     {% endfor %}
   </ul>
-  <a class="btn" href="/standings/{{ league.id }}">Standings</a>
+  <div class="row">
+    <a class="btn" href="/standings/{{ league.id }}">
+      {% if league.league_type == 'h2h' %}H2H standings{% else %}Standings{% endif %}
+    </a>
+    <a class="btn ghost" href="/leagues">All leagues</a>
+  </div>
 </section>
 
 <section class="panel">
   <h2>League format</h2>
   <p class="muted">
-    Classic = FPL total-points table.
-    Head-to-Head = weekly pairs (needs even members).
+    Classic = FPL total-points table (Standings).
+    Head-to-Head = weekly pairs + H2H table (needs even members). After you switch to H2H, open Standings to see fixtures.
   </p>
   <form method="post" action="/league/{{ league.id }}/type" class="stack">
     <label>Type
@@ -35,7 +40,7 @@
 </section>
 
 <div class="row">
-  <a class="btn" href="/team">Squad sheet</a>
-  <a class="btn ghost" href="/team/edit">Edit 15</a>
+  <a class="btn" href="/team">Squad &amp; Transfers</a>
+  <a class="btn ghost" href="/lineup">Lineup</a>
 </div>
 {% endblock %}

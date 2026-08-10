@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
@@ -16,20 +16,37 @@
   </header>
 
   {% if manager %}
-  <nav class="nav">
-    <a href="/">Home</a>
-    <a href="/team">Team</a>
-    <a href="/lineup">Lineup</a>
-    <a href="/transfers">Transfers</a>
-    <a href="/team/edit">Squad</a>
-    <a href="/td">TD</a>
+  {% set path = request.url.path %}
+  <nav class="nav" aria-label="Main">
+    <a href="/" class="{% if path == '/' %}is-active{% endif %}">
+      <span class="nav-ico">⌂</span><span>Home</span>
+    </a>
+    <a href="/team" class="{% if path == '/team' or path.startswith('/transfers') %}is-active{% endif %}">
+      <span class="nav-ico">▦</span><span>Squad</span>
+    </a>
+    <a href="/points" class="{% if path.startswith('/points') or path.startswith('/score') %}is-active{% endif %}">
+      <span class="nav-ico">◎</span><span>Points</span>
+    </a>
+    <a href="/lineup" class="{% if path.startswith('/lineup') %}is-active{% endif %}">
+      <span class="nav-ico">◫</span><span>Lineup</span>
+    </a>
+    {% if nav_leagues and nav_leagues|length == 1 %}
+    <a href="/standings/{{ nav_leagues[0].id }}" class="{% if path.startswith('/standings') or path.startswith('/league') or path.startswith('/leagues') %}is-active{% endif %}">
+      <span class="nav-ico">☰</span><span>{% if nav_leagues[0].league_type == 'h2h' %}H2H{% else %}Table{% endif %}</span>
+    </a>
+    {% else %}
+    <a href="/leagues" class="{% if path.startswith('/standings') or path.startswith('/league') or path.startswith('/leagues') %}is-active{% endif %}">
+      <span class="nav-ico">☰</span><span>Table</span>
+    </a>
+    {% endif %}
   </nav>
   {% endif %}
 
-  <main class="shell">
-    {% if error %}<p class="flash error">{{ error }}</p>{% endif %}
-    {% if notice %}<p class="flash notice">{{ notice }}</p>{% endif %}
+  <main class="shell reveal">
+    {% if error %}<p class="flash error" role="alert">{{ error }}</p>{% endif %}
+    {% if notice %}<p class="flash notice" role="status">{{ notice }}</p>{% endif %}
     {% block content %}{% endblock %}
   </main>
+  <script src="/static/ui.js"></script>
 </body>
 </html>

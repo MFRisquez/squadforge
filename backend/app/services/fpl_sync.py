@@ -44,12 +44,14 @@ def sync_from_fpl(db: Session, data: dict[str, Any] | None = None) -> dict[str, 
     club_count = 0
     for team in payload["teams"]:
         code = (team.get("short_name") or team["name"][:3]).upper()[:8]
+        kit_code = int(team.get("code") or 0) or None
         club = db.query(Club).filter(Club.code == code).one_or_none()
         if not club:
-            club = Club(code=code, name=team["name"])
+            club = Club(code=code, name=team["name"], kit_code=kit_code)
             db.add(club)
         else:
             club.name = team["name"]
+            club.kit_code = kit_code
         club_count += 1
 
     player_count = 0
@@ -103,6 +105,7 @@ def sync_from_fpl(db: Session, data: dict[str, Any] | None = None) -> dict[str, 
                 current_number = number
         gw = db.query(Gameweek).filter(Gameweek.number == number).one_or_none()
         name = event.get("name") or f"Gameweek {number}"
+        deadline = event.get("deadline_time")
         if not gw:
             db.add(
                 Gameweek(
@@ -110,11 +113,14 @@ def sync_from_fpl(db: Session, data: dict[str, Any] | None = None) -> dict[str, 
                     name=name,
                     status=status,
                     is_current=0,
+                    deadline_at=deadline,
                 )
             )
         else:
             gw.name = name
             gw.status = status
+            if deadline:
+                gw.deadline_at = deadline
 
     db.flush()
     if current_number is None:

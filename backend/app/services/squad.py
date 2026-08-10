@@ -136,8 +136,8 @@ def save_ownership(db: Session, *, manager_id: int, player_ids: list[int], gw_nu
     db.commit()
 
 
-def default_lineup_from_owned(players: list[Player]) -> tuple[list[int], list[int], int]:
-    """Pick a legal default XI + bench order from owned 15."""
+def default_lineup_from_owned(players: list[Player]) -> tuple[list[int], list[int], int, int]:
+    """Pick a legal default XI + bench order from owned 15. Returns starters, all, captain, vice."""
     by_pos: dict[str, list[Player]] = {"GK": [], "DEF": [], "MID": [], "ATT": []}
     for p in sorted(players, key=lambda x: -x.price):
         by_pos[p.position].append(p)
@@ -153,7 +153,24 @@ def default_lineup_from_owned(players: list[Player]) -> tuple[list[int], list[in
     starter_ids = [p.id for p in starters]
     bench = [p.id for p in players if p.id not in starter_ids]
     captain = starter_ids[-1]
-    return starter_ids, [p.id for p in players], captain
+    vice = starter_ids[-2] if len(starter_ids) > 1 else starter_ids[0]
+    if vice == captain and len(starter_ids) > 1:
+        vice = starter_ids[0]
+    return starter_ids, [p.id for p in players], captain, vice
+
+
+def effective_captain_id(
+    captain_id: int,
+    vice_id: int | None,
+    minutes_by_player: dict[int, float],
+) -> int:
+    """If captain plays 0 minutes, armband passes to vice-captain (FPL-style)."""
+    cap_mins = minutes_by_player.get(captain_id, 0) or 0
+    if cap_mins > 0:
+        return captain_id
+    if vice_id and (minutes_by_player.get(vice_id, 0) or 0) > 0:
+        return vice_id
+    return captain_id
 
 
 def save_lineup(
@@ -163,6 +180,7 @@ def save_lineup(
     gameweek_id: int,
     starter_ids: list[int],
     captain_id: int,
+    vice_id: int,
 ) -> None:
     owned = owned_players(db, manager_id)
     if len(owned) != settings.squad_size:
@@ -170,6 +188,10 @@ def save_lineup(
     owned_ids = {p.id for p in owned}
     if captain_id not in starter_ids:
         raise SquadError("Captain must start")
+    if vice_id not in starter_ids:
+        raise SquadError("Vice-captain must start")
+    if captain_id == vice_id:
+        raise SquadError("Captain and vice-captain must be different")
     if len(starter_ids) != 11:
         raise SquadError("Need exactly 11 starters")
     if any(pid not in owned_ids for pid in starter_ids):
@@ -191,6 +213,7 @@ def save_lineup(
                 gameweek_id=gameweek_id,
                 player_id=pid,
                 is_captain=1 if pid == captain_id else 0,
+                is_vice_captain=1 if pid == vice_id else 0,
                 is_starter=is_starter,
                 bench_order=(bench.index(pid) + 1) if not is_starter else 0,
             )
@@ -258,6 +281,7 @@ def make_transfer(
         out_pick = next((p for p in picks if p.player_id == player_out_id), None)
         was_starter = bool(out_pick and out_pick.is_starter)
         was_captain = bool(out_pick and out_pick.is_captain)
+        was_vice = bool(out_pick and getattr(out_pick, "is_vice_captain", 0))
         if out_pick:
             db.delete(out_pick)
         db.add(
@@ -266,6 +290,7 @@ def make_transfer(
                 gameweek_id=gameweek.id,
                 player_id=player_in_id,
                 is_captain=0,
+                is_vice_captain=0,
                 is_starter=0,
                 bench_order=4,
             )
@@ -286,6 +311,9 @@ def make_transfer(
                 if was_captain:
                     for p in remaining:
                         p.is_captain = 1 if p.player_id == player_in_id else 0
+                if was_vice:
+                    for p in remaining:
+                        p.is_vice_captain = 1 if p.player_id == player_in_id else 0
                 db.commit()
     return state
 

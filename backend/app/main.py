@@ -42,6 +42,21 @@ def _ensure_schema_patches() -> None:
         if "league_type" not in cols:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE leagues ADD COLUMN league_type VARCHAR(16) DEFAULT 'classic'"))
+    if "squad_picks" in tables:
+        cols = {c["name"] for c in inspect(engine).get_columns("squad_picks")}
+        if "is_vice_captain" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE squad_picks ADD COLUMN is_vice_captain INTEGER DEFAULT 0"))
+    if "clubs" in tables:
+        cols = {c["name"] for c in inspect(engine).get_columns("clubs")}
+        if "kit_code" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE clubs ADD COLUMN kit_code INTEGER"))
+    if "gameweeks" in tables:
+        cols = {c["name"] for c in inspect(engine).get_columns("gameweeks")}
+        if "deadline_at" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE gameweeks ADD COLUMN deadline_at VARCHAR(64)"))
 
 
 @app.on_event("startup")

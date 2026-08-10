@@ -2,6 +2,7 @@
   const PLAYERS = JSON.parse(document.getElementById("playersData").textContent);
   const INITIAL = JSON.parse(document.getElementById("initialSquad").textContent);
   const BUDGET = Number(INITIAL.budget);
+  const MAX_CLUB = Number(INITIAL.maxPerClub || 3);
   const NEED = { GK: 2, DEF: 5, MID: 5, ATT: 3 };
   const ORDER = ["GK", "DEF", "MID", "ATT"];
   const byId = Object.fromEntries(PLAYERS.map((p) => [p.id, p]));
@@ -47,6 +48,20 @@
 
   function takenIds() {
     return new Set(ORDER.flatMap((pos) => slots[pos]).filter(Boolean));
+  }
+
+  /** How many already picked from each club (excluding a slot being replaced). */
+  function clubCounts(excludeSlotId) {
+    const counts = {};
+    ORDER.flatMap((pos) => slots[pos])
+      .filter(Boolean)
+      .forEach((id) => {
+        if (excludeSlotId && id === excludeSlotId) return;
+        const team = byId[id]?.team;
+        if (!team) return;
+        counts[team] = (counts[team] || 0) + 1;
+      });
+    return counts;
   }
 
   function renderBudget() {
@@ -126,6 +141,8 @@
     const team = filterTeam.value;
     const maxP = filterMaxPrice.value ? Number(filterMaxPrice.value) : null;
     const taken = takenIds();
+    const currentId = slots[active.pos][active.index];
+    const clubs = clubCounts(currentId);
     const items = PLAYERS.filter((p) => {
       if (p.position !== active.pos) return false;
       if (taken.has(p.id)) return false;
@@ -133,7 +150,12 @@
       if (maxP != null && p.price > maxP) return false;
       if (q && !`${p.name} ${p.team}`.toLowerCase().includes(q)) return false;
       return true;
-    }).sort((a, b) => b.price - a.price || a.name.localeCompare(b.name));
+    }).sort((a, b) => {
+      const aBlocked = (clubs[a.team] || 0) >= MAX_CLUB ? 1 : 0;
+      const bBlocked = (clubs[b.team] || 0) >= MAX_CLUB ? 1 : 0;
+      if (aBlocked !== bBlocked) return aBlocked - bBlocked;
+      return b.price - a.price || a.name.localeCompare(b.name);
+    });
 
     pickerList.innerHTML = "";
     if (!items.length) {
@@ -141,17 +163,34 @@
       return;
     }
     items.forEach((p) => {
+      const clubN = clubs[p.team] || 0;
+      const clubBlocked = clubN >= MAX_CLUB;
       const li = document.createElement("li");
-      li.innerHTML = `<button type="button" class="pick-row avail-${p.availability || "ok"}"><span class="grow"><strong>${p.name}</strong> <span class="muted">${p.team}${p.availability === "doubt" ? " · doubtful" : p.availability === "out" ? " · out" : ""}${p.chance != null ? " · " + p.chance + "%" : ""}</span></span><span>£${p.price.toFixed(1)}m</span></button>`;
-      li.querySelector("button").addEventListener("click", () => {
-        if (spend() - (byId[slots[active.pos][active.index]]?.price || 0) + p.price > BUDGET + 1e-9) {
-          alert("Not enough budget");
-          return;
-        }
-        slots[active.pos][active.index] = p.id;
-        closePicker();
-        render();
-      });
+      const availNote =
+        p.availability === "doubt" ? " · doubtful" : p.availability === "out" ? " · out" : "";
+      const chanceNote = p.chance != null ? ` · ${p.chance}%` : "";
+      const clubNote = clubBlocked
+        ? `<span class="club-limit">3/${MAX_CLUB} club</span>`
+        : clubN > 0
+          ? `<span class="muted tiny"> · ${clubN}/${MAX_CLUB}</span>`
+          : "";
+      li.innerHTML = `<button type="button" class="pick-row avail-${p.availability || "ok"}${clubBlocked ? " is-blocked" : ""}" ${clubBlocked ? "disabled" : ""}><span class="grow"><strong>${p.name}</strong> <span class="muted">${p.team}${availNote}${chanceNote}</span>${clubNote}</span><span>£${p.price.toFixed(1)}m</span></button>`;
+      const btn = li.querySelector("button");
+      if (!clubBlocked) {
+        btn.addEventListener("click", () => {
+          if (spend() - (byId[currentId]?.price || 0) + p.price > BUDGET + 1e-9) {
+            alert("Not enough budget");
+            return;
+          }
+          if ((clubCounts(currentId)[p.team] || 0) >= MAX_CLUB) {
+            alert(`Max ${MAX_CLUB} players from ${p.team}`);
+            return;
+          }
+          slots[active.pos][active.index] = p.id;
+          closePicker();
+          render();
+        });
+      }
       pickerList.appendChild(li);
     });
   }

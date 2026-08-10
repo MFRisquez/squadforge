@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}My Points · {{ app_name }}{% endblock %}
+{% block content %}
+{% from "macros_gw.html" import gw_bar %}
+{{ gw_bar(gw, deadline_label, edits_locked, prev_gw, next_gw, '/points') }}
+
+<section class="hero-block compact">
+  <p class="eyebrow">My Points</p>
+  <h1>{{ '%.0f'|format(score.total) if score else '—' }}</h1>
+  <p class="lede tight">
+    {% if score %}
+      Squad {{ '%.0f'|format(score.squad_points) }}
+      {% if score.td_points %} · TD {{ '%+.0f'|format(score.td_points) }}{% endif %}
+      · {{ breakdown.chip|default('—') }}
+    {% else %}
+      No score yet — refresh live points below (uses demo metrics until FPL GW goes live).
+    {% endif %}
+  </p>
+</section>
+
+<div class="action-row">
+  <form method="post" action="/score/run">
+    <input type="hidden" name="mode" value="auto" />
+    <button class="btn" type="submit">Refresh live scores</button>
+  </form>
+  <form method="post" action="/score/run">
+    <input type="hidden" name="mode" value="demo" />
+    <button class="btn ghost" type="submit">Score with demo data</button>
+  </form>
+  <a class="btn ghost" href="/lineup?gw={{ gw.number }}">Lineup</a>
+</div>
+
+{% if owned_count < 15 %}
+<section class="panel empty-state">
+  <h2>Pick your 15 first</h2>
+  <a class="btn" href="/team">Select your Squad</a>
+</section>
+{% else %}
+<section class="pitch-wrap">
+  <div class="pitch field pitch-photo points-pitch">
+    <div class="pitch-markings" aria-hidden="true"></div>
+    {% for pos in ['GK','DEF','MID','ATT'] %}
+    <div class="pitch-row zone-{{ pos|lower }}">
+      {% for row in by_pos[pos] %}
+      <div class="shirt-card {% if row.is_captain %}is-captain{% endif %}">
+        <div class="shirt filled jersey avail-{{ row.availability }}">
+          <img class="jersey-img" src="{{ row.shirt }}" alt="" width="66" height="87" loading="lazy" />
+          <span class="shirt-pts">{{ '%.0f'|format(row.points) }}{% if row.mult > 1 %}×{% endif %}</span>
+          <span class="shirt-name">{{ row.player.name }}</span>
+          <span class="shirt-team">{{ row.player.team_code }}{% if row.autosub %} · auto{% endif %}</span>
+        </div>
+        {% if row.is_captain %}<span class="role-badge role-c">C</span>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="bench-wrap">
+  <h2>Bench</h2>
+  <div class="bench">
+    {% for row in bench_players %}
+    <div class="shirt-card">
+      <div class="shirt filled jersey avail-{{ row.availability }}">
+        <img class="jersey-img" src="{{ row.shirt }}" alt="" width="66" height="87" loading="lazy" />
+        <span class="shirt-pts muted-pts">{{ '%.0f'|format(row.base) }}</span>
+        <span class="shirt-name">{{ row.player.name }}</span>
+      </div>
+    </div>
+    {% else %}
+    <p class="muted">No bench players.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if history %}
+<section class="panel">
+  <h2>Recent gameweeks</h2>
+  <ul class="list">
+    {% for h in history %}
+      {% set g = gw_by_id.get(h.gameweek_id) %}
+      <li>
+        <a href="/points?gw={{ g.number if g else '' }}"><strong>GW {{ g.number if g else h.gameweek_id }}</strong></a>
+        <span class="muted">squad {{ '%.0f'|format(h.squad_points) }}{% if h.td_points %} · TD {{ '%+.0f'|format(h.td_points) }}{% endif %}</span>
+        <strong>{{ '%.0f'|format(h.total) }}</strong>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<p class="muted tiny">
+  Live FPL stats power appearance/goals/assists/CS/saves. Custom extras (tackles, shots…) score once we add a richer feed.
+</p>
+{% endblock %}

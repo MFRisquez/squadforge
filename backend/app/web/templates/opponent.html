@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ opponent.team_name or opponent.display_name }} · {{ app_name }}{% endblock %}
+{% block content %}
+{% from "macros_gw.html" import gw_bar %}
+{{ gw_bar(gw, deadline_label, True, prev_gw, next_gw, '/league/' ~ league.id ~ '/opponent/' ~ opponent.id) }}
+
+<section class="hero-block compact">
+  <p class="eyebrow">{{ league.name }} · H2H peek</p>
+  <h1>{{ opponent.team_name or opponent.display_name }}</h1>
+  <p class="lede tight">
+    {{ opponent.display_name }}
+    {% if score %} · GW score <strong>{{ '%.0f'|format(score.total) }}</strong>{% endif %}
+  </p>
+</section>
+
+<section class="pitch-wrap">
+  <div class="pitch field pitch-photo">
+    <div class="pitch-markings" aria-hidden="true"></div>
+    {% for pos in ['GK','DEF','MID','ATT'] %}
+    <div class="pitch-row zone-{{ pos|lower }}">
+      {% for row in by_pos[pos] %}
+      <div class="shirt-card">
+        <div class="shirt filled jersey avail-{{ row.availability }}">
+          <img class="jersey-img" src="{{ row.shirt }}" alt="" width="66" height="87" loading="lazy" />
+          <span class="shirt-name">{{ row.player.name }}</span>
+          <span class="shirt-team">{{ row.player.team_code }} · £{{ '%.1f'|format(row.player.price) }}</span>
+        </div>
+        {% if row.is_captain %}<span class="role-badge role-c">C</span>{% endif %}
+        {% if row.is_vice %}<span class="role-badge role-v">V</span>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="bench-wrap">
+  <h2>Bench</h2>
+  <div class="bench">
+    {% for row in bench_players %}
+    <div class="shirt-card">
+      <div class="shirt filled jersey avail-{{ row.availability }}">
+        <img class="jersey-img" src="{{ row.shirt }}" alt="" width="66" height="87" loading="lazy" />
+        <span class="shirt-name">{{ row.player.name }}</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<a class="btn ghost" href="/standings/{{ league.id }}?gw={{ gw.number }}">Back to standings</a>
+{% endblock %}

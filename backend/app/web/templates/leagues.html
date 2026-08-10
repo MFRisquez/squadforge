@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Leagues · {{ app_name }}{% endblock %}
+{% block content %}
+<p class="eyebrow">Competition</p>
+<h1>Leagues &amp; standings</h1>
+<p class="lede">
+  Classic = total points table.
+  Head to Head = weekly fixtures (W/D/L) — switch format on the league page when you have an even number of managers.
+</p>
+
+{% if leagues %}
+<section class="panel">
+  <ul class="league-list">
+    {% for league in leagues %}
+      <li>
+        <div>
+          <a class="league-name" href="/league/{{ league.id }}">{{ league.name }}</a>
+          <span class="muted">
+            {% if league.league_type == 'h2h' %}H2H{% else %}Classic{% endif %}
+            · code {{ league.invite_code }}
+          </span>
+        </div>
+        <a class="btn mini-btn" href="/standings/{{ league.id }}">
+          {% if league.league_type == 'h2h' %}H2H table{% else %}Standings{% endif %}
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% else %}
+<section class="panel">
+  <p class="muted">No leagues yet — create or join one from Home.</p>
+  <a class="btn" href="/">Go to Home</a>
+</section>
+{% endif %}
+
+<p class="muted tiny">Tip: open a league → set format to Head to Head → Standings shows the H2H table and this week’s fixtures.</p>
+{% endblock %}
