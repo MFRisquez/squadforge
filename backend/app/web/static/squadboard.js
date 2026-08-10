@@ -269,19 +269,22 @@
   function setDetailPhoto(p) {
     if (!detailPhoto) return;
     detailPhoto.onerror = null;
-    if (p && p.photo) {
+    const chain = p
+      ? [p.photo, p.photoFallback, p.photoFallback2].filter(Boolean)
+      : [];
+    if (chain.length) {
       detailPhoto.hidden = false;
-      detailPhoto.alt = p.name || "";
-      detailPhoto.dataset.fallbackTried = "";
+      detailPhoto.alt = (p && p.name) || "";
+      let step = 0;
       detailPhoto.onerror = () => {
-        if (!detailPhoto.dataset.fallbackTried && p.photoFallback) {
-          detailPhoto.dataset.fallbackTried = "1";
-          detailPhoto.src = p.photoFallback;
+        step += 1;
+        if (step < chain.length) {
+          detailPhoto.src = chain[step];
           return;
         }
         detailPhoto.hidden = true;
       };
-      detailPhoto.src = p.photo;
+      detailPhoto.src = chain[0];
     } else {
       detailPhoto.removeAttribute("src");
       detailPhoto.hidden = true;

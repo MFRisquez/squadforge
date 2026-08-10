@@ -269,19 +269,20 @@
     detailName.textContent = player.name;
     if (detailPhoto) {
       detailPhoto.onerror = null;
-      if (player.photo) {
+      const chain = [player.photo, player.photoFallback, player.photoFallback2].filter(Boolean);
+      if (chain.length) {
         detailPhoto.hidden = false;
         detailPhoto.alt = player.name;
-        detailPhoto.dataset.fallbackTried = "";
+        let step = 0;
         detailPhoto.onerror = () => {
-          if (!detailPhoto.dataset.fallbackTried && player.photoFallback) {
-            detailPhoto.dataset.fallbackTried = "1";
-            detailPhoto.src = player.photoFallback;
+          step += 1;
+          if (step < chain.length) {
+            detailPhoto.src = chain[step];
             return;
           }
           detailPhoto.hidden = true;
         };
-        detailPhoto.src = player.photo;
+        detailPhoto.src = chain[0];
       } else {
         detailPhoto.removeAttribute("src");
         detailPhoto.hidden = true;
@@ -381,10 +382,23 @@
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => {
         if (!detailPlayer || detailPlayer.id !== playerId) return;
-        if (data.photo && detailPhoto) {
-          detailPhoto.src = data.photo;
+        if (detailPhoto && (data.photo || data.photoFallback || data.photoFallback2)) {
+          detailPlayer.photo = data.photo || detailPlayer.photo;
+          detailPlayer.photoFallback = data.photoFallback || detailPlayer.photoFallback;
+          detailPlayer.photoFallback2 = data.photoFallback2 || detailPlayer.photoFallback2;
+          const chain = [detailPlayer.photo, detailPlayer.photoFallback, detailPlayer.photoFallback2].filter(Boolean);
+          let step = 0;
           detailPhoto.hidden = false;
           detailPhoto.alt = detailPlayer.name || "";
+          detailPhoto.onerror = () => {
+            step += 1;
+            if (step < chain.length) {
+              detailPhoto.src = chain[step];
+              return;
+            }
+            detailPhoto.hidden = true;
+          };
+          detailPhoto.src = chain[0];
         }
         if (data.gw_points != null) {
           const meta = detailBody.querySelector(".meta");

@@ -3,13 +3,15 @@ from __future__ import annotations
 from typing import Optional
 
 from fastapi import APIRouter
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from app.scoring import score_player
 from app.sync import demo_metrics_for_positions
 from app.db import SessionLocal
-from app.models import Gameweek
+from app.models import Gameweek, Player
 from app.services import fixtures as fixtures_svc
+from app.services import player_photos as photos_svc
 from app.services import player_profile as profile_svc
 
 router = APIRouter(prefix="/api")
@@ -59,6 +61,29 @@ def demo_scores() -> dict:
             "formula_version": result.formula_version,
         }
     return out
+
+
+@router.get("/players/{player_id}/photo")
+def player_photo(player_id: int) -> Response:
+    """Best available headshot (cached). Falls back to FotMob when PL CDN 403s."""
+    db = SessionLocal()
+    try:
+        player = db.query(Player).filter(Player.id == int(player_id)).one_or_none()
+        if not player:
+            return Response(status_code=404)
+        found = photos_svc.fetch_best_photo(player)
+        if not found:
+            return Response(status_code=404)
+        data, ctype = found
+        return Response(
+            content=data,
+            media_type=ctype,
+            headers={
+                "Cache-Control": "public, max-age=86400",
+            },
+        )
+    finally:
+        db.close()
 
 
 @router.get("/players/{player_id}/fixtures")

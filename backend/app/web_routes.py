@@ -105,6 +105,7 @@ def _players_payload(db: Session) -> list[dict]:
                 position=p.position,
                 kit_code=getattr(clubs.get(p.team_code), "kit_code", None),
                 photo=getattr(p, "photo", "") or "",
+                player_id=p.id,
             ),
         }
         for p in players
@@ -165,6 +166,7 @@ def _owned_payload(
                 position=p.position,
                 kit_code=getattr(clubs.get(p.team_code), "kit_code", None),
                 photo=getattr(p, "photo", "") or "",
+                player_id=p.id,
             ),
         }
         for p in players

@@ -155,6 +155,7 @@ def player_profile(
         position=player.position,
         kit_code=getattr(club, "kit_code", None),
         photo=getattr(player, "photo", "") or "",
+        player_id=player.id,
     )
     base = {
         "id": player.id,
@@ -172,6 +173,8 @@ def player_profile(
         ),
         "shirt": kit.get("shirt"),
         "photo": kit.get("photo"),
+        "photoFallback": kit.get("photoFallback"),
+        "photoFallback2": kit.get("photoFallback2"),
         "mode": mode,
     }
 

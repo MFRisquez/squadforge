@@ -94,12 +94,16 @@ def kit_for(
     position: str = "MID",
     kit_code: int | None = None,
     photo: str | None = None,
+    player_id: int | None = None,
 ) -> dict[str, str | int | None]:
     code = kit_code_for(team_code, kit_code)
+    # Prefer our resolver (PL CDN → FotMob cache) so missing PL assets still show.
+    resolved = f"/api/players/{int(player_id)}/photo" if player_id else None
     return {
         "kitCode": code,
         "shirt": shirt_url(team_code, position=position, kit_code=code),
-        "photo": photo_url(photo),
-        "photoFallback": photo_fallback_url(photo),
+        "photo": resolved or photo_url(photo),
+        "photoFallback": photo_url(photo),
+        "photoFallback2": photo_fallback_url(photo),
         "badge": badge_url(team_code, kit_code=code),
     }

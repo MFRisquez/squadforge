@@ -5,6 +5,7 @@ __pycache__/
 .mypy_cache/
 .DS_Store
 backend/data/
+backend/app/web/static/player-photos/
 *.db
 .env
 .idea/
