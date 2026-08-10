@@ -1,13 +1,27 @@
-{# Compact chip strip. group: 'squad' (WC/FH) | 'xi' (BB/TC/SS) | 'all' #}
+{# Chip strip. group: 'squad' (WC/FH) | 'xi' (BB/TC/SS) | 'all' #}
+{% macro chip_icon(key) %}
+  {% if key == 'bench_boost' %}
+  <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="currentColor" d="M24 8l10 12h-6v10h-8V20h-6L24 8zm-14 28h28v4H10v-4z"/></svg>
+  {% elif key == 'triple_captain' %}
+  <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="14" fill="none" stroke="currentColor" stroke-width="3"/><text x="24" y="29" text-anchor="middle" font-size="16" font-weight="800" fill="currentColor">C</text></svg>
+  {% elif key == 'wildcard' %}
+  <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="12" y="8" width="24" height="32" rx="3" fill="none" stroke="currentColor" stroke-width="3"/><path fill="currentColor" d="M24 16l2.2 4.5 5 .7-3.6 3.5.9 5.1L24 27.2 19.5 29.8l.9-5.1-3.6-3.5 5-.7z"/></svg>
+  {% elif key == 'free_hit' %}
+  <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3" d="M8 16h28a4 4 0 014 4v8a4 4 0 01-4 4H8l4-8-4-8z"/><text x="24" y="28" text-anchor="middle" font-size="9" font-weight="800" fill="currentColor">FREE</text></svg>
+  {% elif key == 'super_sub' %}
+  <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="currentColor" d="M14 30V18h4v5.2L26 14l8 9.2V18h4v12h-4v-5.2L26 34l-8-9.2V30h-4z"/></svg>
+  {% endif %}
+{% endmacro %}
+
 {% macro chip_strip(chips, active_chip, edits_locked, bench_options=[], group='all', next_path='/team') %}
 {% set squad_items = [
-  ('wildcard', 'WC', 'Wildcard', chips.wildcard_remaining if chips else 0),
-  ('free_hit', 'FH', 'Free Hit', chips.free_hit_remaining if chips else 0),
+  ('wildcard', 'Wildcard', chips.wildcard_remaining if chips else 0),
+  ('free_hit', 'Free Hit', chips.free_hit_remaining if chips else 0),
 ] %}
 {% set xi_items = [
-  ('bench_boost', 'BB', 'Bench Boost', chips.bench_boost_remaining if chips else 0),
-  ('triple_captain', 'TC', 'Triple Captain', chips.triple_captain_remaining if chips else 0),
-  ('super_sub', 'SS', 'Super Sub', chips.super_sub_remaining if chips else 0),
+  ('bench_boost', 'Bench Boost', chips.bench_boost_remaining if chips else 0),
+  ('triple_captain', 'Triple Captain', chips.triple_captain_remaining if chips else 0),
+  ('super_sub', 'Super Sub', chips.super_sub_remaining if chips else 0),
 ] %}
 {% if group == 'squad' %}
   {% set items = squad_items %}
@@ -30,23 +44,24 @@
     </form>
   </div>
   {% endif %}
-  <div class="chip-strip chip-strip-compact" role="list">
-    {% for key, short, label, left in items %}
+  <div class="chip-strip chip-strip-cards" role="list">
+    {% for key, label, left in items %}
       {% set is_active = active_chip and active_chip.chip == key %}
-      <div class="chip-pill chip-pill-mini {% if is_active %}is-active{% endif %} {% if left < 1 and not is_active %}is-spent{% endif %}" role="listitem" title="{{ label }}{% if left < 1 and not is_active %} · used{% elif is_active %} · active{% else %} · {{ left }} left{% endif %}">
+      {% set unavailable = edits_locked or left < 1 or (active_chip and not is_active) %}
+      <div class="chip-card-fpl {% if is_active %}is-active{% endif %} {% if left < 1 and not is_active %}is-spent{% endif %} {% if unavailable and not is_active %}is-unavailable{% endif %}" role="listitem">
+        <div class="chip-ico" aria-hidden="true">{{ chip_icon(key) }}</div>
+        <strong class="chip-name">{{ label }}</strong>
         {% if is_active %}
-          <span class="chip-short" aria-label="{{ label }} on">{{ short }}</span>
-          <span class="chip-state">On</span>
-        {% elif edits_locked or left < 1 or active_chip %}
-          <span class="chip-short" aria-label="{{ label }}">{{ short }}</span>
+          <span class="chip-status is-on">On</span>
+        {% elif left < 1 %}
+          <span class="chip-status">Used</span>
+        {% elif edits_locked or active_chip %}
+          <span class="chip-status">Unavailable</span>
         {% elif key == 'super_sub' %}
           {% if bench_options %}
             <form method="post" action="/team/chip" class="chip-ss-form">
               <input type="hidden" name="chip" value="super_sub" />
               <input type="hidden" name="next" value="{{ next_path }}" />
-              <button class="chip-icon-btn" type="submit" title="Play Super Sub" aria-label="Play Super Sub">
-                <span class="chip-short">{{ short }}</span>
-              </button>
               <label class="sr-only" for="ssPlayer">Bench player</label>
               <select name="player_id" id="ssPlayer" required>
                 <option value="" disabled selected>Bench…</option>
@@ -54,17 +69,16 @@
                   <option value="{{ p.id }}">{{ p.name }}</option>
                 {% endfor %}
               </select>
+              <button class="chip-play" type="submit">Play</button>
             </form>
           {% else %}
-            <span class="chip-short" aria-label="{{ label }}">{{ short }}</span>
+            <span class="chip-status">Set XI first</span>
           {% endif %}
         {% else %}
           <form method="post" action="/team/chip" class="chip-play-form">
             <input type="hidden" name="chip" value="{{ key }}" />
             <input type="hidden" name="next" value="{{ next_path }}" />
-            <button class="chip-icon-btn" type="submit" title="Play {{ label }}" aria-label="Play {{ label }}">
-              <span class="chip-short">{{ short }}</span>
-            </button>
+            <button class="chip-play" type="submit">Play</button>
           </form>
         {% endif %}
       </div>

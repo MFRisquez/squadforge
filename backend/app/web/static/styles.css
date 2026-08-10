@@ -19,14 +19,17 @@ html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
-body {
+html, body {
   margin: 0;
-  min-height: 100vh;
+  min-height: 0;
+}
+body {
   color: var(--ink);
   font-family: var(--font-body);
   background:
     radial-gradient(900px 420px at 100% -10%, rgba(30, 64, 140, 0.12), transparent 55%),
     linear-gradient(180deg, #f7f9fc 0%, var(--bg) 40%, #e7edf7 100%);
+  background-attachment: fixed;
 }
 a, button, .shirt, .chip-card, .howto-card, .pick-row, .nav a {
   transition: transform 180ms var(--ease), background 180ms ease, box-shadow 180ms ease, color 160ms ease, border-color 160ms ease, opacity 160ms ease;
@@ -100,7 +103,7 @@ a, button, .shirt, .chip-card, .howto-card, .pick-row, .nav a {
 .shell {
   width: min(44rem, 100%);
   margin: 0 auto;
-  padding: 1.1rem 1rem 3.5rem;
+  padding: 1.1rem 1rem 1.25rem;
 }
 
 .eyebrow {
@@ -242,13 +245,13 @@ select {
     url("/static/pitch.svg") center / cover no-repeat,
     linear-gradient(180deg, #3f9e55, #2d7a42 45%, #246638);
   padding: 1rem 0.45rem 1.15rem;
-  min-height: 26rem;
+  min-height: 0;
   display: grid;
   gap: 0.55rem;
-  align-content: space-between;
+  align-content: start;
 }
 .pitch.pitch-photo {
-  min-height: 28rem;
+  min-height: 0;
   box-shadow: inset 0 0 60px rgba(0,30,15,0.25);
 }
 /* markings drawn in SVG background — hide CSS overlays on photo pitch */
@@ -548,7 +551,7 @@ select {
 /* XI pitch: FPL-style nameplate + opponent, denser field */
 .xi-pitch-wrap { margin-top: 0.35rem; }
 .xi-pitch {
-  min-height: 23rem;
+  min-height: 0;
   padding: 0.65rem 0.25rem 0.75rem;
   gap: 0.35rem;
   background:
@@ -556,6 +559,36 @@ select {
     url("/static/pitch.svg") center / cover no-repeat,
     linear-gradient(180deg, #2f8f4a, #21733a 48%, #1b5f31);
 }
+.squad-pitch {
+  gap: 0.3rem;
+  padding: 0.55rem 0.2rem 0.65rem;
+}
+.squad-shirt .shirt-price-plate {
+  background: #06143a;
+  color: #00ff87;
+  font-size: 0.58rem;
+  font-weight: 900;
+}
+.shirt-fdr-dot {
+  position: absolute;
+  right: 0.08rem;
+  bottom: 0.08rem;
+  z-index: 2;
+  min-width: 1.35rem;
+  padding: 0.08rem 0.16rem;
+  border-radius: 0.2rem;
+  font-size: 0.48rem;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  background: #ffe566;
+  color: #102018;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+.shirt-fdr-dot.fdr-1 { background: #01fc7a; }
+.shirt-fdr-dot.fdr-2 { background: #9bfaac; }
+.shirt-fdr-dot.fdr-3 { background: #ffe566; }
+.shirt-fdr-dot.fdr-4 { background: #ff1751; color: #fff; }
 .xi-pitch .pitch-row { gap: 0.2rem; }
 .xi-card { width: 4.35rem; }
 .xi-shirt,
@@ -681,59 +714,92 @@ select {
   line-height: 1.15;
 }
 
-/* Compact chip pills (FPL-like icon row) */
-.chip-strip-compact {
-  gap: 0.35rem;
-  padding-bottom: 0;
+/* FPL-style chip cards: icon · name · Play */
+.chip-strip-cards {
+  display: flex;
+  gap: 0.45rem;
+  overflow-x: auto;
+  padding: 0.1rem 0.05rem 0.25rem;
   justify-content: flex-start;
 }
-.chip-pill-mini {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.12rem;
-  padding: 0.2rem 0.28rem;
-  border-radius: 0.65rem;
-  background: transparent;
-  border: 0;
+.chip-card-fpl {
+  flex: 0 0 auto;
+  width: 5.6rem;
+  display: grid;
+  justify-items: center;
+  gap: 0.28rem;
+  padding: 0.45rem 0.35rem 0.4rem;
+  border-radius: 0.75rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(15, 35, 80, 0.05);
+  text-align: center;
 }
-.chip-pill-mini .chip-short {
-  width: 2rem;
-  height: 2rem;
-  font-size: 0.62rem;
-  border-radius: 999px;
-}
-.chip-pill-mini .chip-label {
-  font-size: 0.58rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  color: var(--ink);
-  line-height: 1;
-}
-.chip-pill-mini .chip-meta,
-.chip-pill-mini .chip-play { display: none; }
-.chip-pill-mini .chip-state {
-  font-size: 0.55rem;
-  font-weight: 800;
+.chip-card-fpl .chip-ico {
+  width: 2.35rem;
+  height: 2.35rem;
+  display: grid;
+  place-items: center;
   color: #0b2a16;
+  background:
+    linear-gradient(145deg, #c8f7e0 0%, #9ed9ff 55%, #b8c4ff 100%);
+  clip-path: polygon(25% 6%, 75% 6%, 94% 50%, 75% 94%, 25% 94%, 6% 50%);
 }
-.chip-pill-mini.is-active {
-  background: rgba(0, 255, 135, 0.18);
-  border: 1px solid #00ff87;
+.chip-card-fpl .chip-ico svg {
+  width: 1.35rem;
+  height: 1.35rem;
+  display: block;
 }
-.chip-pill-mini.is-spent { opacity: 0.38; }
-.chip-icon-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.12rem;
-  border: 0;
-  background: transparent;
-  padding: 0;
+.chip-card-fpl .chip-name {
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1.15;
+  color: #1a1630;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 1.45em;
+}
+.chip-card-fpl .chip-play {
+  border: 1.5px solid #2a2448;
+  background: #fff;
+  color: #1a1630;
+  border-radius: 999px;
+  padding: 0.22rem 0.7rem;
+  font-size: 0.62rem;
+  font-weight: 800;
   cursor: pointer;
-  color: inherit;
+  width: auto;
+}
+.chip-card-fpl .chip-play:hover {
+  background: #0b2a16;
+  border-color: #0b2a16;
+  color: #fff;
+}
+.chip-card-fpl .chip-status {
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: #8b93a7;
+  line-height: 1.2;
+  min-height: 1.4rem;
+  display: grid;
+  place-items: center;
+}
+.chip-card-fpl .chip-status.is-on {
+  color: #0b2a16;
+  background: #00ff87;
+  border-radius: 999px;
+  padding: 0.18rem 0.55rem;
+  font-weight: 800;
+}
+.chip-card-fpl.is-active {
+  border-color: #00ff87;
+  box-shadow: 0 0 0 1px rgba(0, 255, 135, 0.35);
+}
+.chip-card-fpl.is-spent,
+.chip-card-fpl.is-unavailable {
+  opacity: 0.45;
 }
 .chip-play-form { margin: 0; }
 .chip-active-label {
@@ -743,25 +809,26 @@ select {
 }
 .chip-strip-wrap.chip-strip-xi,
 .chip-strip-wrap.chip-strip-squad {
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.45rem;
 }
 .chip-strip-wrap.chip-strip-xi .chip-strip-head,
 .chip-strip-wrap.chip-strip-squad .chip-strip-head {
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.25rem;
 }
-.chip-pill-mini .chip-ss-form {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.chip-card-fpl .chip-ss-form {
+  display: grid;
   gap: 0.2rem;
+  justify-items: center;
+  width: 100%;
   margin: 0;
 }
-.chip-pill-mini .chip-ss-form select {
-  font-size: 0.62rem;
-  padding: 0.15rem 0.25rem;
-  min-height: 1.5rem;
-  max-width: 5.5rem;
-  border-radius: 0.4rem;
+.chip-card-fpl .chip-ss-form select {
+  font-size: 0.58rem;
+  padding: 0.12rem 0.2rem;
+  min-height: 1.4rem;
+  max-width: 100%;
+  width: 100%;
+  border-radius: 0.35rem;
   border: 1px solid var(--line);
 }
 
@@ -1839,7 +1906,7 @@ body.picker-open {
   .player-detail-actions .btn { font-size: 0.95rem; }
 
   .xi-pitch {
-    min-height: 26rem;
+    min-height: 0;
     padding: 1rem 0.6rem 1.1rem;
     gap: 0.55rem;
   }
@@ -1855,16 +1922,11 @@ body.picker-open {
   .xi-bench-wrap .shirt-nameplate { font-size: 0.68rem; }
   .xi-bench-wrap .shirt-foot { font-size: 0.64rem; }
 
-  .squad-pitch-wrap .shirt-card { width: 4.7rem; }
-  .squad-pitch-wrap .shirt {
-    width: 4.6rem;
-    min-height: 5.5rem;
-  }
-  .squad-pitch-wrap .jersey-img { width: 3.2rem; }
-  .squad-pitch-wrap .shirt-name {
-    font-size: 0.72rem;
-    max-width: 4.4rem;
-  }
+  .squad-pitch-wrap .squad-card { width: 5rem; }
+  .squad-pitch-wrap .squad-shirt { width: 5rem; }
+  .squad-pitch-wrap .jersey-img { width: 3.1rem; }
+  .chip-card-fpl { width: 6.1rem; }
+  .chip-card-fpl .chip-name { font-size: 0.68rem; }
 }
 .soft-form {
   background: #f7f9ff;
@@ -2147,10 +2209,11 @@ body.picker-open {
   padding-right: calc(0.65rem + env(safe-area-inset-right, 0px));
 }
 .shell {
-  padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(0.85rem + env(safe-area-inset-bottom, 0px));
 }
 .pick-actions {
-  padding-bottom: calc(0.55rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: 0.35rem;
+  margin-bottom: 0;
 }
 
 /* Phone density — desktop/laptop unchanged above this breakpoint */
@@ -2183,7 +2246,7 @@ body.picker-open {
   .nav-ico { font-size: 0.72rem; }
 
   .shell {
-    padding: 0.4rem 0.45rem calc(0.7rem + env(safe-area-inset-bottom, 0px));
+    padding: 0.4rem 0.45rem calc(0.55rem + env(safe-area-inset-bottom, 0px));
   }
 
   .eyebrow { font-size: 0.58rem; margin-bottom: 0.12rem; }
@@ -2225,26 +2288,30 @@ body.picker-open {
   .gw-deadline { font-size: 0.64rem; }
   .gw-status { margin-top: 0.2rem; font-size: 0.66rem; }
 
-  .chip-strip-wrap { margin-bottom: 0.35rem; }
-  .chip-strip-head { margin-bottom: 0.15rem; }
-  .chip-strip-head h2 { font-size: 0.78rem; }
-  .chip-pill {
-    min-width: 5.6rem;
-    gap: 0.22rem;
-    padding: 0.22rem 0.32rem;
+  .chip-strip-wrap { margin-bottom: 0.3rem; }
+  .chip-strip-head { margin-bottom: 0.12rem; }
+  .chip-strip-cards { gap: 0.35rem; }
+  .chip-card-fpl {
+    width: 5.15rem;
+    padding: 0.35rem 0.28rem 0.32rem;
+    gap: 0.2rem;
+    border-radius: 0.65rem;
   }
-  .chip-pill-ss { min-width: 7.6rem; }
-  .chip-short {
-    width: 1.2rem;
-    height: 1.2rem;
-    font-size: 0.5rem;
+  .chip-card-fpl .chip-ico {
+    width: 2.05rem;
+    height: 2.05rem;
   }
-  .chip-meta strong { font-size: 0.6rem; }
-  .chip-meta em { font-size: 0.52rem; }
-  .chip-play,
-  .chip-state { font-size: 0.58rem; padding: 0.18rem 0.4rem; }
+  .chip-card-fpl .chip-ico svg {
+    width: 1.15rem;
+    height: 1.15rem;
+  }
+  .chip-card-fpl .chip-name { font-size: 0.56rem; min-height: 1.35em; }
+  .chip-card-fpl .chip-play {
+    font-size: 0.56rem;
+    padding: 0.16rem 0.55rem;
+  }
+  .chip-card-fpl .chip-status { font-size: 0.52rem; min-height: 1.2rem; }
   .chip-footnote { display: none; }
-  .chip-ss-form { display: none; }
 
   .stat-strip {
     grid-template-columns: repeat(5, minmax(0, 1fr));

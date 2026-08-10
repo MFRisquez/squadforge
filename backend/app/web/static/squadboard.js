@@ -109,20 +109,33 @@
     return counts;
   }
 
+  function shortName(name) {
+    const parts = String(name || "").trim().split(/\s+/);
+    if (parts.length <= 1) return parts[0] || "";
+    return parts[parts.length - 1];
+  }
+
   function shirtHtml(p) {
     const avail = p.availability || "ok";
-    const flag = avail === "out" ? "OUT" : avail === "doubt" ? "DOUBT" : "";
+    const flag = avail === "out" ? "OUT" : avail === "doubt" ? "!" : "";
     const img = p.shirt || "";
     const fdr = p.fdr;
-    const fdrBadge = fdr
-      ? `<span class="shirt-fdr fdr-${fdr.difficulty}" title="${fdr.opponent} (${fdr.venue}) · FDR ${fdr.difficulty}">${fdr.opponent}<em>${fdr.venue}</em></span>`
+    const price = `£${Number(p.price).toFixed(1)}`;
+    const fdrTip = fdr
+      ? `${fdr.opponent} (${fdr.venue === "H" ? "H" : "A"}) · FDR ${fdr.difficulty}`
       : "";
     return `
-      <img class="jersey-img" src="${img}" alt="${p.team} kit" width="66" height="87" loading="lazy" decoding="async" />
-      ${fdrBadge}
-      <span class="shirt-price">£${p.price.toFixed(1)}</span>
-      <span class="shirt-name">${p.name}</span>
-      <span class="shirt-team">${p.team}${flag ? " · " + flag : ""}</span>
+      <span class="shirt-kit">
+        <img class="jersey-img" src="${img}" alt="${p.team} kit" width="66" height="87" loading="lazy" decoding="async" />
+        ${flag ? `<span class="shirt-status-flag" title="${p.news || flag}">${flag}</span>` : ""}
+        ${
+          fdr
+            ? `<span class="shirt-fdr-dot fdr-${fdr.difficulty}" title="${fdrTip}">${fdr.opponent}</span>`
+            : ""
+        }
+      </span>
+      <span class="shirt-nameplate">${shortName(p.name)}</span>
+      <span class="shirt-foot shirt-price-plate">${price}</span>
     `;
   }
 
@@ -424,7 +437,7 @@
       row.innerHTML = "";
       slots[pos].forEach((id, index) => {
         const wrap = document.createElement("div");
-        wrap.className = "shirt-card";
+        wrap.className = "shirt-card xi-card squad-card";
         const btn = document.createElement("button");
         btn.type = "button";
         const p = id ? byId[id] : null;
@@ -437,7 +450,7 @@
             removedSlot.index === index &&
             inPlayer.id === p.id;
           btn.className =
-            "shirt filled jersey avail-" +
+            "shirt filled jersey xi-shirt squad-shirt avail-" +
             avail +
             (pendingIn ? " is-pending-in" : "");
           btn.innerHTML = shirtHtml(p);
@@ -452,7 +465,9 @@
         } else {
           const waitingTransfer =
             outPlayer && removedSlot && removedSlot.pos === pos && removedSlot.index === index;
-          btn.className = "shirt empty jersey-empty" + (waitingTransfer ? " is-transfer-slot" : "");
+          btn.className =
+            "shirt empty jersey-empty xi-shirt squad-shirt" +
+            (waitingTransfer ? " is-transfer-slot" : "");
           btn.innerHTML = waitingTransfer
             ? `<span class="plus">+</span><span class="shirt-hint">IN</span>`
             : `<span class="plus">+</span><span class="shirt-hint">${pos}</span>`;
