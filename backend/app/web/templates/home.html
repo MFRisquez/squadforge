@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<p class="eyebrow">Private fantasy · {{ formula_version }}</p>
+<h1>{{ app_name }}</h1>
+<p class="lede">Custom Premier League scoring for your friend group — squad, captain ×2, chips, and Technical Director.</p>
+
+{% if not manager %}
+<section class="panel">
+  <h2>Start here</h2>
+  <p>Create a manager profile (name + PIN). Share it with nobody except yourself.</p>
+  <a class="btn" href="/login">Sign in / Register</a>
+</section>
+{% else %}
+<section class="panel">
+  <h2>Hi, {{ manager.display_name }}</h2>
+  <p>Team: <strong>{{ manager.team_name }}</strong></p>
+  <form method="post" action="/logout"><button type="submit" class="btn ghost">Log out</button></form>
+</section>
+
+<section class="panel">
+  <h2>Your leagues</h2>
+  {% if leagues %}
+    <ul class="list">
+      {% for league in leagues %}
+        <li>
+          <a href="/league/{{ league.id }}">{{ league.name }}</a>
+          <span class="muted">code {{ league.invite_code }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted">Join with a code or create one for your friends.</p>
+  {% endif %}
+
+  <form class="stack" method="post" action="/league/join">
+    <label>Invite code
+      <input name="invite_code" placeholder="FORGE1" required />
+    </label>
+    <button class="btn" type="submit">Join league</button>
+  </form>
+
+  <form class="stack" method="post" action="/league/create">
+    <label>Or create a league
+      <input name="league_name" placeholder="Manuel's Cup" />
+    </label>
+    <label>Format
+      <select name="league_type">
+        <option value="classic">Classic (total points)</option>
+        <option value="h2h">Head to Head (even # of friends)</option>
+      </select>
+    </label>
+    <button class="btn ghost" type="submit">Create league</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>Quick links</h2>
+  <div class="row">
+    <a class="btn" href="/team">Squad sheet</a>
+    <a class="btn ghost" href="/lineup">Lineup</a>
+    <a class="btn ghost" href="/transfers">Transfers</a>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Player database</h2>
+  <p class="muted">Uses the live Fantasy Premier League list (refresh after weekly price/squad changes).</p>
+  <form method="post" action="/sync/players">
+    <button class="btn ghost" type="submit">Refresh players from FPL</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

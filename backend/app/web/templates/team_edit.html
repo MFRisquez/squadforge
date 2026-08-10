@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Select squad · {{ app_name }}{% endblock %}
+{% block content %}
+<div class="pick-header">
+  <div>
+    <p class="eyebrow">Step 1 · Your 15</p>
+    <h1>Edit squad</h1>
+  </div>
+  <div class="budget-card">
+    <span class="budget-label">Remaining</span>
+    <strong id="budgetValue">£{{ '%.1f'|format(budget) }}m</strong>
+    <span class="budget-sub">{{ player_count }} players in DB</span>
+  </div>
+</div>
+<p class="lede tight">
+  Fill <strong>2 GK · 5 DEF · 5 MID · 3 ATT</strong> (max 3/club). After this, choose your starting XI for the gameweek.
+</p>
+<p class="legend">
+  <span class="lg-ok">Available</span>
+  <span class="lg-doubt">Doubtful</span>
+  <span class="lg-out">Won’t play / injured</span>
+</p>
+
+<form method="post" action="/team/save" id="squadForm">
+  <div id="hiddenFields"></div>
+  <section class="slot-board" id="slotBoard"></section>
+  <div class="pick-actions">
+    <button class="btn" type="submit">Save 15 &amp; choose lineup</button>
+    <a class="btn ghost" href="/team">Cancel</a>
+  </div>
+</form>
+
+<div class="drawer" id="picker" hidden>
+  <div class="drawer-sheet">
+    <header class="drawer-head">
+      <div>
+        <p class="eyebrow">Add player</p>
+        <h2 id="pickerPos">Players</h2>
+      </div>
+      <button type="button" class="icon-btn" id="closePicker">✕</button>
+    </header>
+    <div class="filters">
+      <input type="search" id="playerSearch" placeholder="Search players…" autocomplete="off" />
+      <div class="filter-row">
+        <select id="filterTeam">
+          <option value="">All clubs</option>
+          {% for c in clubs %}
+          <option value="{{ c.code }}">{{ c.name }}</option>
+          {% endfor %}
+        </select>
+        <select id="filterMaxPrice">
+          <option value="">Max price</option>
+          <option value="4.5">≤ £4.5m</option>
+          <option value="5.5">≤ £5.5m</option>
+          <option value="7.0">≤ £7.0m</option>
+          <option value="9.0">≤ £9.0m</option>
+          <option value="12">≤ £12.0m</option>
+          <option value="15">≤ £15.0m</option>
+        </select>
+      </div>
+    </div>
+    <ul class="picker-list" id="pickerList"></ul>
+  </div>
+</div>
+
+<script id="playersData" type="application/json">{{ players_json | tojson }}</script>
+<script id="initialSquad" type="application/json">{{ initial_squad | tojson }}</script>
+<script src="/static/squad15.js"></script>
+{% endblock %}

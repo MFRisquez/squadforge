@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Technical Director · {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Technical Director</h1>
+<p class="lede">
+  Not a chip (Wildcard is separate). Choose a real PL club <strong>anytime</strong> when you don’t have an active window.
+  That club then scores for <strong>exactly 3 gameweeks</strong>: Win +3 · Draw +1 · Loss −1.
+</p>
+
+<section class="panel">
+  {% if pick %}
+    <p>Active club: <strong>{{ pick.club_code }}</strong></p>
+    <p class="muted">Scoring window: GW{{ pick.start_gw }}–GW{{ pick.end_gw }} (locked until it ends)</p>
+  {% else %}
+    <p class="muted">No active TD window. If you pick now, it will cover GW{{ block_start }}–GW{{ block_end }}.</p>
+  {% endif %}
+
+  {% if can_set %}
+  <form method="post" action="/td/save" class="stack">
+    <label>Choose club
+      <select name="club_code" required>
+        {% for c in clubs %}
+          <option value="{{ c.code }}">{{ c.name }} ({{ c.code }})</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="btn" type="submit">Start 3-GW TD window</button>
+  </form>
+  {% else %}
+    <p class="muted">You can pick your next club after GW{{ block_end }}.</p>
+  {% endif %}
+</section>
+{% endblock %}

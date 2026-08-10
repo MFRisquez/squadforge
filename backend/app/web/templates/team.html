@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Squad sheet · {{ app_name }}{% endblock %}
+{% block content %}
+<p class="eyebrow">Squad sheet · GW {{ gw.number if gw else '—' }}</p>
+<h1>My squad</h1>
+<p class="lede">
+  One place for lineup, chips, and Technical Director.
+  Value £{{ '%.1f'|format(spend) }}m / £{{ '%.1f'|format(budget) }}m
+  · Transfers this GW: {{ transfers_gw }}
+  · FT: {% if unlimited_transfers %}∞{% else %}{{ ft_left }}{% endif %}
+</p>
+
+<div class="row" style="margin-bottom:1rem">
+  <a class="btn" href="/lineup">Lineup</a>
+  <a class="btn ghost" href="/transfers">Transfers</a>
+  <a class="btn ghost" href="/team/edit">Edit 15</a>
+</div>
+
+<section class="panel chips-sheet">
+  <h2>Chips &amp; Technical Director</h2>
+  <p class="muted">Everything that changes how you score this week lives here.</p>
+
+  {% if active_chip %}
+    <p class="pill">Active chip: {{ active_chip.chip|replace('_',' ')|title }}</p>
+  {% endif %}
+
+  <div class="chip-grid">
+    <form method="post" action="/team/chip" class="chip-card">
+      <strong>Wildcard</strong>
+      <span class="muted">{{ chips.wildcard_remaining if chips else 0 }} left · 2nd from GW20</span>
+      <span class="chip-help">Unlimited transfers feel this GW</span>
+      <input type="hidden" name="chip" value="wildcard" />
+      <button class="btn ghost" type="submit" {% if not chips or chips.wildcard_remaining < 1 or active_chip %}disabled{% endif %}>Play</button>
+    </form>
+    <div class="chip-card muted-card">
+      <strong>Free Hit</strong>
+      <span class="muted">{{ chips.free_hit_remaining if chips else 0 }} left</span>
+      <span class="chip-help">Temp team for 1 GW (coming soon)</span>
+    </div>
+    <div class="chip-card muted-card">
+      <strong>Bench Boost</strong>
+      <span class="muted">{{ chips.bench_boost_remaining if chips else 0 }} left</span>
+      <span class="chip-help">Bench points count (coming soon)</span>
+    </div>
+    <div class="chip-card muted-card">
+      <strong>Triple Captain</strong>
+      <span class="muted">{{ chips.triple_captain_remaining if chips else 0 }} left</span>
+      <span class="chip-help">Captain ×3 (coming soon)</span>
+    </div>
+    <div class="chip-card muted-card">
+      <strong>Super Sub</strong>
+      <span class="muted">{{ chips.super_sub_remaining if chips else 0 }} left</span>
+      <span class="chip-help">One bench player ×2 (coming soon)</span>
+    </div>
+    <div class="chip-card td-card">
+      <strong>Technical Director</strong>
+      {% if td %}
+        <span>Active: <strong>{{ td.club_code }}</strong> (GW{{ td.start_gw }}–{{ td.end_gw }})</span>
+        <span class="muted">Win +3 · Draw +1 · Loss −1</span>
+      {% elif can_set_td %}
+        <span class="muted">No window active — start 3 GWs now</span>
+        <form method="post" action="/td/save" class="stack">
+          <select name="club_code" required>
+            {% for c in clubs %}
+              <option value="{{ c.code }}">{{ c.name }}</option>
+            {% endfor %}
+          </select>
+          <button class="btn" type="submit">Start TD</button>
+        </form>
+      {% else %}
+        <span class="muted">TD locked until current window ends</span>
+      {% endif %}
+      <a class="btn ghost" href="/td">TD details</a>
+    </div>
+  </div>
+</section>
+
+{% if not owned %}
+<section class="panel">
+  <p>No squad yet — pick your 15 first.</p>
+  <a class="btn" href="/team/edit">Select squad</a>
+</section>
+{% elif not pick_rows %}
+<section class="panel">
+  <p>Squad saved. Now choose who starts this gameweek.</p>
+  <a class="btn" href="/lineup">Select lineup</a>
+</section>
+{% else %}
+<section class="panel">
+  <h2>Starting XI</h2>
+  <ul class="list">
+    {% for row in pick_rows if row.pick.is_starter %}
+      <li>
+        <span class="pos">{{ row.player.position }}</span>
+        {{ row.player.name }}
+        <span class="muted">{{ row.player.team_code }} £{{ '%.1f'|format(row.player.price) }}m</span>
+        {% if row.pick.is_captain %}<span class="pill">C ×2</span>{% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+<section class="panel">
+  <h2>Bench</h2>
+  <ul class="list">
+    {% for row in pick_rows if not row.pick.is_starter %}
+      <li>
+        <span class="pos">{{ row.player.position }}</span>
+        {{ row.player.name }}
+        <span class="muted">{{ row.player.team_code }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}

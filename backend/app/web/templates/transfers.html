@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Transfers · {{ app_name }}{% endblock %}
+{% block content %}
+<div class="pick-header">
+  <div>
+    <p class="eyebrow">Transfers · GW {{ gw.number if gw else '' }}</p>
+    <h1>Transfers</h1>
+  </div>
+  <div class="budget-card">
+    <span class="budget-label">{% if unlimited %}Free transfers{% else %}FT left{% endif %}</span>
+    <strong>{% if unlimited %}∞{% else %}{{ ft }}{% endif %}</strong>
+    <span class="budget-sub">Bank +1 each GW (max 5)</span>
+  </div>
+</div>
+
+<p class="lede tight">
+  {% if unlimited %}
+    Gameweek 1 (or Wildcard): transfer as many as you want.
+  {% else %}
+    From GW2 onwards you get <strong>1 free transfer per week</strong>, cumulative if unused.
+  {% endif %}
+  Squad must stay 2/5/5/3 and within £{{ '%.1f'|format(budget) }}m.
+</p>
+
+<section class="panel">
+  <h2>Your squad · £{{ '%.1f'|format(spend) }}m</h2>
+  <ul class="list" id="ownedList">
+    {% for p in owned|sort(attribute='position') %}
+      <li class="avail-row">
+        <span class="pos">{{ p.position }}</span>
+        <span class="{% if p.status in ['i','s','u'] or p.chance_of_playing == 0 %}avail-text-out{% elif p.status == 'd' or (p.chance_of_playing is not none and p.chance_of_playing <= 75) %}avail-text-doubt{% endif %}">
+          {{ p.name }}
+        </span>
+        <span class="muted">{{ p.team_code }} · £{{ '%.1f'|format(p.price) }}m</span>
+        <button type="button" class="btn ghost mini-btn" data-out="{{ p.id }}">Transfer out</button>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+
+<form method="post" action="/transfers/make" id="transferForm" class="panel stack" hidden>
+  <h2>Confirm transfer</h2>
+  <input type="hidden" name="player_out_id" id="outId" />
+  <input type="hidden" name="player_in_id" id="inId" />
+  <p id="transferSummary" class="muted"></p>
+  <button class="btn" type="submit">Confirm transfer</button>
+  <button class="btn ghost" type="button" id="cancelTransfer">Cancel</button>
+</form>
+
+<div class="drawer" id="picker" hidden>
+  <div class="drawer-sheet">
+    <header class="drawer-head">
+      <div>
+        <p class="eyebrow">Transfer in</p>
+        <h2 id="pickerPos">Replacement</h2>
+      </div>
+      <button type="button" class="icon-btn" id="closePicker">✕</button>
+    </header>
+    <div class="filters">
+      <input type="search" id="playerSearch" placeholder="Search players…" autocomplete="off" />
+      <div class="filter-row">
+        <select id="filterTeam">
+          <option value="">All clubs</option>
+          {% for c in clubs %}
+          <option value="{{ c.code }}">{{ c.name }}</option>
+          {% endfor %}
+        </select>
+        <select id="filterMaxPrice">
+          <option value="">Max price</option>
+          <option value="5.5">≤ £5.5m</option>
+          <option value="7.5">≤ £7.5m</option>
+          <option value="10">≤ £10.0m</option>
+          <option value="15">≤ £15.0m</option>
+        </select>
+      </div>
+    </div>
+    <ul class="picker-list" id="pickerList"></ul>
+  </div>
+</div>
+
+<script id="playersData" type="application/json">{{ players_json | tojson }}</script>
+<script id="ownedData" type="application/json">{{ owned_json | tojson }}</script>
+<script src="/static/transfers.js"></script>
+{% endblock %}

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/">{{ app_name }}</a>
+    {% if gw %}<span class="pill">GW {{ gw.number }}</span>{% endif %}
+    {% if manager %}
+      <span class="who">{{ manager.display_name }}</span>
+    {% endif %}
+  </header>
+
+  {% if manager %}
+  <nav class="nav">
+    <a href="/">Home</a>
+    <a href="/team">Team</a>
+    <a href="/lineup">Lineup</a>
+    <a href="/transfers">Transfers</a>
+    <a href="/team/edit">Squad</a>
+    <a href="/td">TD</a>
+  </nav>
+  {% endif %}
+
+  <main class="shell">
+    {% if error %}<p class="flash error">{{ error }}</p>{% endif %}
+    {% if notice %}<p class="flash notice">{{ notice }}</p>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}{{ league.name }} · {{ app_name }}{% endblock %}
+{% block content %}
+<p class="eyebrow">{{ league.league_type|default('classic')|upper }} league</p>
+<h1>{{ league.name }}</h1>
+<p class="lede">Invite code: <strong>{{ league.invite_code }}</strong> — share in WhatsApp. Members: {{ member_count }}.</p>
+
+<section class="panel">
+  <h2>Managers</h2>
+  <ul class="list">
+    {% for m in members %}
+      <li>{{ m.manager.display_name }} <span class="muted">{{ m.manager.team_name }}</span></li>
+    {% endfor %}
+  </ul>
+  <a class="btn" href="/standings/{{ league.id }}">Standings</a>
+</section>
+
+<section class="panel">
+  <h2>League format</h2>
+  <p class="muted">
+    Classic = FPL total-points table.
+    Head-to-Head = weekly pairs (needs even members).
+  </p>
+  <form method="post" action="/league/{{ league.id }}/type" class="stack">
+    <label>Type
+      <select name="league_type">
+        <option value="classic" {% if league.league_type != 'h2h' %}selected{% endif %}>Classic</option>
+        <option value="h2h" {% if league.league_type == 'h2h' %}selected{% endif %} {% if not even_members %}disabled{% endif %}>
+          Head to Head {% if not even_members %}(need even members){% endif %}
+        </option>
+      </select>
+    </label>
+    <button class="btn ghost" type="submit">Save format</button>
+  </form>
+</section>
+
+<div class="row">
+  <a class="btn" href="/team">Squad sheet</a>
+  <a class="btn ghost" href="/team/edit">Edit 15</a>
+</div>
+{% endblock %}

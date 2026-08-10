@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Lineup · {{ app_name }}{% endblock %}
+{% block content %}
+<div class="pick-header">
+  <div>
+    <p class="eyebrow">Step 2 · GW {{ gw.number if gw else '' }}</p>
+    <h1>Select lineup</h1>
+  </div>
+  <div class="budget-card">
+    <span class="budget-label">Squad value</span>
+    <strong>£{{ '%.1f'|format(spend) }}m</strong>
+    <span class="budget-sub">from your 15</span>
+  </div>
+</div>
+<p class="lede tight">
+  Tap a player to move them between <strong>start</strong> and <strong>bench</strong>.
+  Formation: <strong>1 GK · DEF 3–5 · MID 3–5 · ATT 1–3</strong>.
+</p>
+
+<section class="panel captain-panel">
+  <h2>Captain (scores ×2)</h2>
+  <p class="muted">Pick from the dropdown, or tap <strong>Make C</strong> under any starter on the pitch.</p>
+  <label>Captain
+    <select id="captainSelect"></select>
+  </label>
+  <p class="captain-ready">Selected: <strong id="captainName">—</strong></p>
+</section>
+
+<form method="post" action="/lineup/save" id="lineupForm">
+  <div id="hiddenFields"></div>
+  <section class="pitch-wrap">
+    <div class="pitch" id="pitch">
+      <div class="pitch-row" data-row="gk"></div>
+      <div class="pitch-row" data-row="def"></div>
+      <div class="pitch-row" data-row="mid"></div>
+      <div class="pitch-row" data-row="att"></div>
+    </div>
+    <p class="pitch-meta" id="formationLabel">Formation —</p>
+  </section>
+  <section class="bench-wrap">
+    <h2>Bench (tap to start)</h2>
+    <div class="bench" id="bench"></div>
+  </section>
+  <div class="pick-actions">
+    <button class="btn" type="submit">Save lineup</button>
+    <a class="btn ghost" href="/transfers">Transfers</a>
+  </div>
+</form>
+
+<script id="ownedData" type="application/json">{{ owned_json | tojson }}</script>
+<script id="initialLineup" type="application/json">{{ initial_lineup | tojson }}</script>
+<script src="/static/lineup.js"></script>
+{% endblock %}

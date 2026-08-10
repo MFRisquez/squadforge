@@ -1,0 +1,294 @@
+"""Ownership (15), lineup (XI), and transfers with free-transfer banking."""
+
+from __future__ import annotations
+
+from collections import Counter
+from typing import Iterable
+
+from sqlalchemy.orm import Session
+
+from app.config import settings
+from app.models import (
+    ChipPlay,
+    Gameweek,
+    OwnedPlayer,
+    Player,
+    SquadPick,
+    TransferLog,
+    TransferState,
+)
+
+REQUIRED = {"GK": 2, "DEF": 5, "MID": 5, "ATT": 3}
+STARTER_BANDS = {"DEF": (3, 5), "MID": (3, 5), "ATT": (1, 3)}
+FT_CAP = 5
+
+
+class SquadError(ValueError):
+    pass
+
+
+def current_gameweek(db: Session) -> Gameweek:
+    gw = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
+    if not gw:
+        gw = db.query(Gameweek).order_by(Gameweek.number).first()
+    if not gw:
+        raise SquadError("No gameweeks seeded")
+    return gw
+
+
+def get_transfer_state(db: Session, manager_id: int) -> TransferState:
+    state = db.query(TransferState).filter(TransferState.manager_id == manager_id).one_or_none()
+    if state:
+        return state
+    state = TransferState(manager_id=manager_id, free_transfers=1, last_banked_gw=1, has_squad=0)
+    db.add(state)
+    db.commit()
+    db.refresh(state)
+    return state
+
+
+def bank_free_transfers(db: Session, manager_id: int, gw_number: int) -> TransferState:
+    """Each new GW after GW1 adds +1 FT (cumulative, capped)."""
+    state = get_transfer_state(db, manager_id)
+    if gw_number <= 1:
+        state.last_banked_gw = max(state.last_banked_gw, 1)
+        db.commit()
+        return state
+    while state.last_banked_gw < gw_number:
+        state.last_banked_gw += 1
+        if state.last_banked_gw >= 2:
+            state.free_transfers = min(FT_CAP, state.free_transfers + 1)
+    db.commit()
+    db.refresh(state)
+    return state
+
+
+def transfers_are_unlimited(db: Session, manager_id: int, gw: Gameweek) -> bool:
+    """GW1 = unlimited. Wildcard active this GW = unlimited. No squad yet = unlimited build."""
+    state = get_transfer_state(db, manager_id)
+    if not state.has_squad:
+        return True
+    if gw.number <= 1:
+        return True
+    chip = (
+        db.query(ChipPlay)
+        .filter(
+            ChipPlay.manager_id == manager_id,
+            ChipPlay.gameweek_id == gw.id,
+            ChipPlay.chip == "wildcard",
+        )
+        .one_or_none()
+    )
+    return chip is not None
+
+
+def owned_players(db: Session, manager_id: int) -> list[Player]:
+    rows = db.query(OwnedPlayer).filter(OwnedPlayer.manager_id == manager_id).all()
+    if not rows:
+        return []
+    ids = [r.player_id for r in rows]
+    players = db.query(Player).filter(Player.id.in_(ids)).all()
+    order = {i: n for n, i in enumerate(ids)}
+    return sorted(players, key=lambda p: order.get(p.id, 0))
+
+
+def validate_composition(players: list[Player]) -> None:
+    if len(players) != settings.squad_size:
+        raise SquadError(f"Need exactly {settings.squad_size} players")
+    counts = Counter(p.position for p in players)
+    for pos, need in REQUIRED.items():
+        if counts.get(pos, 0) != need:
+            raise SquadError(f"Need {need} {pos}, got {counts.get(pos, 0)}")
+    club_counts = Counter(p.team_code for p in players)
+    for club, n in club_counts.items():
+        if n > settings.max_per_club:
+            raise SquadError(f"Max {settings.max_per_club} from {club}")
+    spend = sum(p.price for p in players)
+    if spend > settings.budget + 1e-6:
+        raise SquadError(f"Over budget: £{spend:.1f}m / £{settings.budget:.1f}m")
+
+
+def validate_starter_shape(starter_counts: Counter) -> None:
+    if starter_counts.get("GK", 0) != 1:
+        raise SquadError("Starting XI must include exactly 1 GK")
+    outfield = sum(starter_counts.get(pos, 0) for pos in ("DEF", "MID", "ATT"))
+    if outfield != 10:
+        raise SquadError("Starting XI needs 10 outfield players")
+    for pos, (lo, hi) in STARTER_BANDS.items():
+        n = starter_counts.get(pos, 0)
+        if n < lo or n > hi:
+            raise SquadError(f"Starters need {lo}–{hi} {pos} (have {n})")
+
+
+def save_ownership(db: Session, *, manager_id: int, player_ids: list[int], gw_number: int) -> None:
+    if len(set(player_ids)) != len(player_ids):
+        raise SquadError("Duplicate players")
+    players = db.query(Player).filter(Player.id.in_(player_ids)).all()
+    if len(players) != len(player_ids):
+        raise SquadError("Unknown player in squad")
+    validate_composition(players)
+
+    db.query(OwnedPlayer).filter(OwnedPlayer.manager_id == manager_id).delete()
+    for pid in player_ids:
+        db.add(OwnedPlayer(manager_id=manager_id, player_id=pid, acquired_gw=gw_number))
+    state = get_transfer_state(db, manager_id)
+    state.has_squad = 1
+    db.commit()
+
+
+def default_lineup_from_owned(players: list[Player]) -> tuple[list[int], list[int], int]:
+    """Pick a legal default XI + bench order from owned 15."""
+    by_pos: dict[str, list[Player]] = {"GK": [], "DEF": [], "MID": [], "ATT": []}
+    for p in sorted(players, key=lambda x: -x.price):
+        by_pos[p.position].append(p)
+    # Prefer 3-4-3 / 3-5-2 style: 1 GK, 3 DEF, 4 MID, 3 ATT if possible
+    starters: list[Player] = []
+    starters += by_pos["GK"][:1]
+    starters += by_pos["DEF"][:3]
+    starters += by_pos["MID"][:4]
+    starters += by_pos["ATT"][:3]
+    if len(starters) != 11:
+        # fallback fill
+        starters = by_pos["GK"][:1] + by_pos["DEF"][:4] + by_pos["MID"][:4] + by_pos["ATT"][:2]
+    starter_ids = [p.id for p in starters]
+    bench = [p.id for p in players if p.id not in starter_ids]
+    captain = starter_ids[-1]
+    return starter_ids, [p.id for p in players], captain
+
+
+def save_lineup(
+    db: Session,
+    *,
+    manager_id: int,
+    gameweek_id: int,
+    starter_ids: list[int],
+    captain_id: int,
+) -> None:
+    owned = owned_players(db, manager_id)
+    if len(owned) != settings.squad_size:
+        raise SquadError("Save your 15 players first")
+    owned_ids = {p.id for p in owned}
+    if captain_id not in starter_ids:
+        raise SquadError("Captain must start")
+    if len(starter_ids) != 11:
+        raise SquadError("Need exactly 11 starters")
+    if any(pid not in owned_ids for pid in starter_ids):
+        raise SquadError("Starters must be in your squad")
+
+    by_id = {p.id: p for p in owned}
+    validate_starter_shape(Counter(by_id[i].position for i in starter_ids))
+
+    bench = [p.id for p in owned if p.id not in starter_ids]
+    db.query(SquadPick).filter(
+        SquadPick.manager_id == manager_id,
+        SquadPick.gameweek_id == gameweek_id,
+    ).delete()
+    for pid in owned_ids:
+        is_starter = 1 if pid in starter_ids else 0
+        db.add(
+            SquadPick(
+                manager_id=manager_id,
+                gameweek_id=gameweek_id,
+                player_id=pid,
+                is_captain=1 if pid == captain_id else 0,
+                is_starter=is_starter,
+                bench_order=(bench.index(pid) + 1) if not is_starter else 0,
+            )
+        )
+    db.commit()
+
+
+def make_transfer(
+    db: Session,
+    *,
+    manager_id: int,
+    gameweek: Gameweek,
+    player_out_id: int,
+    player_in_id: int,
+) -> TransferState:
+    if player_out_id == player_in_id:
+        raise SquadError("Choose different players")
+
+    state = bank_free_transfers(db, manager_id, gameweek.number)
+    owned = owned_players(db, manager_id)
+    owned_ids = {p.id for p in owned}
+    if player_out_id not in owned_ids:
+        raise SquadError("You don't own that player")
+    if player_in_id in owned_ids:
+        raise SquadError("You already own the incoming player")
+
+    incoming = db.query(Player).filter(Player.id == player_in_id).one_or_none()
+    if not incoming:
+        raise SquadError("Incoming player not found")
+
+    new_ids = [pid for pid in owned_ids if pid != player_out_id] + [player_in_id]
+    players = db.query(Player).filter(Player.id.in_(new_ids)).all()
+    validate_composition(players)
+
+    unlimited = transfers_are_unlimited(db, manager_id, gameweek)
+    if not unlimited:
+        if state.free_transfers < 1:
+            raise SquadError("No free transfers left (bank next GW, or play Wildcard)")
+        state.free_transfers -= 1
+
+    # Apply ownership change
+    db.query(OwnedPlayer).filter(
+        OwnedPlayer.manager_id == manager_id,
+        OwnedPlayer.player_id == player_out_id,
+    ).delete()
+    db.add(OwnedPlayer(manager_id=manager_id, player_id=player_in_id, acquired_gw=gameweek.number))
+    db.add(
+        TransferLog(
+            manager_id=manager_id,
+            gameweek_id=gameweek.id,
+            player_out_id=player_out_id,
+            player_in_id=player_in_id,
+            free_transfers_after=state.free_transfers if not unlimited else state.free_transfers,
+        )
+    )
+    db.commit()
+
+    # Keep lineup valid: drop out-player from XI if present, auto-put in-player on bench
+    picks = (
+        db.query(SquadPick)
+        .filter(SquadPick.manager_id == manager_id, SquadPick.gameweek_id == gameweek.id)
+        .all()
+    )
+    if picks:
+        out_pick = next((p for p in picks if p.player_id == player_out_id), None)
+        was_starter = bool(out_pick and out_pick.is_starter)
+        was_captain = bool(out_pick and out_pick.is_captain)
+        if out_pick:
+            db.delete(out_pick)
+        db.add(
+            SquadPick(
+                manager_id=manager_id,
+                gameweek_id=gameweek.id,
+                player_id=player_in_id,
+                is_captain=0,
+                is_starter=0,
+                bench_order=4,
+            )
+        )
+        db.commit()
+        if was_starter:
+            # Force manager to fix lineup — auto-start the new player in same role if possible
+            remaining = (
+                db.query(SquadPick)
+                .filter(SquadPick.manager_id == manager_id, SquadPick.gameweek_id == gameweek.id)
+                .all()
+            )
+            starters = [p.player_id for p in remaining if p.is_starter]
+            if len(starters) == 10:
+                in_pick = next(p for p in remaining if p.player_id == player_in_id)
+                in_pick.is_starter = 1
+                in_pick.bench_order = 0
+                if was_captain:
+                    for p in remaining:
+                        p.is_captain = 1 if p.player_id == player_in_id else 0
+                db.commit()
+    return state
+
+
+def squad_spend(players: Iterable[Player]) -> float:
+    return sum(p.price for p in players)

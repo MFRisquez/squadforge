@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Standings · {{ app_name }}{% endblock %}
+{% block content %}
+<p class="eyebrow">{% if mode == 'h2h' %}Head to Head{% else %}Classic{% endif %} · GW {{ gw.number if gw else '' }}</p>
+<h1>{{ league.name }}</h1>
+<p class="lede">
+  {% if mode == 'h2h' %}
+    FPL-style H2H: weekly matches (3 pts win, 1 draw). Best with an even number of managers (you have {{ member_count }}).
+  {% else %}
+    Classic table like FPL: rank by total points, with GW score, value, transfers, chips &amp; TD.
+  {% endif %}
+</p>
+
+{% if mode == 'classic' %}
+<section class="panel table-wrap">
+  <table class="standings">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Team</th>
+        <th>Manager</th>
+        <th>GW</th>
+        <th>Total</th>
+        <th>£</th>
+        <th>TR</th>
+        <th>Chip</th>
+        <th>TD</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{{ row.rank }}</td>
+        <td>{{ row.team_name }}</td>
+        <td>{{ row.manager.display_name }}</td>
+        <td>{{ '%.0f'|format(row.gw_points) }}</td>
+        <td><strong>{{ '%.0f'|format(row.total_points) }}</strong></td>
+        <td>{{ '%.1f'|format(row.squad_value) }}</td>
+        <td>{{ row.transfers }}</td>
+        <td>{{ row.chip }}</td>
+        <td>{{ row.td_club }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted tiny">GW/Total stay 0 until live scoring is wired — columns match Fantasy PL classic leagues.</p>
+</section>
+{% else %}
+<section class="panel table-wrap">
+  <h2>H2H table</h2>
+  <table class="standings">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Team</th>
+        <th>P</th>
+        <th>W</th>
+        <th>D</th>
+        <th>L</th>
+        <th>Pts</th>
+        <th>PF</th>
+        <th>PA</th>
+        <th>GW</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{{ row.rank }}</td>
+        <td>{{ row.team_name }}</td>
+        <td>{{ row.played }}</td>
+        <td>{{ row.wins }}</td>
+        <td>{{ row.draws }}</td>
+        <td>{{ row.losses }}</td>
+        <td><strong>{{ row.h2h_points }}</strong></td>
+        <td>{{ '%.0f'|format(row.pf) }}</td>
+        <td>{{ '%.0f'|format(row.pa) }}</td>
+        <td>{{ '%.0f'|format(row.gw_points) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="panel">
+  <h2>This week’s fixtures</h2>
+  {% if fixtures %}
+    <ul class="list">
+      {% for fx in fixtures %}
+        <li>
+          <strong>{{ fx.home.team_name if fx.home and fx.home.team_name else fx.home.display_name }}</strong>
+          <span class="muted">{{ '%.0f'|format(fx.home_points) }}</span>
+          vs
+          <span class="muted">{{ '%.0f'|format(fx.away_points) }}</span>
+          <strong>{{ fx.away.team_name if fx.away and fx.away.team_name else fx.away.display_name }}</strong>
+          <span class="pill">{{ fx.result }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted">Need an even number of managers to draw H2H fixtures (2, 4, 6…).</p>
+  {% endif %}
+</section>
+{% endif %}
+
+<a class="btn ghost" href="/league/{{ league.id }}">Back to league</a>
+{% endblock %}

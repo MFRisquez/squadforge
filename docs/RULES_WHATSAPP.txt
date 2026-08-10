@@ -1,0 +1,139 @@
+⚽ SQUADFORGE — RULES (v0.3.2)
+Private Fantasy Premier League for our group
+
+Copy/paste this note for WhatsApp.
+(We can edit and re-send anytime — changes apply from an agreed gameweek.)
+
+————————————
+CAPTAIN
+————————————
+• Your captain scores DOUBLE (×2) every gameweek
+• If you play Triple Captain chip → captain scores ×3 that GW only
+
+————————————
+APPEARANCE (all positions)
+————————————
+• 2 pts if they play 60'+ minutes
+• 2 pts if they play ANY minutes AND get a goal or assist
+• 1 pt if they played but none of the above
+• 0 if they didn’t play
+
+(Goal/assist points are EXTRA on top of appearance.)
+
+————————————
+EVERYONE — CARDS / MISTAKES
+————————————
+• Yellow card: −1
+• Red card: −3
+• Own goal: −2
+
+————————————
+GOALKEEPER
+————————————
+• Appearance: as above
+• Clean sheet: +4
+• Goals conceded: −1 for every 2 goals conceded
+• Saves: +1 for every 3 saves
+• Goal: +6 · Assist: +3
+• Penalty saved: +5 · Penalty missed: −2
+
+————————————
+DEFENDER
+————————————
+Base
+• Appearance · Goal +6 · Assist +3 · Clean sheet +4
+• Goals conceded: −1 for every 2
+
+Defensive extras (thresholds)
+• 5+ tackles → +2
+• 4+ interceptions → +1
+• 3+ blocks → +1
+• 10+ clearances → +1
+• Goal-line clearance / save on the line → +1
+
+⚠️ Max +4 from defensive extras per GW.
+Priority if over cap: goal-line → tackles → interceptions → blocks → clearances
+
+————————————
+MIDFIELDER
+————————————
+Base
+• Appearance · Goal +5 · Assist +3 · Clean sheet +1
+
+Extras
+• 4+ key passes → +2
+• 5+ tackles → +1
+• 4+ interceptions → +1
+
+⚠️ Max +3 from MID extras per GW.
+Priority: key passes → tackles → interceptions
+
+————————————
+ATTACKER
+————————————
+Base
+• Appearance · Goal +4 · Assist +3
+
+Extras
+• 3+ shots on target → +2
+• 6+ shots → +1
+
+⚠️ Max +3 from ATT extras per GW.
+Priority: shots on target → shots
+
+————————————
+SCOUTING BONUS (+2)
+————————————
+If ONLY YOU own a player in our league, and that player:
+• scores, OR gets an assist, OR
+• keeps a clean sheet as GK/DEF
+→ you get +2 scouting for that player that GW.
+
+————————————
+TECHNICAL DIRECTOR (not a chip)
+————————————
+• Pick a real PL club ANYTIME you don’t already have an active TD window
+• That club then scores for exactly 3 gameweeks (then pick again)
+• Win +3 · Draw +1 · Loss −1
+• Locked during those 3 GWs (no mid-window swap)
+• Cannot pick the same club as your previous TD window
+• Wildcard is separate
+
+————————————
+CHIPS (1 active chip per GW)
+————————————
+You get these once per season (Wildcard ×2):
+
+1) WILDCARD (×2 per season)
+   Rebuild with unlimited free transfers until the next deadline. Squad stays.
+   • 1st Wildcard: available from the start
+   • 2nd Wildcard: unlocks from GW20
+
+2) FREE HIT (×1)
+   Change your whole team for ONE gameweek only. After that GW, your old team returns.
+
+3) BENCH BOOST (×1)
+   Bench players’ points ALSO count that GW.
+
+4) TRIPLE CAPTAIN (×1)
+   Captain scores ×3 that GW (instead of ×2).
+
+5) SUPER SUB (×1) — SquadForge special
+   Before deadline, pick ONE bench player.
+   If they play that GW, their points count at ×2.
+   Chip is used up even if they don’t play.
+   (Does not stack with Triple Captain. Can’t combine with Bench Boost same GW.)
+
+————————————
+AUTO-SUBS (normal weeks)
+————————————
+If someone in your starting XI doesn’t play, a bench player can replace them
+(same idea as official FPL — full detail when the app is ready).
+
+————————————
+NOT USING (for now)
+————————————
+• Official FPL “bonus points” (BPS) — skipped so scores stay easy to explain
+• Extra chips for weekly wins — maybe later if the same people always lead
+
+Questions → ask Manuel 🙂

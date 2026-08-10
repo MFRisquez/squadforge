@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Sign in · {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Sign in</h1>
+<p class="lede">If the name is new, we create your manager. Remember your PIN.</p>
+<form class="panel stack" method="post" action="/login">
+  <label>Your name
+    <input name="display_name" required maxlength="80" placeholder="Manuel" />
+  </label>
+  <label>PIN (min 4 chars)
+    <input name="pin" type="password" required minlength="4" maxlength="16" />
+  </label>
+  <label>Team name (optional)
+    <input name="team_name" maxlength="80" placeholder="Forge FC" />
+  </label>
+  <button class="btn" type="submit">Continue</button>
+</form>
+{% endblock %}
