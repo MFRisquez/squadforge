@@ -8,13 +8,6 @@
 
 <div class="xi-top">
   <h1 class="xi-title">{% if edits_locked %}{{ xi_title }} · Live{% else %}{{ xi_title }} · Starting XI{% endif %}</h1>
-  {% if not edits_locked %}
-  <div class="xi-score-pill is-preview" aria-label="Gameweek points preview">
-    <span class="xi-score-label">GW{{ gw.number }}</span>
-    <strong id="gwTotalScore">{% if gw_total is not none %}{{ '%.0f'|format(gw_total) }}{% else %}—{% endif %}</strong>
-    <span class="xi-score-sub">pts</span>
-  </div>
-  {% endif %}
 </div>
 
 {{ chip_strip(chips, active_chip, edits_locked, bench_options, group='xi', next_path='/lineup', gw_number=gw.number, gw_total=gw_total) }}
