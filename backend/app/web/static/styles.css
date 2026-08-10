@@ -559,8 +559,10 @@ select {
 /* XI pitch: FPL-style nameplate + opponent, denser field */
 .xi-pitch-wrap,
 .squad-pitch-wrap {
+  display: block;
   margin-top: 0.35rem;
   width: min(100%, 22rem);
+  max-width: 22rem;
   margin-left: auto;
   margin-right: auto;
 }
@@ -2769,7 +2771,12 @@ body.picker-open {
   .pitch-row { gap: 0.5rem; }
   .xi-pitch-wrap,
   .squad-pitch-wrap {
-    width: min(100%, 21rem);
+    width: 100%;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .shell {
     margin-left: auto;
     margin-right: auto;
   }
