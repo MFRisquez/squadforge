@@ -3,6 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#06143a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="SquadForge" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="description" content="Private Fantasy Premier League for your friends." />
+  <link rel="manifest" href="/static/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/icon-192.png" />
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
@@ -19,24 +28,24 @@
   {% set path = request.url.path %}
   <nav class="nav" aria-label="Main">
     <a href="/" class="{% if path == '/' %}is-active{% endif %}">
-      <span class="nav-ico">⌂</span><span>Home</span>
+      <span class="nav-ico" aria-hidden="true">⌂</span><span>Home</span>
     </a>
     <a href="/team" class="{% if path == '/team' or path.startswith('/transfers') %}is-active{% endif %}">
-      <span class="nav-ico">▦</span><span>Squad</span>
+      <span class="nav-ico" aria-hidden="true">▦</span><span>Squad</span>
     </a>
     <a href="/lineup" class="{% if path.startswith('/lineup') or path.startswith('/points') or path.startswith('/score') %}is-active{% endif %}">
-      <span class="nav-ico">◫</span><span>Lineup</span>
+      <span class="nav-ico" aria-hidden="true">◫</span><span>Lineup</span>
     </a>
     <a href="/fixtures" class="{% if path.startswith('/fixtures') %}is-active{% endif %}">
-      <span class="nav-ico">┊</span><span>Fixtures</span>
+      <span class="nav-ico" aria-hidden="true">┊</span><span>Fixtures</span>
     </a>
     {% if nav_leagues and nav_leagues|length == 1 %}
     <a href="/standings/{{ nav_leagues[0].id }}" class="{% if path.startswith('/standings') or path.startswith('/league') or path.startswith('/leagues') %}is-active{% endif %}">
-      <span class="nav-ico">☰</span><span>{% if nav_leagues[0].league_type == 'h2h' %}H2H{% else %}Table{% endif %}</span>
+      <span class="nav-ico" aria-hidden="true">☰</span><span>{% if nav_leagues[0].league_type == 'h2h' %}H2H{% else %}Table{% endif %}</span>
     </a>
     {% else %}
     <a href="/leagues" class="{% if path.startswith('/standings') or path.startswith('/league') or path.startswith('/leagues') %}is-active{% endif %}">
-      <span class="nav-ico">☰</span><span>Table</span>
+      <span class="nav-ico" aria-hidden="true">☰</span><span>Table</span>
     </a>
     {% endif %}
   </nav>
@@ -48,5 +57,12 @@
     {% block content %}{% endblock %}
   </main>
   <script src="/static/ui.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/static/sw.js").catch(() => {});
+      });
+    }
+  </script>
 </body>
 </html>

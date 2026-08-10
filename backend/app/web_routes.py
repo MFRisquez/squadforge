@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -75,10 +76,14 @@ def _ctx(request: Request, db: Session, **extra):
 
 def _players_payload(db: Session) -> list[dict]:
     from app.kits import kit_for
+    from app.services import fixtures as fixtures_svc
     from app.services.fpl_sync import availability_flag
 
     clubs = {c.code: c for c in db.query(Club).all()}
     players = db.query(Player).order_by(Player.position, Player.price.desc()).all()
+    current = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
+    from_gw = current.number if current else 1
+    fdr_by_club = fixtures_svc.club_next_fdr_map(db, from_gw=from_gw)
     return [
         {
             "id": p.id,
@@ -94,6 +99,7 @@ def _players_payload(db: Session) -> list[dict]:
                 getattr(p, "status", "a") or "a",
                 getattr(p, "chance_of_playing", None),
             ),
+            "fdr": fdr_by_club.get(p.team_code),
             **kit_for(
                 p.team_code,
                 position=p.position,
@@ -350,6 +356,13 @@ def team_page(request: Request, db: Session = Depends(get_db)):
     vice = next((p.player_id for p in picks if getattr(p, "is_vice_captain", 0)), None)
     if len(owned) == settings.squad_size and not starters:
         starters, _, captain, vice = squad_svc.default_lineup_from_owned(owned)
+    bench_options = []
+    for pick in sorted(picks, key=lambda x: (x.bench_order, x.id)):
+        if pick.is_starter:
+            continue
+        player = by_id.get(pick.player_id)
+        if player and not pick.is_captain and not getattr(pick, "is_vice_captain", 0):
+            bench_options.append(player)
     return templates.TemplateResponse(
         "team.html",
         _ctx(
@@ -360,6 +373,7 @@ def team_page(request: Request, db: Session = Depends(get_db)):
             pick_rows=pick_rows,
             chips=chips,
             active_chip=active_chip,
+            bench_options=bench_options,
             td=td,
             can_set_td=can_set_td,
             clubs=clubs,
@@ -389,6 +403,7 @@ def team_page(request: Request, db: Session = Depends(get_db)):
             notice=(
                 request.query_params.get("notice")
                 or ("Transfer done." if request.query_params.get("ok") else None)
+                or ("Chip played." if request.query_params.get("chip_ok") else None)
             ),
             **view,
         ),
@@ -399,6 +414,7 @@ def team_page(request: Request, db: Session = Depends(get_db)):
 def play_chip_from_squad(
     request: Request,
     chip: str = Form(...),
+    player_id: Optional[int] = Form(None),
     db: Session = Depends(get_db),
 ):
     from app.services import chips as chips_svc
@@ -409,7 +425,13 @@ def play_chip_from_squad(
         return RedirectResponse("/login", status_code=303)
     gw = squad_svc.current_gameweek(db)
     try:
-        chips_svc.play_chip(db, manager_id=manager.id, gameweek_id=gw.id, chip=chip)
+        chips_svc.play_chip(
+            db,
+            manager_id=manager.id,
+            gameweek_id=gw.id,
+            chip=chip,
+            player_id=player_id,
+        )
     except ChipError as exc:
         return RedirectResponse(f"/team?chip_error={exc}", status_code=303)
     return RedirectResponse("/team?chip_ok=1", status_code=303)
@@ -569,8 +591,10 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
     points_map: dict[str, float] = {}
     gw_total = None
     if view["edits_locked"]:
+        from app.services.auto_score import maybe_score_locked_gw
         from app.models import ManagerGameweekScore, PlayerPoints
 
+        maybe_score_locked_gw()
         for row in (
             db.query(PlayerPoints)
             .filter(
@@ -993,6 +1017,7 @@ def standings(league_id: int, request: Request, db: Session = Depends(get_db)):
             rows=rows,
             fixtures=fixtures,
             mode=mode,
+            me=manager,
             member_count=db.query(Membership).filter(Membership.league_id == league.id).count(),
         ),
     )

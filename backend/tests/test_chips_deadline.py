@@ -148,3 +148,68 @@ def test_free_hit_snapshot_unlimited_cancel_and_restore():
         assert state.free_hit_remaining == 0
     finally:
         db.close()
+
+
+def test_super_sub_requires_bench_and_cancels():
+    db = SessionLocal()
+    try:
+        manager = Manager(display_name="SSer", pin="4444", team_name="SS FC")
+        db.add(manager)
+        db.commit()
+        db.refresh(manager)
+
+        squad = _legal_15(db)
+        ids = [p.id for p in squad]
+        squad_svc.save_ownership(db, manager_id=manager.id, player_ids=ids, gw_number=1)
+        owned = squad_svc.owned_players(db, manager.id)
+        starters, _, captain, vice = squad_svc.default_lineup_from_owned(owned)
+        gw = db.query(Gameweek).filter(Gameweek.number == 1).one()
+        gw.deadline_at = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat().replace("+00:00", "Z")
+        db.commit()
+        squad_svc.save_lineup(
+            db,
+            manager_id=manager.id,
+            gameweek_id=gw.id,
+            starter_ids=starters,
+            captain_id=captain,
+            vice_id=vice,
+        )
+        bench_id = next(pid for pid in ids if pid not in starters)
+
+        try:
+            chips_svc.play_chip(db, manager_id=manager.id, gameweek_id=gw.id, chip="super_sub")
+            assert False, "expected ChipError"
+        except chips_svc.ChipError:
+            pass
+
+        try:
+            chips_svc.play_chip(
+                db,
+                manager_id=manager.id,
+                gameweek_id=gw.id,
+                chip="super_sub",
+                player_id=starters[0],
+            )
+            assert False, "expected ChipError for starter"
+        except chips_svc.ChipError:
+            pass
+
+        play = chips_svc.play_chip(
+            db,
+            manager_id=manager.id,
+            gameweek_id=gw.id,
+            chip="super_sub",
+            player_id=bench_id,
+        )
+        assert play.chip == "super_sub"
+        state = chips_svc.ensure_chip_state(db, manager.id)
+        assert state.super_sub_remaining == 0
+        meta = __import__("json").loads(play.meta_json)
+        assert meta["player_id"] == bench_id
+
+        chips_svc.cancel_chip(db, manager_id=manager.id, gameweek_id=gw.id)
+        state = chips_svc.ensure_chip_state(db, manager.id)
+        assert state.super_sub_remaining == 1
+        assert chips_svc.active_chip(db, manager.id, gw.id) is None
+    finally:
+        db.close()

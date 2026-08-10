@@ -3,7 +3,7 @@
 <section class="hero-block">
   <p class="eyebrow">Private fantasy · {{ formula_version }}</p>
   <h1>{{ app_name }}</h1>
-  <p class="lede">Build your 15, set this week’s lineup, play chips — like FPL, tuned for your friends.</p>
+  <p class="lede">Pick your 15, lock a lineup, play chips — FPL energy, friend-league rules.</p>
 </section>
 
 {% if not manager %}
@@ -11,7 +11,7 @@
   <div class="step-num">1</div>
   <div>
     <h2>Create your manager</h2>
-    <p class="muted">Pick a name and a PIN only you know. Takes 10 seconds.</p>
+    <p class="muted">Name + PIN. Takes 10 seconds.</p>
     <a class="btn" href="/login">Sign in / Register</a>
   </div>
 </section>
@@ -25,32 +25,27 @@
 </section>
 
 <section class="howto">
-  <h2 class="section-title">How to play this week</h2>
+  <h2 class="section-title">This week</h2>
   <div class="howto-grid">
     <a class="howto-card" href="/team">
       <span class="howto-step">1</span>
-      <strong>Squad &amp; Transfers</strong>
-      <span>Pick 15 on the pitch · swap later</span>
+      <strong>Squad</strong>
+      <span>15 · transfers · chips</span>
     </a>
     <a class="howto-card" href="/lineup">
       <span class="howto-step">2</span>
-      <strong>Set lineup</strong>
-      <span>XI · bench · Captain C · Vice V</span>
+      <strong>Lineup</strong>
+      <span>XI · C / V · GW pts</span>
     </a>
     <a class="howto-card" href="/fixtures">
       <span class="howto-step">3</span>
       <strong>Fixtures</strong>
-      <span>Live scores · goals &amp; assists</span>
-    </a>
-    <a class="howto-card" href="/team">
-      <span class="howto-step">4</span>
-      <strong>Chips &amp; TD</strong>
-      <span>On the Squad screen</span>
+      <span>Live PL scores</span>
     </a>
     <a class="howto-card" href="/leagues">
-      <span class="howto-step">5</span>
-      <strong>Standings / H2H</strong>
-      <span>Table + weekly fixtures</span>
+      <span class="howto-step">4</span>
+      <strong>Table</strong>
+      <span>Classic or H2H</span>
     </a>
   </div>
 </section>
@@ -100,7 +95,7 @@
 
 <section class="panel subtle">
   <h2>Scores</h2>
-  <p class="muted">After the deadline, GW scores and match KPIs show on Lineup. Refresh anytime.</p>
+  <p class="muted">After the deadline, GW points land on Lineup. Auto-refresh runs in the background — or tap below.</p>
   <div class="row">
     <a class="btn" href="/lineup">Open Lineup</a>
     <form method="post" action="/score/run">
@@ -112,10 +107,15 @@
 
 <section class="panel subtle">
   <h2>Keep players updated</h2>
-  <p class="muted">Pull the latest FPL prices, injuries, and availability (yellow/red statuses).</p>
+  <p class="muted">Latest FPL prices, injuries, kits, and fixtures.</p>
   <form method="post" action="/sync/players">
     <button class="btn ghost" type="submit">Refresh players from FPL</button>
   </form>
+</section>
+
+<section class="panel subtle">
+  <h2>Rules for the group chat</h2>
+  <p class="muted">Paste-ready WhatsApp text lives in the repo as <code>docs/RULES_WHATSAPP.txt</code> (v0.4 — includes Super Sub + transfers).</p>
 </section>
 {% endif %}
 {% endblock %}

@@ -1,26 +1,27 @@
 {% extends "base.html" %}
-{% block title %}Standings · {{ app_name }}{% endblock %}
+{% block title %}{{ league.name }} · {{ app_name }}{% endblock %}
 {% block content %}
-<p class="eyebrow">{% if mode == 'h2h' %}Head to Head{% else %}Classic{% endif %} · GW {{ gw.number if gw else '' }}</p>
-<h1>{{ league.name }}</h1>
-<p class="lede">
-  {% if mode == 'h2h' %}
-    FPL-style H2H: weekly matches (3 pts win, 1 draw). Best with an even number of managers (you have {{ member_count }}).
-  {% else %}
-    Classic table like FPL: rank by total points, with GW score, value, transfers, chips &amp; TD.
-  {% endif %}
-</p>
+<section class="hero-block compact standings-hero">
+  <p class="eyebrow">{% if mode == 'h2h' %}Head to Head{% else %}Classic{% endif %} · GW {{ gw.number if gw else '' }}</p>
+  <h1>{{ league.name }}</h1>
+  <p class="lede tight">
+    {% if mode == 'h2h' %}
+      Weekly matches · 3 pts win · 1 draw. Even number of managers works best ({{ member_count }} now).
+    {% else %}
+      Rank by season total · GW score · value · transfers · chips · TD.
+    {% endif %}
+  </p>
+</section>
 
 {% if mode == 'classic' %}
-<section class="panel table-wrap">
+<section class="panel table-wrap standings-panel">
   <table class="standings">
     <thead>
       <tr>
         <th>#</th>
-        <th>Team</th>
         <th>Manager</th>
         <th>GW</th>
-        <th>Total</th>
+        <th>Tot</th>
         <th>£</th>
         <th>TR</th>
         <th>Chip</th>
@@ -29,27 +30,30 @@
     </thead>
     <tbody>
       {% for row in rows %}
-      <tr>
-        <td>{{ row.rank }}</td>
-        <td>{{ row.team_name }}</td>
-        <td>{{ row.manager.display_name }}
-          <a class="text-link" href="/league/{{ league.id }}/opponent/{{ row.manager.id }}?gw={{ gw.number }}">XI</a>
+      <tr class="{% if me and row.manager.id == me.id %}is-me{% endif %} {% if row.rank <= 3 %}rank-{{ row.rank }}{% endif %}">
+        <td class="rank-cell">{{ row.rank }}</td>
+        <td>
+          <div class="standings-name">
+            <strong>{{ row.team_name }}</strong>
+            <span class="muted tiny">{{ row.manager.display_name }}</span>
+          </div>
+          <a class="text-link tiny" href="/league/{{ league.id }}/opponent/{{ row.manager.id }}?gw={{ gw.number }}">See XI</a>
         </td>
         <td>{{ '%.0f'|format(row.gw_points) }}</td>
         <td><strong>{{ '%.0f'|format(row.total_points) }}</strong></td>
         <td>{{ '%.1f'|format(row.squad_value) }}</td>
         <td>{{ row.transfers }}</td>
-        <td>{{ row.chip }}</td>
+        <td>{% if row.chip != '—' %}<span class="chip-tag">{{ row.chip }}</span>{% else %}—{% endif %}</td>
         <td>{{ row.td_club }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
-  <p class="muted tiny">GW and Total update when you run scoring from Points → Refresh live scores.</p>
+  <p class="muted tiny">Scores update on Lineup → Refresh, and automatically after the deadline.</p>
 </section>
 {% else %}
-<section class="panel table-wrap">
-  <h2>H2H table</h2>
+<section class="panel table-wrap standings-panel">
+  <h2 class="section-title tight">H2H table</h2>
   <table class="standings">
     <thead>
       <tr>
@@ -67,9 +71,12 @@
     </thead>
     <tbody>
       {% for row in rows %}
-      <tr>
-        <td>{{ row.rank }}</td>
-        <td>{{ row.team_name }}</td>
+      <tr class="{% if me and row.manager.id == me.id %}is-me{% endif %} {% if row.rank <= 3 %}rank-{{ row.rank }}{% endif %}">
+        <td class="rank-cell">{{ row.rank }}</td>
+        <td>
+          <strong>{{ row.team_name }}</strong>
+          <span class="muted tiny">{{ row.manager.display_name }}</span>
+        </td>
         <td>{{ row.played }}</td>
         <td>{{ row.wins }}</td>
         <td>{{ row.draws }}</td>
@@ -84,32 +91,54 @@
   </table>
 </section>
 
-<section class="panel">
-  <h2>This week’s fixtures</h2>
+<section class="panel h2h-digest">
+  <h2 class="section-title tight">This week</h2>
   {% if fixtures %}
-    <ul class="list">
+    <div class="h2h-cards">
       {% for fx in fixtures %}
-        <li>
-          <strong>{{ fx.home.team_name if fx.home and fx.home.team_name else fx.home.display_name }}</strong>
-          <span class="muted">{{ '%.0f'|format(fx.home_points) }}</span>
-          vs
-          <span class="muted">{{ '%.0f'|format(fx.away_points) }}</span>
-          <strong>{{ fx.away.team_name if fx.away and fx.away.team_name else fx.away.display_name }}</strong>
-          <span class="pill">{{ fx.result }}</span>
-          <span class="peek-links">
-            <a class="text-link" href="/league/{{ league.id }}/opponent/{{ fx.home.id }}?gw={{ gw.number }}">Home XI</a>
-            ·
-            <a class="text-link" href="/league/{{ league.id }}/opponent/{{ fx.away.id }}?gw={{ gw.number }}">Away XI</a>
-          </span>
-        </li>
+        {% set home_name = fx.home.team_name if fx.home and fx.home.team_name else (fx.home.display_name if fx.home else 'TBD') %}
+        {% set away_name = fx.away.team_name if fx.away and fx.away.team_name else (fx.away.display_name if fx.away else 'TBD') %}
+        {% set home_win = fx.result == 'home' %}
+        {% set away_win = fx.result == 'away' %}
+        <article class="h2h-card {% if fx.result == 'pending' %}is-pending{% elif fx.result == 'draw' %}is-draw{% endif %}">
+          <div class="h2h-side {% if home_win %}is-winner{% endif %}">
+            <strong>{{ home_name }}</strong>
+            <span class="h2h-pts">{{ '%.0f'|format(fx.home_points) }}</span>
+            {% if fx.home %}
+              <a class="text-link tiny" href="/league/{{ league.id }}/opponent/{{ fx.home.id }}?gw={{ gw.number }}">XI</a>
+            {% endif %}
+          </div>
+          <div class="h2h-vs">
+            {% if fx.result == 'pending' %}
+              <span class="pill soft">LIVE</span>
+            {% elif fx.result == 'draw' %}
+              <span class="pill soft">DRAW</span>
+            {% else %}
+              <span class="pill soft">FT</span>
+            {% endif %}
+          </div>
+          <div class="h2h-side {% if away_win %}is-winner{% endif %}">
+            <strong>{{ away_name }}</strong>
+            <span class="h2h-pts">{{ '%.0f'|format(fx.away_points) }}</span>
+            {% if fx.away %}
+              <a class="text-link tiny" href="/league/{{ league.id }}/opponent/{{ fx.away.id }}?gw={{ gw.number }}">XI</a>
+            {% endif %}
+          </div>
+        </article>
       {% endfor %}
-    </ul>
+    </div>
   {% else %}
     <p class="muted">Need an even number of managers to draw H2H fixtures (2, 4, 6…).</p>
   {% endif %}
 </section>
 {% endif %}
 
-<a class="btn ghost" href="/league/{{ league.id }}">Back to league</a>
-<a class="btn ghost" href="/leagues">All leagues</a>
+<div class="row standings-actions">
+  <a class="btn ghost" href="/league/{{ league.id }}">League hub</a>
+  <a class="btn ghost" href="/leagues">All leagues</a>
+  <form method="post" action="/score/run">
+    <input type="hidden" name="mode" value="auto" />
+    <button class="btn" type="submit">Refresh scores</button>
+  </form>
+</div>
 {% endblock %}

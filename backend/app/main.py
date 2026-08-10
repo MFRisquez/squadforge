@@ -93,3 +93,6 @@ def on_startup() -> None:
         seed_if_empty(db, force_fpl_sync=False)
     finally:
         db.close()
+    from app.services.auto_score import start_auto_scorer
+
+    start_auto_scorer(interval_sec=120.0)

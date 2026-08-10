@@ -110,8 +110,13 @@
     const avail = p.availability || "ok";
     const flag = avail === "out" ? "OUT" : avail === "doubt" ? "DOUBT" : "";
     const img = p.shirt || "";
+    const fdr = p.fdr;
+    const fdrBadge = fdr
+      ? `<span class="shirt-fdr fdr-${fdr.difficulty}" title="${fdr.opponent} (${fdr.venue}) · FDR ${fdr.difficulty}">${fdr.opponent}<em>${fdr.venue}</em></span>`
+      : "";
     return `
       <img class="jersey-img" src="${img}" alt="${p.team} kit" width="66" height="87" loading="lazy" decoding="async" />
+      ${fdrBadge}
       <span class="shirt-price">£${p.price.toFixed(1)}</span>
       <span class="shirt-name">${p.name}</span>
       <span class="shirt-team">${p.team}${flag ? " · " + flag : ""}</span>

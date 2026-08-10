@@ -48,6 +48,9 @@ def _manager_row_base(db: Session, manager: Manager, gw) -> dict:
         .filter(ChipPlay.manager_id == manager.id, ChipPlay.gameweek_id == gw.id)
         .one_or_none()
     )
+    from app.services.chips import CHIP_SHORT
+
+    chip_key = chip.chip if chip else None
     td = td_svc.current_td(db, manager.id, gw.number)
     ft_state = db.query(TransferState).filter(TransferState.manager_id == manager.id).one_or_none()
     return {
@@ -57,7 +60,8 @@ def _manager_row_base(db: Session, manager: Manager, gw) -> dict:
         "total_points": total_points,
         "squad_value": spend,
         "transfers": transfers,
-        "chip": chip.chip if chip else "—",
+        "chip": CHIP_SHORT.get(chip_key, "—") if chip_key else "—",
+        "chip_key": chip_key,
         "td_club": td.club_code if td else "—",
         "ft_left": ft_state.free_transfers if ft_state else 0,
         "players_owned": len(owned),

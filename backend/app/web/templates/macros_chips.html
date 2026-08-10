@@ -1,5 +1,5 @@
-{# Compact FPL-style chip strip. Expects chips, active_chip, edits_locked #}
-{% macro chip_strip(chips, active_chip, edits_locked) %}
+{# Compact FPL-style chip strip. Expects chips, active_chip, edits_locked, bench_options #}
+{% macro chip_strip(chips, active_chip, edits_locked, bench_options=[]) %}
 <section class="chip-strip-wrap">
   <div class="chip-strip-head">
     <h2>Chips</h2>
@@ -17,10 +17,11 @@
       ('free_hit', 'FH', 'Free Hit', chips.free_hit_remaining if chips else 0, 'Temp squad for 1 GW'),
       ('bench_boost', 'BB', 'Bench Boost', chips.bench_boost_remaining if chips else 0, 'Bench points count'),
       ('triple_captain', 'TC', 'Triple Captain', chips.triple_captain_remaining if chips else 0, 'Captain ×3'),
+      ('super_sub', 'SS', 'Super Sub', chips.super_sub_remaining if chips else 0, 'Bench pick ×2'),
     ] %}
     {% for key, short, label, left, hint in items %}
       {% set is_active = active_chip and active_chip.chip == key %}
-      <div class="chip-pill {% if is_active %}is-active{% endif %} {% if left < 1 and not is_active %}is-spent{% endif %}" role="listitem" title="{{ hint }}">
+      <div class="chip-pill {% if is_active %}is-active{% endif %} {% if left < 1 and not is_active %}is-spent{% endif %} {% if key == 'super_sub' %}chip-pill-ss{% endif %}" role="listitem" title="{{ hint }}">
         <span class="chip-short">{{ short }}</span>
         <span class="chip-meta">
           <strong>{{ label }}</strong>
@@ -30,6 +31,22 @@
           <span class="chip-state">Active</span>
         {% elif edits_locked or left < 1 or active_chip %}
           <span class="chip-state muted">—</span>
+        {% elif key == 'super_sub' %}
+          {% if bench_options %}
+            <form method="post" action="/team/chip" class="chip-ss-form">
+              <input type="hidden" name="chip" value="super_sub" />
+              <label class="sr-only" for="ssPlayer">Bench player</label>
+              <select name="player_id" id="ssPlayer" required>
+                <option value="" disabled selected>Bench…</option>
+                {% for p in bench_options %}
+                  <option value="{{ p.id }}">{{ p.name }} ({{ p.position }})</option>
+                {% endfor %}
+              </select>
+              <button class="chip-play" type="submit">Play</button>
+            </form>
+          {% else %}
+            <span class="chip-state muted" title="Set lineup first">Set XI</span>
+          {% endif %}
         {% else %}
           <form method="post" action="/team/chip">
             <input type="hidden" name="chip" value="{{ key }}" />
@@ -39,6 +56,6 @@
       </div>
     {% endfor %}
   </div>
-  <p class="chip-footnote muted tiny">One chip per GW · cancel before the deadline · FH restores your old 15 next GW · Super Sub soon</p>
+  <p class="chip-footnote muted tiny">One chip per GW · cancel before deadline · FH restores next GW · Super Sub = one bench pick ×2</p>
 </section>
 {% endmacro %}

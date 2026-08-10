@@ -131,6 +131,33 @@ def next_fixtures_for_club(
     return out
 
 
+def club_next_fdr_map(db: Session, *, from_gw: int) -> dict[str, dict[str, Any]]:
+    """club_code → next fixture FDR summary (for pitch shirt badges)."""
+    clubs = {c.code: c for c in db.query(Club).all() if c.code}
+    rows = (
+        db.query(Fixture)
+        .filter(Fixture.gameweek_number >= from_gw, Fixture.gameweek_number > 0)
+        .order_by(Fixture.gameweek_number.asc(), Fixture.kickoff_at.asc())
+        .all()
+    )
+    out: dict[str, dict[str, Any]] = {}
+    for fx in rows:
+        for code, home in ((fx.home_club_code, True), (fx.away_club_code, False)):
+            if code in out or code not in clubs:
+                continue
+            opp_code = fx.away_club_code if home else fx.home_club_code
+            fpl_diff = fx.home_difficulty if home else fx.away_difficulty
+            out[code] = {
+                "difficulty": map_fdr(fpl_diff),
+                "opponent": opp_code,
+                "venue": "H" if home else "A",
+                "gw": fx.gameweek_number,
+            }
+        if len(out) >= len(clubs):
+            break
+    return out
+
+
 def ensure_fixtures_ready(db: Session) -> dict[str, Any]:
     """Backfill club FPL ids + fixture rows if this DB predates fixture sync."""
     info: dict[str, Any] = {"ok": True}

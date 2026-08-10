@@ -1,14 +1,26 @@
-⚽ SQUADFORGE — RULES (v0.3.2)
+⚽ SQUADFORGE — RULES (v0.4)
 Private Fantasy Premier League for our group
 
 Copy/paste this note for WhatsApp.
 (We can edit and re-send anytime — changes apply from an agreed gameweek.)
 
 ————————————
-CAPTAIN
+SQUAD & TRANSFERS
 ————————————
-• Your captain scores DOUBLE (×2) every gameweek
-• If you play Triple Captain chip → captain scores ×3 that GW only
+• Squad of 15: 2 GK · 5 DEF · 5 MID · 3 ATT
+• Budget £100m · max 3 players per Premier League club
+• GW1: unlimited free transfers
+• After GW1: +1 free transfer each GW (banked, max 5)
+• Extra transfers beyond FTs: −4 hit each
+• Deadline locks transfers, lineup, and chips for that GW
+
+————————————
+LINEUP
+————————————
+• Each GW set your Starting XI, bench order, Captain (C) and Vice (V)
+• Captain scores ×2
+• If captain plays 0 minutes → vice gets the armband
+• If someone in your XI doesn't play, autosubs can bring a bench player in (like FPL)
 
 ————————————
 APPEARANCE (all positions)
@@ -120,15 +132,17 @@ You get these once per season (Wildcard ×2):
 
 5) SUPER SUB (×1) — SquadForge special
    Before deadline, pick ONE bench player.
-   If they play that GW, their points count at ×2.
+   If they play (or autosub in) that GW, their points count at ×2.
    Chip is used up even if they don’t play.
-   (Does not stack with Triple Captain. Can’t combine with Bench Boost same GW.)
+   Does not stack with Triple Captain. Can’t combine with Bench Boost same GW.
 
 ————————————
-AUTO-SUBS (normal weeks)
+IN THE APP
 ————————————
-If someone in your starting XI doesn’t play, a bench player can replace them
-(same idea as official FPL — full detail when the app is ready).
+• Squad = ownership + transfers + season stats + next fixtures
+• Lineup = XI / bench / C / V · after lock shows GW points
+• Fixtures = live PL scores · tap for goals & assists
+• Table = classic or H2H standings
 
 ————————————
 NOT USING (for now)

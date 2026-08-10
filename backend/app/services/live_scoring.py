@@ -421,6 +421,12 @@ def score_managers(db: Session, gw: Gameweek) -> int:
             .one_or_none()
         )
         chip_name = chip.chip if chip else None
+        ss_id = None
+        if chip_name == "super_sub" and chip:
+            try:
+                ss_id = int(json.loads(chip.meta_json or "{}").get("player_id") or 0) or None
+            except (TypeError, ValueError, json.JSONDecodeError):
+                ss_id = None
 
         effective, captain_id, vice_id = _apply_autosubs(
             db, owned=owned, picks=picks, minutes=minutes
@@ -433,11 +439,14 @@ def score_managers(db: Session, gw: Gameweek) -> int:
 
         player_lines = []
         squad_points = 0.0
+        starter_ids = {p.player_id for p in picks if p.is_starter}
         for pid in effective:
             base = pts.get(pid, 0.0)
             mult = 1.0
             if pid == armband:
                 mult = 3.0 if chip_name == "triple_captain" else 2.0
+            elif ss_id and pid == ss_id:
+                mult = 2.0
             scored_pts = round(base * mult, 2)
             squad_points += scored_pts
             player_lines.append(
@@ -447,17 +456,35 @@ def score_managers(db: Session, gw: Gameweek) -> int:
                     "base": base,
                     "mult": mult,
                     "captain": pid == armband,
-                    "autosub": pid not in {p.player_id for p in picks if p.is_starter},
+                    "autosub": pid not in starter_ids,
+                    "super_sub": bool(ss_id and pid == ss_id),
                 }
             )
 
         if chip_name == "bench_boost":
-            bench_ids = {p.player_id for p in picks if not p.is_starter} - effective
+            bench_ids = {p.player_id for p in picks if not p.is_starter} - set(effective)
             for pid in bench_ids:
                 base = pts.get(pid, 0.0)
                 squad_points += base
                 player_lines.append(
                     {"player_id": pid, "points": base, "base": base, "mult": 1.0, "bench_boost": True}
+                )
+        elif chip_name == "super_sub" and ss_id and ss_id not in set(effective):
+            # Remains on bench: if they played any minutes, count ×2; else 0 (chip already consumed)
+            mins = minutes.get(ss_id, 0.0) or 0.0
+            if mins > 0:
+                base = pts.get(ss_id, 0.0)
+                scored_pts = round(base * 2.0, 2)
+                squad_points += scored_pts
+                player_lines.append(
+                    {
+                        "player_id": ss_id,
+                        "points": scored_pts,
+                        "base": base,
+                        "mult": 2.0,
+                        "super_sub": True,
+                        "bench": True,
+                    }
                 )
 
         td_pts = td_svc.td_points_for_gw(

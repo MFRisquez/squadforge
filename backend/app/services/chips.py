@@ -1,8 +1,9 @@
-"""Chip plays — WC, FH, TC, BB (cancel before deadline)."""
+"""Chip plays — WC, FH, TC, BB, Super Sub (cancel before deadline)."""
 
 from __future__ import annotations
 
 import json
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -23,7 +24,15 @@ CHIP_LABELS = {
     "super_sub": "Super Sub",
 }
 
-PLAYABLE = {"wildcard", "triple_captain", "bench_boost", "free_hit"}
+CHIP_SHORT = {
+    "wildcard": "WC",
+    "triple_captain": "TC",
+    "bench_boost": "BB",
+    "free_hit": "FH",
+    "super_sub": "SS",
+}
+
+PLAYABLE = {"wildcard", "triple_captain", "bench_boost", "free_hit", "super_sub"}
 
 
 def ensure_chip_state(db: Session, manager_id: int) -> ChipState:
@@ -97,7 +106,14 @@ def _rebuild_lineup_for_gw(db: Session, *, manager_id: int, gameweek_id: int) ->
     )
 
 
-def play_chip(db: Session, *, manager_id: int, gameweek_id: int, chip: str) -> ChipPlay:
+def play_chip(
+    db: Session,
+    *,
+    manager_id: int,
+    gameweek_id: int,
+    chip: str,
+    player_id: Optional[int] = None,
+) -> ChipPlay:
     chip = (chip or "").strip().lower()
     if chip not in PLAYABLE:
         raise ChipError("That chip isn’t available yet")
@@ -138,6 +154,28 @@ def play_chip(db: Session, *, manager_id: int, gameweek_id: int, chip: str) -> C
             raise ChipError("Save a full 15 before playing Free Hit")
         state.free_hit_remaining = max(0, state.free_hit_remaining - 1)
         meta = {"snapshot": owned_ids, "restored": False, "gw_number": gw.number}
+    elif chip == "super_sub":
+        if state.super_sub_remaining <= 0:
+            raise ChipError("No Super Sub left")
+        if not player_id:
+            raise ChipError("Pick a bench player for Super Sub")
+        owned_ids = set(_owned_ids(db, manager_id))
+        if player_id not in owned_ids:
+            raise ChipError("Super Sub must be in your squad")
+        picks = (
+            db.query(SquadPick)
+            .filter(SquadPick.manager_id == manager_id, SquadPick.gameweek_id == gameweek_id)
+            .all()
+        )
+        if not picks:
+            raise ChipError("Set your lineup before playing Super Sub")
+        starters = {p.player_id for p in picks if p.is_starter}
+        if player_id in starters:
+            raise ChipError("Super Sub must be a bench player (not in the XI)")
+        if any(p.player_id == player_id and (p.is_captain or getattr(p, "is_vice_captain", 0)) for p in picks):
+            raise ChipError("Super Sub can’t be captain or vice")
+        state.super_sub_remaining = max(0, state.super_sub_remaining - 1)
+        meta = {"player_id": int(player_id)}
 
     play = ChipPlay(
         manager_id=manager_id,
@@ -183,6 +221,8 @@ def cancel_chip(db: Session, *, manager_id: int, gameweek_id: int) -> None:
             )
             db.flush()
             _rebuild_lineup_for_gw(db, manager_id=manager_id, gameweek_id=gameweek_id)
+    elif play.chip == "super_sub":
+        state.super_sub_remaining += 1
 
     db.delete(play)
     db.commit()
