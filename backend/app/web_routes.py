@@ -85,6 +85,7 @@ def _players_payload(db: Session) -> list[dict]:
             "name": p.name,
             "position": p.position,
             "team": p.team_code,
+            "club": getattr(clubs.get(p.team_code), "name", None) or p.team_code,
             "price": p.price,
             "status": getattr(p, "status", "a") or "a",
             "chance": getattr(p, "chance_of_playing", None),

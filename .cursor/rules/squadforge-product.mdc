@@ -1,0 +1,54 @@
+---
+description: Locked SquadForge product/game rules — follow when building features
+alwaysApply: true
+---
+
+# SquadForge product rules (locked)
+
+Private FPL for friends. Stack: FastAPI + SQLite + Jinja phone UI. Scoring in Python; players from FPL API. Product owner: Manuel (PM). Prefer ship in code over long design debates.
+
+Canonical longer docs: `docs/CHIPS.md`, `docs/TECHNICAL_DIRECTOR.md`, `docs/FORMULAS.md`, `docs/RULES_WHATSAPP.txt`.
+
+## Squad & transfers
+
+- Squad **15** = **2 GK / 5 DEF / 5 MID / 3 ATT**, budget **£100m**, max **3 per club**
+- Transfers: **GW1 unlimited**; after that **+1 FT / GW**, banked, **cap 5**
+- Over FTs → **−4 hit** each (still allow the transfer)
+- **WC** or **FH** active that GW → unlimited transfers (no hits)
+- Deadline from FPL locks transfers, chips, lineup edits for that GW
+
+## Lineup & armband
+
+- Captain + Vice only (**C** / **V** badges). No other armband UI
+- Captain scores **×2**. If captain plays **0 minutes**, vice gets the armband
+- **Triple Captain** replaces ×2 with **×3** that GW (does not stack)
+
+## Chips (one chip per manager per GW)
+
+| Chip | Effect | Uses |
+|------|--------|------|
+| Wildcard | Unlimited transfers until deadline | 2 — 2nd unlocks **from GW20** |
+| Free Hit | Temp 15 for **one GW**; snapshot restores after GW (or on cancel) | 1 |
+| Bench Boost | Bench points count that GW | 1 |
+| Triple Captain | Captain ×3 | 1 |
+| Super Sub | One bench pick ×2 if they play/autosub; **consumed even if unused** | 1 *(not shipped yet)* |
+
+Cancel chips **before deadline** restores remaining count (FH also restores ownership from snapshot).
+
+## Technical Director (not a chip)
+
+- Pick a club for **exactly 3 consecutive GWs**, then locked
+- Scoring per real match: **W +3 / D +1 / L −1** (DGW each match; blank = 0)
+- Cannot re-pick the **same club** as previous window
+
+## Scoring & UX conventions
+
+- Custom **per-position formulas** (see `docs/FORMULAS.md` + `backend/app/scoring/`)
+- Autosubs like FPL when BB off
+- UI: phone-first pitch Squad (pick 15 + transfers); nav Home · Squad · Points · Lineup · Table
+- Real FPL kits via `kits.py`; compact chip strip; opponent peek on standings
+- Player detail: long-press pitch / locked tap / picker **i** — name, club, pos, price, status, news
+
+## When changing rules mid-season
+
+Apply from the **next GW**, or bump `formula_version` / chip rules and leave finished GWs as played.

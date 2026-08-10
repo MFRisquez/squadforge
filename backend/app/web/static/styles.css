@@ -704,6 +704,97 @@ table.standings th { color: var(--muted); font-weight: 700; font-size: 0.75rem; 
 .pick-row:hover { background: #f3f6fd; }
 .empty-pick { padding: 1rem; color: var(--muted); text-align: center; }
 
+.pick-row-wrap {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: stretch;
+  gap: 0.15rem;
+}
+.pick-row-wrap .pick-row { padding-right: 0.35rem; }
+.pick-info-btn {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  width: 2.4rem;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+.pick-info-btn:hover { color: var(--ink); background: #f3f6fd; }
+
+.player-detail-sheet {
+  grid-template-rows: auto 1fr auto;
+  max-height: min(70vh, 32rem);
+}
+.player-detail-body {
+  padding: 0.35rem 1.1rem 1rem;
+  overflow: auto;
+  display: grid;
+  gap: 0.85rem;
+}
+.player-detail-hero {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.9rem;
+  align-items: center;
+}
+.player-detail-hero img {
+  width: 66px;
+  height: 87px;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 12px rgba(0,0,0,0.18));
+}
+.player-detail-hero .meta {
+  display: grid;
+  gap: 0.25rem;
+}
+.player-detail-hero .meta strong {
+  font-size: 1.05rem;
+}
+.player-detail-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+.player-detail-facts .fact {
+  background: #f3f6fd;
+  border-radius: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  display: grid;
+  gap: 0.15rem;
+}
+.player-detail-facts .fact span {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+}
+.player-detail-facts .fact strong {
+  font-size: 0.98rem;
+}
+.player-detail-news {
+  background: #fff8e8;
+  border: 1px solid #f0d9a0;
+  border-radius: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+.player-detail-news.is-out {
+  background: #fdeceb;
+  border-color: #f0b4b0;
+}
+.player-detail-actions {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+}
+.player-detail-actions:empty { display: none; }
+.player-detail-actions .btn { width: 100%; }
+
 .slot-row {
   display: flex;
   flex-wrap: wrap;
@@ -862,6 +953,7 @@ table.standings th { color: var(--muted); font-weight: 700; font-size: 0.75rem; 
 }
 .avail-text-doubt { color: #b28600; font-weight: 700; }
 .avail-text-out { color: #c62828; font-weight: 700; }
+.avail-text-ok { color: #1f5d36; font-weight: 700; }
 .legend {
   display: flex;
   flex-wrap: wrap;

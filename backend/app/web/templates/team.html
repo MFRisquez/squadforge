@@ -143,6 +143,20 @@
   </div>
 </div>
 
+<div class="drawer" id="playerDetail" hidden>
+  <div class="drawer-sheet player-detail-sheet">
+    <header class="drawer-head">
+      <div>
+        <p class="eyebrow" id="detailEyebrow">Player</p>
+        <h2 id="detailName">—</h2>
+      </div>
+      <button type="button" class="icon-btn" id="closeDetail" aria-label="Close">✕</button>
+    </header>
+    <div class="player-detail-body" id="detailBody"></div>
+    <div class="player-detail-actions" id="detailActions"></div>
+  </div>
+</div>
+
 <script id="playersData" type="application/json">{{ players_json | tojson }}</script>
 <script id="initialSquad" type="application/json">{{ initial_squad | tojson }}</script>
 <script src="/static/squadboard.js"></script>

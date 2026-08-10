@@ -53,11 +53,28 @@
   const buildActions = document.getElementById("buildActions");
   const clearSwapBtn = document.getElementById("clearSwap");
   const squadForm = document.getElementById("squadForm");
+  const playerDetail = document.getElementById("playerDetail");
+  const detailEyebrow = document.getElementById("detailEyebrow");
+  const detailName = document.getElementById("detailName");
+  const detailBody = document.getElementById("detailBody");
+  const detailActions = document.getElementById("detailActions");
+  const closeDetailBtn = document.getElementById("closeDetail");
 
   let active = null; // { pos, index }
   let outPlayer = null;
   let inPlayer = null;
-  let pickerMode = "add"; // add | replace
+  let pickerMode = "add"; // add | replace | transfer
+  let detailContext = null; // { player, fromPicker, pos, index }
+  let longPressTimer = null;
+  let longPressFired = false;
+
+  const STATUS_LABEL = {
+    a: "Available",
+    d: "Doubtful",
+    i: "Injured",
+    s: "Suspended",
+    u: "Unavailable",
+  };
 
   function filledIds() {
     return ORDER.flatMap((pos) => slots[pos]).filter(Boolean);
@@ -115,18 +132,25 @@
     budgetValue.textContent = `£${left.toFixed(1)}m`;
     budgetValue.classList.toggle("over", left < -0.01);
     squadCount.textContent = `${filledIds().length}/15`;
+    if (LOCKED) {
+      modeHint.textContent = "Gameweek locked — tap a player for info.";
+      if (saveSquadBtn) saveSquadBtn.hidden = true;
+      syncHidden();
+      refreshSwapBar();
+      return;
+    }
     const canFree = freeEdit();
     if (canFree) {
       modeHint.textContent = isComplete()
-        ? `Unlimited changes — tap a player to replace (${PLAYERS.length} in catalogue).`
-        : `Tap empty slots to open the player list (${PLAYERS.length} players).`;
+        ? `Tap to replace · long-press for player info (${PLAYERS.length} in catalogue).`
+        : `Tap empty slots to pick · long-press a shirt for info (${PLAYERS.length} players).`;
       if (saveSquadBtn) saveSquadBtn.hidden = false;
       if (buildActions) buildActions.style.display = "";
     } else {
       modeHint.textContent =
         FT_LEFT < 1
-          ? `Tap to transfer (−${HIT_COST} hit each). Or play Wildcard / Free Hit.`
-          : `Tap a player to transfer out (${PLAYERS.length} in catalogue), then Confirm swap.`;
+          ? `Tap to transfer (−${HIT_COST} hit) · long-press for info. Or play WC / FH.`
+          : `Tap to transfer out · long-press for player info.`;
       if (saveSquadBtn) saveSquadBtn.hidden = true;
     }
     syncHidden();
@@ -158,6 +182,126 @@
     }
   }
 
+  function statusLabel(p) {
+    const avail = p.availability || "ok";
+    const base = STATUS_LABEL[(p.status || "a").toLowerCase()] || "Available";
+    if (avail === "out") return base === "Available" ? "Unavailable" : base;
+    if (avail === "doubt" && base === "Available") return "Doubtful";
+    return base;
+  }
+
+  function closeDetail() {
+    if (!playerDetail) return;
+    playerDetail.hidden = true;
+    detailContext = null;
+  }
+
+  function openPlayerDetail(p, opts = {}) {
+    if (!playerDetail || !p) return;
+    detailContext = {
+      player: p,
+      fromPicker: Boolean(opts.fromPicker),
+      pos: opts.pos ?? p.position,
+      index: opts.index ?? null,
+    };
+    detailEyebrow.textContent = `${p.position} · ${p.team}`;
+    detailName.textContent = p.name;
+    const club = p.club || p.team;
+    const chance =
+      p.chance == null || p.chance === ""
+        ? "—"
+        : `${p.chance}%`;
+    const news = (p.news || "").trim();
+    const avail = p.availability || "ok";
+    detailBody.innerHTML = `
+      <div class="player-detail-hero">
+        <img src="${p.shirt || ""}" alt="" width="66" height="87" />
+        <div class="meta">
+          <strong>${club}</strong>
+          <span class="muted">${p.position} · £${Number(p.price).toFixed(1)}m</span>
+          <span class="avail-text-${avail === "ok" ? "ok" : avail}">${statusLabel(p)}</span>
+        </div>
+      </div>
+      <div class="player-detail-facts">
+        <div class="fact"><span>Price</span><strong>£${Number(p.price).toFixed(1)}m</strong></div>
+        <div class="fact"><span>Club</span><strong>${club}</strong></div>
+        <div class="fact"><span>Status</span><strong>${statusLabel(p)}</strong></div>
+        <div class="fact"><span>Chance next</span><strong>${chance}</strong></div>
+      </div>
+      ${
+        news
+          ? `<div class="player-detail-news ${avail === "out" ? "is-out" : ""}">${news}</div>`
+          : `<p class="muted tiny">No injury news right now.</p>`
+      }
+    `;
+
+    detailActions.innerHTML = "";
+    if (!LOCKED) {
+      if (opts.fromPicker) {
+        const select = document.createElement("button");
+        select.type = "button";
+        select.className = "btn";
+        select.textContent =
+          pickerMode === "transfer" ? "Select for transfer" : pickerMode === "replace" ? "Select player" : "Add to squad";
+        select.addEventListener("click", () => {
+          closeDetail();
+          pickPlayer(p);
+        });
+        detailActions.appendChild(select);
+      } else if (opts.pos != null && opts.index != null) {
+        const act = document.createElement("button");
+        act.type = "button";
+        act.className = "btn";
+        act.textContent = freeEdit() ? "Replace player" : "Transfer out";
+        act.addEventListener("click", () => {
+          closeDetail();
+          if (freeEdit()) {
+            openPicker(opts.pos, opts.index, "replace");
+          } else {
+            outPlayer = p;
+            inPlayer = null;
+            active = { pos: opts.pos, index: opts.index };
+            openPicker(opts.pos, opts.index, "transfer");
+          }
+        });
+        detailActions.appendChild(act);
+      }
+    }
+    playerDetail.hidden = false;
+  }
+
+  function bindLongPress(el, onLongPress, onTap) {
+    const clear = () => {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    };
+    const start = (e) => {
+      if (e.type === "mousedown" && e.button !== 0) return;
+      longPressFired = false;
+      clear();
+      longPressTimer = setTimeout(() => {
+        longPressFired = true;
+        onLongPress();
+      }, 420);
+    };
+    const end = (e) => {
+      clear();
+      if (longPressFired) {
+        e.preventDefault();
+        return;
+      }
+      onTap();
+    };
+    const cancel = () => clear();
+    el.addEventListener("pointerdown", start);
+    el.addEventListener("pointerup", end);
+    el.addEventListener("pointerleave", cancel);
+    el.addEventListener("pointercancel", cancel);
+    el.addEventListener("contextmenu", (e) => e.preventDefault());
+  }
+
   function render() {
     ORDER.forEach((pos) => {
       const row = pitch.querySelector(`[data-pos="${pos}"]`);
@@ -176,15 +320,25 @@
             (outPlayer && outPlayer.id === p.id ? " is-out" : "");
           btn.innerHTML = shirtHtml(p);
           if (p.news) btn.title = p.news;
-          btn.addEventListener("click", () => onFilledTap(pos, index, p));
+          bindLongPress(
+            btn,
+            () => openPlayerDetail(p, { pos, index }),
+            () => {
+              if (LOCKED) {
+                openPlayerDetail(p, { pos, index });
+                return;
+              }
+              onFilledTap(pos, index, p);
+            }
+          );
         } else {
           btn.className = "shirt empty jersey-empty";
           btn.innerHTML = `<span class="plus">+</span><span class="shirt-hint">${pos}</span>`;
-          btn.addEventListener("click", () => openPicker(pos, index, "add"));
-        }
-        if (LOCKED) {
-          btn.disabled = true;
-          btn.style.pointerEvents = "none";
+          if (!LOCKED) {
+            btn.addEventListener("click", () => openPicker(pos, index, "add"));
+          } else {
+            btn.disabled = true;
+          }
         }
         wrap.appendChild(btn);
         row.appendChild(wrap);
@@ -194,7 +348,10 @@
   }
 
   function onFilledTap(pos, index, player) {
-    if (LOCKED) return;
+    if (LOCKED) {
+      openPlayerDetail(player, { pos, index });
+      return;
+    }
     if (freeEdit()) {
       openPicker(pos, index, "replace");
       return;
@@ -247,7 +404,7 @@
       if (taken.has(p.id)) return false;
       if (team && p.team !== team) return false;
       if (maxP != null && p.price > maxP) return false;
-      if (q && !`${p.name} ${p.team}`.toLowerCase().includes(q)) return false;
+      if (q && !`${p.name} ${p.team} ${p.club || ""}`.toLowerCase().includes(q)) return false;
       return true;
     }).sort((a, b) => {
       const aBlocked = (clubs[a.team] || 0) >= MAX_CLUB ? 1 : 0;
@@ -266,20 +423,33 @@
       const clubN = clubs[p.team] || 0;
       const clubBlocked = clubN >= MAX_CLUB;
       const li = document.createElement("li");
+      li.className = "pick-row-wrap";
       const clubNote = clubBlocked
         ? `<span class="club-limit">3/${MAX_CLUB} club</span>`
         : clubN > 0
           ? `<span class="muted tiny"> · ${clubN}/${MAX_CLUB}</span>`
           : "";
-      li.innerHTML = `<button type="button" class="pick-row avail-${p.availability || "ok"}${clubBlocked ? " is-blocked" : ""}" ${clubBlocked ? "disabled" : ""}>
-        <img class="pick-jersey" src="${p.shirt || ""}" alt="" width="36" height="47" loading="lazy" />
-        <span class="grow"><strong>${p.name}</strong> <span class="muted">${p.team}</span>${clubNote}</span>
-        <span>£${p.price.toFixed(1)}m</span>
-      </button>`;
-      const btn = li.querySelector("button");
+      li.innerHTML = `
+        <button type="button" class="pick-row avail-${p.availability || "ok"}${clubBlocked ? " is-blocked" : ""}" ${clubBlocked ? "disabled" : ""}>
+          <img class="pick-jersey" src="${p.shirt || ""}" alt="" width="36" height="47" loading="lazy" />
+          <span class="grow"><strong>${p.name}</strong> <span class="muted">${p.team}</span>${clubNote}</span>
+          <span>£${p.price.toFixed(1)}m</span>
+        </button>
+        <button type="button" class="pick-info-btn" aria-label="Player info">i</button>
+      `;
+      const btn = li.querySelector(".pick-row");
+      const info = li.querySelector(".pick-info-btn");
       if (!clubBlocked) {
         btn.addEventListener("click", () => pickPlayer(p));
       }
+      info.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openPlayerDetail(p, {
+          fromPicker: !clubBlocked,
+          pos: active.pos,
+          index: active.index,
+        });
+      });
       pickerList.appendChild(li);
     });
   }
@@ -314,6 +484,15 @@
     inPlayer = null;
     closePicker();
     render();
+  }
+
+  if (closeDetailBtn) {
+    closeDetailBtn.addEventListener("click", closeDetail);
+  }
+  if (playerDetail) {
+    playerDetail.addEventListener("click", (e) => {
+      if (e.target === playerDetail) closeDetail();
+    });
   }
 
   if (!LOCKED) {
