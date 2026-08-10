@@ -37,6 +37,12 @@
   <section class="pitch-wrap xi-pitch-wrap">
     <div class="pitch field pitch-photo xi-pitch" id="pitch">
       <div class="pitch-markings" aria-hidden="true"></div>
+      {% if not edits_locked %}
+      <button class="pitch-save-btn" type="submit" id="saveXiBtn">Save</button>
+      {% elif captain_editable %}
+      <input type="hidden" name="roles_only" value="1" />
+      <button class="pitch-save-btn" type="submit" id="saveCaptainBtn">Save C</button>
+      {% endif %}
       <aside class="td-corner td-corner-xi" aria-label="Technical Director">
         {% if td_info and td_info.club_code %}
           {% if td_info.badge %}
@@ -71,18 +77,9 @@
     <h2>Bench</h2>
     <div class="bench" id="bench"></div>
   </section>
-  <div class="pick-actions">
-    {% if not edits_locked %}
-    <button class="btn" type="submit">Save XI</button>
-    {% elif captain_editable %}
-    <input type="hidden" name="roles_only" value="1" />
-    <button class="btn" type="submit" id="saveCaptainBtn">Save captain</button>
-    <p class="muted tiny" style="margin:0;width:100%;text-align:center">
-      XI locked — you can still change C/V to players yet to play.
-    </p>
-    {% endif %}
-    <a class="btn ghost" href="/team?gw={{ gw.number }}">Squad &amp; Transfers</a>
-  </div>
+  {% if edits_locked and captain_editable %}
+  <p class="muted tiny pitch-cap-hint">XI locked — you can still change C/V to players yet to play.</p>
+  {% endif %}
 </form>
 
 <div class="drawer" id="playerDetail" hidden>

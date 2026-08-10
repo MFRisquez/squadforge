@@ -50,7 +50,6 @@
   const swapSummary = document.getElementById("swapSummary");
   const confirmSwap = document.getElementById("confirmSwap");
   const saveSquadBtn = document.getElementById("saveSquadBtn");
-  const buildActions = document.getElementById("buildActions");
   const clearSwapBtn = document.getElementById("clearSwap");
   const squadForm = document.getElementById("squadForm");
   const playerDetail = document.getElementById("playerDetail");
@@ -170,7 +169,6 @@
           : "Tap empty slots to build your 15.";
       }
       if (saveSquadBtn) saveSquadBtn.hidden = false;
-      if (buildActions) buildActions.style.display = "";
     } else if (outPlayer && !inPlayer) {
       if (modeHint) {
         modeHint.textContent = `${outPlayer.name} out — pick a ${outPlayer.position} from the list.`;

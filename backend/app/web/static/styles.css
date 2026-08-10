@@ -586,16 +586,16 @@ select {
 }
 .td-corner {
   position: absolute;
-  top: 0.4rem;
-  left: 0.4rem;
+  top: 0.35rem;
+  left: 0.35rem;
   z-index: 3;
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 0.2rem 0.35rem;
+  gap: 0.08rem 0.28rem;
   align-items: center;
-  max-width: 7.2rem;
-  padding: 0.3rem 0.35rem;
-  border-radius: 0.55rem;
+  max-width: 6.6rem;
+  padding: 0.2rem 0.28rem;
+  border-radius: 0.45rem;
   background: rgba(6, 20, 58, 0.72);
   color: #fff;
   box-shadow: 0 4px 12px rgba(0,0,0,0.22);
@@ -606,26 +606,50 @@ select {
   transform: scale(0.98);
 }
 .td-badge {
-  width: 2.65rem;
-  height: 2.65rem;
+  width: 1.85rem;
+  height: 1.85rem;
   object-fit: contain;
   grid-row: span 2;
 }
 .td-select {
   grid-column: 1 / -1;
   width: 100%;
-  font-size: 0.58rem;
+  font-size: 0.52rem;
   font-weight: 700;
-  padding: 0.22rem 0.3rem;
-  border-radius: 0.35rem;
+  padding: 0.1rem 0.22rem;
+  min-height: 1.35rem;
+  height: 1.35rem;
+  line-height: 1.1;
+  border-radius: 0.28rem;
   border: 0;
   background: rgba(255,255,255,0.95);
   color: #0b1b3f;
 }
 .td-corner-meta {
   display: grid;
-  gap: 0.05rem;
+  gap: 0.02rem;
   min-width: 0;
+}
+.pitch-save-btn {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  z-index: 4;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  background: #00ff87;
+  color: #06143a;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.28);
+  cursor: pointer;
+}
+.pitch-save-btn:hover { filter: brightness(1.05); }
+.pitch-save-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.pitch-cap-hint {
+  text-align: center;
+  margin: 0.35rem 0 0;
 }
 .td-kicker {
   font-size: 0.5rem;
@@ -1051,21 +1075,34 @@ select {
 }
 .chip-card-fpl .chip-ss-form {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 0.2rem;
+  gap: 0.25rem;
   width: 100%;
   margin: 0;
   justify-content: flex-start;
 }
+.chip-card-fpl.chip-card-ss {
+  width: min(18rem, 92vw);
+  grid-template-columns: auto 1fr;
+}
+.chip-card-fpl.chip-card-ss .chip-ss-form {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.3rem;
+  align-items: center;
+}
 .chip-card-fpl .chip-ss-form select {
-  font-size: 0.58rem;
-  padding: 0.12rem 0.2rem;
-  min-height: 1.4rem;
-  max-width: 100%;
+  font-size: 0.7rem;
+  padding: 0.28rem 0.4rem;
+  min-height: 2rem;
+  max-width: none;
   width: 100%;
-  border-radius: 0.35rem;
+  min-width: 10rem;
+  border-radius: 0.4rem;
   border: 1px solid var(--line);
+  background: #fff;
 }
 
 .player-detail-head {
@@ -2234,16 +2271,19 @@ body.picker-open {
 
   .stat-strip {
     grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.3rem;
   }
-  .stat strong { font-size: 1.28rem; }
-  .stat-label { font-size: 0.72rem; }
-  .stat-sub { display: block; font-size: 0.74rem; }
+  .stat { padding: 0.4rem 0.45rem; border-radius: 0.55rem; }
+  .stat strong { font-size: 0.98rem; }
+  .stat-label { font-size: 0.55rem; }
+  .stat-sub { display: block; font-size: 0.58rem; }
 
   .chip-ss-form select {
-    font-size: 0.82rem;
-    padding: 0.4rem 0.5rem;
-    min-height: 2.1rem;
+    font-size: 0.78rem;
+    padding: 0.35rem 0.45rem;
+    min-height: 2rem;
   }
+  .chip-card-fpl.chip-card-ss { width: 22rem; }
   .chip-pill { min-width: 9.2rem; }
   .chip-meta strong { font-size: 0.78rem; }
   .chip-meta em { font-size: 0.68rem; }
@@ -2297,9 +2337,15 @@ body.picker-open {
   }
   .player-detail-actions .btn { font-size: 0.95rem; }
 
-  .xi-pitch-wrap,
-  .squad-pitch-wrap {
+  .xi-pitch-wrap {
     width: min(100%, 22.5rem);
+    max-width: 22.5rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .squad-pitch-wrap {
+    width: min(100%, 34rem);
+    max-width: 34rem;
     margin-left: auto;
     margin-right: auto;
   }
@@ -2316,6 +2362,9 @@ body.picker-open {
     gap: 0.82rem;
     padding-top: 2.55rem;
   }
+  .chip-card-fpl.chip-card-ss { width: 20rem; }
+  .stat strong { font-size: 0.95rem; }
+  .stat { padding: 0.38rem 0.45rem; }
   .xi-card { width: 3.9rem; }
   .xi-shirt { width: 3.9rem; }
   .xi-shirt .shirt-kit { min-height: 4.8rem; }
@@ -2376,34 +2425,33 @@ body.picker-open {
 
 .stat-strip {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.5rem;
-  margin: 0 0 0.85rem;
-}
-@media (min-width: 640px) {
-  .stat-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.28rem;
+  margin: 0 0 0.55rem;
 }
 .stat {
   background: #06143a;
   color: #fff;
-  border-radius: 1rem;
-  padding: 0.75rem 0.8rem;
-  box-shadow: 0 12px 28px rgba(6, 20, 58, 0.2);
+  border-radius: 0.55rem;
+  padding: 0.32rem 0.35rem;
+  box-shadow: 0 4px 12px rgba(6, 20, 58, 0.14);
+  text-align: center;
 }
 .stat-label {
   display: block;
-  font-size: 0.68rem;
+  font-size: 0.52rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   opacity: 0.7;
 }
 .stat strong {
   display: block;
-  font-size: 1.2rem;
+  font-size: 0.88rem;
   color: var(--accent);
-  margin: 0.15rem 0;
+  margin: 0.05rem 0;
+  line-height: 1.1;
 }
-.stat-sub { font-size: 0.72rem; opacity: 0.7; }
+.stat-sub { font-size: 0.55rem; opacity: 0.7; }
 
 .action-row {
   display: flex;
@@ -2738,16 +2786,16 @@ body.picker-open {
 
   .stat-strip {
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 0.22rem;
-    margin-bottom: 0.3rem;
+    gap: 0.16rem;
+    margin-bottom: 0.25rem;
   }
   .stat {
-    padding: 0.28rem 0.2rem;
-    border-radius: 0.45rem;
+    padding: 0.2rem 0.12rem;
+    border-radius: 0.35rem;
     box-shadow: none;
   }
-  .stat-label { font-size: 0.48rem; letter-spacing: 0.02em; }
-  .stat strong { font-size: 0.8rem; margin: 0; }
+  .stat-label { font-size: 0.4rem; letter-spacing: 0.02em; }
+  .stat strong { font-size: 0.68rem; margin: 0; }
   .stat-sub { display: none; }
 
   .budget-card {
@@ -2769,10 +2817,15 @@ body.picker-open {
     gap: 0.12rem;
   }
   .pitch-row { gap: 0.5rem; }
-  .xi-pitch-wrap,
   .squad-pitch-wrap {
     width: 100%;
     max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .xi-pitch-wrap {
+    width: min(100%, 18.5rem);
+    max-width: 18.5rem;
     margin-left: auto;
     margin-right: auto;
   }
@@ -2780,14 +2833,14 @@ body.picker-open {
     margin-left: auto;
     margin-right: auto;
   }
-  .xi-pitch .pitch-row { gap: 0.55rem; justify-content: center; }
+  .xi-pitch .pitch-row { gap: 0.45rem; justify-content: center; }
   .squad-pitch .pitch-row { gap: 0.48rem; justify-content: center; }
   .xi-pitch {
-    padding-top: 2.2rem;
-    gap: 0.65rem;
-    min-height: min(54vh, 28rem);
+    padding-top: 2.05rem;
+    gap: 0.55rem;
+    min-height: min(50vh, 26rem);
     height: auto;
-    padding-bottom: 1.15rem;
+    padding-bottom: 1rem;
   }
   .squad-pitch {
     padding-top: 2.05rem;
@@ -2795,6 +2848,40 @@ body.picker-open {
     min-height: min(52vh, 26.5rem);
     height: auto;
     padding-bottom: 1.05rem;
+  }
+  .pitch-save-btn {
+    top: 0.28rem;
+    right: 0.28rem;
+    padding: 0.28rem 0.62rem;
+    font-size: 0.66rem;
+  }
+  .chip-card-fpl.chip-card-ss { width: min(100%, 20rem); }
+  .chip-card-fpl.chip-card-ss .chip-ss-form select {
+    min-width: 0;
+    font-size: 0.68rem;
+  }
+  .stat-strip {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.18rem;
+  }
+  .stat {
+    padding: 0.22rem 0.16rem;
+    border-radius: 0.4rem;
+  }
+  .stat-label { font-size: 0.42rem; }
+  .stat strong { font-size: 0.72rem; }
+  .stat-sub { display: none; }
+  .td-corner {
+    max-width: 6rem;
+    padding: 0.14rem 0.2rem;
+    gap: 0.06rem 0.2rem;
+  }
+  .td-badge { width: 1.55rem; height: 1.55rem; }
+  .td-select {
+    font-size: 0.48rem;
+    min-height: 1.2rem;
+    height: 1.2rem;
+    padding: 0.06rem 0.16rem;
   }
   .fx-badge { width: 1.45rem; height: 1.45rem; }
   .fx-club-name { display: none; }

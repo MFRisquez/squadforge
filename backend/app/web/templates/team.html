@@ -54,6 +54,9 @@
   <section class="pitch-wrap squad-pitch-wrap">
     <div class="pitch field pitch-photo xi-pitch squad-pitch" id="squadPitch">
       <div class="pitch-markings" aria-hidden="true"></div>
+      {% if not edits_locked %}
+      <button class="pitch-save-btn" type="submit" id="saveSquadBtn">Save</button>
+      {% endif %}
       <aside class="td-corner" aria-label="Technical Director">
         {% if td_info and td_info.club_code %}
           {% if td_info.badge %}
@@ -99,17 +102,6 @@
     </div>
   </section>
   <p class="pitch-meta" id="pitchMeta">2 GK · 5 DEF · 5 MID · 3 ATT · DT top-left</p>
-  {% if not edits_locked %}
-  <div class="pick-actions" id="buildActions">
-    <button class="btn" type="submit" id="saveSquadBtn">Save squad</button>
-    <a class="btn ghost" href="/lineup">Set XI · C / V</a>
-  </div>
-  {% else %}
-  <div class="pick-actions">
-    <a class="btn ghost" href="/lineup?gw={{ gw.number }}">View XI</a>
-    <a class="btn ghost" href="/fixtures?gw={{ gw.number }}">Fixtures</a>
-  </div>
-  {% endif %}
 </form>
 
 <div class="picker-modal" id="picker" hidden>
