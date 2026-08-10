@@ -120,22 +120,20 @@
     const flag = avail === "out" ? "OUT" : avail === "doubt" ? "!" : "";
     const img = p.shirt || "";
     const fdr = p.fdr;
-    const price = `£${Number(p.price).toFixed(1)}`;
-    const fdrTip = fdr
-      ? `${fdr.opponent} (${fdr.venue === "H" ? "H" : "A"}) · FDR ${fdr.difficulty}`
-      : "";
+    let footHtml;
+    if (fdr) {
+      const venue = fdr.venue === "H" ? "H" : "A";
+      footHtml = `<span class="shirt-foot shirt-opp fdr-${fdr.difficulty}">${fdr.opponent} (${venue})</span>`;
+    } else {
+      footHtml = `<span class="shirt-foot shirt-opp">TBD</span>`;
+    }
     return `
       <span class="shirt-kit">
         <img class="jersey-img" src="${img}" alt="${p.team} kit" width="66" height="87" loading="lazy" decoding="async" />
         ${flag ? `<span class="shirt-status-flag" title="${p.news || flag}">${flag}</span>` : ""}
-        ${
-          fdr
-            ? `<span class="shirt-fdr-dot fdr-${fdr.difficulty}" title="${fdrTip}">${fdr.opponent}</span>`
-            : ""
-        }
       </span>
       <span class="shirt-nameplate">${shortName(p.name)}</span>
-      <span class="shirt-foot shirt-price-plate">${price}</span>
+      ${footHtml}
     `;
   }
 
@@ -165,12 +163,12 @@
     const canFree = freeEdit();
     if (canFree) {
       modeHint.textContent = isComplete()
-        ? `Tap a player → Remove from squad → tap the empty slot to search (${PLAYERS.length} players).`
-        : `Tap empty slots to pick · tap a player to remove/replace (${PLAYERS.length} players).`;
+        ? `Tap a player → Transfer out → choose a replacement (${PLAYERS.length} players).`
+        : `Tap empty slots to pick · tap a player to Transfer out (${PLAYERS.length} players).`;
       if (saveSquadBtn) saveSquadBtn.hidden = false;
       if (buildActions) buildActions.style.display = "";
     } else if (outPlayer && !inPlayer) {
-      modeHint.textContent = `Removed ${outPlayer.name}. Tap the empty ${outPlayer.position} slot to search for a replacement.`;
+      modeHint.textContent = `${outPlayer.name} out — pick a ${outPlayer.position} from the list.`;
       if (saveSquadBtn) saveSquadBtn.hidden = true;
     } else if (outPlayer && inPlayer) {
       modeHint.textContent = `Confirm ${outPlayer.name} → ${inPlayer.name} below, or cancel.`;
@@ -178,8 +176,8 @@
     } else {
       modeHint.textContent =
         FT_LEFT < 1
-          ? `Tap a player → Remove from squad to transfer (−${HIT_COST} hit). Or play WC / FH.`
-          : `Tap a player → Remove from squad, then fill the empty slot.`;
+          ? `Tap a player → Transfer out (−${HIT_COST} hit). Or play WC / FH.`
+          : `Tap a player → Transfer out → pick their replacement.`;
       if (saveSquadBtn) saveSquadBtn.hidden = true;
     }
     syncHidden();
@@ -235,6 +233,7 @@
       removedSlot = null;
       closeDetail();
       render();
+      openPicker(pos, index, "add");
       return;
     }
 
@@ -250,6 +249,7 @@
     slots[pos][index] = null;
     closeDetail();
     render();
+    openPicker(pos, index, "transfer");
   }
 
   function statusLabel(p) {
@@ -297,16 +297,20 @@
         : `${p.chance}%`;
     const news = (p.news || "").trim();
     const avail = p.availability || "ok";
+    const fdr = p.fdr;
+    const fixtureLine = fdr
+      ? `${fdr.opponent} (${fdr.venue === "H" ? "H" : "A"})`
+      : "TBD";
     detailBody.innerHTML = `
       <div class="player-detail-hero player-detail-hero-meta">
         <div class="meta">
           <strong>${club}</strong>
-          <span class="muted">${p.position} · £${Number(p.price).toFixed(1)}m</span>
+          <span class="muted">${p.position} · vs ${fixtureLine}</span>
           <span class="avail-text-${(p.availability || "ok") === "ok" ? "ok" : p.availability || "ok"}">${statusLabel(p)}</span>
         </div>
       </div>
       <div class="player-detail-facts">
-        <div class="fact"><span>Price</span><strong>£${Number(p.price).toFixed(1)}m</strong></div>
+        <div class="fact fact-price"><span>Price</span><strong>£${Number(p.price).toFixed(1)}m</strong></div>
         <div class="fact"><span>Club</span><strong>${club}</strong></div>
         <div class="fact"><span>Status</span><strong>${statusLabel(p)}</strong></div>
         <div class="fact"><span>Chance next</span><strong>${chance}</strong></div>
@@ -343,31 +347,32 @@
         select.type = "button";
         select.className = "btn";
         select.textContent =
-          pickerMode === "transfer" ? "Bring into squad" : pickerMode === "replace" ? "Select player" : "Add to squad";
+          pickerMode === "transfer"
+            ? "Transfer in"
+            : pickerMode === "replace"
+              ? "Select player"
+              : "Add to squad";
         select.addEventListener("click", () => {
           closeDetail();
           pickPlayer(p);
         });
         detailActions.appendChild(select);
       } else if (opts.pos != null && opts.index != null) {
-        const removeBtn = document.createElement("button");
-        removeBtn.type = "button";
-        removeBtn.className = "btn danger-btn";
-        removeBtn.textContent = freeEdit() ? "Remove from squad" : "Remove from squad";
-        removeBtn.addEventListener("click", () => removeFromSquad(opts.pos, opts.index));
-        detailActions.appendChild(removeBtn);
+        const transferBtn = document.createElement("button");
+        transferBtn.type = "button";
+        transferBtn.className = "btn danger-btn transfer-out-btn";
+        transferBtn.textContent = freeEdit() ? "Transfer out" : "Transfer out";
+        transferBtn.addEventListener("click", () => removeFromSquad(opts.pos, opts.index));
+        detailActions.appendChild(transferBtn);
 
-        if (freeEdit()) {
-          const replaceBtn = document.createElement("button");
-          replaceBtn.type = "button";
-          replaceBtn.className = "btn ghost";
-          replaceBtn.textContent = "Replace now";
-          replaceBtn.addEventListener("click", () => {
-            closeDetail();
-            openPicker(opts.pos, opts.index, "replace");
-          });
-          detailActions.appendChild(replaceBtn);
-        }
+        const hint = document.createElement("p");
+        hint.className = "muted tiny transfer-hint";
+        hint.textContent = freeEdit()
+          ? "Removes them, then opens the player search for this slot."
+          : !UNLIMITED && FT_LEFT < 1
+            ? `Uses a hit (−${HIT_COST}) if you have no free transfers.`
+            : "Opens search to bring someone into this slot.";
+        detailActions.appendChild(hint);
 
         const toLineup = document.createElement("a");
         toLineup.className = "btn ghost";
@@ -375,6 +380,11 @@
         toLineup.textContent = "Set XI";
         detailActions.appendChild(toLineup);
       }
+    } else {
+      const lockedNote = document.createElement("p");
+      lockedNote.className = "muted tiny";
+      lockedNote.textContent = "Transfers locked for this gameweek.";
+      detailActions.appendChild(lockedNote);
     }
     playerDetail.hidden = false;
     loadPlayerProfile(p.id);

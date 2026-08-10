@@ -563,32 +563,24 @@ select {
   gap: 0.3rem;
   padding: 0.55rem 0.2rem 0.65rem;
 }
-.squad-shirt .shirt-price-plate {
-  background: #06143a;
-  color: #00ff87;
-  font-size: 0.58rem;
-  font-weight: 900;
+.fact-price strong {
+  color: #0b2a16;
+  font-size: 1.05rem;
 }
-.shirt-fdr-dot {
-  position: absolute;
-  right: 0.08rem;
-  bottom: 0.08rem;
-  z-index: 2;
-  min-width: 1.35rem;
-  padding: 0.08rem 0.16rem;
-  border-radius: 0.2rem;
-  font-size: 0.48rem;
-  font-weight: 900;
-  line-height: 1;
+.transfer-out-btn {
+  font-size: 1rem;
+  padding: 0.85rem 1rem;
+}
+.transfer-hint {
+  margin: 0;
   text-align: center;
-  background: #ffe566;
-  color: #102018;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
-.shirt-fdr-dot.fdr-1 { background: #01fc7a; }
-.shirt-fdr-dot.fdr-2 { background: #9bfaac; }
-.shirt-fdr-dot.fdr-3 { background: #ffe566; }
-.shirt-fdr-dot.fdr-4 { background: #ff1751; color: #fff; }
+.player-detail-actions {
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  z-index: 2;
+}
 .xi-pitch .pitch-row { gap: 0.2rem; }
 .xi-card { width: 4.35rem; }
 .xi-shirt,
@@ -1266,14 +1258,19 @@ body.picker-open {
 .pick-info-btn:hover { color: #0b1b3f; background: #eef3ff; }
 
 .player-detail-sheet {
-  grid-template-rows: auto 1fr auto;
-  max-height: min(70vh, 32rem);
+  grid-template-rows: auto auto 1fr;
+  max-height: min(78vh, 36rem);
 }
 .player-detail-body {
-  padding: 0.35rem 1.1rem 1rem;
+  padding: 0.35rem 1.1rem calc(1rem + env(safe-area-inset-bottom, 0px));
   overflow: auto;
   display: grid;
   gap: 0.85rem;
+}
+.player-detail-sheet > .player-detail-actions {
+  border-top: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 0.55rem 1rem 0.65rem;
 }
 .player-detail-hero {
   display: grid;
