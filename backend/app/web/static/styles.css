@@ -776,13 +776,14 @@ select {
   min-width: 0;
 }
 .player-detail-photo {
-  width: 72px;
-  height: 92px;
+  width: 88px;
+  height: 110px;
   object-fit: cover;
   object-position: center top;
-  border-radius: 0.65rem;
-  background: #e8eef8;
+  border-radius: 0.55rem;
+  background: linear-gradient(180deg, #dfe8f6, #c8d4ea);
   border: 1px solid var(--line);
+  flex-shrink: 0;
 }
 .player-detail-title h2 {
   margin: 0;

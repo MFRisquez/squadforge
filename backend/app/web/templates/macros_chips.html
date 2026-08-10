@@ -35,20 +35,17 @@
       {% set is_active = active_chip and active_chip.chip == key %}
       <div class="chip-pill chip-pill-mini {% if is_active %}is-active{% endif %} {% if left < 1 and not is_active %}is-spent{% endif %}" role="listitem" title="{{ label }}{% if left < 1 and not is_active %} · used{% elif is_active %} · active{% else %} · {{ left }} left{% endif %}">
         {% if is_active %}
-          <span class="chip-short" aria-hidden="true">{{ short }}</span>
-          <span class="chip-label">{{ short }}</span>
+          <span class="chip-short" aria-label="{{ label }} on">{{ short }}</span>
           <span class="chip-state">On</span>
         {% elif edits_locked or left < 1 or active_chip %}
-          <span class="chip-short" aria-hidden="true">{{ short }}</span>
-          <span class="chip-label">{{ short }}</span>
+          <span class="chip-short" aria-label="{{ label }}">{{ short }}</span>
         {% elif key == 'super_sub' %}
           {% if bench_options %}
             <form method="post" action="/team/chip" class="chip-ss-form">
               <input type="hidden" name="chip" value="super_sub" />
               <input type="hidden" name="next" value="{{ next_path }}" />
-              <button class="chip-icon-btn" type="submit" title="Play Super Sub">
+              <button class="chip-icon-btn" type="submit" title="Play Super Sub" aria-label="Play Super Sub">
                 <span class="chip-short">{{ short }}</span>
-                <span class="chip-label">{{ short }}</span>
               </button>
               <label class="sr-only" for="ssPlayer">Bench player</label>
               <select name="player_id" id="ssPlayer" required>
@@ -59,16 +56,14 @@
               </select>
             </form>
           {% else %}
-            <span class="chip-short" aria-hidden="true">{{ short }}</span>
-            <span class="chip-label">{{ short }}</span>
+            <span class="chip-short" aria-label="{{ label }}">{{ short }}</span>
           {% endif %}
         {% else %}
           <form method="post" action="/team/chip" class="chip-play-form">
             <input type="hidden" name="chip" value="{{ key }}" />
             <input type="hidden" name="next" value="{{ next_path }}" />
-            <button class="chip-icon-btn" type="submit" title="Play {{ label }}">
+            <button class="chip-icon-btn" type="submit" title="Play {{ label }}" aria-label="Play {{ label }}">
               <span class="chip-short">{{ short }}</span>
-              <span class="chip-label">{{ short }}</span>
             </button>
           </form>
         {% endif %}
