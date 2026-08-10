@@ -897,14 +897,29 @@ def td_save(
 ):
     from urllib.parse import quote
 
+    from fastapi.responses import JSONResponse
+
+    wants_json = "application/json" in (request.headers.get("accept") or "")
     manager = current_manager(request, db)
     if not manager:
+        if wants_json:
+            return JSONResponse({"error": "login_required"}, status_code=401)
         return RedirectResponse("/login", status_code=303)
     gw = squad_svc.current_gameweek(db)
     try:
         td_svc.set_td_pick(db, manager_id=manager.id, club_code=club_code, gw_number=gw.number)
     except td_svc.TDError as exc:
+        if wants_json:
+            return JSONResponse({"error": str(exc)}, status_code=400)
         return RedirectResponse(f"/team?error={quote(str(exc))}", status_code=303)
+    td_info = td_svc.td_view(db, manager.id, gw.number, gameweek_id=gw.id)
+    if wants_json:
+        payload = {
+            k: v
+            for k, v in td_info.items()
+            if k != "pick" and not hasattr(v, "_sa_instance_state")
+        }
+        return JSONResponse({"ok": True, "td": payload})
     return RedirectResponse("/team?notice=Technical+Director+updated", status_code=303)
 
 

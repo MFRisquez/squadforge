@@ -131,9 +131,11 @@
       <span class="shirt-kit">
         <img class="jersey-img" src="${img}" alt="${p.team} kit" width="66" height="87" loading="lazy" decoding="async" />
         ${flag ? `<span class="shirt-status-flag" title="${p.news || flag}">${flag}</span>` : ""}
+        <span class="shirt-overlay">
+          <span class="shirt-nameplate">${shortName(p.name)}</span>
+          ${footHtml}
+        </span>
       </span>
-      <span class="shirt-nameplate">${shortName(p.name)}</span>
-      ${footHtml}
     `;
   }
 
@@ -741,6 +743,83 @@
   if (!PLAYERS.length) {
     modeHint.textContent =
       "No players loaded — go Home and tap Refresh players from FPL.";
+  }
+
+  function paintTdCorner(info) {
+    const corner = document.querySelector(".td-corner");
+    if (!corner || !info) return;
+    const select = corner.querySelector("#tdClub");
+    const selectHtml = select ? select.outerHTML : "";
+    const ban = info.banned_club
+      ? `<p class="td-ban muted tiny">Not ${info.banned_club} next</p>`
+      : "";
+    const foot = info.fixture_line
+      ? `<span class="td-foot fdr-${info.fixture_fdr || 3}">${info.fixture_line}</span>`
+      : info.start_gw
+        ? `<span class="td-window">GW${info.start_gw}–${info.end_gw}</span>`
+        : "";
+    const badge = info.badge
+      ? `<img class="td-badge" src="${info.badge}" alt="${info.club_code || ""} badge" width="56" height="56" />`
+      : "";
+    corner.innerHTML = `
+      ${badge}
+      <div class="td-corner-meta">
+        <span class="td-kicker">${info.club_code || "Pick"}</span>
+        <strong>DT</strong>
+        ${foot}
+      </div>
+      ${selectHtml}
+      ${ban}
+    `;
+    const nextSelect = corner.querySelector("#tdClub");
+    if (nextSelect && info.club_code) {
+      nextSelect.value = info.club_code;
+    }
+    bindTdSelect(nextSelect);
+  }
+
+  function bindTdSelect(select) {
+    if (!select || select.dataset.softBound) return;
+    select.dataset.softBound = "1";
+    select.addEventListener("change", async () => {
+      const club = select.value;
+      if (!club) return;
+      const corner = document.querySelector(".td-corner");
+      select.disabled = true;
+      if (corner) corner.classList.add("is-updating");
+      try {
+        const body = new URLSearchParams({ club_code: club });
+        const res = await fetch("/td/save", {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.error) {
+          throw new Error(data.error || "Could not update DT");
+        }
+        paintTdCorner(data.td || data);
+      } catch (err) {
+        alert(err.message || "Could not update DT");
+      } finally {
+        const next = document.getElementById("tdClub");
+        if (next) next.disabled = false;
+        const painted = document.querySelector(".td-corner");
+        if (painted) painted.classList.remove("is-updating");
+      }
+    });
+  }
+
+  const tdForm = document.getElementById("tdForm");
+  const tdClub = document.getElementById("tdClub");
+  if (tdForm && tdClub) {
+    // Soft update — block the full-page form submit flash.
+    tdForm.addEventListener("submit", (e) => e.preventDefault());
+    tdClub.removeAttribute("onchange");
+    bindTdSelect(tdClub);
   }
 
   render();

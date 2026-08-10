@@ -85,8 +85,7 @@
         {% endif %}
         {% if can_set_td %}
         <label class="sr-only" for="tdClub">Technical Director club</label>
-        <select name="club_code" id="tdClub" class="td-select" form="tdForm" required
-          onchange="if (this.value) this.form.requestSubmit()">
+        <select name="club_code" id="tdClub" class="td-select" form="tdForm" required>
           {% if not td_info or not td_info.club_code %}
           <option value="" selected disabled>Pick club…</option>
           {% endif %}

@@ -473,9 +473,11 @@
       <span class="shirt-kit">
         <img class="jersey-img" src="${player.shirt || ""}" alt="${player.team} kit" width="66" height="87" loading="lazy" decoding="async" />
         ${flag ? `<span class="shirt-status-flag" title="${player.news || flag}">${flag}</span>` : ""}
+        <span class="shirt-overlay">
+          <span class="shirt-nameplate">${shortName(player.name)}</span>
+          ${footHtml}
+        </span>
       </span>
-      <span class="shirt-nameplate">${shortName(player.name)}</span>
-      ${footHtml}
     `;
     if (player.news) main.title = player.news;
     main.addEventListener("click", () => {

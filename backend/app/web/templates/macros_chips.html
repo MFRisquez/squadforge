@@ -13,7 +13,7 @@
   {% endif %}
 {% endmacro %}
 
-{% macro chip_strip(chips, active_chip, edits_locked, bench_options=[], group='all', next_path='/team') %}
+{% macro chip_strip(chips, active_chip, edits_locked, bench_options=[], group='all', next_path='/team', gw_number=none, gw_total=none) %}
 {% set squad_items = [
   ('wildcard', 'Wildcard', chips.wildcard_remaining if chips else 0),
   ('free_hit', 'Free Hit', chips.free_hit_remaining if chips else 0),
@@ -30,6 +30,19 @@
 {% else %}
   {% set items = squad_items + xi_items %}
 {% endif %}
+
+{# Once the GW has started / deadline passed: hide chip icons, show live score on XI. #}
+{% if edits_locked %}
+  {% if group == 'xi' %}
+  <section class="chip-strip-wrap chip-strip-live" aria-label="Gameweek score">
+    <div class="xi-score-pill xi-score-live">
+      <span class="xi-score-label">GW{{ gw_number if gw_number is not none else '' }}</span>
+      <strong>{% if gw_total is not none %}{{ '%.0f'|format(gw_total) }}{% else %}—{% endif %}</strong>
+      <span class="xi-score-sub">pts</span>
+    </div>
+  </section>
+  {% endif %}
+{% else %}
 <section class="chip-strip-wrap chip-strip-{{ group }}">
   {% if active_chip and (
     (group == 'squad' and active_chip.chip in ['wildcard', 'free_hit']) or
@@ -40,14 +53,14 @@
     <span class="chip-active-label">{{ active_chip.chip|replace('_',' ')|title }} on</span>
     <form method="post" action="/team/chip/cancel" class="inline-form">
       <input type="hidden" name="next" value="{{ next_path }}" />
-      <button class="text-link" type="submit" {% if edits_locked %}disabled{% endif %}>Cancel</button>
+      <button class="text-link" type="submit">Cancel</button>
     </form>
   </div>
   {% endif %}
   <div class="chip-strip chip-strip-cards" role="list">
     {% for key, label, left in items %}
       {% set is_active = active_chip and active_chip.chip == key %}
-      {% set unavailable = edits_locked or left < 1 or (active_chip and not is_active) %}
+      {% set unavailable = left < 1 or (active_chip and not is_active) %}
       <div class="chip-card-fpl {% if is_active %}is-active{% endif %} {% if left < 1 and not is_active %}is-spent{% endif %} {% if unavailable and not is_active %}is-unavailable{% endif %}" role="listitem">
         <div class="chip-ico" aria-hidden="true">{{ chip_icon(key) }}</div>
         <strong class="chip-name">{{ label }}</strong>
@@ -55,7 +68,7 @@
           <span class="chip-status is-on">On</span>
         {% elif left < 1 %}
           <span class="chip-status">Used</span>
-        {% elif edits_locked or active_chip %}
+        {% elif active_chip %}
           <span class="chip-status">Unavailable</span>
         {% elif key == 'super_sub' %}
           {% if bench_options %}
@@ -85,4 +98,5 @@
     {% endfor %}
   </div>
 </section>
+{% endif %}
 {% endmacro %}
