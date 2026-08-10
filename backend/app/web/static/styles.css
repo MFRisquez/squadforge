@@ -635,18 +635,56 @@ select {
   top: 0.35rem;
   right: 0.35rem;
   z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: 5.6rem;
   border: 0;
   border-radius: 999px;
-  padding: 0.35rem 0.75rem;
-  font-size: 0.72rem;
+  padding: 0.4rem 0.95rem;
+  font-size: 0.74rem;
   font-weight: 800;
-  background: #00ff87;
-  color: #06143a;
+  letter-spacing: 0.01em;
   box-shadow: 0 4px 12px rgba(0,0,0,0.28);
   cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, opacity 0.18s ease, transform 0.12s ease;
 }
-.pitch-save-btn:hover { filter: brightness(1.05); }
-.pitch-save-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.pitch-save-btn .pitch-save-ico {
+  display: inline-grid;
+  place-items: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  flex: 0 0 auto;
+}
+.pitch-save-btn .pitch-save-ico svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  display: block;
+}
+.pitch-save-btn.is-idle {
+  background: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.72);
+  box-shadow: none;
+}
+.pitch-save-btn.is-dirty {
+  background: #f5c518;
+  color: #3a2a00;
+}
+.pitch-save-btn.is-dirty:hover:not(:disabled) { filter: brightness(1.05); }
+.pitch-save-btn.is-saved {
+  background: #00ff87;
+  color: #06143a;
+}
+.pitch-save-btn.is-saving {
+  background: #f5c518;
+  color: #3a2a00;
+  opacity: 0.75;
+}
+.pitch-save-btn:disabled { cursor: not-allowed; }
+.pitch-save-btn.is-idle:disabled { opacity: 0.55; }
+.pitch-save-btn.is-dirty:disabled { opacity: 0.7; }
+.pitch-save-btn.is-saved:disabled { opacity: 1; cursor: default; }
 .pitch-cap-hint {
   text-align: center;
   margin: 0.35rem 0 0;
@@ -2856,8 +2894,10 @@ body.picker-open {
   .pitch-save-btn {
     top: 0.28rem;
     right: 0.28rem;
-    padding: 0.28rem 0.62rem;
-    font-size: 0.66rem;
+    min-width: 5.2rem;
+    padding: 0.32rem 0.82rem;
+    font-size: 0.68rem;
+    gap: 0.28rem;
   }
   .chip-card-fpl.chip-card-ss {
     width: 100%;

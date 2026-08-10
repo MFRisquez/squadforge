@@ -38,10 +38,98 @@
   const swapBar = document.getElementById("swapBar");
   const swapHint = document.getElementById("swapHint");
   const cancelSwapBtn = document.getElementById("cancelSwap");
+  const saveXiBtn =
+    document.getElementById("saveXiBtn") || document.getElementById("saveCaptainBtn");
+  const lineupForm = document.getElementById("lineupForm");
+  const rolesOnly = Boolean(document.querySelector('input[name="roles_only"]'));
 
   let detailPlayer = null;
   /** @type {null | { id: number, side: "xi" | "bench" }} */
   let swapPending = null;
+  let baselineSig = null;
+  let saveVisual = "idle"; // idle | dirty | saved | saving
+
+  const SAVE_ICO = {
+    idle: `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10v4z"/></svg>`,
+    dirty: `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>`,
+    saved: `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>`,
+    saving: `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 4a8 8 0 1 0 8 8h-2a6 6 0 1 1-6-6V4z"/></svg>`,
+  };
+
+  function lineupSignature() {
+    const starters = [...starterIds]
+      .map(Number)
+      .sort((a, b) => a - b)
+      .join(",");
+    return `${starters}|${Number(captainId) || ""}|${Number(viceId) || ""}`;
+  }
+
+  function isDirty() {
+    if (baselineSig == null) return false;
+    return lineupSignature() !== baselineSig;
+  }
+
+  function canSaveLineup() {
+    if (!isDirty() || swapPending) return false;
+    ensureRoles();
+    if (rolesOnly || (LOCKED && CAPTAIN_EDITABLE)) {
+      return (
+        Boolean(captainId) &&
+        starterIds.has(captainId) &&
+        canPickAsCaptain(captainId) &&
+        Boolean(viceId) &&
+        starterIds.has(viceId) &&
+        viceId !== captainId
+      );
+    }
+    if (LOCKED) return false;
+    const c = counts();
+    if (starterIds.size !== 11) return false;
+    for (const [pos, [lo, hi]] of Object.entries(BAND)) {
+      if (c[pos] < lo || c[pos] > hi) return false;
+    }
+    return Boolean(captainId && starterIds.has(captainId) && viceId && starterIds.has(viceId) && viceId !== captainId);
+  }
+
+  function paintSaveBtn() {
+    if (!saveXiBtn) return;
+    if (LOCKED && !CAPTAIN_EDITABLE) {
+      saveXiBtn.hidden = true;
+      return;
+    }
+    const dirty = isDirty();
+    let state = saveVisual;
+    if (state !== "saving") {
+      if (dirty) state = "dirty";
+      else if (saveVisual === "saved") state = "saved";
+      else state = "idle";
+    }
+    saveVisual = state;
+    saveXiBtn.classList.remove("is-idle", "is-dirty", "is-saved", "is-saving");
+    saveXiBtn.classList.add(`is-${state}`);
+    saveXiBtn.hidden = false;
+    const ico = saveXiBtn.querySelector(".pitch-save-ico");
+    const label = saveXiBtn.querySelector(".pitch-save-label");
+    const baseLabel = rolesOnly || saveXiBtn.id === "saveCaptainBtn" ? "Save C" : "Save";
+    if (ico) ico.innerHTML = SAVE_ICO[state] || SAVE_ICO.idle;
+    if (label) {
+      label.textContent =
+        state === "saved" ? "Saved" : state === "saving" ? "Saving…" : baseLabel;
+    }
+    if (state === "dirty") {
+      saveXiBtn.disabled = !canSaveLineup();
+      saveXiBtn.setAttribute("aria-label", "Unsaved XI changes");
+    } else if (state === "saved") {
+      saveXiBtn.disabled = true;
+      saveXiBtn.setAttribute("aria-label", "XI saved");
+    } else if (state === "saving") {
+      saveXiBtn.disabled = true;
+      saveXiBtn.setAttribute("aria-label", "Saving XI");
+    } else {
+      saveXiBtn.disabled = true;
+      saveXiBtn.setAttribute("aria-label", baseLabel);
+    }
+  }
 
   function countsFrom(set) {
     const c = { GK: 0, DEF: 0, MID: 0, ATT: 0 };
@@ -529,6 +617,7 @@
     ensureRoles();
     syncHidden();
     updateHints();
+    paintSaveBtn();
   }
 
   if (closeDetailBtn) closeDetailBtn.addEventListener("click", closeDetail);
@@ -539,60 +628,86 @@
   }
   if (cancelSwapBtn) cancelSwapBtn.addEventListener("click", clearSwap);
 
-  document.getElementById("lineupForm").addEventListener("submit", (e) => {
-    if (LOCKED && CAPTAIN_EDITABLE) {
+  if (lineupForm) {
+    lineupForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (LOCKED && !CAPTAIN_EDITABLE) return;
+      if (swapPending) {
+        alert("Finish or cancel the XI ↔ bench swap first.");
+        return;
+      }
       ensureRoles();
-      if (!captainId || !starterIds.has(captainId) || !canPickAsCaptain(captainId)) {
-        e.preventDefault();
-        alert("Pick a captain whose match has not started yet.");
-        return;
+      if (LOCKED && CAPTAIN_EDITABLE) {
+        if (!captainId || !starterIds.has(captainId) || !canPickAsCaptain(captainId)) {
+          alert("Pick a captain whose match has not started yet.");
+          return;
+        }
+        if (!viceId || !starterIds.has(viceId) || viceId === captainId) {
+          alert("Pick a different vice-captain.");
+          return;
+        }
+      } else {
+        const c = counts();
+        if (starterIds.size !== 11) {
+          alert("Need exactly 11 starters.");
+          return;
+        }
+        for (const [pos, [lo, hi]] of Object.entries(BAND)) {
+          if (c[pos] < lo || c[pos] > hi) {
+            alert(`Need ${lo}–${hi} starting ${pos}.`);
+            return;
+          }
+        }
+        if (!captainId || !starterIds.has(captainId)) {
+          alert("Tap a starter and choose Make captain.");
+          return;
+        }
+        if (!viceId || !starterIds.has(viceId) || viceId === captainId) {
+          alert("Tap a different starter and choose Make vice.");
+          return;
+        }
       }
-      if (!viceId || !starterIds.has(viceId) || viceId === captainId) {
-        e.preventDefault();
-        alert("Pick a different vice-captain.");
-        return;
-      }
-      if (!canPickAsCaptain(viceId) && !(CAPTAIN_ARMED[String(viceId)] || CAPTAIN_ARMED[viceId])) {
-        // allow existing vice if already set and match started only if unchanged — server validates
-      }
+      if (!isDirty()) return;
       syncHidden();
-      return;
-    }
-    if (LOCKED) {
-      e.preventDefault();
-      return;
-    }
-    if (swapPending) {
-      e.preventDefault();
-      alert("Finish or cancel the XI ↔ bench swap first.");
-      return;
-    }
-    const c = counts();
-    if (starterIds.size !== 11) {
-      e.preventDefault();
-      alert("Need exactly 11 starters.");
-      return;
-    }
-    for (const [pos, [lo, hi]] of Object.entries(BAND)) {
-      if (c[pos] < lo || c[pos] > hi) {
-        e.preventDefault();
-        alert(`Need ${lo}–${hi} starting ${pos}.`);
-        return;
+      saveVisual = "saving";
+      paintSaveBtn();
+      try {
+        const body = new URLSearchParams();
+        starterIds.forEach((id) => body.append("starter_id", String(id)));
+        body.set("captain_id", String(captainId || ""));
+        body.set("vice_id", String(viceId || ""));
+        if (rolesOnly || (LOCKED && CAPTAIN_EDITABLE)) body.set("roles_only", "1");
+        const res = await fetch("/lineup/save?format=json", {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-Requested-With": "fetch",
+          },
+          credentials: "same-origin",
+          redirect: "manual",
+          body,
+        });
+        if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
+          throw new Error("Could not save XI — try again");
+        }
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.error || !data.ok) {
+          throw new Error(data.error || "Could not save XI");
+        }
+        baselineSig = lineupSignature();
+        saveVisual = "saved";
+        paintSaveBtn();
+      } catch (err) {
+        saveVisual = "dirty";
+        paintSaveBtn();
+        alert(err.message || "Could not save XI");
       }
-    }
-    ensureRoles();
-    if (!captainId || !starterIds.has(captainId)) {
-      e.preventDefault();
-      alert("Tap a starter and choose Make captain.");
-      return;
-    }
-    if (!viceId || !starterIds.has(viceId) || viceId === captainId) {
-      e.preventDefault();
-      alert("Tap a different starter and choose Make vice.");
-      return;
-    }
-    syncHidden();
-  });
+    });
+  }
 
+  ensureRoles();
+  baselineSig = lineupSignature();
+  saveVisual = "idle";
   render();
 })();

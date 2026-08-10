@@ -71,6 +71,65 @@
   let pickerMode = "add"; // add | replace | transfer
   let detailContext = null; // { player, fromPicker, pos, index }
   let scrollLockY = 0;
+  let baselineSig = null;
+  let saveVisual = "idle"; // idle | dirty | saved | saving
+
+  const SAVE_ICO = {
+    idle: `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10v4z"/></svg>`,
+    dirty: `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>`,
+    saved: `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>`,
+    saving: `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 4a8 8 0 1 0 8 8h-2a6 6 0 1 1-6-6V4z"/></svg>`,
+  };
+
+  function squadSignature() {
+    return filledIds()
+      .map(Number)
+      .sort((a, b) => a - b)
+      .join(",");
+  }
+
+  function isDirty() {
+    if (baselineSig == null) return false;
+    return squadSignature() !== baselineSig;
+  }
+
+  function canSaveSquad() {
+    return freeEdit() && isComplete() && isDirty() && !outPlayer && spend() <= BUDGET + 0.001;
+  }
+
+  function paintSaveBtn() {
+    if (!saveSquadBtn || LOCKED) return;
+    const dirty = isDirty();
+    let state = saveVisual;
+    if (state !== "saving") {
+      if (dirty) state = "dirty";
+      else if (saveVisual === "saved") state = "saved";
+      else state = "idle";
+    }
+    saveVisual = state;
+    saveSquadBtn.classList.remove("is-idle", "is-dirty", "is-saved", "is-saving");
+    saveSquadBtn.classList.add(`is-${state}`);
+    saveSquadBtn.hidden = false;
+    const ico = saveSquadBtn.querySelector(".pitch-save-ico");
+    const label = saveSquadBtn.querySelector(".pitch-save-label");
+    if (ico) ico.innerHTML = SAVE_ICO[state] || SAVE_ICO.idle;
+    if (label) {
+      label.textContent = state === "saved" ? "Saved" : state === "saving" ? "Saving…" : "Save";
+    }
+    if (state === "dirty") {
+      saveSquadBtn.disabled = !canSaveSquad();
+      saveSquadBtn.setAttribute("aria-label", "Unsaved squad changes");
+    } else if (state === "saved") {
+      saveSquadBtn.disabled = true;
+      saveSquadBtn.setAttribute("aria-label", "Squad saved");
+    } else if (state === "saving") {
+      saveSquadBtn.disabled = true;
+      saveSquadBtn.setAttribute("aria-label", "Saving squad");
+    } else {
+      saveSquadBtn.disabled = true;
+      saveSquadBtn.setAttribute("aria-label", "Save squad");
+    }
+  }
 
   const STATUS_LABEL = {
     a: "Available",
@@ -168,17 +227,14 @@
           ? "Squad full — tap a player to transfer them out."
           : "Tap empty slots to build your 15.";
       }
-      if (saveSquadBtn) saveSquadBtn.hidden = false;
     } else if (outPlayer && !inPlayer) {
       if (modeHint) {
         modeHint.textContent = `${outPlayer.name} out — pick a ${outPlayer.position} from the list.`;
       }
-      if (saveSquadBtn) saveSquadBtn.hidden = true;
     } else if (outPlayer && inPlayer) {
       if (modeHint) {
         modeHint.textContent = `Confirm ${outPlayer.name} → ${inPlayer.name} below, or cancel.`;
       }
-      if (saveSquadBtn) saveSquadBtn.hidden = true;
     } else {
       if (modeHint) {
         modeHint.textContent =
@@ -186,10 +242,10 @@
             ? `Tap a player → Transfer out (−${HIT_COST} hit). Or play WC / FH.`
             : "Tap a player to transfer them out.";
       }
-      if (saveSquadBtn) saveSquadBtn.hidden = true;
     }
     syncHidden();
     refreshSwapBar();
+    paintSaveBtn();
   }
 
   function refreshSwapBar() {
@@ -729,19 +785,55 @@
     }
 
     if (squadForm) {
-      squadForm.addEventListener("submit", (e) => {
+      squadForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
         if (!freeEdit()) {
-          e.preventDefault();
           alert("Use Confirm swap for transfers this week.");
           return;
         }
-        const ids = ORDER.flatMap((pos) => slots[pos]);
-        if (ids.some((x) => x == null)) {
-          e.preventDefault();
+        if (!isComplete()) {
           alert("Fill all 15 slots (2 GK, 5 DEF, 5 MID, 3 ATT).");
           return;
         }
+        if (!isDirty()) return;
+        if (spend() > BUDGET + 0.001) {
+          alert("Squad is over budget.");
+          return;
+        }
         syncHidden();
+        saveVisual = "saving";
+        paintSaveBtn();
+        try {
+          const body = new URLSearchParams();
+          filledIds().forEach((id) => body.append("player_id", String(id)));
+          const res = await fetch("/team/save?format=json", {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/x-www-form-urlencoded",
+              "X-Requested-With": "fetch",
+            },
+            credentials: "same-origin",
+            redirect: "manual",
+            body,
+          });
+          if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
+            throw new Error("Could not save squad — try again");
+          }
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || data.error || !data.ok) {
+            throw new Error(data.error || "Could not save squad");
+          }
+          baselineSig = squadSignature();
+          INITIAL.hasSquad = true;
+          INITIAL.selected = filledIds().slice();
+          saveVisual = "saved";
+          paintSaveBtn();
+        } catch (err) {
+          saveVisual = "dirty";
+          paintSaveBtn();
+          alert(err.message || "Could not save squad");
+        }
       });
     }
   }
@@ -858,5 +950,7 @@
     });
   }
 
+  baselineSig = squadSignature();
+  saveVisual = "idle";
   render();
 })();

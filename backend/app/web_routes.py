@@ -25,6 +25,15 @@ router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "web" / "templates"))
 
 
+def _wants_json(request: Request) -> bool:
+    accept = (request.headers.get("accept") or "").lower()
+    return (
+        "application/json" in accept
+        or request.query_params.get("format") == "json"
+        or (request.headers.get("x-requested-with") or "").lower() == "fetch"
+    )
+
+
 def _resolve_gw(request: Request, db: Session):
     from app.services import deadline as deadline_svc
 
@@ -509,11 +518,16 @@ def team_edit(request: Request, db: Session = Depends(get_db)):
 async def team_save(request: Request, db: Session = Depends(get_db)):
     from app.services import deadline as deadline_svc
 
+    wants_json = _wants_json(request)
     manager = current_manager(request, db)
     if not manager:
+        if wants_json:
+            return JSONResponse({"error": "login_required"}, status_code=401)
         return RedirectResponse("/login", status_code=303)
     gw = squad_svc.current_gameweek(db)
     if not deadline_svc.can_edit(gw):
+        if wants_json:
+            return JSONResponse({"error": "Deadline passed — squad is locked"}, status_code=400)
         return RedirectResponse("/team?error=Deadline+passed+—+squad+is+locked", status_code=303)
     form = await request.form()
     player_ids = [int(x) for x in form.getlist("player_id")]
@@ -531,6 +545,8 @@ async def team_save(request: Request, db: Session = Depends(get_db)):
             vice_id=vice,
         )
     except squad_svc.SquadError as exc:
+        if wants_json:
+            return JSONResponse({"error": str(exc)}, status_code=400)
         clubs = db.query(Club).order_by(Club.name).all()
         from app.models import ChipPlay, TransferLog
         from app.services import chips as chips_svc
@@ -574,7 +590,9 @@ async def team_save(request: Request, db: Session = Depends(get_db)):
             ),
             status_code=400,
         )
-    return RedirectResponse("/lineup", status_code=303)
+    if wants_json:
+        return JSONResponse({"ok": True, "saved": "squad", "player_ids": player_ids})
+    return RedirectResponse("/team?notice=Squad+saved", status_code=303)
 
 
 @router.post("/lineup/role")
@@ -724,8 +742,11 @@ async def lineup_save(request: Request, db: Session = Depends(get_db)):
 
     from app.services import deadline as deadline_svc
 
+    wants_json = _wants_json(request)
     manager = current_manager(request, db)
     if not manager:
+        if wants_json:
+            return JSONResponse({"error": "login_required"}, status_code=401)
         return RedirectResponse("/login", status_code=303)
     gw = squad_svc.current_gameweek(db)
     form = await request.form()
@@ -735,6 +756,8 @@ async def lineup_save(request: Request, db: Session = Depends(get_db)):
 
     if roles_only:
         if not deadline_svc.can_edit_captain(gw):
+            if wants_json:
+                return JSONResponse({"error": "Captain changes are locked"}, status_code=400)
             return RedirectResponse("/lineup?error=Captain+changes+are+locked", status_code=303)
         try:
             squad_svc.save_captain_roles(
@@ -746,6 +769,8 @@ async def lineup_save(request: Request, db: Session = Depends(get_db)):
                 vice_id=vice_id,
             )
         except squad_svc.SquadError as exc:
+            if wants_json:
+                return JSONResponse({"error": str(exc)}, status_code=400)
             return RedirectResponse(f"/lineup?error={quote(str(exc))}", status_code=303)
         from app.services.live_scoring import run_gameweek_scoring
 
@@ -753,9 +778,20 @@ async def lineup_save(request: Request, db: Session = Depends(get_db)):
             run_gameweek_scoring(db, gw, mode="auto")
         except Exception:
             pass
+        if wants_json:
+            return JSONResponse(
+                {
+                    "ok": True,
+                    "saved": "captain",
+                    "captain_id": captain_id,
+                    "vice_id": vice_id,
+                }
+            )
         return RedirectResponse("/lineup?notice=Captain+updated", status_code=303)
 
     if not deadline_svc.can_edit(gw):
+        if wants_json:
+            return JSONResponse({"error": "Deadline passed — lineup is locked"}, status_code=400)
         return RedirectResponse("/lineup?error=Deadline+passed+—+lineup+is+locked", status_code=303)
     starter_ids = [int(x) for x in form.getlist("starter_id")]
     try:
@@ -768,6 +804,8 @@ async def lineup_save(request: Request, db: Session = Depends(get_db)):
             vice_id=vice_id,
         )
     except squad_svc.SquadError as exc:
+        if wants_json:
+            return JSONResponse({"error": str(exc)}, status_code=400)
         owned = squad_svc.owned_players(db, manager.id)
         return templates.TemplateResponse(
             "lineup.html",
@@ -788,7 +826,17 @@ async def lineup_save(request: Request, db: Session = Depends(get_db)):
             ),
             status_code=400,
         )
-    return RedirectResponse("/team", status_code=303)
+    if wants_json:
+        return JSONResponse(
+            {
+                "ok": True,
+                "saved": "lineup",
+                "starter_ids": starter_ids,
+                "captain_id": captain_id,
+                "vice_id": vice_id,
+            }
+        )
+    return RedirectResponse("/lineup?notice=XI+saved", status_code=303)
 
 
 @router.get("/transfers", response_class=HTMLResponse)

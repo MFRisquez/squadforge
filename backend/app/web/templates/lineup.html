@@ -38,10 +38,16 @@
     <div class="pitch field pitch-photo xi-pitch" id="pitch">
       <div class="pitch-markings" aria-hidden="true"></div>
       {% if not edits_locked %}
-      <button class="pitch-save-btn" type="submit" id="saveXiBtn">Save</button>
+      <button class="pitch-save-btn is-idle" type="submit" id="saveXiBtn" disabled aria-label="Save XI">
+        <span class="pitch-save-ico" aria-hidden="true"></span>
+        <span class="pitch-save-label">Save</span>
+      </button>
       {% elif captain_editable %}
       <input type="hidden" name="roles_only" value="1" />
-      <button class="pitch-save-btn" type="submit" id="saveCaptainBtn">Save C</button>
+      <button class="pitch-save-btn is-idle" type="submit" id="saveCaptainBtn" disabled aria-label="Save captain">
+        <span class="pitch-save-ico" aria-hidden="true"></span>
+        <span class="pitch-save-label">Save C</span>
+      </button>
       {% endif %}
       <aside class="td-corner td-corner-xi" aria-label="Technical Director">
         {% if td_info and td_info.club_code %}
