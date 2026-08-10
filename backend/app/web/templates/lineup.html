@@ -25,7 +25,7 @@
   {% if edits_locked %}
     Deadline passed — tap a player for <strong>this GW</strong> match KPIs. Refresh live scores below.
   {% else %}
-    Tap a player to bench/start them (or see details). Transfers &amp; season stats live on <a href="/team">Squad</a>.
+    Tap a starter to set <strong>C</strong> / <strong>V</strong> or bench them. Transfers live on <a href="/team">Squad</a>.
   {% endif %}
 </p>
 
@@ -43,24 +43,24 @@
 {% endif %}
 
 {% if not edits_locked %}
-<section class="panel captain-panel">
-  <h2>Captain &amp; vice</h2>
-  <div class="cap-grid">
-    <label>Captain (×2)
-      <select id="captainSelect"></select>
-    </label>
-    <label>Vice-captain
-      <select id="viceSelect"></select>
-    </label>
+<section class="cv-status" aria-label="Captain and vice">
+  <div class="cv-chip is-c">
+    <span class="cv-mark" aria-hidden="true">C</span>
+    <div>
+      <span class="cv-label">Captain ×2</span>
+      <strong id="captainName">—</strong>
+    </div>
   </div>
-  <p class="captain-ready">
-    <span>C · <strong id="captainName">—</strong></span>
-    <span>V · <strong id="viceName">—</strong></span>
-  </p>
+  <div class="cv-chip is-v">
+    <span class="cv-mark" aria-hidden="true">V</span>
+    <div>
+      <span class="cv-label">Vice</span>
+      <strong id="viceName">—</strong>
+    </div>
+  </div>
+  <p class="cv-hint muted">Tap a player on the pitch to assign</p>
 </section>
 {% else %}
-  <select id="captainSelect" hidden></select>
-  <select id="viceSelect" hidden></select>
   <span id="captainName" hidden></span>
   <span id="viceName" hidden></span>
 {% endif %}

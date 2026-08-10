@@ -18,8 +18,6 @@
   const bench = document.getElementById("bench");
   const formationLabel = document.getElementById("formationLabel");
   const hiddenFields = document.getElementById("hiddenFields");
-  const captainSelect = document.getElementById("captainSelect");
-  const viceSelect = document.getElementById("viceSelect");
   const captainName = document.getElementById("captainName");
   const viceName = document.getElementById("viceName");
   const playerDetail = document.getElementById("playerDetail");
@@ -50,10 +48,27 @@
     return true;
   }
 
+  function ensureRoles() {
+    const starters = [...starterIds];
+    if (!starters.length) {
+      captainId = null;
+      viceId = null;
+      return;
+    }
+    if (!captainId || !starterIds.has(captainId)) {
+      captainId = starters[0];
+    }
+    if (!viceId || !starterIds.has(viceId) || viceId === captainId) {
+      viceId = starters.find((id) => id !== captainId) || null;
+    }
+  }
+
   function setCaptain(id) {
     if (!starterIds.has(id)) return;
     if (id === viceId) viceId = captainId;
     captainId = id;
+    ensureRoles();
+    closeDetail();
     render();
   }
 
@@ -61,6 +76,8 @@
     if (!starterIds.has(id)) return;
     if (id === captainId) captainId = viceId;
     viceId = id;
+    ensureRoles();
+    closeDetail();
     render();
   }
 
@@ -85,43 +102,12 @@
     hiddenFields.appendChild(v);
   }
 
-  function fillSelects() {
-    if (!captainSelect || captainSelect.hidden) return;
-    const starters = OWNED.filter((p) => starterIds.has(p.id));
-    captainSelect.innerHTML = "";
-    viceSelect.innerHTML = "";
-    if (!starters.length) {
-      captainSelect.innerHTML = `<option value="">Add starters first</option>`;
-      viceSelect.innerHTML = `<option value="">Add starters first</option>`;
-      captainName.textContent = "—";
-      viceName.textContent = "—";
-      return;
-    }
-    starters.forEach((p) => {
-      const optC = document.createElement("option");
-      optC.value = String(p.id);
-      optC.textContent = `${p.name} (${p.position})`;
-      if (p.id === captainId) optC.selected = true;
-      captainSelect.appendChild(optC);
-
-      const optV = document.createElement("option");
-      optV.value = String(p.id);
-      optV.textContent = `${p.name} (${p.position})`;
-      if (p.id === viceId) optV.selected = true;
-      viceSelect.appendChild(optV);
-    });
-    if (!captainId || !starterIds.has(captainId)) {
-      captainId = starters[0].id;
-      captainSelect.value = String(captainId);
-    }
-    if (!viceId || !starterIds.has(viceId) || viceId === captainId) {
-      viceId = starters.find((p) => p.id !== captainId)?.id || null;
-      if (viceId) viceSelect.value = String(viceId);
-    }
+  function syncNames() {
+    ensureRoles();
     const cap = byId[captainId];
     const vice = byId[viceId];
-    captainName.textContent = cap ? `${cap.name} (×2)` : "—";
-    viceName.textContent = vice ? vice.name : "—";
+    if (captainName) captainName.textContent = cap ? cap.name : "—";
+    if (viceName) viceName.textContent = vice ? vice.name : "—";
   }
 
   function closeDetail() {
@@ -150,10 +136,21 @@
     render();
   }
 
+  function actionBtn(label, className, onClick) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = className;
+    btn.textContent = label;
+    btn.addEventListener("click", onClick);
+    return btn;
+  }
+
   function openDetail(player) {
     detailPlayer = player;
     const onBench = !starterIds.has(player.id);
     const pts = POINTS[String(player.id)];
+    const isCap = player.id === captainId && !onBench;
+    const isVice = player.id === viceId && !onBench;
     detailEyebrow.textContent = LOCKED ? `Match · GW${GW || ""}` : `Lineup · ${player.position}`;
     detailName.textContent = player.name;
     detailBody.innerHTML = `
@@ -166,6 +163,8 @@
           <strong>${player.team}</strong>
           <span class="muted">${player.position} · £${Number(player.price).toFixed(1)}m</span>
           <span class="role-pill ${onBench ? "is-bench" : "is-xi"}">${onBench ? "Bench" : "Starting XI"}</span>
+          ${isCap ? `<span class="role-pill is-c">Captain ×2</span>` : ""}
+          ${isVice ? `<span class="role-pill is-v">Vice-captain</span>` : ""}
           ${LOCKED && pts != null ? `<strong class="match-pts">${Number(pts).toFixed(0)} pts</strong>` : ""}
         </div>
       </div>
@@ -181,12 +180,32 @@
     `;
     detailActions.innerHTML = "";
     if (!LOCKED) {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "btn";
-      btn.textContent = onBench ? "Move to starting XI" : "Move to bench";
-      btn.addEventListener("click", () => toggleRole(player));
-      detailActions.appendChild(btn);
+      if (!onBench) {
+        const cvRow = document.createElement("div");
+        cvRow.className = "cv-action-row";
+        const cBtn = actionBtn(
+          isCap ? "Captain ✓" : "Make captain",
+          `btn cv-btn is-c${isCap ? " is-active" : ""}`,
+          () => setCaptain(player.id)
+        );
+        if (isCap) cBtn.disabled = true;
+        const vBtn = actionBtn(
+          isVice ? "Vice ✓" : "Make vice",
+          `btn cv-btn is-v${isVice ? " is-active" : ""}`,
+          () => setVice(player.id)
+        );
+        if (isVice) vBtn.disabled = true;
+        cvRow.appendChild(cBtn);
+        cvRow.appendChild(vBtn);
+        detailActions.appendChild(cvRow);
+      }
+      detailActions.appendChild(
+        actionBtn(
+          onBench ? "Move to starting XI" : "Move to bench",
+          "btn ghost",
+          () => toggleRole(player)
+        )
+      );
       const squad = document.createElement("a");
       squad.className = "btn ghost";
       squad.href = "/team";
@@ -265,7 +284,6 @@
       ${ptsHtml}
       <span class="shirt-name">${player.name}</span>
       <span class="shirt-team">${player.team}${flag ? " · " + flag : ""}</span>
-      <span class="shirt-action">${LOCKED ? "Tap for match KPIs" : onBench ? "Tap for options" : "Tap for options"}</span>
     `;
     if (player.news) main.title = player.news;
     main.addEventListener("click", () => openDetail(player));
@@ -275,7 +293,7 @@
       const badge = document.createElement("span");
       badge.className = "role-badge role-c";
       badge.textContent = "C";
-      badge.title = "Captain";
+      badge.title = "Captain · tap player to change";
       wrap.appendChild(badge);
     }
     if (!onBench && player.id === viceId) {
@@ -312,22 +330,10 @@
     formationLabel.textContent = LOCKED
       ? `Formation ${c.DEF}-${c.MID}-${c.ATT} · locked`
       : `Formation ${c.DEF}-${c.MID}-${c.ATT} · ${starterIds.size}/11 starters`;
-    fillSelects();
+    syncNames();
     syncHidden();
   }
 
-  if (captainSelect) {
-    captainSelect.addEventListener("change", () => {
-      const id = Number(captainSelect.value);
-      if (id) setCaptain(id);
-    });
-  }
-  if (viceSelect) {
-    viceSelect.addEventListener("change", () => {
-      const id = Number(viceSelect.value);
-      if (id) setVice(id);
-    });
-  }
   if (closeDetailBtn) closeDetailBtn.addEventListener("click", closeDetail);
   if (playerDetail) {
     playerDetail.addEventListener("click", (e) => {
@@ -353,14 +359,15 @@
         return;
       }
     }
+    ensureRoles();
     if (!captainId || !starterIds.has(captainId)) {
       e.preventDefault();
-      alert("Choose a captain from the dropdown.");
+      alert("Tap a starter and choose Make captain.");
       return;
     }
     if (!viceId || !starterIds.has(viceId) || viceId === captainId) {
       e.preventDefault();
-      alert("Choose a different vice-captain from the dropdown.");
+      alert("Tap a different starter and choose Make vice.");
       return;
     }
     syncHidden();

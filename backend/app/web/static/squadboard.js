@@ -473,13 +473,18 @@
         : clubN > 0
           ? `<span class="muted tiny"> · ${clubN}/${MAX_CLUB}</span>`
           : "";
+      const flag =
+        p.availability === "out" ? "OUT" : p.availability === "doubt" ? "DOUBT" : "";
       li.innerHTML = `
         <button type="button" class="pick-row avail-${p.availability || "ok"}${clubBlocked ? " is-blocked" : ""}" ${clubBlocked ? "disabled" : ""}>
-          <img class="pick-jersey" src="${p.shirt || ""}" alt="" width="36" height="47" loading="lazy" />
-          <span class="grow"><strong>${p.name}</strong> <span class="muted">${p.team}</span>${clubNote}</span>
-          <span>£${p.price.toFixed(1)}m</span>
+          <img class="pick-jersey" src="${p.shirt || ""}" alt="" width="28" height="37" loading="lazy" />
+          <span class="pick-main">
+            <span class="pick-name">${p.name}</span>
+            <span class="pick-sub">${p.team}${flag ? ` · ${flag}` : ""}${clubNote}</span>
+          </span>
+          <span class="pick-price">£${p.price.toFixed(1)}</span>
         </button>
-        <button type="button" class="pick-info-btn" aria-label="Player info">i</button>
+        <button type="button" class="pick-info-btn" aria-label="Player info">ⓘ</button>
       `;
       const btn = li.querySelector(".pick-row");
       const info = li.querySelector(".pick-info-btn");
