@@ -71,11 +71,11 @@
   {% if not edits_locked %}
   <div class="pick-actions" id="buildActions">
     <button class="btn" type="submit" id="saveSquadBtn">Save squad</button>
-    <a class="btn ghost" href="/lineup">Set lineup · C / V</a>
+    <a class="btn ghost" href="/lineup">Set XI · C / V</a>
   </div>
   {% else %}
   <div class="pick-actions">
-    <a class="btn ghost" href="/lineup?gw={{ gw.number }}">View lineup</a>
+    <a class="btn ghost" href="/lineup?gw={{ gw.number }}">View XI</a>
     <a class="btn ghost" href="/fixtures?gw={{ gw.number }}">Fixtures</a>
   </div>
   {% endif %}

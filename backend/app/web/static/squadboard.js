@@ -355,7 +355,7 @@
         const toLineup = document.createElement("a");
         toLineup.className = "btn ghost";
         toLineup.href = "/lineup";
-        toLineup.textContent = "Set XI on Lineup";
+        toLineup.textContent = "Set XI";
         detailActions.appendChild(toLineup);
       }
     }

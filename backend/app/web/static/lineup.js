@@ -24,26 +24,57 @@
   const detailBody = document.getElementById("detailBody");
   const detailActions = document.getElementById("detailActions");
   const closeDetailBtn = document.getElementById("closeDetail");
+  const xiHint = document.getElementById("xiHint");
+  const swapBar = document.getElementById("swapBar");
+  const swapHint = document.getElementById("swapHint");
+  const cancelSwapBtn = document.getElementById("cancelSwap");
 
   let detailPlayer = null;
+  /** @type {null | { id: number, side: "xi" | "bench" }} */
+  let swapPending = null;
 
-  function counts() {
+  function countsFrom(set) {
     const c = { GK: 0, DEF: 0, MID: 0, ATT: 0 };
-    starterIds.forEach((id) => {
+    set.forEach((id) => {
       const p = byId[id];
       if (p) c[p.position] += 1;
     });
     return c;
   }
 
-  function canStart(player) {
-    if (starterIds.has(player.id)) return true;
-    if (starterIds.size >= 11) return false;
-    const c = counts();
-    const [, hi] = BAND[player.position];
-    if (c[player.position] >= hi) return false;
-    if (player.position === "GK" && c.GK >= 1) return false;
-    return true;
+  function counts() {
+    return countsFrom(starterIds);
+  }
+
+  function formationOk(set) {
+    if (set.size !== 11) return false;
+    const c = countsFrom(set);
+    return (
+      c.GK === 1 &&
+      c.DEF >= 3 &&
+      c.DEF <= 5 &&
+      c.MID >= 3 &&
+      c.MID <= 5 &&
+      c.ATT >= 1 &&
+      c.ATT <= 3
+    );
+  }
+
+  function canSwap(outId, inId) {
+    if (!starterIds.has(outId) || starterIds.has(inId)) return false;
+    if (!byId[outId] || !byId[inId]) return false;
+    const next = new Set(starterIds);
+    next.delete(outId);
+    next.add(inId);
+    return formationOk(next);
+  }
+
+  function eligiblePartners(player) {
+    const onBench = !starterIds.has(player.id);
+    if (onBench) {
+      return OWNED.filter((p) => starterIds.has(p.id) && canSwap(p.id, player.id));
+    }
+    return OWNED.filter((p) => !starterIds.has(p.id) && canSwap(player.id, p.id));
   }
 
   function ensureRoles() {
@@ -106,24 +137,70 @@
     detailPlayer = null;
   }
 
-  function toggleRole(player) {
+  function clearSwap() {
+    swapPending = null;
+    render();
+  }
+
+  function beginSwap(player) {
     if (LOCKED) return;
-    if (starterIds.has(player.id)) {
-      starterIds.delete(player.id);
-      if (captainId === player.id) captainId = [...starterIds][0] || null;
-      if (viceId === player.id) {
-        viceId = [...starterIds].find((id) => id !== captainId) || null;
-      }
-    } else if (canStart(player)) {
-      starterIds.add(player.id);
-      if (!captainId) captainId = player.id;
-      else if (!viceId || viceId === captainId) viceId = player.id;
-    } else {
-      alert("That would break formation limits (1 GK, DEF 3–5, MID 3–5, ATT 1–3, 11 total).");
+    const partners = eligiblePartners(player);
+    if (!partners.length) {
+      alert(
+        starterIds.has(player.id)
+          ? "No legal bench swap for this player (formation limits)."
+          : "No legal XI swap for this player (formation limits)."
+      );
       return;
     }
+    swapPending = {
+      id: player.id,
+      side: starterIds.has(player.id) ? "xi" : "bench",
+    };
     closeDetail();
     render();
+  }
+
+  function applySwap(outId, inId) {
+    if (!canSwap(outId, inId)) {
+      alert("That swap would break formation (1 GK, DEF 3–5, MID 3–5, ATT 1–3).");
+      return false;
+    }
+    starterIds.delete(outId);
+    starterIds.add(inId);
+    if (captainId === outId) captainId = inId;
+    if (viceId === outId) {
+      viceId = [...starterIds].find((id) => id !== captainId) || null;
+    }
+    ensureRoles();
+    swapPending = null;
+    return true;
+  }
+
+  function tryCompleteSwap(player) {
+    if (!swapPending || LOCKED) return false;
+    if (player.id === swapPending.id) {
+      clearSwap();
+      return true;
+    }
+    const pending = byId[swapPending.id];
+    if (!pending) {
+      clearSwap();
+      return true;
+    }
+    const pendingOnXi = swapPending.side === "xi";
+    const targetOnXi = starterIds.has(player.id);
+    if (pendingOnXi === targetOnXi) {
+      // Same side — retarget swap to this player
+      beginSwap(player);
+      return true;
+    }
+    const outId = pendingOnXi ? pending.id : player.id;
+    const inId = pendingOnXi ? player.id : pending.id;
+    if (!applySwap(outId, inId)) return true;
+    closeDetail();
+    render();
+    return true;
   }
 
   function actionBtn(label, className, onClick) {
@@ -135,13 +212,45 @@
     return btn;
   }
 
+  function updateHints() {
+    if (LOCKED) return;
+    if (swapPending) {
+      const p = byId[swapPending.id];
+      const name = p ? p.name : "player";
+      if (swapBar) swapBar.hidden = false;
+      if (swapHint) {
+        swapHint.textContent =
+          swapPending.side === "xi"
+            ? `${name} out — tap a bench player to come in`
+            : `${name} in — tap an XI player to go out`;
+      }
+      if (xiHint) {
+        xiHint.textContent =
+          swapPending.side === "xi"
+            ? "Choose who comes in from the bench (legal formations only)."
+            : "Choose who drops to the bench from the XI.";
+      }
+      return;
+    }
+    if (swapBar) swapBar.hidden = true;
+    if (xiHint) {
+      xiHint.innerHTML =
+        'Tap a player to set <strong>C</strong> / <strong>V</strong>, or swap XI ↔ bench. Transfers on <a href="/team">Squad</a>.';
+    }
+  }
+
   function openDetail(player) {
+    if (!LOCKED && swapPending) {
+      tryCompleteSwap(player);
+      return;
+    }
     detailPlayer = player;
     const onBench = !starterIds.has(player.id);
     const pts = POINTS[String(player.id)];
     const isCap = player.id === captainId && !onBench;
     const isVice = player.id === viceId && !onBench;
-    detailEyebrow.textContent = LOCKED ? `Match · GW${GW || ""}` : `Lineup · ${player.position}`;
+    const partners = LOCKED ? [] : eligiblePartners(player);
+    detailEyebrow.textContent = LOCKED ? `Match · GW${GW || ""}` : `XI · ${player.position}`;
     detailName.textContent = player.name;
     detailBody.innerHTML = `
       <div class="player-detail-hero">
@@ -189,13 +298,24 @@
         cvRow.appendChild(vBtn);
         detailActions.appendChild(cvRow);
       }
-      detailActions.appendChild(
-        actionBtn(
-          onBench ? "Move to starting XI" : "Move to bench",
-          "btn ghost",
-          () => toggleRole(player)
-        )
+      const swapBtn = actionBtn(
+        onBench ? "Swap into XI" : "Swap to bench",
+        "btn",
+        () => beginSwap(player)
       );
+      if (!partners.length) {
+        swapBtn.disabled = true;
+        swapBtn.title = "No legal partner for this formation";
+      }
+      detailActions.appendChild(swapBtn);
+      if (partners.length) {
+        const note = document.createElement("p");
+        note.className = "muted tiny";
+        note.textContent = onBench
+          ? `Then tap who leaves the XI (${partners.length} options).`
+          : `Then tap who comes in from the bench (${partners.length} options).`;
+        detailActions.appendChild(note);
+      }
       const squad = document.createElement("a");
       squad.className = "btn ghost";
       squad.href = "/team";
@@ -258,6 +378,16 @@
     wrap.className = "shirt-card";
     if (player.id === captainId && !onBench) wrap.classList.add("is-captain");
     if (player.id === viceId && !onBench) wrap.classList.add("is-vice");
+    if (swapPending && swapPending.id === player.id) wrap.classList.add("is-swap-selected");
+    if (swapPending) {
+      const pendingOnXi = swapPending.side === "xi";
+      const isPartner =
+        player.id !== swapPending.id &&
+        pendingOnXi === onBench &&
+        (pendingOnXi ? canSwap(swapPending.id, player.id) : canSwap(player.id, swapPending.id));
+      if (isPartner) wrap.classList.add("is-swap-target");
+      else if (player.id !== swapPending.id) wrap.classList.add("is-swap-dim");
+    }
 
     const main = document.createElement("button");
     main.type = "button";
@@ -276,7 +406,13 @@
       <span class="shirt-team">${player.team}${flag ? " · " + flag : ""}</span>
     `;
     if (player.news) main.title = player.news;
-    main.addEventListener("click", () => openDetail(player));
+    main.addEventListener("click", () => {
+      if (!LOCKED && swapPending) {
+        tryCompleteSwap(player);
+        return;
+      }
+      openDetail(player);
+    });
     wrap.appendChild(main);
 
     if (!onBench && player.id === captainId) {
@@ -319,9 +455,10 @@
     const c = counts();
     formationLabel.textContent = LOCKED
       ? `Formation ${c.DEF}-${c.MID}-${c.ATT} · locked`
-      : `Formation ${c.DEF}-${c.MID}-${c.ATT} · ${starterIds.size}/11 starters`;
+      : `Formation ${c.DEF}-${c.MID}-${c.ATT} · ${starterIds.size}/11`;
     ensureRoles();
     syncHidden();
+    updateHints();
   }
 
   if (closeDetailBtn) closeDetailBtn.addEventListener("click", closeDetail);
@@ -330,10 +467,16 @@
       if (e.target === playerDetail) closeDetail();
     });
   }
+  if (cancelSwapBtn) cancelSwapBtn.addEventListener("click", clearSwap);
 
   document.getElementById("lineupForm").addEventListener("submit", (e) => {
     if (LOCKED) {
       e.preventDefault();
+      return;
+    }
+    if (swapPending) {
+      e.preventDefault();
+      alert("Finish or cancel the XI ↔ bench swap first.");
       return;
     }
     const c = counts();
