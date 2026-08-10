@@ -104,34 +104,35 @@
   {% endif %}
 </section>
 
-<div class="drawer" id="picker" hidden>
-  <div class="drawer-sheet">
-    <header class="drawer-head">
+<div class="picker-modal" id="picker" hidden>
+  <div class="picker-card" role="dialog" aria-modal="true" aria-labelledby="pickerPos">
+    <header class="picker-card-head">
       <div>
         <p class="eyebrow" id="pickerEyebrow">Add player</p>
         <h2 id="pickerPos">Players</h2>
       </div>
-      <button type="button" class="icon-btn" id="closePicker">✕</button>
+      <button type="button" class="icon-btn" id="closePicker" aria-label="Close">✕</button>
     </header>
-    <div class="filters">
-      <input type="search" id="playerSearch" placeholder="Search players…" autocomplete="off" />
-      <div class="filter-row">
-        <select id="filterTeam">
-          <option value="">All clubs</option>
-          {% for c in clubs %}
-          <option value="{{ c.code }}">{{ c.name }}</option>
-          {% endfor %}
-        </select>
-        <select id="filterMaxPrice">
-          <option value="">Max price</option>
-          <option value="4.5">≤ £4.5m</option>
-          <option value="5.5">≤ £5.5m</option>
-          <option value="7.0">≤ £7.0m</option>
-          <option value="9.0">≤ £9.0m</option>
-          <option value="12">≤ £12.0m</option>
-          <option value="15">≤ £15.0m</option>
-        </select>
-      </div>
+    <label class="picker-search">
+      <span class="sr-only">Search players</span>
+      <input type="search" id="playerSearch" placeholder="Type a name or club…" autocomplete="off" enterkeyhint="search" />
+    </label>
+    <div class="picker-filters">
+      <select id="filterTeam" aria-label="Club">
+        <option value="">All clubs</option>
+        {% for c in clubs %}
+        <option value="{{ c.code }}">{{ c.name }}</option>
+        {% endfor %}
+      </select>
+      <select id="filterMaxPrice" aria-label="Max price">
+        <option value="">Any price</option>
+        <option value="4.5">≤ £4.5m</option>
+        <option value="5.5">≤ £5.5m</option>
+        <option value="7.0">≤ £7.0m</option>
+        <option value="9.0">≤ £9.0m</option>
+        <option value="12">≤ £12.0m</option>
+        <option value="15">≤ £15.0m</option>
+      </select>
     </div>
     <ul class="picker-list" id="pickerList"></ul>
   </div>

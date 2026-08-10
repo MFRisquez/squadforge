@@ -70,6 +70,7 @@
   let removedSlot = null; // { pos, index } while a transfer is pending
   let pickerMode = "add"; // add | replace | transfer
   let detailContext = null; // { player, fromPicker, pos, index }
+  let scrollLockY = 0;
 
   const STATUS_LABEL = {
     a: "Available",
@@ -483,6 +484,31 @@
     refreshMeta();
   }
 
+  function lockScroll() {
+    scrollLockY = window.scrollY || window.pageYOffset || 0;
+    document.body.classList.add("picker-open");
+    document.body.style.top = `-${scrollLockY}px`;
+  }
+
+  function unlockScroll() {
+    document.body.classList.remove("picker-open");
+    document.body.style.top = "";
+    window.scrollTo(0, scrollLockY);
+  }
+
+  function restorePitchView() {
+    unlockScroll();
+    const target =
+      (active &&
+        pitch.querySelector(`[data-pos="${active.pos}"]`)?.children?.[active.index]) ||
+      pitch;
+    if (target && typeof target.scrollIntoView === "function") {
+      requestAnimationFrame(() => {
+        target.scrollIntoView({ block: "center", behavior: "auto" });
+      });
+    }
+  }
+
   function openPicker(pos, index, mode) {
     active = { pos, index };
     pickerMode = mode;
@@ -495,18 +521,28 @@
       pickerPos.textContent = current ? `Swap ${current.name}` : pos;
     } else {
       pickerEyebrow.textContent = "Add player";
-      pickerPos.textContent = pos;
+      pickerPos.textContent = `${pos} · search`;
     }
+    lockScroll();
     picker.hidden = false;
     search.value = "";
     filterTeam.value = "";
     filterMaxPrice.value = "";
-    search.focus();
     renderPicker();
+    requestAnimationFrame(() => {
+      try {
+        search.focus({ preventScroll: true });
+      } catch (_) {
+        search.focus();
+      }
+    });
   }
 
   function closePicker() {
     picker.hidden = true;
+    if (document.body.classList.contains("picker-open")) {
+      unlockScroll();
+    }
   }
 
   function renderPicker() {
@@ -554,7 +590,6 @@
         p.availability === "out" ? "OUT" : p.availability === "doubt" ? "DOUBT" : "";
       li.innerHTML = `
         <button type="button" class="pick-row avail-${p.availability || "ok"}${clubBlocked ? " is-blocked" : ""}" ${clubBlocked ? "disabled" : ""}>
-          <img class="pick-jersey" src="${p.shirt || ""}" alt="" width="28" height="37" loading="lazy" />
           <span class="pick-main">
             <span class="pick-name">${p.name}</span>
             <span class="pick-sub">${p.team}${flag ? ` · ${flag}` : ""}${clubNote}</span>
@@ -603,7 +638,8 @@
       inPlayer = p;
       slots[active.pos][active.index] = p.id;
       removedSlot = { pos: active.pos, index: active.index };
-      closePicker();
+      picker.hidden = true;
+      restorePitchView();
       refreshSwapBar();
       render();
       return;
@@ -621,7 +657,8 @@
     outPlayer = null;
     inPlayer = null;
     removedSlot = null;
-    closePicker();
+    picker.hidden = true;
+    restorePitchView();
     render();
   }
 
