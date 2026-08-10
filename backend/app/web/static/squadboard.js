@@ -296,7 +296,7 @@
       </div>
       <div class="kpi-block">
         <div class="player-fdr-head">
-          <strong>Season KPIs</strong>
+          <strong>Season stats</strong>
           <span class="muted tiny">${p.position}</span>
         </div>
         <div class="kpi-grid" id="detailKpis">

@@ -111,13 +111,39 @@ def _players_payload(db: Session) -> list[dict]:
     ]
 
 
-def _owned_payload(players: list[Player], db: Session | None = None) -> list[dict]:
+def _owned_payload(
+    players: list[Player],
+    db: Session | None = None,
+    *,
+    gw_number: int | None = None,
+) -> list[dict]:
     from app.kits import kit_for
+    from app.services import fixtures as fixtures_svc
     from app.services.fpl_sync import availability_flag
 
     clubs: dict[str, Club] = {}
+    fdr_by_club: dict[str, dict] = {}
     if db is not None:
         clubs = {c.code: c for c in db.query(Club).all()}
+        fixtures_svc.ensure_fixtures_ready(db)
+        if gw_number:
+            for match in fixtures_svc.fixtures_for_gameweek(db, gw_number=gw_number):
+                fdr_by_club[match["home"]["code"]] = {
+                    "opponent": match["away"]["code"],
+                    "venue": "H",
+                    "difficulty": match["home"]["difficulty"],
+                    "gw": match["gw"],
+                }
+                fdr_by_club[match["away"]["code"]] = {
+                    "opponent": match["home"]["code"],
+                    "venue": "A",
+                    "difficulty": match["away"]["difficulty"],
+                    "gw": match["gw"],
+                }
+        else:
+            current = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
+            from_gw = current.number if current else 1
+            fdr_by_club = fixtures_svc.club_next_fdr_map(db, from_gw=from_gw)
 
     return [
         {
@@ -133,6 +159,7 @@ def _owned_payload(players: list[Player], db: Session | None = None) -> list[dic
                 getattr(p, "status", "a") or "a",
                 getattr(p, "chance_of_playing", None),
             ),
+            "fdr": fdr_by_club.get(p.team_code),
             **kit_for(
                 p.team_code,
                 position=p.position,
@@ -620,7 +647,7 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
         _ctx(
             request,
             db,
-            owned_json=_owned_payload(owned, db),
+            owned_json=_owned_payload(owned, db, gw_number=gw.number),
             initial_lineup={
                 "starters": starters,
                 "captain": captain,
@@ -668,11 +695,14 @@ async def lineup_save(request: Request, db: Session = Depends(get_db)):
             _ctx(
                 request,
                 db,
-                owned_json=_owned_payload(owned, db),
+                owned_json=_owned_payload(owned, db, gw_number=gw.number),
                 initial_lineup={
                     "starters": starter_ids,
                     "captain": captain_id or None,
                     "vice": vice_id or None,
+                    "locked": False,
+                    "gw": gw.number,
+                    "points": {},
                 },
                 spend=squad_svc.squad_spend(owned),
                 error=str(exc),

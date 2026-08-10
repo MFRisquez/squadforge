@@ -250,6 +250,10 @@
     const isCap = player.id === captainId && !onBench;
     const isVice = player.id === viceId && !onBench;
     const partners = LOCKED ? [] : eligiblePartners(player);
+    const fdr = player.fdr;
+    const oppLine = fdr
+      ? `${fdr.opponent} (${fdr.venue === "H" ? "H" : "A"})`
+      : "Fixture TBD";
     detailEyebrow.textContent = LOCKED ? `Match · GW${GW || ""}` : `XI · ${player.position}`;
     detailName.textContent = player.name;
     detailBody.innerHTML = `
@@ -260,7 +264,7 @@
         </div>
         <div class="meta">
           <strong>${player.team}</strong>
-          <span class="muted">${player.position} · £${Number(player.price).toFixed(1)}m</span>
+          <span class="muted">${player.position} · vs ${oppLine}</span>
           <span class="role-pill ${onBench ? "is-bench" : "is-xi"}">${onBench ? "Bench" : "Starting XI"}</span>
           ${isCap ? `<span class="role-pill is-c">Captain ×2</span>` : ""}
           ${isVice ? `<span class="role-pill is-v">Vice-captain</span>` : ""}
@@ -269,7 +273,7 @@
       </div>
       <div class="kpi-block">
         <div class="player-fdr-head">
-          <strong>${LOCKED ? "This gameweek" : "Match KPIs"}</strong>
+          <strong>${LOCKED ? "This gameweek" : "Match stats"}</strong>
           <span class="muted tiny">${LOCKED ? "After kickoff" : "Unlock after deadline"}</span>
         </div>
         <div class="kpi-grid" id="detailKpis">
@@ -373,9 +377,15 @@
       });
   }
 
+  function shortName(name) {
+    const parts = String(name || "").trim().split(/\s+/);
+    if (parts.length <= 1) return parts[0] || "";
+    return parts[parts.length - 1];
+  }
+
   function shirtCard(player, onBench) {
     const wrap = document.createElement("div");
-    wrap.className = "shirt-card";
+    wrap.className = "shirt-card xi-card";
     if (player.id === captainId && !onBench) wrap.classList.add("is-captain");
     if (player.id === viceId && !onBench) wrap.classList.add("is-vice");
     if (swapPending && swapPending.id === player.id) wrap.classList.add("is-swap-selected");
@@ -392,18 +402,26 @@
     const main = document.createElement("button");
     main.type = "button";
     const avail = player.availability || "ok";
-    main.className = "shirt filled jersey avail-" + avail;
-    const flag = avail === "out" ? "OUT" : avail === "doubt" ? "DOUBT" : "";
+    main.className = "shirt filled jersey xi-shirt avail-" + avail;
+    const flag = avail === "out" ? "OUT" : avail === "doubt" ? "!" : "";
     const pts = POINTS[String(player.id)];
-    const ptsHtml =
-      LOCKED && pts != null
-        ? `<span class="shirt-pts">${Number(pts).toFixed(0)}</span>`
-        : `<span class="shirt-price">£${player.price.toFixed(1)}</span>`;
+    const fdr = player.fdr;
+    let footHtml;
+    if (LOCKED && pts != null) {
+      footHtml = `<span class="shirt-foot shirt-pts-plate">${Number(pts).toFixed(0)}</span>`;
+    } else if (fdr) {
+      const venue = fdr.venue === "H" ? "H" : "A";
+      footHtml = `<span class="shirt-foot shirt-opp fdr-${fdr.difficulty}">${fdr.opponent} (${venue})</span>`;
+    } else {
+      footHtml = `<span class="shirt-foot shirt-opp">TBD</span>`;
+    }
     main.innerHTML = `
-      <img class="jersey-img" src="${player.shirt || ""}" alt="${player.team} kit" width="66" height="87" loading="lazy" decoding="async" />
-      ${ptsHtml}
-      <span class="shirt-name">${player.name}</span>
-      <span class="shirt-team">${player.team}${flag ? " · " + flag : ""}</span>
+      <span class="shirt-kit">
+        <img class="jersey-img" src="${player.shirt || ""}" alt="${player.team} kit" width="66" height="87" loading="lazy" decoding="async" />
+        ${flag ? `<span class="shirt-status-flag" title="${player.news || flag}">${flag}</span>` : ""}
+      </span>
+      <span class="shirt-nameplate">${shortName(player.name)}</span>
+      ${footHtml}
     `;
     if (player.news) main.title = player.news;
     main.addEventListener("click", () => {
