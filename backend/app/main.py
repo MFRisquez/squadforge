@@ -33,6 +33,10 @@ def _ensure_schema_patches() -> None:
             statements.append("ALTER TABLE players ADD COLUMN chance_of_playing INTEGER")
         if "news" not in cols:
             statements.append("ALTER TABLE players ADD COLUMN news VARCHAR(255) DEFAULT ''")
+        if "season_stats_json" not in cols:
+            statements.append("ALTER TABLE players ADD COLUMN season_stats_json TEXT DEFAULT '{}'")
+        if "photo" not in cols:
+            statements.append("ALTER TABLE players ADD COLUMN photo VARCHAR(64) DEFAULT ''")
         if statements:
             with engine.begin() as conn:
                 for stmt in statements:
@@ -52,6 +56,9 @@ def _ensure_schema_patches() -> None:
         if "kit_code" not in cols:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE clubs ADD COLUMN kit_code INTEGER"))
+        if "fpl_team_id" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE clubs ADD COLUMN fpl_team_id INTEGER"))
     if "gameweeks" in tables:
         cols = {c["name"] for c in inspect(engine).get_columns("gameweeks")}
         if "deadline_at" not in cols:

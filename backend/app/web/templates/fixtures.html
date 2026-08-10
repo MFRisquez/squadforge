@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Fixtures · {{ app_name }}{% endblock %}
+{% block content %}
+{% from "macros_gw.html" import gw_bar %}
+{{ gw_bar(gw, deadline_label, edits_locked, prev_gw, next_gw, '/fixtures') }}
+
+<section class="hero-block compact">
+  <p class="eyebrow">Premier League</p>
+  <h1>Fixtures</h1>
+  <p class="lede tight">
+    Live GW{{ gw.number }} scores. Tap a match for goals &amp; assists.
+  </p>
+</section>
+
+<div class="action-row">
+  <form method="post" action="/fixtures/refresh">
+    <input type="hidden" name="gw" value="{{ gw.number }}" />
+    <button class="btn" type="submit" id="refreshFixtures">Refresh live</button>
+  </form>
+  <span class="muted tiny" id="fixturesMeta">{{ match_count }} matches</span>
+</div>
+
+<section class="panel fixtures-panel">
+  {% if matches %}
+  <ul class="fixture-list" id="fixtureList">
+    {% for m in matches %}
+    <li>
+      <button type="button" class="fixture-row status-{{ m.status }}" data-fixture-id="{{ m.id }}">
+        <span class="fx-time">
+          {% if m.status == 'live' %}<em class="live-dot">LIVE</em>
+          {% elif m.status == 'finished' %}FT
+          {% elif m.kickoff %}{{ m.kickoff[11:16] if m.kickoff|length > 16 else m.kickoff }}
+          {% else %}TBC{% endif %}
+        </span>
+        <span class="fx-teams">
+          <span class="fx-side">
+            <strong>{{ m.home.code }}</strong>
+            <span class="fdr-pip fdr-{{ m.home.difficulty }}" title="Home FDR {{ m.home.difficulty }}"></span>
+          </span>
+          <span class="fx-score">
+            {% if m.home.score is not none and m.away.score is not none %}
+              {{ m.home.score }}–{{ m.away.score }}
+            {% else %}
+              vs
+            {% endif %}
+          </span>
+          <span class="fx-side away">
+            <span class="fdr-pip fdr-{{ m.away.difficulty }}" title="Away FDR {{ m.away.difficulty }}"></span>
+            <strong>{{ m.away.code }}</strong>
+          </span>
+        </span>
+      </button>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="empty-state">
+    <h2>No fixtures for GW{{ gw.number }}</h2>
+    <p class="muted">Refresh from FPL, or sync players on Home first.</p>
+    <form method="post" action="/fixtures/refresh">
+      <button class="btn" type="submit">Refresh fixtures</button>
+    </form>
+  </div>
+  {% endif %}
+</section>
+
+<div class="drawer" id="matchDetail" hidden>
+  <div class="drawer-sheet match-detail-sheet">
+    <header class="drawer-head">
+      <div>
+        <p class="eyebrow" id="matchEyebrow">Match</p>
+        <h2 id="matchTitle">—</h2>
+      </div>
+      <button type="button" class="icon-btn" id="closeMatch" aria-label="Close">✕</button>
+    </header>
+    <div class="match-detail-body" id="matchBody"></div>
+  </div>
+</div>
+
+<script id="fixturesBoot" type="application/json">{{ {"gw": gw.number, "poll": true} | tojson }}</script>
+<script src="/static/fixtures.js"></script>
+{% endblock %}

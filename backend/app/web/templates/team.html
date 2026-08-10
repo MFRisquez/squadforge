@@ -13,7 +13,7 @@
     {% if edits_locked %}
       This gameweek is locked. Browse with the arrows above, or wait for the next deadline.
     {% else %}
-      Tap an empty shirt to open the player list. Tap a filled shirt to replace or transfer.
+      Tap a player for season stats & fixtures · replace / transfer from the sheet.
     {% endif %}
   </p>
 </section>
@@ -82,7 +82,7 @@
   {% else %}
   <div class="pick-actions">
     <a class="btn ghost" href="/lineup?gw={{ gw.number }}">View lineup</a>
-    <a class="btn ghost" href="/points?gw={{ gw.number }}">My Points</a>
+    <a class="btn ghost" href="/fixtures?gw={{ gw.number }}">Fixtures</a>
   </div>
   {% endif %}
 </form>

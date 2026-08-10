@@ -16,10 +16,14 @@ Canonical longer docs: `docs/CHIPS.md`, `docs/TECHNICAL_DIRECTOR.md`, `docs/FORM
 - Over FTs → **−4 hit** each (still allow the transfer)
 - **WC** or **FH** active that GW → unlimited transfers (no hits)
 - Deadline from FPL locks transfers, chips, lineup edits for that GW
+- **Squad** = ownership + **Replace/Transfer** + **season KPIs** + next-3 FDR (not XI/bench moves)
 
 ## Lineup & armband
 
-- Captain + Vice only (**C** / **V** badges). No other armband UI
+- **Lineup** = Starting XI ↔ bench + C/V only
+- Tap player → detail with photo-on-kit; **Move to XI / bench** when unlocked
+- After deadline (**locked**): show **GW points on pitch**; tap → **match KPIs** for that GW; refresh scores from Lineup
+- No dedicated **Points** tab — `/points` redirects to Lineup
 - Captain scores **×2**. If captain plays **0 minutes**, vice gets the armband
 - **Triple Captain** replaces ×2 with **×3** that GW (does not stack)
 
@@ -45,9 +49,10 @@ Cancel chips **before deadline** restores remaining count (FH also restores owne
 
 - Custom **per-position formulas** (see `docs/FORMULAS.md` + `backend/app/scoring/`)
 - Autosubs like FPL when BB off
-- UI: phone-first pitch Squad (pick 15 + transfers); nav Home · Squad · Points · Lineup · Table
-- Real FPL kits via `kits.py`; compact chip strip; opponent peek on standings
-- Player detail: long-press pitch / locked tap / picker **i** — name, club, pos, price, status, news
+- UI: phone-first; nav **Home · Squad · Lineup · Fixtures · Table**
+- Real FPL kits + player headshots (`photo` on kit portrait)
+- **Fixtures** tab: GW fixtures with live refresh / poll; tap match for goals & assists
+- Next-3 FDR on Squad player sheet: FPL difficulty mapped to **4 bands** (FPL 5 → 4)
 
 ## When changing rules mid-season
 

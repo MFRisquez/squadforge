@@ -1,0 +1,159 @@
+(() => {
+  const bootEl = document.getElementById("fixturesBoot");
+  const BOOT = bootEl ? JSON.parse(bootEl.textContent) : { gw: 1, poll: false };
+  const list = document.getElementById("fixtureList");
+  const meta = document.getElementById("fixturesMeta");
+  const matchDetail = document.getElementById("matchDetail");
+  const matchEyebrow = document.getElementById("matchEyebrow");
+  const matchTitle = document.getElementById("matchTitle");
+  const matchBody = document.getElementById("matchBody");
+  const closeMatch = document.getElementById("closeMatch");
+
+  function formatKickoff(iso) {
+    if (!iso) return "TBC";
+    const m = String(iso).match(/T(\d{2}:\d{2})/);
+    return m ? m[1] : iso;
+  }
+
+  function sideLines(rows, label) {
+    if (!rows || !rows.length) return "";
+    return rows
+      .map((r) => {
+        const mult = r.value > 1 ? ` ×${r.value}` : "";
+        return `<li><span class="muted">${label}</span> <strong>${r.name}</strong>${mult}</li>`;
+      })
+      .join("");
+  }
+
+  function renderMatchDetail(data) {
+    matchEyebrow.textContent =
+      data.status === "live" ? "Live" : data.status === "finished" ? "Full time" : "Upcoming";
+    const hs = data.home.score;
+    const as_ = data.away.score;
+    const score =
+      hs != null && as_ != null ? `${hs}–${as_}` : "vs";
+    matchTitle.textContent = `${data.home.code} ${score} ${data.away.code}`;
+
+    const goalsHome = sideLines(data.goals?.home, "⚽");
+    const goalsAway = sideLines(data.goals?.away, "⚽");
+    const assistsHome = sideLines(data.assists?.home, "ⓐ");
+    const assistsAway = sideLines(data.assists?.away, "ⓐ");
+    const ogHome = sideLines(data.own_goals?.home, "OG");
+    const ogAway = sideLines(data.own_goals?.away, "OG");
+    const homeHtml = goalsHome + assistsHome + ogHome;
+    const awayHtml = goalsAway + assistsAway + ogAway;
+    const hasEvents = Boolean(homeHtml || awayHtml);
+
+    matchBody.innerHTML = `
+      <div class="match-scoreline">
+        <div>
+          <strong>${data.home.name}</strong>
+          <span class="muted">${data.home.code}</span>
+        </div>
+        <div class="match-score">${score}</div>
+        <div class="away">
+          <strong>${data.away.name}</strong>
+          <span class="muted">${data.away.code}</span>
+        </div>
+      </div>
+      ${
+        hasEvents
+          ? `<div class="match-events">
+              <div>
+                <h3>Home</h3>
+                <ul class="event-list">${homeHtml || "<li class='muted tiny'>—</li>"}</ul>
+              </div>
+              <div>
+                <h3>Away</h3>
+                <ul class="event-list">${awayHtml || "<li class='muted tiny'>—</li>"}</ul>
+              </div>
+            </div>`
+          : `<p class="muted">No goal or assist data yet — refresh while the match is live or finished.</p>`
+      }
+      <p class="muted tiny">Kickoff ${formatKickoff(data.kickoff)} · GW${data.gw}</p>
+    `;
+    matchDetail.hidden = false;
+  }
+
+  function openMatch(id) {
+    fetch(`/api/fixtures/${id}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data) => {
+        if (data.error) throw new Error(data.error);
+        renderMatchDetail(data);
+      })
+      .catch(() => {
+        matchEyebrow.textContent = "Match";
+        matchTitle.textContent = "Unavailable";
+        matchBody.innerHTML = `<p class="muted">Couldn’t load match detail.</p>`;
+        matchDetail.hidden = false;
+      });
+  }
+
+  function bindRows(root) {
+    if (!root) return;
+    root.querySelectorAll("[data-fixture-id]").forEach((btn) => {
+      btn.addEventListener("click", () => openMatch(btn.getAttribute("data-fixture-id")));
+    });
+  }
+
+  function renderList(fixtures) {
+    if (!list) return;
+    if (!fixtures.length) {
+      list.innerHTML = `<li class="empty-pick">No fixtures for this GW.</li>`;
+      return;
+    }
+    list.innerHTML = fixtures
+      .map((m) => {
+        const score =
+          m.home.score != null && m.away.score != null
+            ? `${m.home.score}–${m.away.score}`
+            : "vs";
+        const time =
+          m.status === "live"
+            ? `<em class="live-dot">LIVE</em>`
+            : m.status === "finished"
+              ? "FT"
+              : formatKickoff(m.kickoff);
+        return `<li>
+          <button type="button" class="fixture-row status-${m.status}" data-fixture-id="${m.id}">
+            <span class="fx-time">${time}</span>
+            <span class="fx-teams">
+              <span class="fx-side">
+                <strong>${m.home.code}</strong>
+                <span class="fdr-pip fdr-${m.home.difficulty}"></span>
+              </span>
+              <span class="fx-score">${score}</span>
+              <span class="fx-side away">
+                <span class="fdr-pip fdr-${m.away.difficulty}"></span>
+                <strong>${m.away.code}</strong>
+              </span>
+            </span>
+          </button>
+        </li>`;
+      })
+      .join("");
+    bindRows(list);
+    if (meta) meta.textContent = `${fixtures.length} matches · updated`;
+  }
+
+  function refreshQuiet() {
+    fetch(`/api/fixtures/refresh?gw=${BOOT.gw}`, { method: "POST" })
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data) => renderList(data.fixtures || []))
+      .catch(() => {});
+  }
+
+  bindRows(list);
+  if (closeMatch) closeMatch.addEventListener("click", () => (matchDetail.hidden = true));
+  if (matchDetail) {
+    matchDetail.addEventListener("click", (e) => {
+      if (e.target === matchDetail) matchDetail.hidden = true;
+    });
+  }
+
+  // Live poll while any match may be in progress
+  if (BOOT.poll) {
+    setInterval(refreshQuiet, 45000);
+  }
+})();

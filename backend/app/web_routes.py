@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
@@ -98,6 +98,7 @@ def _players_payload(db: Session) -> list[dict]:
                 p.team_code,
                 position=p.position,
                 kit_code=getattr(clubs.get(p.team_code), "kit_code", None),
+                photo=getattr(p, "photo", "") or "",
             ),
         }
         for p in players
@@ -130,6 +131,7 @@ def _owned_payload(players: list[Player], db: Session | None = None) -> list[dic
                 p.team_code,
                 position=p.position,
                 kit_code=getattr(clubs.get(p.team_code), "kit_code", None),
+                photo=getattr(p, "photo", "") or "",
             ),
         }
         for p in players
@@ -343,6 +345,11 @@ def team_page(request: Request, db: Session = Depends(get_db)):
         .count()
     )
     hits_gw = squad_svc.hit_transfers_this_gw(db, manager.id, gw.id)
+    starters = [p.player_id for p in picks if p.is_starter]
+    captain = next((p.player_id for p in picks if p.is_captain), None)
+    vice = next((p.player_id for p in picks if getattr(p, "is_vice_captain", 0)), None)
+    if len(owned) == settings.squad_size and not starters:
+        starters, _, captain, vice = squad_svc.default_lineup_from_owned(owned)
     return templates.TemplateResponse(
         "team.html",
         _ctx(
@@ -371,6 +378,10 @@ def team_page(request: Request, db: Session = Depends(get_db)):
                 "ft": ft_state.free_transfers,
                 "hitCost": squad_svc.HIT_COST,
                 "locked": view["edits_locked"],
+                "starters": starters,
+                "captain": captain,
+                "vice": vice,
+                "gw": gw.number,
             },
             player_count=db.query(Player).count(),
             ok=request.query_params.get("ok"),
@@ -498,6 +509,36 @@ async def team_save(request: Request, db: Session = Depends(get_db)):
     return RedirectResponse("/lineup", status_code=303)
 
 
+@router.post("/lineup/role")
+async def lineup_role(request: Request, db: Session = Depends(get_db)):
+    """JSON: move a squad player between XI and bench from the Squad detail sheet."""
+    from app.services import deadline as deadline_svc
+
+    manager = current_manager(request, db)
+    if not manager:
+        return JSONResponse({"error": "login"}, status_code=401)
+    gw = squad_svc.current_gameweek(db)
+    if not deadline_svc.can_edit(gw):
+        return JSONResponse({"error": "Deadline passed"}, status_code=400)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "bad json"}, status_code=400)
+    player_id = int(body.get("player_id") or 0)
+    make_starter = bool(body.get("make_starter"))
+    try:
+        result = squad_svc.set_player_lineup_role(
+            db,
+            manager_id=manager.id,
+            gameweek_id=gw.id,
+            player_id=player_id,
+            make_starter=make_starter,
+        )
+    except squad_svc.SquadError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    return JSONResponse({"ok": True, **result})
+
+
 @router.get("/lineup", response_class=HTMLResponse)
 def lineup_page(request: Request, db: Session = Depends(get_db)):
     manager = current_manager(request, db)
@@ -524,6 +565,32 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
         starters, _, captain, vice = squad_svc.default_lineup_from_owned(owned)
     if not vice or vice == captain:
         vice = next((s for s in starters if s != captain), captain)
+
+    points_map: dict[str, float] = {}
+    gw_total = None
+    if view["edits_locked"]:
+        from app.models import ManagerGameweekScore, PlayerPoints
+
+        for row in (
+            db.query(PlayerPoints)
+            .filter(
+                PlayerPoints.gameweek_id == gw.id,
+                PlayerPoints.formula_version == settings.formula_version,
+            )
+            .all()
+        ):
+            points_map[str(row.player_id)] = float(row.total or 0)
+        score = (
+            db.query(ManagerGameweekScore)
+            .filter(
+                ManagerGameweekScore.manager_id == manager.id,
+                ManagerGameweekScore.gameweek_id == gw.id,
+            )
+            .one_or_none()
+        )
+        if score:
+            gw_total = float(score.total or 0)
+
     return templates.TemplateResponse(
         "lineup.html",
         _ctx(
@@ -535,8 +602,13 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
                 "captain": captain,
                 "vice": vice,
                 "locked": view["edits_locked"],
+                "gw": gw.number,
+                "points": points_map,
             },
             spend=squad_svc.squad_spend(owned),
+            gw_total=gw_total,
+            notice=request.query_params.get("notice"),
+            error=request.query_params.get("error"),
             **view,
         ),
     )
@@ -737,7 +809,7 @@ def score_run(
             force_demo=mode == "demo",
         )
     except Exception as exc:
-        return RedirectResponse(f"/points?error={exc}", status_code=303)
+        return RedirectResponse(f"/lineup?error={exc}", status_code=303)
     src = summary.get("ingest", {}).get("source", "?")
     notice = (
         f"GW{summary['gameweek']} scored · {summary['managers_scored']} managers · "
@@ -745,118 +817,59 @@ def score_run(
     )
     from urllib.parse import quote
 
-    return RedirectResponse(f"/points?ok=1&notice={quote(notice)}", status_code=303)
+    return RedirectResponse(f"/lineup?gw={summary['gameweek']}&notice={quote(notice)}", status_code=303)
 
 
-@router.get("/points", response_class=HTMLResponse)
-def points_page(request: Request, db: Session = Depends(get_db)):
-    """FPL-style My Points for the selected GW."""
-    from app.kits import kit_for
-    from app.models import ManagerGameweekScore, PlayerPoints
-    from app.services.fpl_sync import availability_flag
+@router.get("/fixtures", response_class=HTMLResponse)
+def fixtures_page(request: Request, db: Session = Depends(get_db)):
+    """PL fixtures for a gameweek — live scores + tap for goals/assists."""
+    from app.services import fixtures as fixtures_svc
 
     manager = current_manager(request, db)
     if not manager:
         return RedirectResponse("/login", status_code=303)
     view = _resolve_gw(request, db)
     gw = view["gw"]
-    owned = squad_svc.owned_players(db, manager.id)
-    score = (
-        db.query(ManagerGameweekScore)
-        .filter(
-            ManagerGameweekScore.manager_id == manager.id,
-            ManagerGameweekScore.gameweek_id == gw.id,
-        )
-        .one_or_none()
-    )
-    breakdown = {}
-    if score and score.breakdown_json:
-        try:
-            breakdown = json.loads(score.breakdown_json)
-        except json.JSONDecodeError:
-            breakdown = {}
-
-    pts_by_id = {
-        r.player_id: r
-        for r in db.query(PlayerPoints)
-        .filter(
-            PlayerPoints.gameweek_id == gw.id,
-            PlayerPoints.formula_version == settings.formula_version,
-        )
-        .all()
-    }
-    picks = (
-        db.query(SquadPick)
-        .filter(SquadPick.manager_id == manager.id, SquadPick.gameweek_id == gw.id)
-        .all()
-    )
-    line_by_id = {int(x["player_id"]): x for x in breakdown.get("players", []) if "player_id" in x}
-    clubs = {c.code: c for c in db.query(Club).all()}
-
-    def pack(player: Player, on_bench: bool) -> dict:
-        kit = kit_for(
-            player.team_code,
-            position=player.position,
-            kit_code=getattr(clubs.get(player.team_code), "kit_code", None),
-        )
-        line = line_by_id.get(player.id, {})
-        pp = pts_by_id.get(player.id)
-        return {
-            "player": player,
-            "shirt": kit["shirt"],
-            "points": line.get("points", pp.total if pp else 0),
-            "base": line.get("base", pp.total if pp else 0),
-            "mult": line.get("mult", 1),
-            "is_captain": bool(line.get("captain")),
-            "autosub": bool(line.get("autosub")),
-            "on_bench": on_bench,
-            "availability": availability_flag(
-                getattr(player, "status", "a") or "a",
-                getattr(player, "chance_of_playing", None),
-            ),
-            "bd": json.loads(pp.breakdown_json) if pp and pp.breakdown_json else {},
-        }
-
-    by_id = {p.id: p for p in owned}
-    starter_ids = {p.player_id for p in picks if p.is_starter}
-    # Prefer effective XI from scoring breakdown when present
-    effective_ids = {int(x["player_id"]) for x in breakdown.get("players", []) if not x.get("bench_boost")}
-    if not effective_ids:
-        effective_ids = starter_ids
-
-    pitch_players = [pack(by_id[i], False) for i in effective_ids if i in by_id]
-    by_pos = {"GK": [], "DEF": [], "MID": [], "ATT": []}
-    for row in pitch_players:
-        by_pos[row["player"].position].append(row)
-    bench_players = [pack(p, True) for p in owned if p.id not in effective_ids]
-
-    history = (
-        db.query(ManagerGameweekScore)
-        .filter(ManagerGameweekScore.manager_id == manager.id)
-        .order_by(ManagerGameweekScore.gameweek_id.desc())
-        .limit(8)
-        .all()
-    )
-    gw_by_id = {g.id: g for g in db.query(Gameweek).all()}
-
-    notice = request.query_params.get("notice")
+    fixtures_svc.ensure_fixtures_ready(db)
+    matches = fixtures_svc.fixtures_for_gameweek(db, gw_number=gw.number)
     return templates.TemplateResponse(
-        "points.html",
+        "fixtures.html",
         _ctx(
             request,
             db,
-            score=score,
-            breakdown=breakdown,
-            by_pos=by_pos,
-            bench_players=bench_players,
-            history=history,
-            gw_by_id=gw_by_id,
-            notice=notice,
+            matches=matches,
+            match_count=len(matches),
+            notice=request.query_params.get("notice"),
             error=request.query_params.get("error"),
-            owned_count=len(owned),
             **view,
         ),
     )
+
+
+@router.post("/fixtures/refresh")
+def fixtures_refresh(request: Request, db: Session = Depends(get_db)):
+    from app.services import fixtures as fixtures_svc
+    from urllib.parse import quote
+
+    manager = current_manager(request, db)
+    if not manager:
+        return RedirectResponse("/login", status_code=303)
+    view = _resolve_gw(request, db)
+    gw = view["gw"]
+    try:
+        info = fixtures_svc.refresh_fixtures(db)
+        notice = quote(f"Updated {info.get('fixtures', 0)} fixtures from FPL")
+        return RedirectResponse(f"/fixtures?gw={gw.number}&notice={notice}", status_code=303)
+    except Exception as exc:
+        return RedirectResponse(f"/fixtures?gw={gw.number}&error={exc}", status_code=303)
+
+
+@router.get("/points", response_class=HTMLResponse)
+def points_page(request: Request, db: Session = Depends(get_db)):
+    """Legacy — live scores now live on Lineup after the deadline."""
+    gw = request.query_params.get("gw")
+    loc = f"/lineup?gw={gw}" if gw else "/lineup"
+    return RedirectResponse(loc, status_code=303)
 
 
 @router.get("/league/{league_id}/opponent/{manager_id}", response_class=HTMLResponse)

@@ -25,6 +25,31 @@ class Club(Base):
     name: Mapped[str] = mapped_column(String(80))
     # FPL bootstrap teams[].code — used for shirt_{code}-66.webp artwork
     kit_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # FPL bootstrap teams[].id — fixtures API uses this
+    fpl_team_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
+
+
+class Fixture(Base):
+    """Premier League fixtures (from FPL) for FDR + live scores."""
+
+    __tablename__ = "fixtures"
+    __table_args__ = (UniqueConstraint("fpl_id", name="uq_fixture_fpl"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    fpl_id: Mapped[int] = mapped_column(Integer, index=True)
+    gameweek_number: Mapped[int] = mapped_column(Integer, index=True, default=0)
+    home_club_code: Mapped[str] = mapped_column(String(8), index=True)
+    away_club_code: Mapped[str] = mapped_column(String(8), index=True)
+    # FPL team_h_difficulty / team_a_difficulty (1 easiest … 5 hardest)
+    home_difficulty: Mapped[int] = mapped_column(Integer, default=3)
+    away_difficulty: Mapped[int] = mapped_column(Integer, default=3)
+    kickoff_at: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    started: Mapped[int] = mapped_column(Integer, default=0)
+    finished: Mapped[int] = mapped_column(Integer, default=0)
+    home_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    away_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # Raw FPL stats blob (goals_scored / assists / …) for match detail later
+    stats_json: Mapped[str] = mapped_column(Text, default="[]")
 
 
 class Player(Base):
@@ -40,6 +65,10 @@ class Player(Base):
     status: Mapped[str] = mapped_column(String(8), default="a")
     chance_of_playing: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     news: Mapped[str] = mapped_column(String(255), default="")
+    # FPL photo code e.g. "80201.jpg" → CDN headshot
+    photo: Mapped[str] = mapped_column(String(64), default="")
+    # Season KPIs from FPL bootstrap (JSON) — total_points, minutes, goals, form, …
+    season_stats_json: Mapped[str] = mapped_column(Text, default="{}")
 
 
 class Gameweek(Base):

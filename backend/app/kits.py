@@ -30,6 +30,7 @@ KIT_CODE_BY_SHORT: dict[str, int] = {
 }
 
 SHIRT_CDN = "https://fantasy.premierleague.com/dist/img/shirts/standard"
+PHOTO_CDN = "https://resources.premierleague.com/premierleague/photos/players/250x250"
 
 
 def kit_code_for(team_code: str, stored: int | None = None) -> int | None:
@@ -48,9 +49,27 @@ def shirt_url(team_code: str, *, position: str = "MID", kit_code: int | None = N
     return f"{SHIRT_CDN}/shirt_{code}-66.webp"
 
 
-def kit_for(team_code: str, *, position: str = "MID", kit_code: int | None = None) -> dict[str, str | int | None]:
+def photo_url(photo: str | None) -> str | None:
+    """FPL headshot URL from bootstrap `photo` field (e.g. 80201.jpg)."""
+    raw = (photo or "").strip()
+    if not raw:
+        return None
+    code = raw.split(".")[0]
+    if not code.isdigit():
+        return None
+    return f"{PHOTO_CDN}/p{code}.png"
+
+
+def kit_for(
+    team_code: str,
+    *,
+    position: str = "MID",
+    kit_code: int | None = None,
+    photo: str | None = None,
+) -> dict[str, str | int | None]:
     code = kit_code_for(team_code, kit_code)
     return {
         "kitCode": code,
         "shirt": shirt_url(team_code, position=position, kit_code=code),
+        "photo": photo_url(photo),
     }

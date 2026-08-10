@@ -7,6 +7,10 @@ from pydantic import BaseModel, Field
 
 from app.scoring import score_player
 from app.sync import demo_metrics_for_positions
+from app.db import SessionLocal
+from app.models import Gameweek
+from app.services import fixtures as fixtures_svc
+from app.services import player_profile as profile_svc
 
 router = APIRouter(prefix="/api")
 
@@ -55,3 +59,86 @@ def demo_scores() -> dict:
             "formula_version": result.formula_version,
         }
     return out
+
+
+@router.get("/players/{player_id}/fixtures")
+def player_next_fixtures(player_id: int, n: int = 3) -> dict:
+    """Next N fixtures for a player’s club with FDR mapped to 1–4."""
+    limit = max(1, min(6, int(n or 3)))
+    db = SessionLocal()
+    try:
+        items = fixtures_svc.next_fixtures_for_player(db, player_id=player_id, limit=limit)
+        return {"player_id": player_id, "fixtures": items}
+    finally:
+        db.close()
+
+
+@router.get("/players/{player_id}")
+def player_card(player_id: int, mode: str = "season", gw: Optional[int] = None) -> dict:
+    """Player detail: mode=season (Squad) or match (Lineup / locked GW)."""
+    db = SessionLocal()
+    try:
+        gameweek_id = None
+        if gw is not None:
+            row = db.query(Gameweek).filter(Gameweek.number == int(gw)).one_or_none()
+            gameweek_id = row.id if row else None
+        profile = profile_svc.player_profile(
+            db,
+            player_id=player_id,
+            mode="match" if mode == "match" else "season",
+            gameweek_id=gameweek_id,
+        )
+        if not profile:
+            return {"error": "not_found"}
+        return profile
+    finally:
+        db.close()
+
+
+@router.get("/fixtures")
+def api_fixtures(gw: Optional[int] = None) -> dict:
+    db = SessionLocal()
+    try:
+        if gw is None:
+            current = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
+            gw_number = current.number if current else 1
+        else:
+            gw_number = int(gw)
+        return {"gw": gw_number, "fixtures": fixtures_svc.fixtures_for_gameweek(db, gw_number=gw_number)}
+    finally:
+        db.close()
+
+
+@router.post("/fixtures/refresh")
+def api_fixtures_refresh(gw: Optional[int] = None) -> dict:
+    """Pull latest FPL fixture scores/stats, then return the selected GW list."""
+    db = SessionLocal()
+    try:
+        try:
+            info = fixtures_svc.refresh_fixtures(db)
+        except Exception as exc:
+            info = {"fixtures": 0, "error": str(exc)}
+        if gw is None:
+            current = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
+            gw_number = current.number if current else 1
+        else:
+            gw_number = int(gw)
+        return {
+            "gw": gw_number,
+            "synced": info,
+            "fixtures": fixtures_svc.fixtures_for_gameweek(db, gw_number=gw_number),
+        }
+    finally:
+        db.close()
+
+
+@router.get("/fixtures/{fixture_id}")
+def api_fixture_detail(fixture_id: int) -> dict:
+    db = SessionLocal()
+    try:
+        detail = fixtures_svc.fixture_detail(db, fixture_id=fixture_id)
+        if not detail:
+            return {"error": "not_found"}
+        return detail
+    finally:
+        db.close()

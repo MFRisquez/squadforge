@@ -35,6 +35,34 @@ def availability_flag(status: str, chance: int | None) -> str:
     return "ok"
 
 
+def _season_stats_from_element(el: dict[str, Any]) -> dict[str, Any]:
+    """Compact FPL season KPIs for player detail."""
+    minutes = float(el.get("minutes") or 0)
+    starts = float(el.get("starts") or 0)
+    return {
+        "total_points": float(el.get("total_points") or 0),
+        "points_per_game": float(el.get("points_per_game") or 0),
+        "form": str(el.get("form") or "0"),
+        "selected_by": float(el.get("selected_by_percent") or 0),
+        "minutes": minutes,
+        "starts": starts,
+        "minutes_per_start": round(minutes / starts, 1) if starts else 0.0,
+        "goals": float(el.get("goals_scored") or 0),
+        "assists": float(el.get("assists") or 0),
+        "clean_sheets": float(el.get("clean_sheets") or 0),
+        "goals_conceded": float(el.get("goals_conceded") or 0),
+        "saves": float(el.get("saves") or 0),
+        "penalties_saved": float(el.get("penalties_saved") or 0),
+        "yellow_cards": float(el.get("yellow_cards") or 0),
+        "red_cards": float(el.get("red_cards") or 0),
+        "bonus": float(el.get("bonus") or 0),
+        "bps": float(el.get("bps") or 0),
+        "ict_index": float(el.get("ict_index") or 0),
+        "expected_goals": float(el.get("expected_goals") or 0),
+        "expected_assists": float(el.get("expected_assists") or 0),
+    }
+
+
 def sync_from_fpl(db: Session, data: dict[str, Any] | None = None) -> dict[str, int]:
     """Upsert the full PL player list + clubs + gameweeks from FPL."""
     payload = data or fetch_bootstrap()
@@ -45,16 +73,20 @@ def sync_from_fpl(db: Session, data: dict[str, Any] | None = None) -> dict[str, 
     for team in payload["teams"]:
         code = (team.get("short_name") or team["name"][:3]).upper()[:8]
         kit_code = int(team.get("code") or 0) or None
+        fpl_team_id = int(team.get("id") or 0) or None
         club = db.query(Club).filter(Club.code == code).one_or_none()
         if not club:
-            club = Club(code=code, name=team["name"], kit_code=kit_code)
+            club = Club(code=code, name=team["name"], kit_code=kit_code, fpl_team_id=fpl_team_id)
             db.add(club)
         else:
             club.name = team["name"]
             club.kit_code = kit_code
+            club.fpl_team_id = fpl_team_id
         club_count += 1
 
     player_count = 0
+    import json as _json
+
     for el in payload["elements"]:
         team = teams.get(el["team"])
         if not team:
@@ -67,6 +99,8 @@ def sync_from_fpl(db: Session, data: dict[str, Any] | None = None) -> dict[str, 
         status = (el.get("status") or "a")[:8]
         chance = el.get("chance_of_playing_next_round")
         news = (el.get("news") or "")[:255]
+        photo = (el.get("photo") or "")[:64]
+        stats_json = _json.dumps(_season_stats_from_element(el))
         player = db.query(Player).filter(Player.external_id == ext).one_or_none()
         if not player:
             player = Player(
@@ -78,6 +112,8 @@ def sync_from_fpl(db: Session, data: dict[str, Any] | None = None) -> dict[str, 
                 status=status,
                 chance_of_playing=chance,
                 news=news,
+                photo=photo,
+                season_stats_json=stats_json,
             )
             db.add(player)
         else:
@@ -88,6 +124,8 @@ def sync_from_fpl(db: Session, data: dict[str, Any] | None = None) -> dict[str, 
             player.status = status
             player.chance_of_playing = chance
             player.news = news
+            player.photo = photo
+            player.season_stats_json = stats_json
         player_count += 1
 
     current_number = None
@@ -129,9 +167,19 @@ def sync_from_fpl(db: Session, data: dict[str, Any] | None = None) -> dict[str, 
         gw.is_current = 1 if gw.number == current_number else 0
 
     db.commit()
+
+    fixture_info: dict[str, int] = {"fixtures": 0}
+    try:
+        from app.services import fixtures as fixtures_svc
+
+        fixture_info = fixtures_svc.sync_fixtures(db)
+    except Exception:
+        fixture_info = {"fixtures": 0}
+
     return {
         "clubs": club_count,
         "players": player_count,
+        "fixtures": int(fixture_info.get("fixtures") or 0),
         "current_gw": current_number,
         "synced_at": now.isoformat() + "Z",
     }

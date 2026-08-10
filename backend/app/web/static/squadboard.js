@@ -60,13 +60,15 @@
   const detailActions = document.getElementById("detailActions");
   const closeDetailBtn = document.getElementById("closeDetail");
 
+  let starterIds = new Set(); // unused on Squad — lineup lives on /lineup
+  let captainId = null;
+  let viceId = null;
+
   let active = null; // { pos, index }
   let outPlayer = null;
   let inPlayer = null;
   let pickerMode = "add"; // add | replace | transfer
   let detailContext = null; // { player, fromPicker, pos, index }
-  let longPressTimer = null;
-  let longPressFired = false;
 
   const STATUS_LABEL = {
     a: "Available",
@@ -142,15 +144,15 @@
     const canFree = freeEdit();
     if (canFree) {
       modeHint.textContent = isComplete()
-        ? `Tap to replace · long-press for player info (${PLAYERS.length} in catalogue).`
-        : `Tap empty slots to pick · long-press a shirt for info (${PLAYERS.length} players).`;
+        ? `Tap a player for stats · replace from the sheet (${PLAYERS.length} in catalogue).`
+        : `Tap empty slots to pick · tap a player for stats (${PLAYERS.length} players).`;
       if (saveSquadBtn) saveSquadBtn.hidden = false;
       if (buildActions) buildActions.style.display = "";
     } else {
       modeHint.textContent =
         FT_LEFT < 1
-          ? `Tap to transfer (−${HIT_COST} hit) · long-press for info. Or play WC / FH.`
-          : `Tap to transfer out · long-press for player info.`;
+          ? `Tap a player for stats / transfer (−${HIT_COST} hit). Or play WC / FH.`
+          : `Tap a player for stats, transfers, or XI / bench.`;
       if (saveSquadBtn) saveSquadBtn.hidden = true;
     }
     syncHidden();
@@ -196,6 +198,23 @@
     detailContext = null;
   }
 
+  function playerHeroHtml(p, club) {
+    const shirt = p.shirt || "";
+    const photo = p.photo || "";
+    return `
+      <div class="player-detail-hero">
+        <div class="kit-portrait">
+          <img class="kit-shirt" src="${shirt}" alt="" width="66" height="87" />
+          ${photo ? `<img class="kit-face" src="${photo}" alt="" width="56" height="56" loading="lazy" />` : ""}
+        </div>
+        <div class="meta">
+          <strong>${club}</strong>
+          <span class="muted">${p.position} · £${Number(p.price).toFixed(1)}m</span>
+          <span class="avail-text-${(p.availability || "ok") === "ok" ? "ok" : p.availability || "ok"}">${statusLabel(p)}</span>
+        </div>
+      </div>`;
+  }
+
   function openPlayerDetail(p, opts = {}) {
     if (!playerDetail || !p) return;
     detailContext = {
@@ -204,7 +223,7 @@
       pos: opts.pos ?? p.position,
       index: opts.index ?? null,
     };
-    detailEyebrow.textContent = `${p.position} · ${p.team}`;
+    detailEyebrow.textContent = `Season · ${p.position}`;
     detailName.textContent = p.name;
     const club = p.club || p.team;
     const chance =
@@ -214,19 +233,30 @@
     const news = (p.news || "").trim();
     const avail = p.availability || "ok";
     detailBody.innerHTML = `
-      <div class="player-detail-hero">
-        <img src="${p.shirt || ""}" alt="" width="66" height="87" />
-        <div class="meta">
-          <strong>${club}</strong>
-          <span class="muted">${p.position} · £${Number(p.price).toFixed(1)}m</span>
-          <span class="avail-text-${avail === "ok" ? "ok" : avail}">${statusLabel(p)}</span>
-        </div>
-      </div>
+      ${playerHeroHtml(p, club)}
       <div class="player-detail-facts">
         <div class="fact"><span>Price</span><strong>£${Number(p.price).toFixed(1)}m</strong></div>
         <div class="fact"><span>Club</span><strong>${club}</strong></div>
         <div class="fact"><span>Status</span><strong>${statusLabel(p)}</strong></div>
         <div class="fact"><span>Chance next</span><strong>${chance}</strong></div>
+      </div>
+      <div class="kpi-block">
+        <div class="player-fdr-head">
+          <strong>Season KPIs</strong>
+          <span class="muted tiny">${p.position}</span>
+        </div>
+        <div class="kpi-grid" id="detailKpis">
+          <span class="muted tiny">Loading stats…</span>
+        </div>
+      </div>
+      <div class="player-fdr" id="detailFdr">
+        <div class="player-fdr-head">
+          <strong>Next 3</strong>
+          <span class="muted tiny">Fixture difficulty</span>
+        </div>
+        <div class="player-fdr-row" id="detailFdrRow">
+          <span class="muted tiny">Loading fixtures…</span>
+        </div>
       </div>
       ${
         news
@@ -265,41 +295,75 @@
           }
         });
         detailActions.appendChild(act);
+        const toLineup = document.createElement("a");
+        toLineup.className = "btn ghost";
+        toLineup.href = "/lineup";
+        toLineup.textContent = "Set XI on Lineup";
+        detailActions.appendChild(toLineup);
       }
     }
     playerDetail.hidden = false;
+    loadPlayerProfile(p.id);
   }
 
-  function bindLongPress(el, onLongPress, onTap) {
-    const clear = () => {
-      if (longPressTimer) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
-      }
-    };
-    const start = (e) => {
-      if (e.type === "mousedown" && e.button !== 0) return;
-      longPressFired = false;
-      clear();
-      longPressTimer = setTimeout(() => {
-        longPressFired = true;
-        onLongPress();
-      }, 420);
-    };
-    const end = (e) => {
-      clear();
-      if (longPressFired) {
-        e.preventDefault();
-        return;
-      }
-      onTap();
-    };
-    const cancel = () => clear();
-    el.addEventListener("pointerdown", start);
-    el.addEventListener("pointerup", end);
-    el.addEventListener("pointerleave", cancel);
-    el.addEventListener("pointercancel", cancel);
-    el.addEventListener("contextmenu", (e) => e.preventDefault());
+  function loadPlayerProfile(playerId) {
+    const row = document.getElementById("detailFdrRow");
+    const kpis = document.getElementById("detailKpis");
+    fetch(`/api/players/${playerId}?mode=season`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data) => {
+        if (!detailContext || detailContext.player.id !== playerId) return;
+        if (data.error) throw new Error(data.error);
+        if (data.photo && detailContext.player) {
+          detailContext.player.photo = data.photo;
+          const face = detailBody.querySelector(".kit-face");
+          const portrait = detailBody.querySelector(".kit-portrait");
+          if (!face && portrait && data.photo) {
+            const img = document.createElement("img");
+            img.className = "kit-face";
+            img.src = data.photo;
+            img.width = 56;
+            img.height = 56;
+            portrait.appendChild(img);
+          }
+        }
+        if (kpis) {
+          const items = data.kpis || [];
+          kpis.innerHTML = items.length
+            ? items
+                .map(
+                  (k) => `
+              <div class="kpi-cell">
+                <span>${k.label}</span>
+                <strong>${k.value}</strong>
+              </div>`
+                )
+                .join("")
+            : `<span class="muted tiny">No season stats yet — refresh players from FPL.</span>`;
+        }
+        if (row) {
+          const items = data.fixtures || [];
+          if (!items.length) {
+            row.innerHTML =
+              `<span class="muted tiny">No fixtures yet — use Fixtures → Refresh live.</span>`;
+          } else {
+            row.innerHTML = items
+              .map(
+                (fx) => `
+              <div class="fdr-chip fdr-${fx.difficulty}" title="${fx.opponent_name} (${fx.venue}) · FDR ${fx.difficulty}">
+                <span class="fdr-opp">${fx.opponent} (${fx.venue})</span>
+                <span class="fdr-gw">GW${fx.gw}</span>
+              </div>`
+              )
+              .join("");
+          }
+        }
+      })
+      .catch(() => {
+        if (!detailContext || detailContext.player.id !== playerId) return;
+        if (kpis) kpis.innerHTML = `<span class="muted tiny">Couldn’t load stats.</span>`;
+        if (row) row.innerHTML = `<span class="muted tiny">Couldn’t load fixtures.</span>`;
+      });
   }
 
   function render() {
@@ -320,17 +384,7 @@
             (outPlayer && outPlayer.id === p.id ? " is-out" : "");
           btn.innerHTML = shirtHtml(p);
           if (p.news) btn.title = p.news;
-          bindLongPress(
-            btn,
-            () => openPlayerDetail(p, { pos, index }),
-            () => {
-              if (LOCKED) {
-                openPlayerDetail(p, { pos, index });
-                return;
-              }
-              onFilledTap(pos, index, p);
-            }
-          );
+          btn.addEventListener("click", () => openPlayerDetail(p, { pos, index }));
         } else {
           btn.className = "shirt empty jersey-empty";
           btn.innerHTML = `<span class="plus">+</span><span class="shirt-hint">${pos}</span>`;
@@ -345,21 +399,6 @@
       });
     });
     refreshMeta();
-  }
-
-  function onFilledTap(pos, index, player) {
-    if (LOCKED) {
-      openPlayerDetail(player, { pos, index });
-      return;
-    }
-    if (freeEdit()) {
-      openPicker(pos, index, "replace");
-      return;
-    }
-    outPlayer = player;
-    inPlayer = null;
-    active = { pos, index };
-    openPicker(pos, index, "transfer");
   }
 
   function openPicker(pos, index, mode) {

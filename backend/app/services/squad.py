@@ -245,6 +245,100 @@ def save_lineup(
     db.commit()
 
 
+def set_player_lineup_role(
+    db: Session,
+    *,
+    manager_id: int,
+    gameweek_id: int,
+    player_id: int,
+    make_starter: bool,
+) -> dict:
+    """Move one owned player between XI and bench, keeping a legal formation."""
+    owned = owned_players(db, manager_id)
+    if len(owned) != settings.squad_size:
+        raise SquadError("Save your 15 players first")
+    by_id = {p.id: p for p in owned}
+    if player_id not in by_id:
+        raise SquadError("Player not in your squad")
+
+    picks = (
+        db.query(SquadPick)
+        .filter(SquadPick.manager_id == manager_id, SquadPick.gameweek_id == gameweek_id)
+        .all()
+    )
+    if not picks:
+        starters, _, captain, vice = default_lineup_from_owned(owned)
+    else:
+        starters = [p.player_id for p in picks if p.is_starter]
+        captain = next((p.player_id for p in picks if p.is_captain), None) or starters[0]
+        vice = next((p.player_id for p in picks if getattr(p, "is_vice_captain", 0)), None)
+        if not vice or vice == captain:
+            vice = next((s for s in starters if s != captain), captain)
+
+    starter_set = set(starters)
+    is_starter = player_id in starter_set
+    if make_starter and is_starter:
+        return {"starters": starters, "captain": captain, "vice": vice, "changed": False}
+    if (not make_starter) and (not is_starter):
+        return {"starters": starters, "captain": captain, "vice": vice, "changed": False}
+
+    if make_starter:
+        if len(starter_set) >= 11:
+            # swap with cheapest same-position starter if possible, else cheapest starter
+            player = by_id[player_id]
+            candidates = [
+                sid
+                for sid in starters
+                if by_id[sid].position == player.position and sid != captain and sid != vice
+            ]
+            if not candidates:
+                candidates = [sid for sid in starters if sid != captain and sid != vice]
+            if not candidates:
+                raise SquadError("Can't move into XI — adjust captain/vice first")
+            drop = sorted(candidates, key=lambda sid: by_id[sid].price)[0]
+            starter_set.remove(drop)
+        starter_set.add(player_id)
+    else:
+        if player_id == captain or player_id == vice:
+            raise SquadError("Clear captain/vice first (or move another starter in)")
+        if len(starter_set) <= 11:
+            # need a bench player to promote — prefer same position
+            player = by_id[player_id]
+            bench = [pid for pid in by_id if pid not in starter_set]
+            promote = next((pid for pid in bench if by_id[pid].position == player.position), None)
+            if promote is None:
+                # any bench that keeps shape valid after swap
+                promote = None
+                for pid in bench:
+                    trial = (starter_set - {player_id}) | {pid}
+                    try:
+                        validate_starter_shape(Counter(by_id[i].position for i in trial))
+                        promote = pid
+                        break
+                    except SquadError:
+                        continue
+            if promote is None:
+                raise SquadError("No legal bench swap for that move")
+            starter_set.remove(player_id)
+            starter_set.add(promote)
+
+    new_starters = list(starter_set)
+    if captain not in starter_set:
+        captain = new_starters[-1]
+    if vice not in starter_set or vice == captain:
+        vice = next((s for s in new_starters if s != captain), captain)
+    validate_starter_shape(Counter(by_id[i].position for i in new_starters))
+    save_lineup(
+        db,
+        manager_id=manager_id,
+        gameweek_id=gameweek_id,
+        starter_ids=new_starters,
+        captain_id=captain,
+        vice_id=vice,
+    )
+    return {"starters": new_starters, "captain": captain, "vice": vice, "changed": True}
+
+
 def make_transfer(
     db: Session,
     *,

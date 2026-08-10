@@ -6,23 +6,41 @@
 
 <div class="pick-header">
   <div>
-    <p class="eyebrow">Lineup</p>
-    <h1>Starting XI</h1>
+    <p class="eyebrow">{% if edits_locked %}Live scores{% else %}Starting XI{% endif %}</p>
+    <h1>{% if edits_locked %}GW{{ gw.number }} Lineup{% else %}Lineup{% endif %}</h1>
   </div>
   <div class="budget-card">
-    <span class="budget-label">Squad value</span>
-    <strong>£{{ '%.1f'|format(spend) }}m</strong>
-    <span class="budget-sub">from your 15</span>
+    {% if edits_locked and gw_total is not none %}
+      <span class="budget-label">Your score</span>
+      <strong>{{ '%.0f'|format(gw_total) }}</strong>
+      <span class="budget-sub">this gameweek</span>
+    {% else %}
+      <span class="budget-label">Squad value</span>
+      <strong>£{{ '%.1f'|format(spend) }}m</strong>
+      <span class="budget-sub">from your 15</span>
+    {% endif %}
   </div>
 </div>
 <p class="lede tight">
   {% if edits_locked %}
-    Lineup locked for this gameweek.
+    Deadline passed — tap a player for <strong>this GW</strong> match KPIs. Refresh live scores below.
   {% else %}
-    Tap to move players between pitch and bench. Only the captain shows <strong>C</strong> (×2);
-    vice shows <strong>V</strong> — if the captain doesn’t play, the vice gets the armband.
+    Tap a player to bench/start them (or see details). Transfers &amp; season stats live on <a href="/team">Squad</a>.
   {% endif %}
 </p>
+
+{% if edits_locked %}
+<div class="action-row">
+  <form method="post" action="/score/run">
+    <input type="hidden" name="mode" value="auto" />
+    <button class="btn" type="submit">Refresh live scores</button>
+  </form>
+  <form method="post" action="/score/run">
+    <input type="hidden" name="mode" value="demo" />
+    <button class="btn ghost" type="submit">Demo scores</button>
+  </form>
+</div>
+{% endif %}
 
 {% if not edits_locked %}
 <section class="panel captain-panel">
@@ -70,6 +88,20 @@
     <a class="btn ghost" href="/team?gw={{ gw.number }}">Squad &amp; Transfers</a>
   </div>
 </form>
+
+<div class="drawer" id="playerDetail" hidden>
+  <div class="drawer-sheet player-detail-sheet">
+    <header class="drawer-head">
+      <div>
+        <p class="eyebrow" id="detailEyebrow">Player</p>
+        <h2 id="detailName">—</h2>
+      </div>
+      <button type="button" class="icon-btn" id="closeDetail" aria-label="Close">✕</button>
+    </header>
+    <div class="player-detail-body" id="detailBody"></div>
+    <div class="player-detail-actions" id="detailActions"></div>
+  </div>
+</div>
 
 <script id="ownedData" type="application/json">{{ owned_json | tojson }}</script>
 <script id="initialLineup" type="application/json">{{ initial_lineup | tojson }}</script>
