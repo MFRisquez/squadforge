@@ -2402,7 +2402,7 @@ body.picker-open {
 .transfer-rail-row {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 3.1rem 3.1rem 3.1rem;
+  grid-template-columns: minmax(0, 1fr) 3.6rem 3.1rem 3.1rem;
   column-gap: 0.35rem;
   align-items: center;
   padding: 0.52rem 0.5rem;
@@ -2798,7 +2798,7 @@ body.picker-open {
   }
   .rail-kpis,
   .transfer-rail-row {
-    grid-template-columns: minmax(0, 1fr) 3.2rem 3.2rem 3.2rem;
+    grid-template-columns: minmax(0, 1fr) 3.6rem 3.2rem 3.2rem;
     column-gap: 0.3rem;
     padding-left: 0.45rem;
     padding-right: 0.45rem;
