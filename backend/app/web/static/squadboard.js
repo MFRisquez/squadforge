@@ -54,7 +54,7 @@
   const squadForm = document.getElementById("squadForm");
   const transferRailList = document.getElementById("transferRailList");
   const transferRailTitle = document.getElementById("transferRailTitle");
-  const transferRailHint = document.getElementById("transferRailHint");
+  const transferSort = document.getElementById("transferSort");
   const playerDetail = document.getElementById("playerDetail");
   const detailEyebrow = document.getElementById("detailEyebrow");
   const detailName = document.getElementById("detailName");
@@ -301,58 +301,109 @@
     return Number.isFinite(n) ? n : 0;
   }
 
-  function transferCandidates() {
-    const owned = new Set(filledIds());
+  function pointsScore(p) {
+    const n = Number(p?.total_points);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function railSortKey() {
+    const v = transferSort && transferSort.value;
+    return v === "form" || v === "price" || v === "points" ? v : "points";
+  }
+
+  function sortRailPlayers(rows) {
+    const key = railSortKey();
+    return rows.slice().sort((a, b) => {
+      if (a.locked !== b.locked) return a.locked ? 1 : -1;
+      if (key === "form") {
+        return formScore(b) - formScore(a) || pointsScore(b) - pointsScore(a) || b.price - a.price;
+      }
+      if (key === "price") {
+        return b.price - a.price || pointsScore(b) - pointsScore(a) || formScore(b) - formScore(a);
+      }
+      return pointsScore(b) - pointsScore(a) || formScore(b) - formScore(a) || b.price - a.price;
+    });
+  }
+
+  function railContext() {
     const bank = BUDGET - spend();
-    let pos = null;
-    let maxPrice = Infinity;
-    let excludeTeamBoost = null;
-    if (outPlayer && !freeEdit()) {
-      pos = outPlayer.position;
-      maxPrice = bank + (outPlayer.price || 0) + 1e-9;
-      excludeTeamBoost = outPlayer.id;
-    } else if (active && freeEdit()) {
-      pos = active.pos;
-      const currentId = slots[active.pos][active.index];
-      const currentPrice = byId[currentId]?.price || 0;
-      maxPrice = bank + currentPrice + 1e-9;
+    if (outPlayer && removedSlot && !freeEdit()) {
+      return {
+        mode: "transfer",
+        pos: outPlayer.position,
+        // Slot already empty, so bank already includes the freed cash.
+        maxPrice: bank + 1e-9,
+        excludeId: outPlayer.id,
+        title: `In for ${shortName(outPlayer.name)}`,
+      };
     }
-    return PLAYERS.filter((p) => {
+    if (freeEdit() && active && slots[active.pos][active.index] == null) {
+      return {
+        mode: "add",
+        pos: active.pos,
+        maxPrice: bank + 1e-9,
+        excludeId: null,
+        title: `${active.pos} options`,
+      };
+    }
+    if (freeEdit() && !isComplete()) {
+      return {
+        mode: "browse",
+        pos: null,
+        maxPrice: bank + 1e-9,
+        excludeId: null,
+        title: "Add players",
+      };
+    }
+    return {
+      mode: "browse",
+      pos: null,
+      maxPrice: null,
+      excludeId: null,
+      title: "Top players",
+    };
+  }
+
+  function transferCandidates() {
+    const ctx = railContext();
+    const owned = new Set(filledIds());
+    if (ctx.excludeId) owned.delete(ctx.excludeId);
+    const counts = clubCounts(ctx.excludeId);
+    const lockBudget = ctx.maxPrice != null;
+    const rows = PLAYERS.filter((p) => {
       if (!p || owned.has(p.id)) return false;
-      if (pos && p.position !== pos) return false;
-      if (p.price > maxPrice) return false;
-      const counts = clubCounts(excludeTeamBoost);
-      if ((counts[p.team] || 0) >= MAX_CLUB) return false;
+      if (ctx.pos && p.position !== ctx.pos) return false;
       return true;
-    })
-      .sort((a, b) => formScore(b) - formScore(a) || (b.total_points || 0) - (a.total_points || 0) || b.price - a.price)
-      .slice(0, 18);
+    }).map((p) => {
+      const clubBlocked = (counts[p.team] || 0) >= MAX_CLUB;
+      const budgetBlocked = lockBudget && p.price > ctx.maxPrice;
+      return {
+        ...p,
+        locked: clubBlocked || budgetBlocked,
+        lockReason: clubBlocked
+          ? `Max ${MAX_CLUB} from ${p.team}`
+          : budgetBlocked
+            ? "Over budget"
+            : "",
+      };
+    });
+    return sortRailPlayers(rows).slice(0, 24);
   }
 
   function paintTransferRail() {
     if (!transferRailList) return;
+    const ctx = railContext();
     const rows = transferCandidates();
-    if (transferRailTitle) {
-      transferRailTitle.textContent = outPlayer && !freeEdit()
-        ? `In for ${shortName(outPlayer.name)}`
-        : active && freeEdit()
-          ? `${active.pos} options`
-          : "Top form";
-    }
-    if (transferRailHint) {
-      transferRailHint.textContent = outPlayer && !freeEdit()
-        ? `Same position · under budget`
-        : "Form · price · points";
-    }
+    if (transferRailTitle) transferRailTitle.textContent = ctx.title;
     transferRailList.innerHTML = "";
     if (!rows.length) {
       const empty = document.createElement("li");
       empty.className = "muted tiny fx-rail-empty";
       empty.textContent = LOCKED
         ? "Squad locked this GW."
-        : outPlayer
-          ? "No affordable targets in that position."
-          : "Tap a player to transfer, or an empty slot to add.";
+        : ctx.pos
+          ? `No ${ctx.pos} options right now.`
+          : "No players to show.";
       transferRailList.appendChild(empty);
       return;
     }
@@ -360,33 +411,38 @@
       const li = document.createElement("li");
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "transfer-rail-row" + (inPlayer && inPlayer.id === p.id ? " is-selected" : "");
+      btn.className =
+        "transfer-rail-row" +
+        (inPlayer && inPlayer.id === p.id ? " is-selected" : "") +
+        (p.locked ? " is-locked" : "");
+      btn.disabled = Boolean(p.locked);
+      if (p.lockReason) btn.title = p.lockReason;
+      const metric =
+        railSortKey() === "form"
+          ? formScore(p).toFixed(1)
+          : railSortKey() === "price"
+            ? `£${Number(p.price).toFixed(1)}`
+            : String(pointsScore(p));
       btn.innerHTML = `
         <span class="tr-name">
           <strong>${p.name}</strong>
-          <span>${p.team} · ${p.position}</span>
+          <span>${p.team} · ${p.position}${p.lockReason ? ` · ${p.lockReason}` : ""}</span>
         </span>
-        <span class="tr-form">${formScore(p).toFixed(1)}</span>
+        <span class="tr-metric">${metric}</span>
         <span class="tr-price">£${Number(p.price).toFixed(1)}</span>
-        <span class="tr-pts">${Number(p.total_points || 0)}</span>
       `;
-      btn.addEventListener("click", () => pickFromTransferRail(p));
+      if (!p.locked) btn.addEventListener("click", () => pickFromTransferRail(p));
       li.appendChild(btn);
       transferRailList.appendChild(li);
     });
   }
 
   function pickFromTransferRail(p) {
-    if (LOCKED || !p) return;
+    if (LOCKED || !p || p.locked) return;
     if (outPlayer && !freeEdit()) {
-      const slot =
-        removedSlot ||
-        (() => {
-          const idx = slots[outPlayer.position].findIndex((id) => id === outPlayer.id);
-          return idx >= 0 ? { pos: outPlayer.position, index: idx } : null;
-        })();
+      const slot = removedSlot;
       if (!slot) {
-        alert("Pick the empty slot for the player coming in.");
+        alert("Pick who to transfer out first.");
         return;
       }
       active = { pos: slot.pos, index: slot.index };
@@ -395,26 +451,18 @@
       return;
     }
     if (freeEdit()) {
-      let target = active;
-      if (!target || slots[target.pos][target.index] != null) {
-        const pos = p.position;
-        const idx = slots[pos].findIndex((id) => id == null);
-        if (idx < 0) {
-          openPlayerDetail(p, { fromPicker: false });
-          return;
-        }
-        target = { pos, index: idx };
+      let target = active && slots[active.pos][active.index] == null ? active : null;
+      if (!target) {
+        const idx = slots[p.position].findIndex((id) => id == null);
+        if (idx < 0) return;
+        target = { pos: p.position, index: idx };
       }
-      if (p.position !== target.pos) {
-        openPlayerDetail(p, { fromPicker: false });
-        return;
-      }
+      if (p.position !== target.pos) return;
       active = target;
       pickerMode = "add";
       pickPlayer(p);
       return;
     }
-    openPlayerDetail(p, { fromPicker: false });
   }
 
   function refreshSwapBar() {
@@ -464,9 +512,10 @@
       outPlayer = null;
       inPlayer = null;
       removedSlot = null;
+      active = { pos, index };
+      pickerMode = "add";
       closeDetail();
       render();
-      openPicker(pos, index, "add");
       return;
     }
 
@@ -479,10 +528,10 @@
     inPlayer = null;
     removedSlot = { pos, index };
     active = { pos, index };
+    pickerMode = "transfer";
     slots[pos][index] = null;
     closeDetail();
     render();
-    openPicker(pos, index, "transfer");
   }
 
   function statusLabel(p) {
@@ -716,7 +765,9 @@
           if (p.news) btn.title = p.news;
           btn.addEventListener("click", () => {
             if (pendingIn) {
-              openPicker(pos, index, "transfer");
+              active = { pos, index };
+              pickerMode = "transfer";
+              paintTransferRail();
               return;
             }
             openPlayerDetail(p, { pos, index });
@@ -737,10 +788,14 @@
                   alert(`Pick a ${outPlayer.position} to replace ${outPlayer.name}.`);
                   return;
                 }
-                openPicker(pos, index, "transfer");
+                active = { pos, index };
+                pickerMode = "transfer";
+                paintTransferRail();
                 return;
               }
-              openPicker(pos, index, "add");
+              active = { pos, index };
+              pickerMode = "add";
+              paintTransferRail();
             });
           } else {
             btn.disabled = true;
@@ -951,6 +1006,9 @@
 
     if (clearSwapBtn) {
       clearSwapBtn.addEventListener("click", () => clearPendingTransfer());
+    }
+    if (transferSort) {
+      transferSort.addEventListener("change", () => paintTransferRail());
     }
 
     if (squadForm) {

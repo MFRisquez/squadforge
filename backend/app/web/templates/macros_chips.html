@@ -61,7 +61,7 @@
     {% for key, label, left in items %}
       {% set is_active = active_chip and active_chip.chip == key %}
       {% set unavailable = left < 1 or (active_chip and not is_active) %}
-      <div class="chip-card-fpl {% if key == 'super_sub' %}chip-card-ss{% endif %} {% if is_active %}is-active{% endif %} {% if left < 1 and not is_active %}is-spent{% endif %} {% if unavailable and not is_active %}is-unavailable{% endif %}" role="listitem">
+      <div class="chip-card-fpl {% if key == 'super_sub' %}chip-card-ss{% elif key in ['bench_boost', 'triple_captain'] %}chip-card-wide{% endif %} {% if is_active %}is-active{% endif %} {% if left < 1 and not is_active %}is-spent{% endif %} {% if unavailable and not is_active %}is-unavailable{% endif %}" role="listitem">
         <div class="chip-ico" aria-hidden="true">{{ chip_icon(key) }}</div>
         <strong class="chip-name">{{ label }}</strong>
         {% if is_active %}

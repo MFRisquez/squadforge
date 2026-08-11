@@ -113,14 +113,15 @@
     <header class="desk-rail-head">
       <p class="eyebrow">Transfers</p>
       <h2 id="transferRailTitle">Targets</h2>
-      <p class="muted tiny" id="transferRailHint">Form · price · points</p>
+      <label class="rail-sort">
+        <span class="sr-only">Sort by</span>
+        <select id="transferSort" aria-label="Sort transfer targets">
+          <option value="points">Points</option>
+          <option value="form">Form</option>
+          <option value="price">Price</option>
+        </select>
+      </label>
     </header>
-    <div class="rail-kpis" aria-hidden="true">
-      <span>Player</span>
-      <span>Form</span>
-      <span>£</span>
-      <span>Pts</span>
-    </div>
     <ul class="transfer-rail-list" id="transferRailList"></ul>
   </aside>
 </div>

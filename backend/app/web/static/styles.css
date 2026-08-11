@@ -586,17 +586,17 @@ select {
 }
 .td-corner {
   position: absolute;
-  top: 0.35rem;
-  left: 0.35rem;
+  top: 0.4rem;
+  left: 0.4rem;
   z-index: 3;
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 0.08rem 0.28rem;
+  gap: 0.14rem 0.4rem;
   align-items: center;
-  max-width: 6.6rem;
-  padding: 0.2rem 0.28rem;
-  border-radius: 0.45rem;
-  background: rgba(6, 20, 58, 0.72);
+  max-width: 9.4rem;
+  padding: 0.38rem 0.42rem;
+  border-radius: 0.55rem;
+  background: rgba(6, 20, 58, 0.78);
   color: #fff;
   box-shadow: 0 4px 12px rgba(0,0,0,0.22);
   transition: opacity 0.22s ease, transform 0.22s ease;
@@ -606,28 +606,28 @@ select {
   transform: scale(0.98);
 }
 .td-badge {
-  width: 1.85rem;
-  height: 1.85rem;
+  width: 2.55rem;
+  height: 2.55rem;
   object-fit: contain;
   grid-row: span 2;
 }
 .td-select {
   grid-column: 1 / -1;
   width: 100%;
-  font-size: 0.52rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  padding: 0.1rem 0.22rem;
-  min-height: 1.35rem;
-  height: 1.35rem;
+  padding: 0.22rem 0.35rem;
+  min-height: 1.7rem;
+  height: 1.7rem;
   line-height: 1.1;
-  border-radius: 0.28rem;
+  border-radius: 0.35rem;
   border: 0;
   background: rgba(255,255,255,0.95);
   color: #0b1b3f;
 }
 .td-corner-meta {
   display: grid;
-  gap: 0.02rem;
+  gap: 0.06rem;
   min-width: 0;
 }
 .pitch-save-btn {
@@ -690,29 +690,29 @@ select {
   margin: 0.35rem 0 0;
 }
 .td-kicker {
-  font-size: 0.5rem;
+  font-size: 0.62rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   color: #00ff87;
 }
 .td-corner-meta strong {
-  font-size: 0.62rem;
+  font-size: 0.78rem;
   line-height: 1.1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .td-window {
-  font-size: 0.5rem;
+  font-size: 0.6rem;
   opacity: 0.8;
 }
 .td-foot {
   display: inline-block;
   margin-top: 0.1rem;
-  font-size: 0.5rem;
+  font-size: 0.6rem;
   font-weight: 800;
-  padding: 0.1rem 0.25rem;
-  border-radius: 0.2rem;
+  padding: 0.12rem 0.3rem;
+  border-radius: 0.25rem;
   background: rgba(255,255,255,0.92);
   color: #102018;
   line-height: 1.1;
@@ -1120,11 +1120,50 @@ select {
   margin: 0;
   justify-content: flex-start;
 }
+.chip-card-fpl.chip-card-wide {
+  width: 10.8rem;
+}
+.chip-card-fpl.chip-card-wide .chip-name {
+  white-space: normal;
+  line-height: 1.15;
+  min-height: 1.8em;
+}
 .chip-card-fpl.chip-card-ss {
   width: min(22rem, 96vw);
   max-width: 100%;
   grid-template-columns: auto 1fr;
   align-self: stretch;
+}
+.rail-sort {
+  display: block;
+  margin-top: 0.35rem;
+}
+.rail-sort select {
+  width: 100%;
+  font-size: 0.72rem;
+  font-weight: 700;
+  min-height: 2rem;
+  padding: 0.28rem 0.4rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+.transfer-rail-row {
+  grid-template-columns: minmax(0, 1fr) 2.4rem 2.6rem;
+}
+.transfer-rail-row .tr-metric {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-align: right;
+  color: #0b2a16;
+}
+.transfer-rail-row.is-locked {
+  opacity: 0.42;
+  filter: grayscale(0.85);
+  cursor: not-allowed;
+}
+.transfer-rail-row.is-locked:disabled {
+  pointer-events: none;
 }
 .chip-card-fpl.chip-card-ss .chip-ss-form {
   grid-column: 1 / -1;
@@ -2675,24 +2714,38 @@ body.picker-open {
   }
   .desk-rail-head h2 { font-size: 0.95rem; }
   .desk-rail-head .muted { font-size: 0.6rem; }
-  .rail-kpis {
-    grid-template-columns: minmax(0, 1fr) 2.1rem 2.3rem 2.1rem;
-    gap: 0.25rem;
-    padding: 0.14rem 0.3rem;
-    font-size: 0.52rem;
-  }
   .transfer-rail-row {
-    grid-template-columns: minmax(0, 1fr) 2.1rem 2.3rem 2.1rem;
+    grid-template-columns: minmax(0, 1fr) 2.4rem 2.7rem;
     gap: 0.25rem;
-    padding: 0.38rem 0.3rem;
+    padding: 0.4rem 0.3rem;
   }
   .transfer-rail-row .tr-name strong { font-size: 0.74rem; }
   .transfer-rail-row .tr-name span { font-size: 0.56rem; }
-  .transfer-rail-row .tr-form,
-  .transfer-rail-row .tr-price,
-  .transfer-rail-row .tr-pts { font-size: 0.7rem; }
-  .transfer-rail-list,
-  .fdr-rail-list { max-height: min(72vh, 40rem); }
+  .transfer-rail-row .tr-metric,
+  .transfer-rail-row .tr-price { font-size: 0.7rem; }
+  .transfer-rail-list { max-height: min(72vh, 40rem); }
+  .desk-xi-solo { grid-template-columns: minmax(0, 1fr); }
+  .chip-card-fpl.chip-card-wide {
+    width: 12.2rem;
+    padding: 0.38rem 0.7rem 0.38rem 0.45rem;
+  }
+  .chip-card-fpl.chip-card-wide .chip-name { font-size: 0.84rem; }
+  .td-corner {
+    max-width: 11rem;
+    padding: 0.48rem 0.5rem;
+    gap: 0.16rem 0.45rem;
+  }
+  .td-badge { width: 3rem; height: 3rem; }
+  .td-select {
+    font-size: 0.78rem;
+    min-height: 1.9rem;
+    height: 1.9rem;
+    padding: 0.28rem 0.4rem;
+  }
+  .td-kicker { font-size: 0.68rem; }
+  .td-corner-meta strong { font-size: 0.88rem; }
+  .td-window,
+  .td-foot { font-size: 0.66rem; }
 
   .xi-pitch-wrap,
   .squad-pitch-wrap,
@@ -3261,23 +3314,26 @@ body.picker-open {
   .stat strong { font-size: 0.72rem; }
   .stat-sub { display: none; }
   .td-corner {
-    top: 0.22rem;
-    left: 0.22rem;
-    max-width: 5.4rem;
-    padding: 0.1rem 0.16rem;
-    gap: 0.04rem 0.16rem;
-    border-radius: 0.38rem;
+    top: 0.28rem;
+    left: 0.28rem;
+    max-width: 7.6rem;
+    padding: 0.28rem 0.32rem;
+    gap: 0.1rem 0.28rem;
+    border-radius: 0.48rem;
   }
-  .td-badge { width: 1.35rem; height: 1.35rem; }
-  .td-kicker { font-size: 0.42rem; }
-  .td-corner-meta strong { font-size: 0.52rem; }
+  .td-badge { width: 2.15rem; height: 2.15rem; }
+  .td-kicker { font-size: 0.56rem; }
+  .td-corner-meta strong { font-size: 0.68rem; }
   .td-window,
-  .td-foot { font-size: 0.42rem; }
+  .td-foot { font-size: 0.52rem; }
   .td-select {
-    font-size: 0.46rem;
-    min-height: 1.15rem;
-    height: 1.15rem;
-    padding: 0.04rem 0.12rem;
+    font-size: 0.6rem;
+    min-height: 1.5rem;
+    height: 1.5rem;
+    padding: 0.14rem 0.28rem;
+  }
+  .chip-card-fpl.chip-card-wide {
+    width: min(9.8rem, 42vw);
   }
   .fx-badge { width: 1.45rem; height: 1.45rem; }
   .fx-club-name { display: none; }
