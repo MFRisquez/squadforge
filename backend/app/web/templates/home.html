@@ -105,6 +105,29 @@
   </div>
 </section>
 
+<section class="panel subtle phone-demo-panel">
+  <h2>Phone app · live GW test</h2>
+  <p class="muted">Install SquadForge on your phone (Add to Home Screen), then start a live demo to browse XI / Fixtures as if the gameweek already has scores.</p>
+  <div class="row wrap-row">
+    {% if live_demo_active %}
+    <form method="post" action="/demo/live-stop">
+      <button class="btn ghost" type="submit">End live demo</button>
+    </form>
+    <form method="post" action="/demo/live-start">
+      <button class="btn" type="submit">Refresh demo scores</button>
+    </form>
+    {% else %}
+    <form method="post" action="/demo/live-start">
+      <button class="btn" type="submit">Start live GW demo</button>
+    </form>
+    {% endif %}
+    <button type="button" class="btn ghost" id="installAppBtn" hidden>Install app</button>
+  </div>
+  {% if live_demo_active %}
+  <p class="muted tiny">Live demo is on — deadline locked, fixtures mid-GW, demo points loaded.</p>
+  {% endif %}
+</section>
+
 <section class="panel subtle">
   <h2>Keep players updated</h2>
   <p class="muted">Latest FPL prices, injuries, kits, and fixtures.</p>

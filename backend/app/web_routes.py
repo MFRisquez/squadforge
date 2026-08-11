@@ -204,11 +204,26 @@ def _owned_payload(
 
 @router.get("/", response_class=HTMLResponse)
 def home(request: Request, db: Session = Depends(get_db)):
+    from app.services import demo_live as demo_svc
+
     manager = current_manager(request, db)
     leagues = league_svc.manager_leagues(db, manager.id) if manager else []
+    live_demo = False
+    try:
+        live_demo = demo_svc.is_live_demo_active(db)
+    except Exception:
+        live_demo = False
     return templates.TemplateResponse(
         "home.html",
-        _ctx(request, db, leagues=leagues, formula_version=settings.formula_version),
+        _ctx(
+            request,
+            db,
+            leagues=leagues,
+            formula_version=settings.formula_version,
+            live_demo_active=live_demo,
+            notice=request.query_params.get("notice"),
+            error=request.query_params.get("error"),
+        ),
     )
 
 
@@ -1034,6 +1049,44 @@ def score_run(
     from urllib.parse import quote
 
     return RedirectResponse(f"/lineup?gw={summary['gameweek']}&notice={quote(notice)}", status_code=303)
+
+
+@router.post("/demo/live-start")
+def demo_live_start(request: Request, db: Session = Depends(get_db)):
+    """Phone-test helper: lock current GW as live with fixtures + demo points."""
+    from urllib.parse import quote
+
+    from app.services import demo_live as demo_svc
+
+    manager = current_manager(request, db)
+    if not manager:
+        return RedirectResponse("/login", status_code=303)
+    try:
+        summary = demo_svc.start_live_demo(db, manager)
+    except Exception as exc:
+        return RedirectResponse(f"/?error={quote(str(exc))}", status_code=303)
+    gw = summary.get("gameweek")
+    notice = f"Live GW{gw} demo ready — open XI / Fixtures on your phone."
+    return RedirectResponse(f"/lineup?gw={gw}&notice={quote(notice)}", status_code=303)
+
+
+@router.post("/demo/live-stop")
+def demo_live_stop(request: Request, db: Session = Depends(get_db)):
+    """Restore deadline + fixtures after a live GW demo session."""
+    from urllib.parse import quote
+
+    from app.services import demo_live as demo_svc
+
+    manager = current_manager(request, db)
+    if not manager:
+        return RedirectResponse("/login", status_code=303)
+    try:
+        summary = demo_svc.stop_live_demo(db)
+    except Exception as exc:
+        return RedirectResponse(f"/?error={quote(str(exc))}", status_code=303)
+    if not summary.get("restored"):
+        return RedirectResponse("/?notice=No+live+demo+was+active", status_code=303)
+    return RedirectResponse("/?notice=Live+demo+ended+·+deadline+restored", status_code=303)
 
 
 @router.get("/rules", response_class=HTMLResponse)

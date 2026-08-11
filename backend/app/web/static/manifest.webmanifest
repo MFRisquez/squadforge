@@ -1,13 +1,14 @@
 {
   "name": "SquadForge",
   "short_name": "SquadForge",
-  "description": "Private Fantasy Premier League for friends",
-  "start_url": "/",
+  "description": "Private Fantasy Premier League for friends — phone app",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#06143a",
   "theme_color": "#06143a",
+  "categories": ["sports", "games"],
   "icons": [
     {
       "src": "/static/icons/icon-192.png",
@@ -19,7 +20,13 @@
       "src": "/static/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
