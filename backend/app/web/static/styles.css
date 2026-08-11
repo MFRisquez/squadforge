@@ -1120,13 +1120,15 @@ select {
   margin: 0;
   justify-content: flex-start;
 }
+/* Wider BB/TC chip labels apply on desktop only (see min-width: 900px). */
 .chip-card-fpl.chip-card-wide {
-  width: 10.8rem;
+  width: 7.2rem;
 }
 .chip-card-fpl.chip-card-wide .chip-name {
-  white-space: normal;
-  line-height: 1.15;
-  min-height: 1.8em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 0;
 }
 .chip-card-fpl.chip-card-ss {
   width: min(22rem, 96vw);
@@ -1859,6 +1861,8 @@ body.picker-open {
 .fdr-chip.fdr-4 .fdr-gw { opacity: 0.9; }
 
 .fixtures-board { margin: 0.35rem 0 1rem; }
+.fixtures-desk { display: block; }
+.fixture-detail-panel { display: none; }
 .fixture-list {
   list-style: none;
   margin: 0;
@@ -2338,7 +2342,7 @@ body.picker-open {
 }
 .rail-kpis {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 2.4rem 2.6rem 2.4rem;
+  grid-template-columns: minmax(0, 1fr) 2.4rem 2.6rem;
   gap: 0.35rem;
   padding: 0.2rem 0.45rem;
   font-size: 0.58rem;
@@ -2346,6 +2350,10 @@ body.picker-open {
   letter-spacing: 0.04em;
   color: var(--muted);
   border-bottom: 1px solid var(--line);
+}
+.rail-kpis span:nth-child(2),
+.rail-kpis span:nth-child(3) {
+  text-align: right;
 }
 .transfer-rail-list {
   list-style: none;
@@ -2714,9 +2722,12 @@ body.picker-open {
   }
   .desk-rail-head h2 { font-size: 0.95rem; }
   .desk-rail-head .muted { font-size: 0.6rem; }
+  .rail-kpis,
   .transfer-rail-row {
     grid-template-columns: minmax(0, 1fr) 2.4rem 2.7rem;
     gap: 0.25rem;
+  }
+  .transfer-rail-row {
     padding: 0.4rem 0.3rem;
   }
   .transfer-rail-row .tr-name strong { font-size: 0.74rem; }
@@ -2729,7 +2740,14 @@ body.picker-open {
     width: 12.2rem;
     padding: 0.38rem 0.7rem 0.38rem 0.45rem;
   }
-  .chip-card-fpl.chip-card-wide .chip-name { font-size: 0.84rem; }
+  .chip-card-fpl.chip-card-wide .chip-name {
+    font-size: 0.84rem;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    line-height: 1.15;
+    min-height: 1.8em;
+  }
   .td-corner {
     max-width: 11rem;
     padding: 0.48rem 0.5rem;
@@ -2833,6 +2851,49 @@ body.picker-open {
   .fx-badge { width: 1.55rem; height: 1.55rem; }
   .fx-club strong { font-size: 0.74rem; }
   .fx-score-num { font-size: 0.92rem; }
+
+  /* Desktop fixtures: list left + match detail right */
+  .fixtures-desk {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(16rem, 0.95fr);
+    gap: 1rem;
+    align-items: start;
+  }
+  .fixtures-desk .fixture-list,
+  .fixtures-desk .fixture-list-wide {
+    max-width: none;
+    margin-inline: 0;
+  }
+  .fixture-detail-panel {
+    display: block;
+    position: sticky;
+    top: 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 0.85rem;
+    background:
+      linear-gradient(180deg, #ffffff 0%, #f4f7fc 100%);
+    box-shadow: 0 6px 18px rgba(15, 35, 80, 0.06);
+    min-height: 14rem;
+    overflow: hidden;
+  }
+  .fixture-detail-panel[hidden] {
+    display: block !important;
+  }
+  .fixture-detail-panel .drawer-head {
+    padding: 0.85rem 1rem 0.45rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .fixture-detail-panel .drawer-head h2 {
+    font-size: 1.05rem;
+  }
+  .fixture-detail-panel .match-detail-body {
+    padding: 0.85rem 1rem 1.1rem;
+    max-height: min(70vh, 36rem);
+  }
+  .fx-card.is-selected {
+    border-color: rgba(6, 20, 58, 0.45);
+    box-shadow: 0 0 0 1px rgba(6, 20, 58, 0.18);
+  }
 }
 .soft-form {
   background: #f7f9ff;
@@ -3196,7 +3257,8 @@ body.picker-open {
   .chip-strip-wrap { margin-bottom: 0.3rem; }
   .chip-strip-head { margin-bottom: 0.12rem; }
   .chip-strip-cards { gap: 0.35rem; justify-content: center; }
-  .chip-card-fpl {
+  .chip-card-fpl,
+  .chip-card-fpl.chip-card-wide {
     width: 6.6rem;
     padding: 0.22rem 0.4rem 0.22rem 0.3rem;
     column-gap: 0.32rem;
@@ -3331,9 +3393,6 @@ body.picker-open {
     min-height: 1.5rem;
     height: 1.5rem;
     padding: 0.14rem 0.28rem;
-  }
-  .chip-card-fpl.chip-card-wide {
-    width: min(9.8rem, 42vw);
   }
   .fx-badge { width: 1.45rem; height: 1.45rem; }
   .fx-club-name { display: none; }

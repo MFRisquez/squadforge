@@ -8,6 +8,16 @@
   const matchTitle = document.getElementById("matchTitle");
   const matchBody = document.getElementById("matchBody");
   const closeMatch = document.getElementById("closeMatch");
+  const deskPanel = document.getElementById("fixtureDetailPanel");
+  const deskEyebrow = document.getElementById("deskMatchEyebrow");
+  const deskTitle = document.getElementById("deskMatchTitle");
+  const deskBody = document.getElementById("deskMatchBody");
+  const DESK_MQ = window.matchMedia("(min-width: 900px)");
+  let selectedId = null;
+
+  function isDesktop() {
+    return Boolean(DESK_MQ && DESK_MQ.matches);
+  }
 
   function formatKickoff(iso) {
     if (!iso) return "TBC";
@@ -25,15 +35,7 @@
       .join("");
   }
 
-  function renderMatchDetail(data) {
-    matchEyebrow.textContent =
-      data.status === "live" ? "Live" : data.status === "finished" ? "Full time" : "Upcoming";
-    const hs = data.home.score;
-    const as_ = data.away.score;
-    const score =
-      hs != null && as_ != null ? `${hs}–${as_}` : "vs";
-    matchTitle.textContent = `${data.home.code} ${score} ${data.away.code}`;
-
+  function detailHtml(data, score) {
     const goalsHome = sideLines(data.goals?.home, "⚽");
     const goalsAway = sideLines(data.goals?.away, "⚽");
     const assistsHome = sideLines(data.assists?.home, "ⓐ");
@@ -43,8 +45,7 @@
     const homeHtml = goalsHome + assistsHome + ogHome;
     const awayHtml = goalsAway + assistsAway + ogAway;
     const hasEvents = Boolean(homeHtml || awayHtml);
-
-    matchBody.innerHTML = `
+    return `
       <div class="match-scoreline">
         <div>
           <strong>${data.home.name}</strong>
@@ -72,6 +73,37 @@
       }
       <p class="muted tiny">Kickoff ${formatKickoff(data.kickoff)} · GW${data.gw}</p>
     `;
+  }
+
+  function markSelected(id) {
+    selectedId = id ? String(id) : null;
+    if (!list) return;
+    list.querySelectorAll(".fx-card").forEach((btn) => {
+      btn.classList.toggle("is-selected", selectedId && btn.getAttribute("data-fixture-id") === selectedId);
+    });
+  }
+
+  function renderMatchDetail(data) {
+    const hs = data.home.score;
+    const as_ = data.away.score;
+    const score = hs != null && as_ != null ? `${hs}–${as_}` : "vs";
+    const eyebrow =
+      data.status === "live" ? "Live" : data.status === "finished" ? "Full time" : "Upcoming";
+    const title = `${data.home.code} ${score} ${data.away.code}`;
+    const body = detailHtml(data, score);
+
+    if (isDesktop() && deskEyebrow && deskTitle && deskBody) {
+      if (matchDetail) matchDetail.hidden = true;
+      deskEyebrow.textContent = eyebrow;
+      deskTitle.textContent = title;
+      deskBody.innerHTML = body;
+      return;
+    }
+
+    if (!matchEyebrow || !matchTitle || !matchBody || !matchDetail) return;
+    matchEyebrow.textContent = eyebrow;
+    matchTitle.textContent = title;
+    matchBody.innerHTML = body;
     if (matchDetail.parentElement !== document.body) {
       document.body.appendChild(matchDetail);
     }
@@ -79,22 +111,33 @@
     matchDetail.scrollTop = 0;
   }
 
+  function renderMatchError() {
+    if (isDesktop() && deskEyebrow && deskTitle && deskBody) {
+      if (matchDetail) matchDetail.hidden = true;
+      deskEyebrow.textContent = "Match";
+      deskTitle.textContent = "Unavailable";
+      deskBody.innerHTML = `<p class="muted">Couldn’t load match detail.</p>`;
+      return;
+    }
+    if (!matchEyebrow || !matchTitle || !matchBody || !matchDetail) return;
+    matchEyebrow.textContent = "Match";
+    matchTitle.textContent = "Unavailable";
+    matchBody.innerHTML = `<p class="muted">Couldn’t load match detail.</p>`;
+    if (matchDetail.parentElement !== document.body) {
+      document.body.appendChild(matchDetail);
+    }
+    matchDetail.hidden = false;
+  }
+
   function openMatch(id) {
+    markSelected(id);
     fetch(`/api/fixtures/${id}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => {
         if (data.error) throw new Error(data.error);
         renderMatchDetail(data);
       })
-      .catch(() => {
-        matchEyebrow.textContent = "Match";
-        matchTitle.textContent = "Unavailable";
-        matchBody.innerHTML = `<p class="muted">Couldn’t load match detail.</p>`;
-        if (matchDetail.parentElement !== document.body) {
-          document.body.appendChild(matchDetail);
-        }
-        matchDetail.hidden = false;
-      });
+      .catch(() => renderMatchError());
   }
 
   function bindRows(root) {
@@ -171,8 +214,9 @@
         const mineBlock = hasMine
           ? `<div class="fx-mine">${mineHtml(homeMine, m.home.code, false)}${mineHtml(awayMine, m.away.code, true)}</div>`
           : "";
+        const selected = selectedId && String(m.id) === selectedId ? " is-selected" : "";
         return `<li>
-          <button type="button" class="fx-card status-${m.status}${hasMine ? " has-mine" : ""}" data-fixture-id="${m.id}">
+          <button type="button" class="fx-card status-${m.status}${hasMine ? " has-mine" : ""}${selected}" data-fixture-id="${m.id}">
             <div class="fx-card-top">${top}</div>
             <div class="fx-card-match">
               <div class="fx-club">
@@ -209,6 +253,11 @@
   if (matchDetail) {
     matchDetail.addEventListener("click", (e) => {
       if (e.target === matchDetail) matchDetail.hidden = true;
+    });
+  }
+  if (DESK_MQ && typeof DESK_MQ.addEventListener === "function") {
+    DESK_MQ.addEventListener("change", () => {
+      if (isDesktop() && matchDetail) matchDetail.hidden = true;
     });
   }
 

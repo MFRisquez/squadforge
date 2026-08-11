@@ -53,9 +53,14 @@
   const clearSwapBtn = document.getElementById("clearSwap");
   const squadForm = document.getElementById("squadForm");
   const transferRailList = document.getElementById("transferRailList");
-  const transferRailTitle = document.getElementById("transferRailTitle");
+  const transferRailMetricCol = document.getElementById("transferRailMetricCol");
   const transferSort = document.getElementById("transferSort");
   const playerDetail = document.getElementById("playerDetail");
+  const DESK_MQ = window.matchMedia("(min-width: 900px)");
+
+  function isDesktop() {
+    return Boolean(DESK_MQ && DESK_MQ.matches);
+  }
   const detailEyebrow = document.getElementById("detailEyebrow");
   const detailName = document.getElementById("detailName");
   const detailPhoto = document.getElementById("detailPhoto");
@@ -325,54 +330,56 @@
     });
   }
 
+  function neededPositions() {
+    return ORDER.filter((pos) => slots[pos].some((id) => id == null));
+  }
+
   function railContext() {
     const bank = BUDGET - spend();
     if (outPlayer && removedSlot && !freeEdit()) {
       return {
         mode: "transfer",
-        pos: outPlayer.position,
-        // Slot already empty, so bank already includes the freed cash.
+        positions: [outPlayer.position],
         maxPrice: bank + 1e-9,
         excludeId: outPlayer.id,
-        title: `In for ${shortName(outPlayer.name)}`,
       };
     }
     if (freeEdit() && active && slots[active.pos][active.index] == null) {
       return {
         mode: "add",
-        pos: active.pos,
+        positions: [active.pos],
         maxPrice: bank + 1e-9,
         excludeId: null,
-        title: `${active.pos} options`,
       };
     }
     if (freeEdit() && !isComplete()) {
+      const needed = neededPositions();
       return {
-        mode: "browse",
-        pos: null,
+        mode: "add",
+        positions: needed.length ? needed : null,
         maxPrice: bank + 1e-9,
         excludeId: null,
-        title: "Add players",
       };
     }
     return {
       mode: "browse",
-      pos: null,
+      positions: null,
       maxPrice: null,
       excludeId: null,
-      title: "Top players",
     };
   }
 
   function transferCandidates() {
     const ctx = railContext();
     const owned = new Set(filledIds());
-    if (ctx.excludeId) owned.delete(ctx.excludeId);
+    if (ctx.excludeId) owned.add(ctx.excludeId);
     const counts = clubCounts(ctx.excludeId);
     const lockBudget = ctx.maxPrice != null;
     const rows = PLAYERS.filter((p) => {
       if (!p || owned.has(p.id)) return false;
-      if (ctx.pos && p.position !== ctx.pos) return false;
+      if (ctx.positions && ctx.positions.length && !ctx.positions.includes(p.position)) {
+        return false;
+      }
       return true;
     }).map((p) => {
       const clubBlocked = (counts[p.team] || 0) >= MAX_CLUB;
@@ -394,15 +401,23 @@
     if (!transferRailList) return;
     const ctx = railContext();
     const rows = transferCandidates();
-    if (transferRailTitle) transferRailTitle.textContent = ctx.title;
+    if (transferRailMetricCol) {
+      transferRailMetricCol.textContent = railSortKey() === "form" ? "Form" : "Pts";
+    }
     transferRailList.innerHTML = "";
     if (!rows.length) {
       const empty = document.createElement("li");
       empty.className = "muted tiny fx-rail-empty";
+      const posLabel =
+        ctx.positions && ctx.positions.length === 1
+          ? ctx.positions[0]
+          : ctx.positions && ctx.positions.length
+            ? ctx.positions.join("/")
+            : "";
       empty.textContent = LOCKED
         ? "Squad locked this GW."
-        : ctx.pos
-          ? `No ${ctx.pos} options right now.`
+        : posLabel
+          ? `No ${posLabel} options right now.`
           : "No players to show.";
       transferRailList.appendChild(empty);
       return;
@@ -418,11 +433,7 @@
       btn.disabled = Boolean(p.locked);
       if (p.lockReason) btn.title = p.lockReason;
       const metric =
-        railSortKey() === "form"
-          ? formScore(p).toFixed(1)
-          : railSortKey() === "price"
-            ? `£${Number(p.price).toFixed(1)}`
-            : String(pointsScore(p));
+        railSortKey() === "form" ? formScore(p).toFixed(1) : String(pointsScore(p));
       btn.innerHTML = `
         <span class="tr-name">
           <strong>${p.name}</strong>
@@ -516,6 +527,7 @@
       pickerMode = "add";
       closeDetail();
       render();
+      if (!isDesktop()) openPicker(pos, index, "add");
       return;
     }
 
@@ -532,6 +544,7 @@
     slots[pos][index] = null;
     closeDetail();
     render();
+    if (!isDesktop()) openPicker(pos, index, "transfer");
   }
 
   function statusLabel(p) {
@@ -767,7 +780,8 @@
             if (pendingIn) {
               active = { pos, index };
               pickerMode = "transfer";
-              paintTransferRail();
+              if (isDesktop()) paintTransferRail();
+              else openPicker(pos, index, "transfer");
               return;
             }
             openPlayerDetail(p, { pos, index });
@@ -790,12 +804,14 @@
                 }
                 active = { pos, index };
                 pickerMode = "transfer";
-                paintTransferRail();
+                if (isDesktop()) paintTransferRail();
+                else openPicker(pos, index, "transfer");
                 return;
               }
               active = { pos, index };
               pickerMode = "add";
-              paintTransferRail();
+              if (isDesktop()) paintTransferRail();
+              else openPicker(pos, index, "add");
             });
           } else {
             btn.disabled = true;

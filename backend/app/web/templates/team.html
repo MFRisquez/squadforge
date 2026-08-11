@@ -112,7 +112,6 @@
   <aside class="desk-rail transfer-rail" id="transferRail" aria-label="Transfer targets">
     <header class="desk-rail-head">
       <p class="eyebrow">Transfers</p>
-      <h2 id="transferRailTitle">Targets</h2>
       <label class="rail-sort">
         <span class="sr-only">Sort by</span>
         <select id="transferSort" aria-label="Sort transfer targets">
@@ -122,6 +121,11 @@
         </select>
       </label>
     </header>
+    <div class="rail-kpis" id="transferRailCols" aria-hidden="true">
+      <span>Player</span>
+      <span id="transferRailMetricCol">Pts</span>
+      <span>£</span>
+    </div>
     <ul class="transfer-rail-list" id="transferRailList"></ul>
   </aside>
 </div>
