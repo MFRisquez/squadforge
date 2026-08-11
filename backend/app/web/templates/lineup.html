@@ -81,7 +81,7 @@
           <div class="pitch-row zone-att" data-row="att"></div>
         </div>
       </section>
-      <section class="bench-wrap xi-bench-wrap">
+      <section class="bench-wrap xi-bench-wrap xi-bench-phone">
         <h2>Bench</h2>
         <div class="bench" id="bench"></div>
       </section>
@@ -90,13 +90,26 @@
       {% endif %}
     </form>
   </div>
-  <aside class="desk-rail xi-role-rail" id="xiRoleRail" aria-label="Captain and vice">
-    <header class="desk-rail-head">
-      <p class="eyebrow">Roles</p>
-      <h2>Captain &amp; Vice</h2>
-      <p class="muted tiny">Tap C or V next to a starter — no need to open the player sheet.</p>
-    </header>
-    <ul class="xi-role-list" id="xiRoleList"></ul>
+  <aside class="desk-rail xi-side-rail" id="xiSideRail" aria-label="Bench and live points">
+    <section class="xi-bench-panel">
+      <header class="desk-rail-head">
+        <p class="eyebrow">Subs</p>
+        <h2>Bench</h2>
+      </header>
+      <div class="bench xi-bench-stack" id="benchDesk"></div>
+    </section>
+    <section class="xi-live-panel">
+      <header class="desk-rail-head">
+        <p class="eyebrow">Gameweek</p>
+        <h2>Live points</h2>
+      </header>
+      <div class="xi-live-table-wrap">
+        <table class="xi-live-table" id="xiLiveTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
   </aside>
 </div>
 

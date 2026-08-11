@@ -4,7 +4,12 @@
   const byId = Object.fromEntries(OWNED.map((p) => [p.id, p]));
   const BAND = { GK: [1, 1], DEF: [3, 5], MID: [3, 5], ATT: [1, 3] };
   const POINTS = INITIAL.points || {};
+  const BREAKDOWNS = INITIAL.breakdowns || {};
   const GW = INITIAL.gw || null;
+  const DESK_MQ = window.matchMedia("(min-width: 900px)");
+  function isDesktop() {
+    return Boolean(DESK_MQ && DESK_MQ.matches);
+  }
 
   let starterIds = new Set(INITIAL.starters || []);
   let captainId = INITIAL.captain || [...starterIds][0] || null;
@@ -27,6 +32,7 @@
 
   const pitch = document.getElementById("pitch");
   const bench = document.getElementById("bench");
+  const benchDesk = document.getElementById("benchDesk");
   const hiddenFields = document.getElementById("hiddenFields");
   const playerDetail = document.getElementById("playerDetail");
   const detailEyebrow = document.getElementById("detailEyebrow");
@@ -42,7 +48,22 @@
     document.getElementById("saveXiBtn") || document.getElementById("saveCaptainBtn");
   const lineupForm = document.getElementById("lineupForm");
   const rolesOnly = Boolean(document.querySelector('input[name="roles_only"]'));
-  const xiRoleList = document.getElementById("xiRoleList");
+  const xiSideRail = document.getElementById("xiSideRail");
+  const xiLiveTable = document.getElementById("xiLiveTable");
+  const LIVE_COLS = [
+    ["appearance", "App"],
+    ["goals", "G"],
+    ["assists", "A"],
+    ["clean_sheet", "CS"],
+    ["goals_conceded", "GC"],
+    ["saves", "Sv"],
+    ["penalties_saved", "PS"],
+    ["penalties_missed", "PM"],
+    ["yellow_cards", "YC"],
+    ["red_cards", "RC"],
+    ["own_goals", "OG"],
+    ["scouting_bonus", "Scout"],
+  ];
 
   let detailPlayer = null;
   /** @type {null | { id: number, side: "xi" | "bench" }} */
@@ -588,51 +609,134 @@
     return wrap;
   }
 
-  function paintRoleRail() {
-    if (!xiRoleList) return;
-    const starters = OWNED.filter((p) => starterIds.has(p.id));
-    const order = { GK: 0, DEF: 1, MID: 2, ATT: 3 };
-    starters.sort(
-      (a, b) =>
-        (order[a.position] || 0) - (order[b.position] || 0) ||
-        String(a.name).localeCompare(String(b.name))
-    );
-    const canEditRoles = !LOCKED || CAPTAIN_EDITABLE;
-    xiRoleList.innerHTML = "";
-    if (!starters.length) {
-      xiRoleList.innerHTML = `<li class="muted tiny">Pick your XI first.</li>`;
+  function deskBenchCard(player) {
+    const wrap = shirtCard(player, true);
+    wrap.classList.add("xi-bench-row");
+    const meta = document.createElement("div");
+    meta.className = "xi-bench-meta";
+    const pts = POINTS[String(player.id)];
+    const ptsLabel = pts != null && pts !== "" ? `${Number(pts).toFixed(0)} pts` : "—";
+    meta.innerHTML = `<strong>${player.name}</strong><span>${player.team} · ${player.position} · ${ptsLabel}</span>`;
+    wrap.appendChild(meta);
+    return wrap;
+  }
+
+  function paintBench() {
+    const benchPlayers = OWNED.filter((p) => !starterIds.has(p.id));
+    if (bench) {
+      bench.innerHTML = "";
+      if (!isDesktop()) {
+        benchPlayers.forEach((p) => bench.appendChild(shirtCard(p, true)));
+      }
+    }
+    if (benchDesk) {
+      benchDesk.innerHTML = "";
+      if (isDesktop()) {
+        if (!benchPlayers.length) {
+          benchDesk.innerHTML = `<p class="muted tiny">No bench players.</p>`;
+        } else {
+          benchPlayers.forEach((p) => benchDesk.appendChild(deskBenchCard(p)));
+        }
+      }
+    }
+  }
+
+  function fmtPts(n) {
+    const v = Number(n || 0);
+    if (!Number.isFinite(v)) return "0";
+    if (Math.abs(v) < 1e-9) return "0";
+    return Number.isInteger(v) ? String(v) : v.toFixed(1);
+  }
+
+  function paintLiveTable() {
+    if (!xiLiveTable) return;
+    const thead = xiLiveTable.querySelector("thead");
+    const tbody = xiLiveTable.querySelector("tbody");
+    if (!thead || !tbody) return;
+
+    const squad = OWNED.slice();
+    const labelFor = Object.fromEntries(LIVE_COLS);
+    const core = ["appearance", "goals", "assists", "clean_sheet"];
+    const seen = new Set();
+    const cols = [];
+    function pushCol(key) {
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      const short =
+        labelFor[key] ||
+        key
+          .replace(/_threshold$/i, "")
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (c) => c.toUpperCase())
+          .slice(0, 8);
+      cols.push([key, short]);
+    }
+    core.forEach(pushCol);
+    LIVE_COLS.forEach(([key]) => {
+      if (squad.some((p) => Math.abs(Number((BREAKDOWNS[String(p.id)] || {})[key] || 0)) > 1e-9)) {
+        pushCol(key);
+      }
+    });
+    squad.forEach((p) => {
+      Object.entries(BREAKDOWNS[String(p.id)] || {}).forEach(([key, val]) => {
+        if (Math.abs(Number(val || 0)) > 1e-9) pushCol(key);
+      });
+    });
+
+    thead.innerHTML = `<tr>
+      <th>Player</th>
+      ${cols.map(([, label]) => `<th>${label}</th>`).join("")}
+      <th>Pts</th>
+    </tr>`;
+
+    const ranked = squad
+      .map((p) => {
+        const base = Number(POINTS[String(p.id)] || 0);
+        const mult = p.id === captainId ? 2 : 1;
+        const total = base * mult;
+        return { p, base, mult, total, bd: BREAKDOWNS[String(p.id)] || {} };
+      })
+      .sort((a, b) => b.total - a.total || String(a.p.name).localeCompare(String(b.p.name)));
+
+    if (!ranked.length) {
+      tbody.innerHTML = `<tr><td colspan="${cols.length + 2}" class="muted">No squad players.</td></tr>`;
       return;
     }
-    starters.forEach((p) => {
-      const isCap = p.id === captainId;
-      const isVice = p.id === viceId;
-      const lockedRole = CAPTAIN_EDITABLE && !canPickAsCaptain(p.id);
-      const li = document.createElement("li");
-      li.className =
-        "xi-role-row" +
-        (isCap ? " is-captain" : "") +
-        (isVice ? " is-vice" : "") +
-        (lockedRole ? " is-role-locked" : "");
-      li.innerHTML = `
-        <div class="xi-role-meta">
-          <strong>${p.name}</strong>
-          <span>${p.team} · ${p.position}${lockedRole ? " · started" : ""}</span>
-        </div>
-        <div class="xi-role-actions">
-          <button type="button" class="role-pick role-pick-c${isCap ? " is-on" : ""}" ${
-            !canEditRoles || lockedRole ? "disabled" : ""
-          } aria-label="Make ${p.name} captain">C</button>
-          <button type="button" class="role-pick role-pick-v${isVice ? " is-on" : ""}" ${
-            !canEditRoles || lockedRole ? "disabled" : ""
-          } aria-label="Make ${p.name} vice">V</button>
-        </div>
-      `;
-      const cBtn = li.querySelector(".role-pick-c");
-      const vBtn = li.querySelector(".role-pick-v");
-      if (cBtn && !cBtn.disabled) cBtn.addEventListener("click", () => setCaptain(p.id));
-      if (vBtn && !vBtn.disabled) vBtn.addEventListener("click", () => setVice(p.id));
-      xiRoleList.appendChild(li);
-    });
+
+    tbody.innerHTML = ranked
+      .map(({ p, base, mult, total, bd }) => {
+        const role =
+          p.id === captainId ? " C" : p.id === viceId ? " V" : "";
+        const side = starterIds.has(p.id) ? "" : " · bn";
+        const cells = cols
+          .map(([key]) => {
+            const v = Number(bd[key] || 0);
+            const cls = v < 0 ? " class=\"is-neg\"" : "";
+            return `<td${cls}>${fmtPts(v)}</td>`;
+          })
+          .join("");
+        const ptsLabel = mult > 1 ? `${fmtPts(base)}×${mult}` : fmtPts(total);
+        return `<tr class="${p.id === captainId ? "is-captain" : ""}">
+          <td>${p.name}${role}${side}</td>
+          ${cells}
+          <td class="pts-total">${ptsLabel}</td>
+        </tr>`;
+      })
+      .join("");
+  }
+
+  function syncXiSideLayout() {
+    if (!xiSideRail || !pitch) return;
+    if (!isDesktop()) {
+      xiSideRail.style.height = "";
+      xiSideRail.style.minHeight = "";
+      return;
+    }
+    const h = Math.round(pitch.getBoundingClientRect().height);
+    if (h > 0) {
+      xiSideRail.style.height = `${h}px`;
+      xiSideRail.style.minHeight = `${h}px`;
+    }
   }
 
   function render() {
@@ -651,14 +755,13 @@
     byPos.MID.forEach((p) => rows.mid.appendChild(shirtCard(p, false)));
     byPos.ATT.forEach((p) => rows.att.appendChild(shirtCard(p, false)));
 
-    bench.innerHTML = "";
-    OWNED.filter((p) => !starterIds.has(p.id)).forEach((p) => bench.appendChild(shirtCard(p, true)));
-
     ensureRoles();
     syncHidden();
     updateHints();
     paintSaveBtn();
-    paintRoleRail();
+    paintBench();
+    paintLiveTable();
+    syncXiSideLayout();
   }
 
   if (closeDetailBtn) closeDetailBtn.addEventListener("click", closeDetail);
@@ -751,4 +854,15 @@
   baselineSig = lineupSignature();
   saveVisual = "idle";
   render();
+  window.addEventListener("resize", () => {
+    paintBench();
+    syncXiSideLayout();
+  });
+  if (DESK_MQ && typeof DESK_MQ.addEventListener === "function") {
+    DESK_MQ.addEventListener("change", () => render());
+  }
+  if (typeof ResizeObserver !== "undefined" && pitch) {
+    const ro = new ResizeObserver(() => syncXiSideLayout());
+    ro.observe(pitch);
+  }
 })();

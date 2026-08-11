@@ -57,7 +57,6 @@
   const transferPosFilter = document.getElementById("transferPosFilter");
   const playerDetail = document.getElementById("playerDetail");
   const DESK_MQ = window.matchMedia("(min-width: 900px)");
-  let posFilterTouched = false;
 
   function isDesktop() {
     return Boolean(DESK_MQ && DESK_MQ.matches);
@@ -340,26 +339,6 @@
     return v === "GK" || v === "DEF" || v === "MID" || v === "ATT" ? v : "";
   }
 
-  let lastAutoPosKey = "";
-  function syncPosFilterDefault() {
-    if (!transferPosFilter) return;
-    let auto = "";
-    if (outPlayer && removedSlot && !freeEdit()) auto = outPlayer.position || "";
-    else if (freeEdit() && active && slots[active.pos][active.index] == null) auto = active.pos || "";
-    else if (freeEdit() && !isComplete()) {
-      const needed = neededPositions();
-      auto = needed.length === 1 ? needed[0] : "";
-    }
-    const key = `${auto}|${outPlayer ? outPlayer.id : ""}|${active ? `${active.pos}:${active.index}` : ""}`;
-    if (key !== lastAutoPosKey) {
-      lastAutoPosKey = key;
-      if (auto) {
-        transferPosFilter.value = auto;
-        posFilterTouched = false;
-      }
-    }
-  }
-
   function railContext() {
     const bank = BUDGET - spend();
     if (outPlayer && removedSlot && !freeEdit()) {
@@ -367,6 +346,7 @@
         mode: "transfer",
         maxPrice: bank + 1e-9,
         excludeId: outPlayer.id,
+        requirePos: outPlayer.position,
         selectable: true,
       };
     }
@@ -375,14 +355,18 @@
         mode: "add",
         maxPrice: bank + 1e-9,
         excludeId: null,
+        requirePos: active.pos,
         selectable: true,
       };
     }
     if (freeEdit() && !isComplete()) {
+      const needed = neededPositions();
       return {
         mode: "add",
         maxPrice: bank + 1e-9,
         excludeId: null,
+        requirePos: needed.length === 1 ? needed[0] : null,
+        requireAny: needed.length ? needed : null,
         selectable: true,
       };
     }
@@ -390,6 +374,7 @@
       mode: "browse",
       maxPrice: null,
       excludeId: null,
+      requirePos: null,
       selectable: false,
     };
   }
@@ -397,21 +382,28 @@
   function transferCandidates() {
     const ctx = railContext();
     const owned = new Set(filledIds());
-    if (ctx.excludeId) owned.add(ctx.excludeId);
     const counts = clubCounts(ctx.excludeId);
     const lockBudget = ctx.maxPrice != null;
     const posOnly = railPosFilter();
     const rows = PLAYERS.filter((p) => {
-      if (!p || owned.has(p.id)) return false;
+      if (!p) return false;
       if (posOnly && p.position !== posOnly) return false;
       return true;
     }).map((p) => {
-      const clubBlocked = (counts[p.team] || 0) >= MAX_CLUB;
-      const budgetBlocked = lockBudget && p.price > ctx.maxPrice;
+      const inSquad = owned.has(p.id) && p.id !== ctx.excludeId;
+      const clubBlocked = !inSquad && (counts[p.team] || 0) >= MAX_CLUB;
+      const budgetBlocked = !inSquad && lockBudget && p.price > ctx.maxPrice;
       const browseLocked = !ctx.selectable;
-      const locked = browseLocked || clubBlocked || budgetBlocked;
+      let posBlocked = false;
+      if (!inSquad && ctx.requirePos && p.position !== ctx.requirePos) posBlocked = true;
+      else if (!inSquad && ctx.requireAny && ctx.requireAny.length && !ctx.requireAny.includes(p.position)) {
+        posBlocked = true;
+      }
+      const locked = inSquad || browseLocked || clubBlocked || budgetBlocked || posBlocked;
       let lockReason = "";
-      if (browseLocked) lockReason = "Transfer someone out first";
+      if (inSquad) lockReason = "In squad";
+      else if (browseLocked) lockReason = "Transfer someone out first";
+      else if (posBlocked) lockReason = ctx.requirePos ? `Need ${ctx.requirePos}` : "Wrong position";
       else if (clubBlocked) lockReason = `Max ${MAX_CLUB} from ${p.team}`;
       else if (budgetBlocked) lockReason = "Over budget";
       return {
@@ -423,11 +415,34 @@
     return sortRailPlayers(rows);
   }
 
+  function syncTransferRailLayout() {
+    const pitch = document.getElementById("squadPitch");
+    const rail = document.getElementById("transferRail");
+    if (!pitch || !rail) return;
+    if (!isDesktop()) {
+      rail.style.height = "";
+      rail.style.minHeight = "";
+      return;
+    }
+    const h = Math.round(pitch.getBoundingClientRect().height);
+    if (h > 0) {
+      rail.style.height = `${h}px`;
+      rail.style.minHeight = `${h}px`;
+    }
+  }
+
   function paintTransferRail() {
     if (!transferRailList) return;
-    syncPosFilterDefault();
     const rows = transferCandidates();
-    transferRailList.innerHTML = "";
+    transferRailList.innerHTML = `
+      <li class="transfer-rail-head" aria-hidden="true">
+        <div class="transfer-rail-row is-head">
+          <span class="tr-name">Player</span>
+          <span class="tr-price">£</span>
+          <span class="tr-form">Form</span>
+          <span class="tr-pts">Pts</span>
+        </div>
+      </li>`;
     if (!rows.length) {
       const empty = document.createElement("li");
       empty.className = "muted tiny fx-rail-empty";
@@ -438,6 +453,7 @@
           ? `No ${posLabel} options right now.`
           : "No players to show.";
       transferRailList.appendChild(empty);
+      syncTransferRailLayout();
       return;
     }
     rows.forEach((p) => {
@@ -467,6 +483,7 @@
       li.appendChild(btn);
       transferRailList.appendChild(li);
     });
+    syncTransferRailLayout();
   }
 
   function pickFromTransferRail(p) {
@@ -1059,10 +1076,7 @@
       transferSort.addEventListener("change", () => paintTransferRail());
     }
     if (transferPosFilter) {
-      transferPosFilter.addEventListener("change", () => {
-        posFilterTouched = true;
-        paintTransferRail();
-      });
+      transferPosFilter.addEventListener("change", () => paintTransferRail());
     }
 
     if (squadForm) {
@@ -1251,4 +1265,13 @@
   baselineTd = currentTd();
   saveVisual = "idle";
   render();
+  window.addEventListener("resize", () => syncTransferRailLayout());
+  if (DESK_MQ && typeof DESK_MQ.addEventListener === "function") {
+    DESK_MQ.addEventListener("change", () => syncTransferRailLayout());
+  }
+  const squadPitchEl = document.getElementById("squadPitch");
+  if (typeof ResizeObserver !== "undefined" && squadPitchEl) {
+    const ro = new ResizeObserver(() => syncTransferRailLayout());
+    ro.observe(squadPitchEl);
+  }
 })();

@@ -672,6 +672,7 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
         vice = next((s for s in starters if s != captain), captain)
 
     points_map: dict[str, float] = {}
+    points_breakdown: dict[str, dict] = {}
     gw_total = None
     if view["edits_locked"]:
         from app.services.auto_score import maybe_score_locked_gw
@@ -687,6 +688,14 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
             .all()
         ):
             points_map[str(row.player_id)] = float(row.total or 0)
+            try:
+                bd = json.loads(row.breakdown_json or "{}")
+            except Exception:
+                bd = {}
+            if isinstance(bd, dict):
+                points_breakdown[str(row.player_id)] = {
+                    str(k): float(v or 0) for k, v in bd.items()
+                }
         score = (
             db.query(ManagerGameweekScore)
             .filter(
@@ -739,6 +748,7 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
                 "captainArmed": armed,
                 "gw": gw.number,
                 "points": points_map,
+                "breakdowns": points_breakdown,
                 "gwTotal": gw_total,
             },
             spend=squad_svc.squad_spend(owned),

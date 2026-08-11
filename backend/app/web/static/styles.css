@@ -1151,15 +1151,14 @@ select {
   border: 1px solid var(--line);
   background: #fff;
 }
-.transfer-rail-row {
-  grid-template-columns: minmax(0, 1fr) 2.8rem 2.6rem 2.6rem;
-}
 .transfer-rail-row .tr-price,
 .transfer-rail-row .tr-form,
 .transfer-rail-row .tr-pts {
   font-size: 0.78rem;
   font-weight: 800;
   text-align: right;
+  justify-self: stretch;
+  font-variant-numeric: tabular-nums;
 }
 .transfer-rail-row.is-locked {
   background: #3a4254 !important;
@@ -2369,8 +2368,9 @@ body.picker-open {
 }
 .rail-kpis {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 2.8rem 2.6rem 2.6rem;
-  gap: 0.35rem;
+  grid-template-columns: minmax(0, 1fr) 3.1rem 3.1rem 3.1rem;
+  column-gap: 0.35rem;
+  align-items: center;
   padding: 0.28rem 0.5rem;
   font-size: 0.68rem;
   font-weight: 800;
@@ -2378,9 +2378,11 @@ body.picker-open {
   letter-spacing: 0.04em;
   color: var(--muted);
   border-bottom: 1px solid var(--line);
+  box-sizing: border-box;
 }
 .rail-kpis span:nth-child(n + 2) {
   text-align: right;
+  justify-self: stretch;
 }
 .transfer-rail-list {
   list-style: none;
@@ -2388,13 +2390,20 @@ body.picker-open {
   padding: 0;
   max-height: min(68vh, 36rem);
   overflow: auto;
+  scrollbar-gutter: stable;
 }
 .transfer-rail-list li { margin: 0; }
+.transfer-rail-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.97);
+}
 .transfer-rail-row {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 2.8rem 2.6rem 2.6rem;
-  gap: 0.35rem;
+  grid-template-columns: minmax(0, 1fr) 3.1rem 3.1rem 3.1rem;
+  column-gap: 0.35rem;
   align-items: center;
   padding: 0.52rem 0.5rem;
   border: 0;
@@ -2404,6 +2413,26 @@ body.picker-open {
   cursor: pointer;
   color: inherit;
   font: inherit;
+  box-sizing: border-box;
+}
+.transfer-rail-row.is-head {
+  cursor: default;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  padding-top: 0.28rem;
+  padding-bottom: 0.28rem;
+  background: rgba(255, 255, 255, 0.97);
+}
+.transfer-rail-row.is-head .tr-name,
+.transfer-rail-row.is-head .tr-price,
+.transfer-rail-row.is-head .tr-form,
+.transfer-rail-row.is-head .tr-pts {
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
 }
 .transfer-rail-row:hover,
 .transfer-rail-row.is-selected {
@@ -2732,39 +2761,55 @@ body.picker-open {
     display: grid;
     grid-template-columns: 3fr 2fr;
     gap: 0.3rem;
-    align-items: stretch;
+    align-items: start;
   }
   .desk-main { min-width: 0; }
+  .desk-squad .desk-main > form {
+    display: flex;
+    flex-direction: column;
+  }
+  .desk-squad .squad-pitch-wrap {
+    margin: 0;
+  }
+  .desk-squad .pitch-meta {
+    margin-top: 0.35rem;
+  }
   .desk-rail {
     display: flex;
     flex-direction: column;
-    position: sticky;
-    top: 6.2rem;
+    position: static;
+    top: auto;
     width: auto;
     max-width: none;
     min-width: 0;
-    align-self: stretch;
-    min-height: 100%;
-    max-height: calc(100vh - 6.8rem);
+    align-self: start;
     padding: 0.55rem 0.5rem 0.6rem;
     border-radius: 0.65rem;
     background: rgba(255, 255, 255, 0.92);
     border: 1px solid var(--line);
     box-shadow: 0 8px 22px rgba(15, 35, 80, 0.08);
+    box-sizing: border-box;
   }
   .desk-rail-head { flex: 0 0 auto; margin: 0 0 0.35rem; }
   .desk-rail-head h2 { font-size: 0.95rem; }
   .desk-rail-head .muted { font-size: 0.6rem; }
+  .transfer-rail {
+    overflow: hidden;
+  }
+  .rail-kpis,
+  .transfer-rail-row {
+    grid-template-columns: minmax(0, 1fr) 3.2rem 3.2rem 3.2rem;
+    column-gap: 0.3rem;
+    padding-left: 0.45rem;
+    padding-right: 0.45rem;
+  }
   .rail-kpis {
     flex: 0 0 auto;
-    grid-template-columns: minmax(0, 1fr) 3rem 2.9rem 2.9rem;
-    gap: 0.3rem;
     font-size: 0.72rem;
   }
   .transfer-rail-row {
-    grid-template-columns: minmax(0, 1fr) 3rem 2.9rem 2.9rem;
-    gap: 0.3rem;
-    padding: 0.48rem 0.4rem;
+    padding-top: 0.48rem;
+    padding-bottom: 0.48rem;
   }
   .transfer-rail-row .tr-name strong { font-size: 0.9rem; }
   .transfer-rail-row .tr-name span { font-size: 0.68rem; }
@@ -2776,71 +2821,127 @@ body.picker-open {
     min-height: 0;
     max-height: none;
     overflow: auto;
+    scrollbar-gutter: stable;
   }
   .desk-xi-solo { grid-template-columns: minmax(0, 1fr); }
-  .xi-role-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: auto;
-  }
-  .xi-role-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+
+  /* XI desktop: pitch left · bench + live points right */
+  .desk-xi .xi-bench-phone { display: none; }
+  .xi-side-rail {
+    display: flex;
+    flex-direction: column;
     gap: 0.45rem;
-    align-items: center;
-    padding: 0.48rem 0.35rem;
-    border-bottom: 1px solid rgba(15, 35, 80, 0.08);
+    padding: 0.45rem;
+    overflow: hidden;
   }
-  .xi-role-row.is-captain { background: rgba(0, 255, 135, 0.12); }
-  .xi-role-row.is-vice { background: rgba(6, 20, 58, 0.06); }
-  .xi-role-row.is-captain.is-vice { background: rgba(0, 255, 135, 0.12); }
-  .xi-role-meta {
+  .xi-bench-panel,
+  .xi-live-panel {
+    border: 1px solid var(--line);
+    border-radius: 0.55rem;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .xi-bench-panel {
+    flex: 0 0 auto;
+    max-height: 42%;
+  }
+  .xi-live-panel {
+    flex: 1 1 auto;
+  }
+  .xi-bench-panel .desk-rail-head,
+  .xi-live-panel .desk-rail-head {
+    padding: 0.45rem 0.55rem 0.3rem;
+    margin: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .xi-bench-stack.bench {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 0.35rem;
+    padding: 0.4rem 0.45rem 0.5rem;
+    overflow: auto;
+    max-height: none;
+  }
+  .xi-bench-stack .xi-card {
+    width: 100%;
     display: grid;
-    gap: 0.08rem;
-    min-width: 0;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    justify-items: start;
+    gap: 0.55rem;
   }
-  .xi-role-meta strong {
-    font-size: 0.9rem;
+  .xi-bench-stack .xi-shirt {
+    width: 3.4rem;
+  }
+  .xi-bench-stack .shirt-kit { min-height: 3.6rem; }
+  .xi-bench-stack .jersey-img { width: 2.6rem; }
+  .xi-bench-stack .shirt-overlay { width: 3.1rem; }
+  .xi-bench-meta {
+    display: grid;
+    gap: 0.1rem;
+    min-width: 0;
+    text-align: left;
+  }
+  .xi-bench-meta strong {
+    font-size: 0.86rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .xi-role-meta span {
-    font-size: 0.68rem;
+  .xi-bench-meta span {
+    font-size: 0.66rem;
     color: var(--muted);
   }
-  .xi-role-actions {
-    display: inline-flex;
-    gap: 0.28rem;
+  .xi-live-table-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    padding: 0.25rem 0.2rem 0.4rem;
   }
-  .role-pick {
-    min-width: 2rem;
-    height: 2rem;
-    border-radius: 0.45rem;
-    border: 1px solid var(--line);
+  .xi-live-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.72rem;
+  }
+  .xi-live-table th,
+  .xi-live-table td {
+    padding: 0.28rem 0.28rem;
+    border-bottom: 1px solid rgba(15, 35, 80, 0.08);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .xi-live-table th:first-child,
+  .xi-live-table td:first-child {
+    text-align: left;
+    position: sticky;
+    left: 0;
     background: #fff;
+    z-index: 1;
+  }
+  .xi-live-table th {
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    font-weight: 800;
+    position: sticky;
+    top: 0;
+    background: #fff;
+    z-index: 2;
+  }
+  .xi-live-table th:first-child { z-index: 3; }
+  .xi-live-table .is-captain td:first-child { font-weight: 800; }
+  .xi-live-table .pts-total {
     font-weight: 900;
-    font-size: 0.82rem;
-    cursor: pointer;
     color: #06143a;
   }
-  .role-pick-c.is-on {
-    background: #00ff87;
-    border-color: #06143a;
-  }
-  .role-pick-v.is-on {
-    background: #06143a;
-    color: #fff;
-    border-color: #06143a;
-  }
-  .role-pick:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-  }
-  .xi-role-row.is-role-locked { opacity: 0.72; }
+  .xi-live-table .is-neg { color: #c62828; }
   .chip-card-fpl.chip-card-wide {
     width: 12.2rem;
     padding: 0.38rem 0.7rem 0.38rem 0.45rem;
