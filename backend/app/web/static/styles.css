@@ -4526,10 +4526,7 @@ body.page-fit .pitch-cap-hint {
     display: none;
   }
   body.page-squad .squad-pitch .pitch-row {
-    transform: translateY(-0.95rem);
-  }
-  body.page-squad .squad-pitch {
-    padding-top: 1.55rem;
+    transform: none;
   }
 
   .top {
