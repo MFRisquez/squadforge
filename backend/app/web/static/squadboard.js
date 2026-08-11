@@ -319,7 +319,6 @@
   function sortRailPlayers(rows) {
     const key = railSortKey();
     return rows.slice().sort((a, b) => {
-      if (a.locked !== b.locked) return a.locked ? 1 : -1;
       if (key === "form") {
         return formScore(b) - formScore(a) || pointsScore(b) - pointsScore(a) || b.price - a.price;
       }
@@ -337,6 +336,13 @@
   function railPosFilter() {
     const v = transferPosFilter && transferPosFilter.value;
     return v === "GK" || v === "DEF" || v === "MID" || v === "ATT" ? v : "";
+  }
+
+  function setTransferPosFilter(pos) {
+    if (!transferPosFilter) return;
+    if (pos === "GK" || pos === "DEF" || pos === "MID" || pos === "ATT") {
+      transferPosFilter.value = pos;
+    }
   }
 
   function railContext() {
@@ -575,6 +581,7 @@
       active = { pos, index };
       pickerMode = "add";
       closeDetail();
+      if (isDesktop()) setTransferPosFilter(pos);
       render();
       if (!isDesktop()) openPicker(pos, index, "add");
       return;
@@ -592,6 +599,7 @@
     pickerMode = "transfer";
     slots[pos][index] = null;
     closeDetail();
+    if (isDesktop()) setTransferPosFilter(pos);
     render();
     if (!isDesktop()) openPicker(pos, index, "transfer");
   }
@@ -829,8 +837,10 @@
             if (pendingIn) {
               active = { pos, index };
               pickerMode = "transfer";
-              if (isDesktop()) paintTransferRail();
-              else openPicker(pos, index, "transfer");
+              if (isDesktop()) {
+                setTransferPosFilter(pos);
+                paintTransferRail();
+              } else openPicker(pos, index, "transfer");
               return;
             }
             openPlayerDetail(p, { pos, index });
@@ -853,14 +863,18 @@
                 }
                 active = { pos, index };
                 pickerMode = "transfer";
-                if (isDesktop()) paintTransferRail();
-                else openPicker(pos, index, "transfer");
+                if (isDesktop()) {
+                  setTransferPosFilter(pos);
+                  paintTransferRail();
+                } else openPicker(pos, index, "transfer");
                 return;
               }
               active = { pos, index };
               pickerMode = "add";
-              if (isDesktop()) paintTransferRail();
-              else openPicker(pos, index, "add");
+              if (isDesktop()) {
+                setTransferPosFilter(pos);
+                paintTransferRail();
+              } else openPicker(pos, index, "add");
             });
           } else {
             btn.disabled = true;

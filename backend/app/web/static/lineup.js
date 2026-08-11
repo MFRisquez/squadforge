@@ -612,11 +612,30 @@
   function deskBenchCard(player) {
     const wrap = shirtCard(player, true);
     wrap.classList.add("xi-bench-row");
+    const shirt = wrap.querySelector(".xi-shirt");
+    if (shirt) shirt.classList.add("xi-bench-mini");
+    const overlay = wrap.querySelector(".shirt-overlay");
+    if (overlay) overlay.remove();
     const meta = document.createElement("div");
     meta.className = "xi-bench-meta";
-    const pts = POINTS[String(player.id)];
-    const ptsLabel = pts != null && pts !== "" ? `${Number(pts).toFixed(0)} pts` : "—";
-    meta.innerHTML = `<strong>${player.name}</strong><span>${player.team} · ${player.position} · ${ptsLabel}</span>`;
+    const fdr = player.fdr;
+    let fixtureHtml;
+    if (LOCKED && POINTS[String(player.id)] != null && POINTS[String(player.id)] !== "") {
+      const n = Number(POINTS[String(player.id)]);
+      const cls = n < 0 ? "is-neg" : n > 0 ? "is-pos" : "";
+      fixtureHtml = `<span class="xi-bench-fixture shirt-pts-fx ${cls}">${n.toFixed(0)} pts</span>`;
+    } else if (fdr) {
+      const venue = fdr.venue === "H" ? "H" : "A";
+      fixtureHtml = `<span class="xi-bench-fixture fdr-${fdr.difficulty}">${fdr.opponent} (${venue})</span>`;
+    } else {
+      fixtureHtml = `<span class="xi-bench-fixture">TBD</span>`;
+    }
+    meta.innerHTML = `
+      <strong class="xi-bench-name">${player.name}</strong>
+      ${fixtureHtml}
+      <span class="xi-bench-team">${player.team}</span>
+      <span class="xi-bench-pos">${player.position}</span>
+    `;
     wrap.appendChild(meta);
     return wrap;
   }
