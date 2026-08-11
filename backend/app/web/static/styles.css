@@ -2863,8 +2863,8 @@ body.picker-open {
     flex-direction: column;
     flex-wrap: nowrap;
     align-items: stretch;
-    gap: 0.18rem;
-    padding: 0.28rem 0.35rem 0.32rem;
+    gap: 0.28rem;
+    padding: 0.3rem 0.4rem 0.35rem;
     overflow: hidden;
     max-height: none;
   }
@@ -2872,40 +2872,39 @@ body.picker-open {
   .xi-bench-stack .xi-bench-row {
     width: 100%;
     display: grid;
-    grid-template-columns: 2.1rem minmax(0, 1fr);
+    grid-template-columns: 2.7rem minmax(0, 1fr);
     align-items: center;
     justify-items: start;
-    gap: 0.4rem;
+    gap: 0.55rem;
     min-height: 0;
   }
   .xi-bench-stack .xi-shirt,
   .xi-bench-stack .xi-bench-mini {
-    width: 2.1rem;
+    width: 2.7rem;
     min-height: 0;
     padding: 0;
   }
   .xi-bench-stack .shirt-kit {
-    min-height: 2.35rem;
+    min-height: 3.15rem;
     padding: 0;
   }
-  .xi-bench-stack .jersey-img { width: 1.85rem; }
+  .xi-bench-stack .jersey-img { width: 2.35rem; }
   .xi-bench-stack .shirt-overlay { display: none; }
   .xi-bench-stack .shirt-status-flag {
-    font-size: 0.42rem;
+    font-size: 0.4rem;
     top: 0;
     right: 0;
   }
   .xi-bench-meta {
     display: grid;
-    grid-template-columns: minmax(0, 1.4fr) auto minmax(0, 0.7fr) auto;
-    gap: 0.25rem 0.4rem;
-    align-items: center;
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
     min-width: 0;
     text-align: left;
     width: 100%;
   }
   .xi-bench-name {
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     font-weight: 800;
     white-space: nowrap;
     overflow: hidden;
@@ -2916,10 +2915,12 @@ body.picker-open {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 3.1rem;
-    padding: 0.12rem 0.28rem;
-    border-radius: 0.3rem;
-    font-size: 0.58rem;
+    width: fit-content;
+    min-width: 3.4rem;
+    margin-top: 0.06rem;
+    padding: 0.14rem 0.35rem;
+    border-radius: 0.35rem;
+    font-size: 0.62rem;
     font-weight: 800;
     background: #06143a;
     color: #fff;
@@ -2931,14 +2932,10 @@ body.picker-open {
   .xi-bench-fixture.fdr-4 { background: #ff1751; color: #fff; }
   .xi-bench-team,
   .xi-bench-pos {
-    font-size: 0.6rem;
+    font-size: 0.66rem;
     font-weight: 700;
     color: var(--muted);
     white-space: nowrap;
-  }
-  .xi-bench-pos {
-    text-align: right;
-    min-width: 1.6rem;
   }
   .xi-live-table-wrap {
     flex: 1 1 auto;
@@ -3286,85 +3283,148 @@ body.picker-open {
     overflow: auto;
   }
 
-  /* Squad pitch shirts slightly denser to fit viewport */
-  body.page-squad .desk-board .squad-card,
-  body.page-squad .desk-board .squad-shirt,
-  body.page-squad .squad-pitch-wrap .squad-card,
-  body.page-squad .squad-pitch-wrap .squad-shirt {
-    width: 5rem;
+  /* Bigger pitch shirts — scoped to pitch only (not bench) */
+  body.page-squad .squad-pitch,
+  body.page-xi .xi-pitch {
+    padding: 0.55rem 0.55rem 1.2rem;
+    padding-top: 2.55rem;
+    gap: 0.95rem;
+    justify-content: space-evenly;
   }
-  body.page-squad .squad-pitch-wrap .jersey-img,
-  body.page-squad .desk-board .jersey-img { width: 3.55rem; }
-  body.page-squad .squad-pitch-wrap .shirt-kit,
-  body.page-squad .desk-board .squad-shirt .shirt-kit { min-height: 5.4rem; }
-  body.page-squad .squad-pitch-wrap .shirt-overlay,
-  body.page-squad .desk-board .shirt-overlay { width: 4.2rem; }
-
-  /* XI: tiny bench + live table fills remaining height */
-  body.page-xi .desk-board .xi-card,
-  body.page-xi .desk-board .xi-shirt,
+  body.page-squad .squad-pitch .pitch-row,
+  body.page-xi .xi-pitch .pitch-row {
+    gap: 0.85rem;
+    justify-content: center;
+    width: 100%;
+  }
+  body.page-squad .squad-pitch-wrap .squad-card,
+  body.page-squad .squad-pitch-wrap .squad-shirt,
   body.page-xi .xi-pitch-wrap .xi-card,
   body.page-xi .xi-pitch-wrap .xi-shirt {
-    width: 5rem;
+    width: 5.85rem;
   }
-  body.page-xi .xi-pitch-wrap .jersey-img,
-  body.page-xi .desk-board .jersey-img { width: 3.55rem; }
-  body.page-xi .xi-pitch-wrap .shirt-kit,
-  body.page-xi .desk-board .xi-shirt .shirt-kit { min-height: 5.4rem; }
-  body.page-xi .xi-pitch-wrap .shirt-overlay,
-  body.page-xi .desk-board .shirt-overlay { width: 4.2rem; }
+  body.page-squad .squad-pitch-wrap .jersey-img,
+  body.page-xi .xi-pitch-wrap .jersey-img {
+    width: 4.65rem;
+  }
+  body.page-squad .squad-pitch-wrap .squad-shirt .shirt-kit,
+  body.page-xi .xi-pitch-wrap .xi-shirt .shirt-kit {
+    min-height: 7.05rem;
+  }
+  body.page-squad .squad-pitch-wrap .shirt-overlay,
+  body.page-xi .xi-pitch-wrap .shirt-overlay {
+    width: 4.9rem;
+  }
+  body.page-squad .squad-pitch-wrap .shirt-nameplate,
+  body.page-xi .xi-pitch-wrap .shirt-nameplate {
+    font-size: 0.66rem;
+  }
+  body.page-squad .squad-pitch-wrap .shirt-foot,
+  body.page-xi .xi-pitch-wrap .shirt-foot {
+    font-size: 0.6rem;
+  }
+
+  /* XI side rail: balanced bench + full live table (no scroll) */
   body.page-xi .xi-side-rail {
     height: 100%;
     min-height: 0;
-    gap: 0.28rem;
-    padding: 0.3rem;
+    gap: 0.35rem;
+    padding: 0.35rem;
   }
   body.page-xi .xi-bench-panel {
     flex: 0 0 auto;
   }
   body.page-xi .xi-bench-panel .desk-rail-head {
-    padding: 0.2rem 0.35rem 0.12rem;
+    padding: 0.28rem 0.45rem 0.18rem;
   }
   body.page-xi .xi-bench-panel .desk-rail-head .eyebrow { display: none; }
   body.page-xi .xi-bench-panel .desk-rail-head h2 {
-    font-size: 0.72rem;
+    font-size: 0.82rem;
     margin: 0;
   }
   body.page-xi .xi-bench-stack.bench {
-    gap: 0.06rem;
-    padding: 0.16rem 0.25rem 0.18rem;
+    gap: 0.28rem;
+    padding: 0.3rem 0.4rem 0.35rem;
     overflow: hidden;
   }
   body.page-xi .xi-bench-stack .xi-card,
   body.page-xi .xi-bench-stack .xi-bench-row {
-    grid-template-columns: 1.15rem minmax(0, 1fr);
-    gap: 0.28rem;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 2.7rem minmax(0, 1fr);
+    align-items: center;
+    justify-items: start;
+    gap: 0.55rem;
+    min-height: 0;
   }
   body.page-xi .xi-bench-stack .xi-shirt,
   body.page-xi .xi-bench-stack .xi-bench-mini {
-    width: 1.15rem;
+    width: 2.7rem !important;
+    min-height: 0;
+    padding: 0;
   }
   body.page-xi .xi-bench-stack .shirt-kit {
-    min-height: 1.35rem;
+    min-height: 3.15rem !important;
+    padding: 0;
   }
-  body.page-xi .xi-bench-stack .jersey-img { width: 1.05rem; }
-  body.page-xi .xi-bench-stack .shirt-status-flag { display: none; }
+  body.page-xi .xi-bench-stack .jersey-img {
+    width: 2.35rem !important;
+  }
+  body.page-xi .xi-bench-stack .shirt-overlay { display: none !important; }
+  body.page-xi .xi-bench-stack .shirt-status-flag {
+    font-size: 0.4rem;
+    top: 0;
+    right: 0;
+  }
   body.page-xi .xi-bench-meta {
-    gap: 0.12rem 0.3rem;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+    min-width: 0;
+    text-align: left;
+    width: 100%;
   }
-  body.page-xi .xi-bench-name { font-size: 0.64rem; }
-  body.page-xi .xi-bench-fixture {
-    min-width: 2.6rem;
-    padding: 0.06rem 0.2rem;
-    font-size: 0.52rem;
+  body.page-xi .xi-bench-name {
+    font-size: 0.78rem;
+    font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--ink);
   }
   body.page-xi .xi-bench-team,
-  body.page-xi .xi-bench-pos { font-size: 0.54rem; }
+  body.page-xi .xi-bench-pos {
+    font-size: 0.66rem;
+    font-weight: 700;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  body.page-xi .xi-bench-fixture {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    min-width: 3.4rem;
+    margin-top: 0.06rem;
+    padding: 0.14rem 0.35rem;
+    border-radius: 0.35rem;
+    font-size: 0.62rem;
+    font-weight: 800;
+    background: #06143a;
+    color: #fff;
+    white-space: nowrap;
+  }
+  body.page-xi .xi-bench-fixture.fdr-1 { background: #01fc7a; color: #06143a; }
+  body.page-xi .xi-bench-fixture.fdr-2 { background: #9bfaac; color: #06143a; }
+  body.page-xi .xi-bench-fixture.fdr-3 { background: #ffe566; color: #06143a; }
+  body.page-xi .xi-bench-fixture.fdr-4 { background: #ff1751; color: #fff; }
+
   body.page-xi .xi-live-panel {
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
   }
   body.page-xi .xi-live-panel .desk-rail-head {
     padding: 0.22rem 0.4rem 0.14rem;
@@ -3377,14 +3437,49 @@ body.picker-open {
   body.page-xi .xi-live-table-wrap {
     flex: 1 1 auto;
     min-height: 0;
-    overflow: auto;
+    overflow: hidden;
+    padding: 0.1rem 0.15rem 0.25rem;
+    display: flex;
+    flex-direction: column;
   }
-  body.page-xi .xi-live-table { font-size: 0.66rem; }
+  body.page-xi .xi-live-table {
+    width: 100%;
+    height: 100%;
+    font-size: 0.58rem;
+    border-collapse: collapse;
+  }
   body.page-xi .xi-live-table th,
   body.page-xi .xi-live-table td {
-    padding: 0.16rem 0.2rem;
+    padding: 0.1rem 0.14rem;
+    line-height: 1.15;
   }
-  body.page-xi .xi-live-table th { font-size: 0.56rem; }
+  body.page-xi .xi-live-table th {
+    font-size: 0.5rem;
+  }
+  body.page-xi .xi-live-section td,
+  body.page-xi .xi-live-split td {
+    text-align: left !important;
+    font-size: 0.58rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0.22rem 0.3rem !important;
+  }
+  body.page-xi .xi-live-section td {
+    background: rgba(0, 255, 135, 0.16);
+    color: #0b2a16;
+    border-top: 2px solid #00c96a;
+    border-bottom: 2px solid #00c96a;
+  }
+  body.page-xi .xi-live-split td {
+    background: #e8eeff;
+    color: #1a3a7a;
+    border-top: 2px solid #3d5afe;
+    border-bottom: 2px solid #3d5afe;
+  }
+  body.page-xi .xi-live-table tr.is-bench td {
+    background: rgba(232, 238, 255, 0.35);
+  }
 
   /* Fixtures: board fills remaining viewport */
   body.page-fixtures .fixtures-board {

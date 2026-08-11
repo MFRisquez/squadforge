@@ -632,9 +632,9 @@
     }
     meta.innerHTML = `
       <strong class="xi-bench-name">${player.name}</strong>
-      ${fixtureHtml}
       <span class="xi-bench-team">${player.team}</span>
       <span class="xi-bench-pos">${player.position}</span>
+      ${fixtureHtml}
     `;
     wrap.appendChild(meta);
     return wrap;
@@ -708,40 +708,49 @@
       <th>Pts</th>
     </tr>`;
 
-    const ranked = squad
-      .map((p) => {
-        const base = Number(POINTS[String(p.id)] || 0);
-        const mult = p.id === captainId ? 2 : 1;
-        const total = base * mult;
-        return { p, base, mult, total, bd: BREAKDOWNS[String(p.id)] || {} };
-      })
-      .sort((a, b) => b.total - a.total || String(a.p.name).localeCompare(String(b.p.name)));
+    const ranked = squad.map((p) => {
+      const base = Number(POINTS[String(p.id)] || 0);
+      const mult = p.id === captainId ? 2 : 1;
+      const total = base * mult;
+      return { p, base, mult, total, bd: BREAKDOWNS[String(p.id)] || {} };
+    });
+    const byPts = (a, b) =>
+      b.total - a.total || String(a.p.name).localeCompare(String(b.p.name));
+    const xiRanked = ranked.filter((r) => starterIds.has(r.p.id)).sort(byPts);
+    const benchRanked = ranked.filter((r) => !starterIds.has(r.p.id)).sort(byPts);
 
     if (!ranked.length) {
       tbody.innerHTML = `<tr><td colspan="${cols.length + 2}" class="muted">No squad players.</td></tr>`;
       return;
     }
 
-    tbody.innerHTML = ranked
-      .map(({ p, base, mult, total, bd }) => {
-        const role =
-          p.id === captainId ? " C" : p.id === viceId ? " V" : "";
-        const side = starterIds.has(p.id) ? "" : " · bn";
-        const cells = cols
-          .map(([key]) => {
-            const v = Number(bd[key] || 0);
-            const cls = v < 0 ? " class=\"is-neg\"" : "";
-            return `<td${cls}>${fmtPts(v)}</td>`;
-          })
-          .join("");
-        const ptsLabel = mult > 1 ? `${fmtPts(base)}×${mult}` : fmtPts(total);
-        return `<tr class="${p.id === captainId ? "is-captain" : ""}">
-          <td>${p.name}${role}${side}</td>
-          ${cells}
-          <td class="pts-total">${ptsLabel}</td>
-        </tr>`;
-      })
-      .join("");
+    function rowHtml({ p, base, mult, total, bd }, onBench) {
+      const role = p.id === captainId ? " C" : p.id === viceId ? " V" : "";
+      const cells = cols
+        .map(([key]) => {
+          const v = Number(bd[key] || 0);
+          const cls = v < 0 ? ' class="is-neg"' : "";
+          return `<td${cls}>${fmtPts(v)}</td>`;
+        })
+        .join("");
+      const ptsLabel = mult > 1 ? `${fmtPts(base)}×${mult}` : fmtPts(total);
+      return `<tr class="${p.id === captainId ? "is-captain" : ""}${onBench ? " is-bench" : " is-xi"}">
+        <td>${p.name}${role}</td>
+        ${cells}
+        <td class="pts-total">${ptsLabel}</td>
+      </tr>`;
+    }
+
+    const parts = [];
+    if (xiRanked.length) {
+      parts.push(`<tr class="xi-live-section"><td colspan="${cols.length + 2}">Starting XI</td></tr>`);
+      parts.push(...xiRanked.map((r) => rowHtml(r, false)));
+    }
+    if (benchRanked.length) {
+      parts.push(`<tr class="xi-live-split"><td colspan="${cols.length + 2}">Bench</td></tr>`);
+      parts.push(...benchRanked.map((r) => rowHtml(r, true)));
+    }
+    tbody.innerHTML = parts.join("");
   }
 
   function syncXiSideLayout() {
