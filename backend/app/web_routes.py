@@ -722,7 +722,6 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
         for p in picks
     }
     td_info = td_svc.td_view(db, manager.id, gw.number, gameweek_id=gw.id)
-    live_board = fixtures_svc.fixtures_live_board(db, gw_number=gw.number)
 
     return templates.TemplateResponse(
         "lineup.html",
@@ -749,7 +748,6 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
             bench_options=bench_options,
             captain_editable=captain_editable,
             td_info=td_info,
-            live_board=live_board,
             notice=notice,
             error=error,
             **view,
@@ -843,7 +841,6 @@ async def lineup_save(request: Request, db: Session = Depends(get_db)):
                     "points": {},
                 },
                 spend=squad_svc.squad_spend(owned),
-                live_board={"title": "Fixtures", "matches": [], "scope": "gameweek"},
                 error=str(exc),
             ),
             status_code=400,

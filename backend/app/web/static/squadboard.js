@@ -75,6 +75,7 @@
   let detailContext = null; // { player, fromPicker, pos, index }
   let scrollLockY = 0;
   let baselineSig = null;
+  let baselineTd = "";
   let saveVisual = "idle"; // idle | dirty | saved | saving
 
   const SAVE_ICO = {
@@ -84,6 +85,15 @@
     saving: `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 4a8 8 0 1 0 8 8h-2a6 6 0 1 1-6-6V4z"/></svg>`,
   };
 
+  function tdSelect() {
+    return document.getElementById("tdClub");
+  }
+
+  function currentTd() {
+    const sel = tdSelect();
+    return sel && sel.value ? String(sel.value) : "";
+  }
+
   function squadSignature() {
     return filledIds()
       .map(Number)
@@ -91,13 +101,31 @@
       .join(",");
   }
 
-  function isDirty() {
+  function squadDirty() {
     if (baselineSig == null) return false;
     return squadSignature() !== baselineSig;
   }
 
-  function canSaveSquad() {
-    return freeEdit() && isComplete() && isDirty() && !outPlayer && spend() <= BUDGET + 0.001;
+  function tdDirty() {
+    const sel = tdSelect();
+    if (!sel || sel.disabled) return false;
+    const value = currentTd();
+    if (!value) return false;
+    return value !== baselineTd;
+  }
+
+  function isDirty() {
+    return squadDirty() || tdDirty();
+  }
+
+  function canSaveSquadPlayers() {
+    return freeEdit() && isComplete() && squadDirty() && !outPlayer && spend() <= BUDGET + 0.001;
+  }
+
+  function canSave() {
+    if (LOCKED || outPlayer) return false;
+    if (tdDirty() && !squadDirty()) return true;
+    return canSaveSquadPlayers();
   }
 
   function paintSaveBtn() {
@@ -120,18 +148,34 @@
       label.textContent = state === "saved" ? "Saved" : state === "saving" ? "Saving…" : "Save";
     }
     if (state === "dirty") {
-      saveSquadBtn.disabled = !canSaveSquad();
-      saveSquadBtn.setAttribute("aria-label", "Unsaved squad changes");
+      saveSquadBtn.disabled = !canSave();
+      saveSquadBtn.setAttribute(
+        "aria-label",
+        tdDirty() && !squadDirty() ? "Unsaved DT change" : "Unsaved squad changes"
+      );
     } else if (state === "saved") {
       saveSquadBtn.disabled = true;
-      saveSquadBtn.setAttribute("aria-label", "Squad saved");
+      saveSquadBtn.setAttribute("aria-label", "Saved");
     } else if (state === "saving") {
       saveSquadBtn.disabled = true;
-      saveSquadBtn.setAttribute("aria-label", "Saving squad");
+      saveSquadBtn.setAttribute("aria-label", "Saving");
     } else {
       saveSquadBtn.disabled = true;
       saveSquadBtn.setAttribute("aria-label", "Save squad");
     }
+  }
+
+  function previewTdSelection(select) {
+    const club = select && select.value;
+    if (!club) return;
+    const corner = document.querySelector(".td-corner");
+    if (!corner) return;
+    const meta = corner.querySelector(".td-corner-meta");
+    if (!meta) return;
+    const kicker = meta.querySelector(".td-kicker");
+    if (kicker) kicker.textContent = club;
+    const windowEl = meta.querySelector(".td-window");
+    if (windowEl) windowEl.textContent = "Tap Save";
   }
 
   const STATUS_LABEL = {
@@ -912,52 +956,66 @@
     if (squadForm) {
       squadForm.addEventListener("submit", async (e) => {
         e.preventDefault();
-        if (!freeEdit()) {
-          alert("Use Confirm swap for transfers this week.");
+        const needSquad = squadDirty();
+        const needTd = tdDirty();
+        if (!needSquad && !needTd) return;
+        if (outPlayer) {
+          alert("Finish or cancel the transfer first.");
           return;
         }
-        if (!isComplete()) {
-          alert("Fill all 15 slots (2 GK, 5 DEF, 5 MID, 3 ATT).");
-          return;
-        }
-        if (!isDirty()) return;
-        if (spend() > BUDGET + 0.001) {
-          alert("Squad is over budget.");
-          return;
+        if (needSquad) {
+          if (!freeEdit()) {
+            alert("Use Confirm swap for transfers this week.");
+            return;
+          }
+          if (!isComplete()) {
+            alert("Fill all 15 slots (2 GK, 5 DEF, 5 MID, 3 ATT).");
+            return;
+          }
+          if (spend() > BUDGET + 0.001) {
+            alert("Squad is over budget.");
+            return;
+          }
         }
         syncHidden();
         saveVisual = "saving";
         paintSaveBtn();
         try {
-          const body = new URLSearchParams();
-          filledIds().forEach((id) => body.append("player_id", String(id)));
-          const res = await fetch("/team/save?format=json", {
-            method: "POST",
-            headers: {
-              Accept: "application/json",
-              "Content-Type": "application/x-www-form-urlencoded",
-              "X-Requested-With": "fetch",
-            },
-            credentials: "same-origin",
-            redirect: "manual",
-            body,
-          });
-          if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
-            throw new Error("Could not save squad — try again");
+          if (needSquad) {
+            const body = new URLSearchParams();
+            filledIds().forEach((id) => body.append("player_id", String(id)));
+            const res = await fetch("/team/save?format=json", {
+              method: "POST",
+              headers: {
+                Accept: "application/json",
+                "Content-Type": "application/x-www-form-urlencoded",
+                "X-Requested-With": "fetch",
+              },
+              credentials: "same-origin",
+              redirect: "manual",
+              body,
+            });
+            if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
+              throw new Error("Could not save squad — try again");
+            }
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.error || !data.ok) {
+              throw new Error(data.error || "Could not save squad");
+            }
+            baselineSig = squadSignature();
+            INITIAL.hasSquad = true;
+            INITIAL.selected = filledIds().slice();
           }
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok || data.error || !data.ok) {
-            throw new Error(data.error || "Could not save squad");
+          if (needTd) {
+            await saveTdClub(tdSelect());
+            baselineTd = currentTd();
           }
-          baselineSig = squadSignature();
-          INITIAL.hasSquad = true;
-          INITIAL.selected = filledIds().slice();
           saveVisual = "saved";
           paintSaveBtn();
         } catch (err) {
           saveVisual = "dirty";
           paintSaveBtn();
-          alert(err.message || "Could not save squad");
+          alert(err.message || "Could not save");
         }
       });
     }
@@ -1030,7 +1088,7 @@
 
   async function saveTdClub(select) {
     const club = select && select.value;
-    if (!club) return;
+    if (!club) throw new Error("Pick a DT club first");
     const corner = document.querySelector(".td-corner");
     select.disabled = true;
     if (corner) corner.classList.add("is-updating");
@@ -1055,8 +1113,7 @@
         throw new Error(data.error || "Could not update DT");
       }
       paintTdCorner(data.td);
-    } catch (err) {
-      alert(err.message || "Could not update DT");
+      return data.td;
     } finally {
       select.disabled = false;
       if (corner) corner.classList.remove("is-updating");
@@ -1071,11 +1128,15 @@
   if (tdCorner) {
     tdCorner.addEventListener("change", (e) => {
       const select = e.target && e.target.id === "tdClub" ? e.target : null;
-      if (select) saveTdClub(select);
+      if (!select) return;
+      previewTdSelection(select);
+      saveVisual = "dirty";
+      paintSaveBtn();
     });
   }
 
   baselineSig = squadSignature();
+  baselineTd = currentTd();
   saveVisual = "idle";
   render();
 })();
