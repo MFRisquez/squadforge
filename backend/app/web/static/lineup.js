@@ -50,6 +50,7 @@
   const rolesOnly = Boolean(document.querySelector('input[name="roles_only"]'));
   const xiSideRail = document.getElementById("xiSideRail");
   const xiLiveTable = document.getElementById("xiLiveTable");
+  const xiLiveLeader = document.getElementById("xiLiveLeader");
   const LIVE_COLS = [
     ["appearance", "App"],
     ["goals", "G"],
@@ -744,6 +745,23 @@
       return;
     }
 
+    const topTotal = ranked.reduce((max, r) => Math.max(max, r.total), Number.NEGATIVE_INFINITY);
+    const topRow =
+      Number.isFinite(topTotal) && ranked.some((r) => r.total === topTotal && Math.abs(topTotal) > 1e-9)
+        ? ranked.filter((r) => r.total === topTotal).sort(byPts)[0]
+        : null;
+
+    if (xiLiveLeader) {
+      if (topRow) {
+        const role = topRow.p.id === captainId ? " (C)" : topRow.p.id === viceId ? " (V)" : "";
+        xiLiveLeader.hidden = false;
+        xiLiveLeader.textContent = `Top · ${topRow.p.name}${role} · ${fmtPts(topRow.total)} pts`;
+      } else {
+        xiLiveLeader.hidden = true;
+        xiLiveLeader.textContent = "";
+      }
+    }
+
     function rowHtml({ p, base, mult, total, bd }, onBench) {
       const role = p.id === captainId ? " C" : p.id === viceId ? " V" : "";
       const cells = cols
@@ -754,8 +772,16 @@
         })
         .join("");
       const ptsLabel = mult > 1 ? `${fmtPts(base)}×${mult}` : fmtPts(total);
-      return `<tr class="${p.id === captainId ? "is-captain" : ""}${onBench ? " is-bench" : " is-xi"}">
-        <td>${p.name}${role}</td>
+      const isTop = Boolean(topRow && p.id === topRow.p.id);
+      const classes = [
+        p.id === captainId ? "is-captain" : "",
+        isTop ? "is-top" : "",
+        onBench ? "is-bench" : "is-xi",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      return `<tr class="${classes}">
+        <td>${isTop ? "★ " : ""}${p.name}${role}</td>
         ${cells}
         <td class="pts-total">${ptsLabel}</td>
       </tr>`;

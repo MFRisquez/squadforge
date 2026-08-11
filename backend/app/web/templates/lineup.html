@@ -8,7 +8,7 @@
 {{ gw_bar(gw, deadline_label, edits_locked, prev_gw, next_gw, '/lineup') }}
 
 <div class="xi-top">
-  <h1 class="xi-title">{% if edits_locked %}{{ xi_title }} · Live{% else %}{{ xi_title }} · Starting XI{% endif %}</h1>
+  <h1 class="xi-title sr-only">{% if edits_locked %}{{ xi_title }} · Live{% else %}{{ xi_title }} · Starting XI{% endif %}</h1>
 </div>
 
 {{ chip_strip(chips, active_chip, edits_locked, bench_options, group='xi', next_path='/lineup', gw_number=gw.number, gw_total=gw_total) }}
@@ -40,6 +40,10 @@
       <section class="pitch-wrap xi-pitch-wrap">
         <div class="pitch field pitch-photo xi-pitch" id="pitch">
           <div class="pitch-markings" aria-hidden="true"></div>
+          <div class="pitch-team-banner" aria-label="Your team">
+            <strong class="pitch-team-name">{{ xi_title }}</strong>
+            <span class="pitch-team-role">{% if edits_locked %}Live XI{% else %}Starting XI{% endif %}</span>
+          </div>
           {% if not edits_locked %}
           <button class="pitch-save-btn is-idle" type="submit" id="saveXiBtn" disabled aria-label="Save XI">
             <span class="pitch-save-ico" aria-hidden="true"></span>
@@ -103,6 +107,7 @@
       <header class="desk-rail-head">
         <p class="eyebrow">Gameweek</p>
         <h2>Live points</h2>
+        <p class="xi-live-leader muted tiny" id="xiLiveLeader" hidden></p>
       </header>
       <div class="xi-live-table-wrap">
         <table class="xi-live-table" id="xiLiveTable">

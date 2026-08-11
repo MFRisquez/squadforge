@@ -587,10 +587,50 @@ select {
   padding: 0.4rem 0.28rem 1.25rem;
   align-content: start;
 }
-.td-corner {
+.pitch-team-banner {
   position: absolute;
   top: 0.4rem;
-  left: 0.4rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: grid;
+  justify-items: center;
+  gap: 0.1rem;
+  max-width: min(72%, 18rem);
+  padding: 0.28rem 0.85rem 0.32rem;
+  border-radius: 999px;
+  background: rgba(6, 20, 58, 0.88);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  text-align: center;
+  pointer-events: none;
+}
+.pitch-team-name {
+  font-size: clamp(0.78rem, 1.6vw, 1.05rem);
+  font-weight: 900;
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  color: #fff;
+}
+.pitch-team-role {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #00ff87;
+  line-height: 1;
+}
+.td-corner {
+  position: absolute;
+  top: auto;
+  left: auto;
+  right: 0.4rem;
+  bottom: 0.4rem;
   z-index: 3;
   display: grid;
   grid-template-columns: auto 1fr;
@@ -3364,12 +3404,7 @@ body.picker-open {
   body.page-fit .swap-bar { flex: 0 0 auto; margin: 0; }
   body.page-fit .action-row { flex: 0 0 auto; margin: 0.1rem 0; }
   body.page-fit .xi-top {
-    flex: 0 0 auto;
-    margin: 0;
-  }
-  body.page-fit .xi-title {
-    font-size: 1.15rem;
-    margin: 0;
+    display: none;
   }
   body.page-fit .hero-block {
     flex: 0 0 auto;
@@ -3419,9 +3454,10 @@ body.picker-open {
     min-height: 0;
     height: 100%;
     max-height: none;
-    padding: 0.45rem 0.4rem 1.1rem;
-    padding-top: 2.35rem;
-    gap: 0.7rem;
+    padding: 0.45rem 0.4rem 1.35rem;
+    padding-top: 2.65rem;
+    gap: clamp(0.7rem, 2.4vh, 2.4rem);
+    align-content: space-evenly;
   }
   body.page-fit .pitch-meta { display: none; }
   body.page-fit .pitch-cap-hint { display: none; }
@@ -3444,10 +3480,33 @@ body.picker-open {
   /* Bigger pitch shirts — scoped to pitch only (not bench) */
   body.page-squad .squad-pitch,
   body.page-xi .xi-pitch {
-    padding: 0.55rem 0.55rem 1.2rem;
-    padding-top: 2.55rem;
-    gap: 0.95rem;
-    justify-content: space-evenly;
+    padding: 0.55rem 0.55rem 1.35rem;
+    padding-top: 2.85rem;
+    /* Grow row spacing as the window gets taller/maximized */
+    gap: clamp(0.85rem, 2.8vh, 2.75rem);
+    align-content: space-evenly;
+    justify-content: center;
+  }
+  body.page-squad .pitch-team-banner,
+  body.page-xi .pitch-team-banner {
+    top: 0.55rem;
+    max-width: min(58%, 22rem);
+    padding: 0.34rem 1.1rem 0.38rem;
+  }
+  body.page-squad .pitch-team-name,
+  body.page-xi .pitch-team-name {
+    font-size: clamp(0.95rem, 1.35vw, 1.25rem);
+  }
+  body.page-squad .pitch-team-role,
+  body.page-xi .pitch-team-role {
+    font-size: 0.68rem;
+  }
+  body.page-squad .td-corner,
+  body.page-xi .td-corner {
+    right: 0.55rem;
+    bottom: 0.55rem;
+    left: auto;
+    top: auto;
   }
   /* Compact cluster (pre-grid), nudged right vs pitch graphic */
   body.page-squad .squad-pitch .pitch-row,
@@ -3613,12 +3672,42 @@ body.picker-open {
     overflow: hidden;
   }
   body.page-xi .xi-live-panel .desk-rail-head {
-    padding: 0.18rem 0.35rem 0.12rem;
+    padding: 0.22rem 0.35rem 0.14rem;
   }
   body.page-xi .xi-live-panel .desk-rail-head .eyebrow { display: none; }
   body.page-xi .xi-live-panel .desk-rail-head h2 {
-    font-size: 0.7rem;
     margin: 0;
+    display: inline-block;
+    background: #06143a;
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    padding: 0.22rem 0.65rem;
+    border-radius: 0.35rem;
+  }
+  body.page-xi .xi-live-leader {
+    margin: 0.28rem 0 0;
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: #06143a;
+  }
+  body.page-xi .xi-live-leader[hidden] { display: none !important; }
+  body.page-xi .xi-live-table tr.is-captain td {
+    background: rgba(0, 255, 135, 0.22);
+    color: #06143a;
+  }
+  body.page-xi .xi-live-table tr.is-top td {
+    background: #fff3bf;
+    color: #5a4300;
+  }
+  body.page-xi .xi-live-table tr.is-captain.is-top td {
+    background: linear-gradient(90deg, rgba(0, 255, 135, 0.28), #fff3bf 55%);
+    color: #0b2a16;
+  }
+  body.page-xi .xi-live-table tr.is-captain .pts-total,
+  body.page-xi .xi-live-table tr.is-top .pts-total {
+    font-weight: 900;
   }
   body.page-xi .xi-live-table-wrap {
     flex: 1 1 auto;
@@ -4200,13 +4289,22 @@ body.picker-open {
   .stat strong { font-size: 0.72rem; }
   .stat-sub { display: none; }
   .td-corner {
-    top: 0.28rem;
-    left: 0.28rem;
+    top: auto;
+    left: auto;
+    right: 0.28rem;
+    bottom: 0.28rem;
     max-width: 7.6rem;
     padding: 0.28rem 0.32rem;
     gap: 0.1rem 0.28rem;
     border-radius: 0.48rem;
   }
+  .pitch-team-banner {
+    top: 0.28rem;
+    max-width: min(70%, 14rem);
+    padding: 0.22rem 0.65rem 0.26rem;
+  }
+  .pitch-team-name { font-size: 0.72rem; }
+  .pitch-team-role { font-size: 0.55rem; }
   .td-badge { width: 2.15rem; height: 2.15rem; }
   .td-kicker { font-size: 0.56rem; }
   .td-corner-meta strong { font-size: 0.68rem; }
