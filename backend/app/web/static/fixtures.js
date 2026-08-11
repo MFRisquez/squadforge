@@ -45,14 +45,22 @@
     const homeHtml = goalsHome + assistsHome + ogHome;
     const awayHtml = goalsAway + assistsAway + ogAway;
     const hasEvents = Boolean(homeHtml || awayHtml);
+    const homeBadge = data.home.badge
+      ? `<img class="fx-badge" src="${data.home.badge}" alt="" width="96" height="96" loading="lazy" />`
+      : "";
+    const awayBadge = data.away.badge
+      ? `<img class="fx-badge" src="${data.away.badge}" alt="" width="96" height="96" loading="lazy" />`
+      : "";
     return `
       <div class="match-scoreline">
-        <div>
+        <div class="match-club">
+          ${homeBadge}
           <strong>${data.home.name}</strong>
           <span class="muted">${data.home.code}</span>
         </div>
         <div class="match-score">${score}</div>
-        <div class="away">
+        <div class="match-club away">
+          ${awayBadge}
           <strong>${data.away.name}</strong>
           <span class="muted">${data.away.code}</span>
         </div>
@@ -170,12 +178,12 @@
     });
   }
 
-  function mineHtml(sideRows, code, away) {
+  function mineHtml(sideRows, _code, away) {
     if (!sideRows || !sideRows.length) return "";
     const chips = sideRows
       .map((p) => `<span class="fx-mine-chip avail-${p.availability || "ok"}">${p.name}</span>`)
       .join("");
-    return `<p class="fx-mine-side${away ? " away" : ""}"><span class="fx-mine-label">${code}</span>${chips}</p>`;
+    return `<p class="fx-mine-side${away ? " away" : ""}">${chips}</p>`;
   }
 
   function newsHtml(lines) {

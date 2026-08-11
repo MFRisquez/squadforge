@@ -449,6 +449,8 @@ def fixture_detail(db: Session, *, fixture_id: int) -> dict[str, Any] | None:
     clubs = {c.code: c for c in db.query(Club).all()}
     events = parse_match_events(db, fx)
     status = "finished" if fx.finished else ("live" if fx.started else "upcoming")
+    home = clubs.get(fx.home_club_code)
+    away = clubs.get(fx.away_club_code)
     return {
         "id": fx.id,
         "fpl_id": fx.fpl_id,
@@ -457,13 +459,15 @@ def fixture_detail(db: Session, *, fixture_id: int) -> dict[str, Any] | None:
         "status": status,
         "home": {
             "code": fx.home_club_code,
-            "name": clubs.get(fx.home_club_code).name if clubs.get(fx.home_club_code) else fx.home_club_code,
+            "name": home.name if home else fx.home_club_code,
             "score": fx.home_score,
+            "badge": badge_url(fx.home_club_code, kit_code=home.kit_code if home else None),
         },
         "away": {
             "code": fx.away_club_code,
-            "name": clubs.get(fx.away_club_code).name if clubs.get(fx.away_club_code) else fx.away_club_code,
+            "name": away.name if away else fx.away_club_code,
             "score": fx.away_score,
+            "badge": badge_url(fx.away_club_code, kit_code=away.kit_code if away else None),
         },
         **events,
     }

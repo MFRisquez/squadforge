@@ -68,7 +68,6 @@
           <div class="fx-mine">
             {% if home_mine %}
             <p class="fx-mine-side">
-              <span class="fx-mine-label">{{ m.home.code }}</span>
               {% for p in home_mine %}
               <span class="fx-mine-chip avail-{{ p.availability }}">{{ p.name }}</span>
               {% endfor %}
@@ -76,7 +75,6 @@
             {% endif %}
             {% if away_mine %}
             <p class="fx-mine-side away">
-              <span class="fx-mine-label">{{ m.away.code }}</span>
               {% for p in away_mine %}
               <span class="fx-mine-chip avail-{{ p.availability }}">{{ p.name }}</span>
               {% endfor %}

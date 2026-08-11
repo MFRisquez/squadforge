@@ -264,7 +264,7 @@
     const left = BUDGET - spend();
     budgetValue.textContent = `£${left.toFixed(1)}m`;
     budgetValue.classList.toggle("over", left < -0.01);
-    squadCount.textContent = `${filledIds().length}/15`;
+    if (squadCount) squadCount.textContent = `${filledIds().length}/15`;
     if (LOCKED) {
       if (modeHint) modeHint.textContent = "Gameweek locked.";
       if (saveSquadBtn) saveSquadBtn.hidden = true;
