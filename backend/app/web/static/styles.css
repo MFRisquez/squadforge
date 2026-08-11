@@ -3243,14 +3243,21 @@ body.picker-open {
   .fixture-detail-panel .match-scoreline .fx-badge-detail,
   .match-detail-sheet .match-scoreline .fx-badge,
   .match-detail-sheet .match-scoreline .fx-badge-detail {
+    display: block;
     width: 5.25rem;
     height: 5.25rem;
+    object-fit: contain;
+    margin: 0 auto;
   }
   .fixture-detail-panel .match-scoreline .match-club,
   .match-detail-sheet .match-scoreline .match-club {
     display: grid;
     justify-items: center;
     gap: 0.35rem;
+  }
+  .fixture-detail-panel .match-scoreline .match-club .muted,
+  .match-detail-sheet .match-scoreline .match-club .muted {
+    display: none;
   }
   .fixture-detail-panel .match-club-name,
   .match-detail-sheet .match-club-name {
@@ -3570,7 +3577,7 @@ body.picker-open {
     height: 100%;
     max-height: none;
     padding: 0.45rem 0.4rem 1.35rem;
-    padding-top: 2.65rem;
+    padding-top: 2.1rem;
     gap: clamp(0.7rem, 2.4vh, 2.4rem);
     align-content: space-evenly;
   }
@@ -3596,7 +3603,7 @@ body.picker-open {
   body.page-squad .squad-pitch,
   body.page-xi .xi-pitch {
     padding: 0.55rem 0.55rem 1.35rem;
-    padding-top: 2.85rem;
+    padding-top: 2.15rem;
     /* Grow row spacing as the window gets taller/maximized */
     gap: clamp(0.85rem, 2.8vh, 2.75rem);
     align-content: space-evenly;
@@ -3641,7 +3648,7 @@ body.picker-open {
     left: auto;
     top: auto;
   }
-  /* Compact cluster (pre-grid), nudged right vs pitch graphic */
+  /* Compact cluster: nudge right + slightly up (shirts, boxes, overlays) */
   body.page-squad .squad-pitch .pitch-row,
   body.page-xi .xi-pitch .pitch-row {
     display: flex;
@@ -3651,6 +3658,7 @@ body.picker-open {
     width: 100%;
     padding-left: 1.15rem;
     box-sizing: border-box;
+    transform: translateY(-0.45rem);
   }
   /* Keep swap/transfer rings on the same right-nudged cards */
   body.page-squad .squad-pitch .pitch-row > .shirt-card,

@@ -14,9 +14,49 @@
   const deskBody = document.getElementById("deskMatchBody");
   const DESK_MQ = window.matchMedia("(min-width: 900px)");
   let selectedId = null;
+  /** @type {Record<string, { homeBadge?: string, awayBadge?: string, homeName?: string, awayName?: string, homeCode?: string, awayCode?: string }>} */
+  const FIXTURE_META = {};
 
   function isDesktop() {
     return Boolean(DESK_MQ && DESK_MQ.matches);
+  }
+
+  function rememberFixtureMeta(m) {
+    if (!m || m.id == null) return;
+    FIXTURE_META[String(m.id)] = {
+      homeBadge: m.home?.badge || "",
+      awayBadge: m.away?.badge || "",
+      homeName: m.home?.name || "",
+      awayName: m.away?.name || "",
+      homeCode: m.home?.code || "",
+      awayCode: m.away?.code || "",
+    };
+  }
+
+  function mergeDetailBadges(data) {
+    const meta = FIXTURE_META[String(data.id)] || {};
+    const home = { ...(data.home || {}) };
+    const away = { ...(data.away || {}) };
+    if (!home.badge && meta.homeBadge) home.badge = meta.homeBadge;
+    if (!away.badge && meta.awayBadge) away.badge = meta.awayBadge;
+    if (!home.name && meta.homeName) home.name = meta.homeName;
+    if (!away.name && meta.awayName) away.name = meta.awayName;
+    if (!home.code && meta.homeCode) home.code = meta.homeCode;
+    if (!away.code && meta.awayCode) away.code = meta.awayCode;
+    // Last resort: pull badge URLs from the selected list card
+    if ((!home.badge || !away.badge) && list) {
+      const btn = list.querySelector(`[data-fixture-id="${data.id}"]`);
+      if (btn) {
+        const imgs = btn.querySelectorAll(".fx-badge");
+        if (!home.badge) {
+          home.badge = btn.getAttribute("data-home-badge") || imgs[0]?.src || "";
+        }
+        if (!away.badge) {
+          away.badge = btn.getAttribute("data-away-badge") || imgs[1]?.src || "";
+        }
+      }
+    }
+    return { ...data, home, away };
   }
 
   function formatKickoff(iso) {
@@ -94,11 +134,11 @@
     const awayHtml = goalsAway + assistsAway + ogAway + ycAway + rcAway + psAway + pmAway + svAway;
     const hasEvents = Boolean(homeHtml || awayHtml);
     const homeBadge = data.home.badge
-      ? `<img class="fx-badge fx-badge-detail" src="${data.home.badge}" alt="${data.home.name || ""}" width="96" height="96" loading="lazy" />`
-      : `<span class="fx-badge-fallback">${homeCode}</span>`;
+      ? `<img class="fx-badge fx-badge-detail" src="${data.home.badge}" alt="${data.home.name || homeCode}" width="96" height="96" decoding="async" />`
+      : `<span class="fx-badge-fallback" aria-label="${homeCode}">${homeCode}</span>`;
     const awayBadge = data.away.badge
-      ? `<img class="fx-badge fx-badge-detail" src="${data.away.badge}" alt="${data.away.name || ""}" width="96" height="96" loading="lazy" />`
-      : `<span class="fx-badge-fallback">${awayCode}</span>`;
+      ? `<img class="fx-badge fx-badge-detail" src="${data.away.badge}" alt="${data.away.name || awayCode}" width="96" height="96" decoding="async" />`
+      : `<span class="fx-badge-fallback" aria-label="${awayCode}">${awayCode}</span>`;
 
     const status = data.status || "upcoming";
     const kick = formatKickoff(data.kickoff);
@@ -178,7 +218,8 @@
     });
   }
 
-  function renderMatchDetail(data) {
+  function renderMatchDetail(raw) {
+    const data = mergeDetailBadges(raw || {});
     const hs = data.home.score;
     const as_ = data.away.score;
     const score = hs != null && as_ != null ? `${hs}–${as_}` : "vs";
@@ -286,6 +327,7 @@
   function renderList(fixtures) {
     if (!list) return;
     const rows = attachSquad(fixtures);
+    rows.forEach(rememberFixtureMeta);
     if (!rows.length) {
       list.innerHTML = `<li class="empty-pick">No fixtures for this GW.</li>`;
       return;
@@ -316,7 +358,7 @@
           : "";
         const selected = selectedId && String(m.id) === selectedId ? " is-selected" : "";
         return `<li>
-          <button type="button" class="fx-card status-${m.status}${hasMine ? " has-mine" : ""}${selected}" data-fixture-id="${m.id}">
+          <button type="button" class="fx-card status-${m.status}${hasMine ? " has-mine" : ""}${selected}" data-fixture-id="${m.id}" data-home-badge="${m.home.badge || ""}" data-away-badge="${m.away.badge || ""}">
             <div class="fx-card-top">${top}</div>
             <div class="fx-card-match">
               <div class="fx-club">
@@ -346,6 +388,24 @@
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => renderList(data.fixtures || []))
       .catch(() => {});
+  }
+
+  // Seed badge/name cache from the SSR list cards
+  if (list) {
+    list.querySelectorAll(".fx-card[data-fixture-id]").forEach((btn) => {
+      const id = btn.getAttribute("data-fixture-id");
+      const imgs = btn.querySelectorAll(".fx-badge");
+      const codes = btn.querySelectorAll(".fx-club > strong");
+      const names = btn.querySelectorAll(".fx-club-name");
+      FIXTURE_META[String(id)] = {
+        homeBadge: btn.getAttribute("data-home-badge") || imgs[0]?.getAttribute("src") || "",
+        awayBadge: btn.getAttribute("data-away-badge") || imgs[1]?.getAttribute("src") || "",
+        homeCode: codes[0]?.textContent?.trim() || "",
+        awayCode: codes[1]?.textContent?.trim() || "",
+        homeName: names[0]?.textContent?.trim() || "",
+        awayName: names[1]?.textContent?.trim() || "",
+      };
+    });
   }
 
   bindRows(list);

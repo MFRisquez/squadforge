@@ -27,7 +27,7 @@
     <ul class="fixture-list fixture-list-wide" id="fixtureList">
       {% for m in matches %}
       <li>
-        <button type="button" class="fx-card status-{{ m.status }} {% if m.my_players and (m.my_players.home or m.my_players.away) %}has-mine{% endif %}" data-fixture-id="{{ m.id }}">
+        <button type="button" class="fx-card status-{{ m.status }} {% if m.my_players and (m.my_players.home or m.my_players.away) %}has-mine{% endif %}" data-fixture-id="{{ m.id }}" data-home-badge="{{ m.home.badge or '' }}" data-away-badge="{{ m.away.badge or '' }}">
           <div class="fx-card-top">
             {% if m.status == 'live' %}<em class="live-dot">LIVE</em>
             {% elif m.status == 'finished' %}<span class="fx-status">Full time</span>
@@ -40,7 +40,7 @@
           <div class="fx-card-match">
             <div class="fx-club">
               {% if m.home.badge %}
-              <img class="fx-badge" src="{{ m.home.badge }}" alt="" width="40" height="40" loading="lazy" />
+              <img class="fx-badge" src="{{ m.home.badge }}" alt="{{ m.home.name }}" width="40" height="40" loading="lazy" />
               {% endif %}
               <strong>{{ m.home.code }}</strong>
               <span class="fx-club-name">{{ m.home.name }}</span>
@@ -56,7 +56,7 @@
             </div>
             <div class="fx-club away">
               {% if m.away.badge %}
-              <img class="fx-badge" src="{{ m.away.badge }}" alt="" width="40" height="40" loading="lazy" />
+              <img class="fx-badge" src="{{ m.away.badge }}" alt="{{ m.away.name }}" width="40" height="40" loading="lazy" />
               {% endif %}
               <strong>{{ m.away.code }}</strong>
               <span class="fx-club-name">{{ m.away.name }}</span>
