@@ -5070,12 +5070,12 @@ body.page-fit .pitch-cap-hint {
   .xi-pitch-wrap {
     --pitch-token-w: 3.55rem;
   }
-  .xi-pitch { gap: 0.75rem; }
+  .xi-pitch { gap: 0.65rem; }
   .squad-pitch { gap: 1rem; }
-  body.page-xi .xi-pitch .pitch-row.zone-gk { transform: translateY(-1rem); }
-  body.page-xi .xi-pitch .pitch-row.zone-def { transform: translateY(-0.9rem); }
-  body.page-xi .xi-pitch .pitch-row.zone-mid { transform: translateY(-0.75rem); }
-  body.page-xi .xi-pitch .pitch-row.zone-att { transform: translateY(-0.6rem); }
+  body.page-xi .xi-pitch .pitch-row.zone-gk { transform: translateY(-1.35rem); }
+  body.page-xi .xi-pitch .pitch-row.zone-def { transform: translateY(-1.25rem); }
+  body.page-xi .xi-pitch .pitch-row.zone-mid { transform: translateY(-1.1rem); }
+  body.page-xi .xi-pitch .pitch-row.zone-att { transform: translateY(-0.95rem); }
   .shirt:not(.xi-shirt) { width: 2.95rem; min-height: 3.45rem; }
   .jersey-img { width: 2rem; }
   .xi-pitch .jersey-img,
