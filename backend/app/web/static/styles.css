@@ -504,13 +504,14 @@ select {
 }
 .role-badge {
   position: absolute;
-  top: 0.2rem;
-  left: 0.1rem;
-  right: auto;
+  top: 0.15rem;
+  right: 0.05rem;
+  left: auto;
   transform: none;
-  min-width: 1.15rem;
-  height: 1.15rem;
-  padding: 0 0.22rem;
+  width: 1.2rem;
+  height: 1.2rem;
+  min-width: 1.2rem;
+  padding: 0;
   border-radius: 999px;
   border: 1.5px solid rgba(6, 20, 58, 0.9);
   font-size: 0.62rem;
@@ -524,8 +525,9 @@ select {
   pointer-events: none;
 }
 .shirt-kit .role-badge {
-  top: 0.15rem;
-  left: 0.05rem;
+  top: 0.12rem;
+  right: 0.02rem;
+  left: auto;
 }
 .role-badge.role-c {
   background: #00ff87;
@@ -954,8 +956,13 @@ select {
   color: #fff;
 }
 .xi-card .role-badge {
-  top: 0.05rem;
-  right: 0.05rem;
+  top: 0.08rem;
+  right: -0.05rem;
+  left: auto;
+  width: 1.25rem;
+  height: 1.25rem;
+  min-width: 1.25rem;
+  border-radius: 999px;
 }
 .xi-bench-wrap {
   margin-top: 0.45rem;
@@ -1130,6 +1137,7 @@ select {
   overflow: hidden;
   text-overflow: ellipsis;
   min-height: 0;
+  line-height: 1.05;
 }
 .chip-card-fpl.chip-card-ss {
   width: min(22rem, 96vw);
@@ -2863,8 +2871,8 @@ body.picker-open {
     flex-direction: column;
     flex-wrap: nowrap;
     align-items: stretch;
-    gap: 0.28rem;
-    padding: 0.3rem 0.4rem 0.35rem;
+    gap: 0.16rem;
+    padding: 0.22rem 0.35rem 0.28rem;
     overflow: hidden;
     max-height: none;
   }
@@ -2872,39 +2880,40 @@ body.picker-open {
   .xi-bench-stack .xi-bench-row {
     width: 100%;
     display: grid;
-    grid-template-columns: 2.7rem minmax(0, 1fr);
+    grid-template-columns: 2.2rem minmax(0, 1fr);
     align-items: center;
-    justify-items: start;
-    gap: 0.55rem;
+    justify-items: stretch;
+    gap: 0.4rem;
     min-height: 0;
   }
   .xi-bench-stack .xi-shirt,
   .xi-bench-stack .xi-bench-mini {
-    width: 2.7rem;
+    width: 2.2rem;
     min-height: 0;
     padding: 0;
   }
   .xi-bench-stack .shirt-kit {
-    min-height: 3.15rem;
+    min-height: 2.55rem;
     padding: 0;
   }
-  .xi-bench-stack .jersey-img { width: 2.35rem; }
+  .xi-bench-stack .jersey-img { width: 1.95rem; }
   .xi-bench-stack .shirt-overlay { display: none; }
   .xi-bench-stack .shirt-status-flag {
-    font-size: 0.4rem;
+    font-size: 0.38rem;
     top: 0;
     right: 0;
   }
   .xi-bench-meta {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 0.1rem;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.85fr) auto auto;
+    gap: 0.25rem 0.45rem;
+    align-items: center;
     min-width: 0;
     text-align: left;
     width: 100%;
   }
   .xi-bench-name {
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     font-weight: 800;
     white-space: nowrap;
     overflow: hidden;
@@ -2915,12 +2924,13 @@ body.picker-open {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    justify-self: end;
     width: fit-content;
-    min-width: 3.4rem;
-    margin-top: 0.06rem;
-    padding: 0.14rem 0.35rem;
-    border-radius: 0.35rem;
-    font-size: 0.62rem;
+    min-width: 3.2rem;
+    margin-top: 0;
+    padding: 0.12rem 0.3rem;
+    border-radius: 0.32rem;
+    font-size: 0.58rem;
     font-weight: 800;
     background: #06143a;
     color: #fff;
@@ -2932,10 +2942,12 @@ body.picker-open {
   .xi-bench-fixture.fdr-4 { background: #ff1751; color: #fff; }
   .xi-bench-team,
   .xi-bench-pos {
-    font-size: 0.66rem;
+    font-size: 0.62rem;
     font-weight: 700;
     color: var(--muted);
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .xi-live-table-wrap {
     flex: 1 1 auto;
@@ -2983,16 +2995,28 @@ body.picker-open {
   }
   .xi-live-table .is-neg { color: #c62828; }
   .chip-card-fpl.chip-card-wide {
-    width: 12.2rem;
-    padding: 0.38rem 0.7rem 0.38rem 0.45rem;
+    width: 9.4rem;
+    padding: 0.3rem 0.55rem 0.3rem 0.4rem;
+    row-gap: 0.06rem;
   }
   .chip-card-fpl.chip-card-wide .chip-name {
-    font-size: 0.84rem;
-    white-space: normal;
-    overflow: visible;
-    text-overflow: unset;
-    line-height: 1.15;
-    min-height: 1.8em;
+    font-size: 0.74rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.05;
+    min-height: 0;
+  }
+  .chip-card-fpl.chip-card-wide .chip-play {
+    margin-top: 0;
+  }
+  .chip-card-fpl.chip-card-ss {
+    width: min(34rem, 100%);
+    padding: 0.34rem 0.65rem 0.34rem 0.45rem;
+  }
+  .chip-card-fpl.chip-card-ss .chip-ss-form select {
+    min-width: 12rem;
+    flex: 1 1 auto;
   }
   .td-corner {
     max-width: 11rem;
@@ -3195,7 +3219,17 @@ body.picker-open {
     width: 7.2rem;
     padding: 0.22rem 0.4rem 0.22rem 0.3rem;
   }
-  body.page-fit .chip-card-fpl.chip-card-wide { width: 10.2rem; }
+  body.page-fit .chip-card-fpl.chip-card-wide {
+    width: 9.2rem;
+    row-gap: 0.04rem;
+  }
+  body.page-fit .chip-card-fpl.chip-card-ss {
+    width: min(36rem, 100%);
+  }
+  body.page-fit .chip-card-fpl.chip-card-ss .chip-ss-form select {
+    min-width: 13rem;
+    min-height: 2.05rem;
+  }
   body.page-fit .stat-strip {
     flex: 0 0 auto;
     margin: 0;
@@ -3324,68 +3358,66 @@ body.picker-open {
     font-size: 0.6rem;
   }
 
-  /* XI side rail: balanced bench + full live table (no scroll) */
+  /* XI side rail: compact horizontal bench + larger live table */
   body.page-xi .xi-side-rail {
     height: 100%;
     min-height: 0;
-    gap: 0.35rem;
-    padding: 0.35rem;
+    gap: 0.28rem;
+    padding: 0.3rem;
   }
   body.page-xi .xi-bench-panel {
     flex: 0 0 auto;
+    max-height: 34%;
   }
   body.page-xi .xi-bench-panel .desk-rail-head {
-    padding: 0.28rem 0.45rem 0.18rem;
+    padding: 0.18rem 0.35rem 0.1rem;
   }
   body.page-xi .xi-bench-panel .desk-rail-head .eyebrow { display: none; }
   body.page-xi .xi-bench-panel .desk-rail-head h2 {
-    font-size: 0.82rem;
+    font-size: 0.72rem;
     margin: 0;
   }
   body.page-xi .xi-bench-stack.bench {
-    gap: 0.28rem;
-    padding: 0.3rem 0.4rem 0.35rem;
+    gap: 0.1rem;
+    padding: 0.16rem 0.28rem 0.2rem;
     overflow: hidden;
   }
   body.page-xi .xi-bench-stack .xi-card,
   body.page-xi .xi-bench-stack .xi-bench-row {
     width: 100%;
     display: grid;
-    grid-template-columns: 2.7rem minmax(0, 1fr);
+    grid-template-columns: 2rem minmax(0, 1fr);
     align-items: center;
-    justify-items: start;
-    gap: 0.55rem;
+    justify-items: stretch;
+    gap: 0.35rem;
     min-height: 0;
   }
   body.page-xi .xi-bench-stack .xi-shirt,
   body.page-xi .xi-bench-stack .xi-bench-mini {
-    width: 2.7rem !important;
+    width: 2rem !important;
     min-height: 0;
     padding: 0;
   }
   body.page-xi .xi-bench-stack .shirt-kit {
-    min-height: 3.15rem !important;
+    min-height: 2.35rem !important;
     padding: 0;
   }
   body.page-xi .xi-bench-stack .jersey-img {
-    width: 2.35rem !important;
+    width: 1.75rem !important;
   }
   body.page-xi .xi-bench-stack .shirt-overlay { display: none !important; }
-  body.page-xi .xi-bench-stack .shirt-status-flag {
-    font-size: 0.4rem;
-    top: 0;
-    right: 0;
-  }
+  body.page-xi .xi-bench-stack .shirt-status-flag { display: none; }
   body.page-xi .xi-bench-meta {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 0.1rem;
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 0.9fr) auto auto;
+    gap: 0.2rem 0.4rem;
+    align-items: center;
     min-width: 0;
     text-align: left;
     width: 100%;
   }
   body.page-xi .xi-bench-name {
-    font-size: 0.78rem;
+    font-size: 0.68rem;
     font-weight: 800;
     white-space: nowrap;
     overflow: hidden;
@@ -3394,21 +3426,24 @@ body.picker-open {
   }
   body.page-xi .xi-bench-team,
   body.page-xi .xi-bench-pos {
-    font-size: 0.66rem;
+    font-size: 0.58rem;
     font-weight: 700;
     color: var(--muted);
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   body.page-xi .xi-bench-fixture {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    justify-self: end;
     width: fit-content;
-    min-width: 3.4rem;
-    margin-top: 0.06rem;
-    padding: 0.14rem 0.35rem;
-    border-radius: 0.35rem;
-    font-size: 0.62rem;
+    min-width: 3rem;
+    margin-top: 0;
+    padding: 0.1rem 0.28rem;
+    border-radius: 0.3rem;
+    font-size: 0.56rem;
     font-weight: 800;
     background: #06143a;
     color: #fff;
