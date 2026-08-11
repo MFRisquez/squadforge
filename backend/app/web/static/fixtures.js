@@ -104,13 +104,50 @@
     });
   }
 
+  const MY_BY_CLUB = BOOT.myByClub || {};
+
+  function attachSquad(fixtures) {
+    return (fixtures || []).map((m) => {
+      const homeCode = m.home?.code || "";
+      const awayCode = m.away?.code || "";
+      const homeMine = MY_BY_CLUB[homeCode] || m.my_players?.home || [];
+      const awayMine = MY_BY_CLUB[awayCode] || m.my_players?.away || [];
+      const news = [];
+      [...homeMine, ...awayMine].forEach((p) => {
+        const text = (p.news || "").trim();
+        if (!text) return;
+        const line = `${p.name}: ${text}`;
+        if (!news.includes(line) && news.length < 3) news.push(line);
+      });
+      return {
+        ...m,
+        my_players: { home: homeMine, away: awayMine },
+        news: m.news && m.news.length ? m.news : news,
+      };
+    });
+  }
+
+  function mineHtml(sideRows, code, away) {
+    if (!sideRows || !sideRows.length) return "";
+    const chips = sideRows
+      .map((p) => `<span class="fx-mine-chip avail-${p.availability || "ok"}">${p.name}</span>`)
+      .join("");
+    return `<p class="fx-mine-side${away ? " away" : ""}"><span class="fx-mine-label">${code}</span>${chips}</p>`;
+  }
+
+  function newsHtml(lines) {
+    if (!lines || !lines.length) return "";
+    return `<ul class="fx-news">${lines.map((l) => `<li>${l}</li>`).join("")}</ul>`;
+  }
+
   function renderList(fixtures) {
     if (!list) return;
-    if (!fixtures.length) {
+    const rows = attachSquad(fixtures);
+    if (!rows.length) {
       list.innerHTML = `<li class="empty-pick">No fixtures for this GW.</li>`;
       return;
     }
-    list.innerHTML = fixtures
+    list.innerHTML = rows
       .map((m) => {
         const scored = m.home.score != null && m.away.score != null;
         const top =
@@ -128,8 +165,14 @@
         const awayBadge = m.away.badge
           ? `<img class="fx-badge" src="${m.away.badge}" alt="" width="40" height="40" loading="lazy" />`
           : "";
+        const homeMine = m.my_players?.home || [];
+        const awayMine = m.my_players?.away || [];
+        const hasMine = homeMine.length || awayMine.length;
+        const mineBlock = hasMine
+          ? `<div class="fx-mine">${mineHtml(homeMine, m.home.code, false)}${mineHtml(awayMine, m.away.code, true)}</div>`
+          : "";
         return `<li>
-          <button type="button" class="fx-card status-${m.status}" data-fixture-id="${m.id}">
+          <button type="button" class="fx-card status-${m.status}${hasMine ? " has-mine" : ""}" data-fixture-id="${m.id}">
             <div class="fx-card-top">${top}</div>
             <div class="fx-card-match">
               <div class="fx-club">
@@ -144,12 +187,14 @@
                 <span class="fx-club-name">${m.away.name || ""}</span>
               </div>
             </div>
+            ${mineBlock}
+            ${newsHtml(m.news)}
           </button>
         </li>`;
       })
       .join("");
     bindRows(list);
-    if (meta) meta.textContent = `${fixtures.length} matches · updated`;
+    if (meta) meta.textContent = `${rows.length} matches · updated`;
   }
 
   function refreshQuiet() {

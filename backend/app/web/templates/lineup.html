@@ -32,7 +32,7 @@
   <button class="btn ghost" type="button" id="cancelSwap">Cancel</button>
 </div>
 
-<div class="desk-board desk-xi desk-xi-solo">
+<div class="desk-board desk-xi">
   <div class="desk-main">
     <form method="post" action="/lineup/save" id="lineupForm">
       <div id="hiddenFields"></div>
@@ -90,6 +90,14 @@
       {% endif %}
     </form>
   </div>
+  <aside class="desk-rail fdr-rail" aria-label="Fixture difficulty for your XI">
+    <header class="desk-rail-head">
+      <p class="eyebrow">This GW</p>
+      <h2>FDR strip</h2>
+      <p class="muted tiny">Starters · fixture difficulty</p>
+    </header>
+    <ul class="fdr-rail-list" id="fdrRailList"></ul>
+  </aside>
 </div>
 
 <div class="drawer" id="playerDetail" hidden>

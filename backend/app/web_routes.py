@@ -1044,7 +1044,12 @@ def fixtures_page(request: Request, db: Session = Depends(get_db)):
     view = _resolve_gw(request, db)
     gw = view["gw"]
     fixtures_svc.ensure_fixtures_ready(db)
-    matches = fixtures_svc.fixtures_for_gameweek(db, gw_number=gw.number)
+    owned = squad_svc.owned_players(db, manager.id)
+    by_club = fixtures_svc.squad_by_club(owned)
+    matches = fixtures_svc.enrich_fixtures_with_squad(
+        fixtures_svc.fixtures_for_gameweek(db, gw_number=gw.number),
+        by_club,
+    )
     return templates.TemplateResponse(
         "fixtures.html",
         _ctx(
@@ -1052,6 +1057,7 @@ def fixtures_page(request: Request, db: Session = Depends(get_db)):
             db,
             matches=matches,
             match_count=len(matches),
+            my_by_club=by_club,
             notice=request.query_params.get("notice"),
             error=request.query_params.get("error"),
             **view,

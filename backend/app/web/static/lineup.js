@@ -41,6 +41,7 @@
   const saveXiBtn =
     document.getElementById("saveXiBtn") || document.getElementById("saveCaptainBtn");
   const lineupForm = document.getElementById("lineupForm");
+  const fdrRailList = document.getElementById("fdrRailList");
   const rolesOnly = Boolean(document.querySelector('input[name="roles_only"]'));
 
   let detailPlayer = null;
@@ -618,6 +619,38 @@
     syncHidden();
     updateHints();
     paintSaveBtn();
+    paintFdrRail();
+  }
+
+  function paintFdrRail() {
+    if (!fdrRailList) return;
+    const order = { GK: 0, DEF: 1, MID: 2, ATT: 3 };
+    const starters = OWNED.filter((p) => starterIds.has(p.id)).sort(
+      (a, b) => (order[a.position] ?? 9) - (order[b.position] ?? 9) || a.name.localeCompare(b.name)
+    );
+    fdrRailList.innerHTML = "";
+    if (!starters.length) {
+      const li = document.createElement("li");
+      li.className = "muted tiny fx-rail-empty";
+      li.textContent = "Set your XI to see FDR.";
+      fdrRailList.appendChild(li);
+      return;
+    }
+    starters.forEach((p) => {
+      const fdr = p.fdr || {};
+      const diff = Number(fdr.difficulty || 0) || 3;
+      const opp = fdr.opponent || "TBD";
+      const venue = fdr.venue === "H" || fdr.venue === "A" ? fdr.venue : "";
+      const li = document.createElement("li");
+      li.className = `fdr-rail-row fdr-${diff}`;
+      li.innerHTML = `
+        <span class="fdr-rail-pos">${p.position}</span>
+        <span class="fdr-rail-name">${shortName(p.name)}</span>
+        <span class="fdr-rail-fx">${opp}${venue ? ` (${venue})` : ""}</span>
+        <span class="fdr-rail-band" title="Difficulty ${diff}">${diff}</span>
+      `;
+      fdrRailList.appendChild(li);
+    });
   }
 
   if (closeDetailBtn) closeDetailBtn.addEventListener("click", closeDetail);

@@ -8,7 +8,7 @@
   <p class="eyebrow">Premier League</p>
   <h1>Fixtures</h1>
   <p class="lede tight">
-    GW{{ gw.number }} · tap a match for goals &amp; assists.
+    GW{{ gw.number }} · your players highlighted · tap a match for goals &amp; assists.
   </p>
 </section>
 
@@ -22,10 +22,10 @@
 
 <section class="fixtures-board" aria-label="Gameweek fixtures">
   {% if matches %}
-  <ul class="fixture-list" id="fixtureList">
+  <ul class="fixture-list fixture-list-wide" id="fixtureList">
     {% for m in matches %}
     <li>
-      <button type="button" class="fx-card status-{{ m.status }}" data-fixture-id="{{ m.id }}">
+      <button type="button" class="fx-card status-{{ m.status }} {% if m.my_players and (m.my_players.home or m.my_players.away) %}has-mine{% endif %}" data-fixture-id="{{ m.id }}">
         <div class="fx-card-top">
           {% if m.status == 'live' %}<em class="live-dot">LIVE</em>
           {% elif m.status == 'finished' %}<span class="fx-status">Full time</span>
@@ -60,6 +60,35 @@
             <span class="fx-club-name">{{ m.away.name }}</span>
           </div>
         </div>
+        {% set home_mine = m.my_players.home if m.my_players else [] %}
+        {% set away_mine = m.my_players.away if m.my_players else [] %}
+        {% if home_mine or away_mine %}
+        <div class="fx-mine">
+          {% if home_mine %}
+          <p class="fx-mine-side">
+            <span class="fx-mine-label">{{ m.home.code }}</span>
+            {% for p in home_mine %}
+            <span class="fx-mine-chip avail-{{ p.availability }}">{{ p.name }}</span>
+            {% endfor %}
+          </p>
+          {% endif %}
+          {% if away_mine %}
+          <p class="fx-mine-side away">
+            <span class="fx-mine-label">{{ m.away.code }}</span>
+            {% for p in away_mine %}
+            <span class="fx-mine-chip avail-{{ p.availability }}">{{ p.name }}</span>
+            {% endfor %}
+          </p>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% if m.news %}
+        <ul class="fx-news">
+          {% for line in m.news %}
+          <li>{{ line }}</li>
+          {% endfor %}
+        </ul>
+        {% endif %}
       </button>
     </li>
     {% endfor %}
@@ -88,6 +117,6 @@
   </div>
 </div>
 
-<script id="fixturesBoot" type="application/json">{{ {"gw": gw.number, "poll": true} | tojson }}</script>
+<script id="fixturesBoot" type="application/json">{{ {"gw": gw.number, "poll": true, "myByClub": my_by_club or {}} | tojson }}</script>
 <script src="/static/fixtures.js"></script>
 {% endblock %}

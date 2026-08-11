@@ -294,6 +294,61 @@ def _scorer_lines(events: dict[str, Any], side: str) -> list[dict[str, Any]]:
     return lines
 
 
+def squad_by_club(players: list[Player]) -> dict[str, list[dict[str, Any]]]:
+    """club_code → owned players (for fixture highlights / light news)."""
+    from app.services.fpl_sync import availability_flag
+
+    out: dict[str, list[dict[str, Any]]] = {}
+    for p in players:
+        code = (p.team_code or "").upper()
+        if not code:
+            continue
+        news = (getattr(p, "news", "") or "").strip()
+        out.setdefault(code, []).append(
+            {
+                "id": p.id,
+                "name": p.name,
+                "position": p.position,
+                "news": news,
+                "availability": availability_flag(
+                    getattr(p, "status", "a") or "a",
+                    getattr(p, "chance_of_playing", None),
+                ),
+            }
+        )
+    for rows in out.values():
+        rows.sort(key=lambda r: (r["position"], r["name"]))
+    return out
+
+
+def enrich_fixtures_with_squad(
+    matches: list[dict[str, Any]],
+    by_club: dict[str, list[dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    """Attach my_players + light per-match news from owned squad."""
+    enriched = []
+    for row in matches:
+        item = dict(row)
+        home_code = (row.get("home") or {}).get("code") or ""
+        away_code = (row.get("away") or {}).get("code") or ""
+        home_mine = list(by_club.get(home_code, []))
+        away_mine = list(by_club.get(away_code, []))
+        item["my_players"] = {"home": home_mine, "away": away_mine}
+        news: list[str] = []
+        for p in home_mine + away_mine:
+            text = (p.get("news") or "").strip()
+            if not text:
+                continue
+            line = f"{p['name']}: {text}"
+            if line not in news:
+                news.append(line)
+            if len(news) >= 3:
+                break
+        item["news"] = news
+        enriched.append(item)
+    return enriched
+
+
 def fixtures_live_board(db: Session, *, gw_number: int, today: str | None = None) -> dict[str, Any]:
     """GW fixtures with scorers, preferring matches on `today` (YYYY-MM-DD)."""
     from datetime import datetime, timezone
