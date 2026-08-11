@@ -44,6 +44,7 @@
   const swapBar = document.getElementById("swapBar");
   const swapHint = document.getElementById("swapHint");
   const cancelSwapBtn = document.getElementById("cancelSwap");
+  // Swap UI is pitch-only: re-tap the selected player to cancel (no floating hint bar).
   const saveXiBtn =
     document.getElementById("saveXiBtn") || document.getElementById("saveCaptainBtn");
   const lineupForm = document.getElementById("lineupForm");
@@ -342,22 +343,7 @@
   }
 
   function updateHints() {
-    if (LOCKED) {
-      if (swapBar) swapBar.hidden = true;
-      return;
-    }
-    if (swapPending) {
-      const p = byId[swapPending.id];
-      const name = p ? p.name : "player";
-      if (swapBar) swapBar.hidden = false;
-      if (swapHint) {
-        swapHint.textContent =
-          swapPending.side === "xi"
-            ? `${name} out — tap a bench player to come in`
-            : `${name} in — tap an XI player to go out`;
-      }
-      return;
-    }
+    // Keep any leftover swap bar hidden; selection state is shown on the shirts.
     if (swapBar) swapBar.hidden = true;
   }
 
