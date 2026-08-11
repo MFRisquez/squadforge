@@ -3231,7 +3231,7 @@ body.picker-open {
     min-height: 2.05rem;
   }
 
-  /* XI chips: full board width, no horizontal scroll */
+  /* XI chips: full board width, one horizontal line each, no scroll */
   body.page-xi .chip-strip-wrap.chip-strip-xi {
     width: 100%;
     max-width: none;
@@ -3241,7 +3241,7 @@ body.picker-open {
   body.page-xi .chip-strip,
   body.page-xi .chip-strip-cards {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.55fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.7fr);
     gap: 0.55rem;
     overflow: hidden;
     overflow-x: hidden;
@@ -3256,14 +3256,71 @@ body.picker-open {
     max-width: none;
     min-width: 0;
     box-sizing: border-box;
+    display: grid;
+    grid-template-columns: auto auto auto minmax(0, 1fr);
+    grid-template-rows: auto;
+    align-items: center;
+    column-gap: 0.55rem;
+    row-gap: 0;
+    padding: 0.48rem 0.75rem;
+    min-height: 3.25rem;
   }
+  body.page-xi .chip-card-fpl .chip-ico {
+    grid-row: 1 !important;
+    grid-column: 1;
+    width: 2.35rem;
+    height: 2.35rem;
+  }
+  body.page-xi .chip-card-fpl .chip-ico svg {
+    width: 1.28rem;
+    height: 1.28rem;
+  }
+  body.page-xi .chip-card-fpl .chip-name {
+    grid-row: 1;
+    grid-column: 2;
+    font-size: 1.05rem;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* Play sits immediately to the right of the chip title */
+  body.page-xi .chip-card-fpl:not(.chip-card-ss) .chip-play-form,
+  body.page-xi .chip-card-fpl:not(.chip-card-ss) .chip-status {
+    grid-row: 1;
+    grid-column: 3;
+    justify-self: start;
+    margin: 0;
+  }
+  body.page-xi .chip-card-fpl .chip-play {
+    font-size: 0.82rem;
+    padding: 0.24rem 0.9rem;
+  }
+  body.page-xi .chip-card-fpl .chip-status {
+    font-size: 0.78rem;
+  }
+  /* Super Sub: icon · title · Play · bench select — one line */
   body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form {
-    width: 100%;
+    display: contents;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form .chip-play {
+    grid-row: 1;
+    grid-column: 3;
+    justify-self: start;
   }
   body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form select {
+    grid-row: 1;
+    grid-column: 4;
     min-width: 0;
-    flex: 1 1 auto;
     width: 100%;
+    min-height: 2.35rem;
+    font-size: 0.9rem;
+    padding: 0.35rem 0.55rem;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-status {
+    grid-row: 1;
+    grid-column: 3 / 5;
+    justify-self: start;
   }
   body.page-fit .stat-strip {
     flex: 0 0 auto;
@@ -3359,12 +3416,27 @@ body.picker-open {
     padding-top: 2.55rem;
     gap: 0.95rem;
     justify-content: space-evenly;
+    align-items: stretch;
   }
+  /* Equal columns so the middle player sits on the pitch centerline */
   body.page-squad .squad-pitch .pitch-row,
   body.page-xi .xi-pitch .pitch-row {
-    gap: 0.85rem;
-    justify-content: center;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    justify-items: center;
+    align-items: start;
+    gap: 0.55rem;
     width: 100%;
+    margin-inline: 0;
+    padding-inline: 0;
+    box-sizing: border-box;
+  }
+  body.page-squad .squad-pitch .pitch-row > *,
+  body.page-xi .xi-pitch .pitch-row > * {
+    margin: 0;
+    justify-self: center;
+    max-width: 100%;
   }
   body.page-squad .squad-pitch-wrap .squad-card,
   body.page-squad .squad-pitch-wrap .squad-shirt,
@@ -3402,30 +3474,37 @@ body.picker-open {
   }
   body.page-xi .xi-bench-panel {
     flex: 0 0 auto;
-    max-height: 34%;
+    max-height: 38%;
   }
   body.page-xi .xi-bench-panel .desk-rail-head {
-    padding: 0.18rem 0.35rem 0.1rem;
+    padding: 0.22rem 0.35rem 0.14rem;
   }
   body.page-xi .xi-bench-panel .desk-rail-head .eyebrow { display: none; }
   body.page-xi .xi-bench-panel .desk-rail-head h2 {
-    font-size: 0.72rem;
     margin: 0;
+    display: inline-block;
+    background: #06143a;
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    padding: 0.22rem 0.65rem;
+    border-radius: 0.35rem;
   }
   body.page-xi .xi-bench-stack.bench {
-    gap: 0.12rem;
-    padding: 0.12rem 0.28rem 0.2rem;
+    gap: 0.14rem;
+    padding: 0.16rem 0.32rem 0.24rem;
     overflow: hidden;
   }
   body.page-xi .xi-bench-cols {
     display: grid;
-    grid-template-columns: 2rem minmax(0, 1.2fr) minmax(0, 1.15fr) minmax(0, 1fr) 3.4rem;
-    gap: 0.35rem;
+    grid-template-columns: 2.2rem minmax(0, 1.2fr) minmax(0, 1.15fr) minmax(0, 1fr) 3.75rem;
+    gap: 0.38rem;
     align-items: center;
-    padding: 0 0 0.12rem;
-    margin-bottom: 0.04rem;
+    padding: 0 0 0.14rem;
+    margin-bottom: 0.06rem;
     border-bottom: 1px solid var(--line);
-    font-size: 0.52rem;
+    font-size: 0.57rem;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.03em;
@@ -3436,38 +3515,38 @@ body.picker-open {
   body.page-xi .xi-bench-stack .xi-bench-row {
     width: 100%;
     display: grid;
-    grid-template-columns: 2rem minmax(0, 1fr);
+    grid-template-columns: 2.2rem minmax(0, 1fr);
     align-items: center;
     justify-items: stretch;
-    gap: 0.35rem;
+    gap: 0.38rem;
     min-height: 0;
   }
   body.page-xi .xi-bench-stack .xi-shirt,
   body.page-xi .xi-bench-stack .xi-bench-mini {
-    width: 2rem !important;
+    width: 2.2rem !important;
     min-height: 0;
     padding: 0;
   }
   body.page-xi .xi-bench-stack .shirt-kit {
-    min-height: 2.35rem !important;
+    min-height: 2.6rem !important;
     padding: 0;
   }
   body.page-xi .xi-bench-stack .jersey-img {
-    width: 1.75rem !important;
+    width: 1.95rem !important;
   }
   body.page-xi .xi-bench-stack .shirt-overlay { display: none !important; }
   body.page-xi .xi-bench-stack .shirt-status-flag { display: none; }
   body.page-xi .xi-bench-meta {
     display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.15fr) minmax(0, 1fr) 3.4rem;
-    gap: 0.35rem;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.15fr) minmax(0, 1fr) 3.75rem;
+    gap: 0.38rem;
     align-items: center;
     min-width: 0;
     text-align: left;
     width: 100%;
   }
   body.page-xi .xi-bench-name {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
     font-weight: 800;
     white-space: nowrap;
     overflow: hidden;
@@ -3476,7 +3555,7 @@ body.picker-open {
   }
   body.page-xi .xi-bench-team,
   body.page-xi .xi-bench-pos {
-    font-size: 0.62rem;
+    font-size: 0.68rem;
     font-weight: 700;
     color: var(--muted);
     white-space: nowrap;
@@ -3491,9 +3570,9 @@ body.picker-open {
     width: 100%;
     min-width: 0;
     margin-top: 0;
-    padding: 0.1rem 0.22rem;
+    padding: 0.12rem 0.24rem;
     border-radius: 0.3rem;
-    font-size: 0.56rem;
+    font-size: 0.62rem;
     font-weight: 800;
     background: #06143a;
     color: #fff;
@@ -3512,36 +3591,36 @@ body.picker-open {
     overflow: hidden;
   }
   body.page-xi .xi-live-panel .desk-rail-head {
-    padding: 0.22rem 0.4rem 0.14rem;
+    padding: 0.18rem 0.35rem 0.12rem;
   }
   body.page-xi .xi-live-panel .desk-rail-head .eyebrow { display: none; }
   body.page-xi .xi-live-panel .desk-rail-head h2 {
-    font-size: 0.78rem;
+    font-size: 0.7rem;
     margin: 0;
   }
   body.page-xi .xi-live-table-wrap {
     flex: 1 1 auto;
     min-height: 0;
     overflow: hidden;
-    padding: 0.1rem 0.15rem 0.25rem;
+    padding: 0.08rem 0.12rem 0.2rem;
     display: flex;
     flex-direction: column;
   }
   body.page-xi .xi-live-table {
     width: 100%;
-    font-size: 0.78rem;
+    font-size: 0.7rem;
     border-collapse: collapse;
     table-layout: fixed;
   }
   body.page-xi .xi-live-table th,
   body.page-xi .xi-live-table td {
-    padding: 0.16rem 0.18rem;
-    line-height: 1.2;
+    padding: 0.12rem 0.14rem;
+    line-height: 1.15;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   body.page-xi .xi-live-table th {
-    font-size: 0.7em;
+    font-size: 0.68em;
   }
   body.page-xi .xi-live-table th:first-child,
   body.page-xi .xi-live-table td:first-child {
@@ -3550,11 +3629,11 @@ body.picker-open {
   body.page-xi .xi-live-section td,
   body.page-xi .xi-live-split td {
     text-align: left !important;
-    font-size: 0.58rem;
+    font-size: 0.52rem;
     font-weight: 900;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    padding: 0.22rem 0.3rem !important;
+    padding: 0.16rem 0.24rem !important;
   }
   body.page-xi .xi-live-section td {
     background: rgba(0, 255, 135, 0.16);

@@ -780,15 +780,15 @@
       if (xiLiveTable) xiLiveTable.style.fontSize = "";
       return;
     }
-    let size = 15;
+    let size = 13.5;
     xiLiveTable.style.fontSize = `${size}px`;
     // Shrink until it fits the box
-    while (size > 10 && xiLiveTable.scrollHeight > wrap.clientHeight + 1) {
+    while (size > 9 && xiLiveTable.scrollHeight > wrap.clientHeight + 1) {
       size -= 0.5;
       xiLiveTable.style.fontSize = `${size}px`;
     }
     // Grow to fill leftover space without overflowing
-    while (size < 18 && xiLiveTable.scrollHeight < wrap.clientHeight - 10) {
+    while (size < 16 && xiLiveTable.scrollHeight < wrap.clientHeight - 10) {
       size += 0.5;
       xiLiveTable.style.fontSize = `${size}px`;
       if (xiLiveTable.scrollHeight > wrap.clientHeight + 1) {
