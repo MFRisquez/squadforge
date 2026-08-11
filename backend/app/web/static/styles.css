@@ -4798,18 +4798,54 @@ body.page-fit .pitch-cap-hint {
     min-height: 0;
     display: flex;
     flex-direction: column;
+    gap: 0;
   }
   body.page-xi .xi-pitch-wrap {
     flex: 1 1 auto;
     min-height: 0;
-  }
-  body.page-xi .xi-bench-phone {
-    flex: 0 0 auto;
-    margin-top: 0.25rem;
     margin-bottom: 0;
   }
-  body.page-xi .xi-bench-phone h2 {
-    margin-bottom: 0.12rem;
+  /* Pitch is clipped by the bench — shift XI lines up so they stay clear */
+  body.page-xi .xi-pitch {
+    gap: 0.85rem;
+    padding-bottom: 2.85rem;
+    align-content: start;
+    padding-top: 1.55rem;
+  }
+  body.page-xi .xi-pitch .pitch-row {
+    transform: translateY(-0.85rem);
+  }
+  body.page-xi .xi-pitch .pitch-row.zone-gk { transform: translateY(-1.15rem); }
+  body.page-xi .xi-pitch .pitch-row.zone-def { transform: translateY(-1rem); }
+  body.page-xi .xi-pitch .pitch-row.zone-mid { transform: translateY(-0.85rem); }
+  body.page-xi .xi-pitch .pitch-row.zone-att { transform: translateY(-0.7rem); }
+  body.page-xi .xi-bench-phone {
+    flex: 0 0 auto;
+    margin-top: auto;
+    margin-bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  body.page-xi .xi-bench-phone-head {
+    margin: 0 0 0.18rem;
+    padding: 0;
+    border: 0;
+  }
+  body.page-xi .xi-bench-phone-head .eyebrow {
+    display: none;
+  }
+  body.page-xi .xi-bench-phone-head h2 {
+    margin: 0;
+    display: inline-block;
+    background: #06143a;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    padding: 0.18rem 0.58rem;
+    border-radius: 0.32rem;
+  }
+  body.page-xi .xi-bench-phone .bench {
+    margin-top: 0;
   }
   .pitch-save-btn {
     top: 0.28rem;
@@ -5031,8 +5067,12 @@ body.page-fit .pitch-cap-hint {
   .xi-pitch-wrap {
     --pitch-token-w: 3.55rem;
   }
-  .xi-pitch { gap: 0.9rem; }
+  .xi-pitch { gap: 0.75rem; }
   .squad-pitch { gap: 1rem; }
+  body.page-xi .xi-pitch .pitch-row.zone-gk { transform: translateY(-1rem); }
+  body.page-xi .xi-pitch .pitch-row.zone-def { transform: translateY(-0.9rem); }
+  body.page-xi .xi-pitch .pitch-row.zone-mid { transform: translateY(-0.75rem); }
+  body.page-xi .xi-pitch .pitch-row.zone-att { transform: translateY(-0.6rem); }
   .shirt:not(.xi-shirt) { width: 2.95rem; min-height: 3.45rem; }
   .jersey-img { width: 2rem; }
   .xi-pitch .jersey-img,
