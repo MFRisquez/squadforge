@@ -3168,6 +3168,261 @@ body.picker-open {
     border-color: rgba(6, 20, 58, 0.45);
     box-shadow: 0 0 0 1px rgba(6, 20, 58, 0.18);
   }
+
+  /* —— Viewport fit: Squad / XI / Fixtures — no page scroll —— */
+  body.page-fit {
+    height: 100vh;
+    overflow: hidden;
+  }
+  body.page-fit .shell {
+    --fit-chrome: 6.55rem;
+    width: min(72rem, 100%);
+    height: calc(100vh - var(--fit-chrome));
+    max-height: calc(100vh - var(--fit-chrome));
+    padding: 0.45rem 1rem 0.5rem;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    gap: 0.3rem;
+  }
+  body.page-fit .flash { flex: 0 0 auto; margin: 0; }
+  body.page-fit .gw-bar {
+    flex: 0 0 auto;
+    margin-bottom: 0;
+    padding: 0.28rem 0.45rem;
+  }
+  body.page-fit .chip-strip-wrap { flex: 0 0 auto; margin-bottom: 0.15rem; }
+  body.page-fit .chip-strip-cards { gap: 0.3rem; }
+  body.page-fit .chip-card-fpl {
+    width: 7.2rem;
+    padding: 0.22rem 0.4rem 0.22rem 0.3rem;
+  }
+  body.page-fit .chip-card-fpl.chip-card-wide { width: 10.2rem; }
+  body.page-fit .stat-strip {
+    flex: 0 0 auto;
+    margin: 0;
+    gap: 0.22rem;
+  }
+  body.page-fit .stat { padding: 0.28rem 0.35rem; }
+  body.page-fit .stat strong { font-size: 0.88rem; }
+  body.page-fit .swap-bar { flex: 0 0 auto; margin: 0; }
+  body.page-fit .action-row { flex: 0 0 auto; margin: 0.1rem 0; }
+  body.page-fit .xi-top {
+    flex: 0 0 auto;
+    margin: 0;
+  }
+  body.page-fit .xi-title {
+    font-size: 1.15rem;
+    margin: 0;
+  }
+  body.page-fit .hero-block {
+    flex: 0 0 auto;
+    margin: 0;
+  }
+  body.page-fit .hero-block.compact .lede { display: none; }
+  body.page-fit .hero-block h1 {
+    font-size: 1.25rem;
+    margin: 0;
+  }
+  body.page-fit .desk-board,
+  body.page-fit .fixtures-board {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+  }
+  body.page-fit .desk-squad,
+  body.page-fit .desk-xi {
+    align-items: stretch;
+    height: 100%;
+    min-height: 0;
+  }
+  body.page-fit .desk-main {
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  body.page-fit .desk-main > form {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  body.page-fit .squad-pitch-wrap,
+  body.page-fit .xi-pitch-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  body.page-fit .squad-pitch,
+  body.page-fit .xi-pitch {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    max-height: none;
+    padding: 0.45rem 0.4rem 1.1rem;
+    padding-top: 2.35rem;
+    gap: 0.7rem;
+  }
+  body.page-fit .pitch-meta { display: none; }
+  body.page-fit .pitch-cap-hint { display: none; }
+  body.page-fit .desk-rail {
+    align-self: stretch;
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+  }
+  body.page-fit .transfer-rail {
+    height: 100%;
+    min-height: 0;
+  }
+  body.page-fit .transfer-rail-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  /* Squad pitch shirts slightly denser to fit viewport */
+  body.page-squad .desk-board .squad-card,
+  body.page-squad .desk-board .squad-shirt,
+  body.page-squad .squad-pitch-wrap .squad-card,
+  body.page-squad .squad-pitch-wrap .squad-shirt {
+    width: 5rem;
+  }
+  body.page-squad .squad-pitch-wrap .jersey-img,
+  body.page-squad .desk-board .jersey-img { width: 3.55rem; }
+  body.page-squad .squad-pitch-wrap .shirt-kit,
+  body.page-squad .desk-board .squad-shirt .shirt-kit { min-height: 5.4rem; }
+  body.page-squad .squad-pitch-wrap .shirt-overlay,
+  body.page-squad .desk-board .shirt-overlay { width: 4.2rem; }
+
+  /* XI: tiny bench + live table fills remaining height */
+  body.page-xi .desk-board .xi-card,
+  body.page-xi .desk-board .xi-shirt,
+  body.page-xi .xi-pitch-wrap .xi-card,
+  body.page-xi .xi-pitch-wrap .xi-shirt {
+    width: 5rem;
+  }
+  body.page-xi .xi-pitch-wrap .jersey-img,
+  body.page-xi .desk-board .jersey-img { width: 3.55rem; }
+  body.page-xi .xi-pitch-wrap .shirt-kit,
+  body.page-xi .desk-board .xi-shirt .shirt-kit { min-height: 5.4rem; }
+  body.page-xi .xi-pitch-wrap .shirt-overlay,
+  body.page-xi .desk-board .shirt-overlay { width: 4.2rem; }
+  body.page-xi .xi-side-rail {
+    height: 100%;
+    min-height: 0;
+    gap: 0.28rem;
+    padding: 0.3rem;
+  }
+  body.page-xi .xi-bench-panel {
+    flex: 0 0 auto;
+  }
+  body.page-xi .xi-bench-panel .desk-rail-head {
+    padding: 0.2rem 0.35rem 0.12rem;
+  }
+  body.page-xi .xi-bench-panel .desk-rail-head .eyebrow { display: none; }
+  body.page-xi .xi-bench-panel .desk-rail-head h2 {
+    font-size: 0.72rem;
+    margin: 0;
+  }
+  body.page-xi .xi-bench-stack.bench {
+    gap: 0.06rem;
+    padding: 0.16rem 0.25rem 0.18rem;
+    overflow: hidden;
+  }
+  body.page-xi .xi-bench-stack .xi-card,
+  body.page-xi .xi-bench-stack .xi-bench-row {
+    grid-template-columns: 1.15rem minmax(0, 1fr);
+    gap: 0.28rem;
+  }
+  body.page-xi .xi-bench-stack .xi-shirt,
+  body.page-xi .xi-bench-stack .xi-bench-mini {
+    width: 1.15rem;
+  }
+  body.page-xi .xi-bench-stack .shirt-kit {
+    min-height: 1.35rem;
+  }
+  body.page-xi .xi-bench-stack .jersey-img { width: 1.05rem; }
+  body.page-xi .xi-bench-stack .shirt-status-flag { display: none; }
+  body.page-xi .xi-bench-meta {
+    gap: 0.12rem 0.3rem;
+  }
+  body.page-xi .xi-bench-name { font-size: 0.64rem; }
+  body.page-xi .xi-bench-fixture {
+    min-width: 2.6rem;
+    padding: 0.06rem 0.2rem;
+    font-size: 0.52rem;
+  }
+  body.page-xi .xi-bench-team,
+  body.page-xi .xi-bench-pos { font-size: 0.54rem; }
+  body.page-xi .xi-live-panel {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  body.page-xi .xi-live-panel .desk-rail-head {
+    padding: 0.22rem 0.4rem 0.14rem;
+  }
+  body.page-xi .xi-live-panel .desk-rail-head .eyebrow { display: none; }
+  body.page-xi .xi-live-panel .desk-rail-head h2 {
+    font-size: 0.78rem;
+    margin: 0;
+  }
+  body.page-xi .xi-live-table-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
+  body.page-xi .xi-live-table { font-size: 0.66rem; }
+  body.page-xi .xi-live-table th,
+  body.page-xi .xi-live-table td {
+    padding: 0.16rem 0.2rem;
+  }
+  body.page-xi .xi-live-table th { font-size: 0.56rem; }
+
+  /* Fixtures: board fills remaining viewport */
+  body.page-fixtures .fixtures-board {
+    min-height: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  body.page-fixtures .fixtures-desk {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    grid-template-columns: minmax(0, 1fr) minmax(13rem, 0.8fr);
+    gap: 0.55rem;
+  }
+  body.page-fixtures .fixtures-desk .fixture-list {
+    min-height: 0;
+    max-height: 100%;
+    overflow: auto;
+    gap: 0.12rem;
+  }
+  body.page-fixtures .fixtures-desk .fx-card {
+    padding: 0.12rem 0.3rem 0.14rem;
+  }
+  body.page-fixtures .fixture-detail-panel {
+    position: static;
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  body.page-fixtures .fixture-detail-panel .match-detail-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow: auto;
+    padding: 0.55rem 0.7rem 0.75rem;
+  }
 }
 .soft-form {
   background: #f7f9ff;

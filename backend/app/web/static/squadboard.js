@@ -422,19 +422,11 @@
   }
 
   function syncTransferRailLayout() {
-    const pitch = document.getElementById("squadPitch");
     const rail = document.getElementById("transferRail");
-    if (!pitch || !rail) return;
-    if (!isDesktop()) {
-      rail.style.height = "";
-      rail.style.minHeight = "";
-      return;
-    }
-    const h = Math.round(pitch.getBoundingClientRect().height);
-    if (h > 0) {
-      rail.style.height = `${h}px`;
-      rail.style.minHeight = `${h}px`;
-    }
+    if (!rail) return;
+    // Desktop page-fit uses CSS stretch; clear any leftover inline heights.
+    rail.style.height = "";
+    rail.style.minHeight = "";
   }
 
   function paintTransferRail() {

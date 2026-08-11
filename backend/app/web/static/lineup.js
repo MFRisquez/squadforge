@@ -745,17 +745,10 @@
   }
 
   function syncXiSideLayout() {
-    if (!xiSideRail || !pitch) return;
-    if (!isDesktop()) {
-      xiSideRail.style.height = "";
-      xiSideRail.style.minHeight = "";
-      return;
-    }
-    const h = Math.round(pitch.getBoundingClientRect().height);
-    if (h > 0) {
-      xiSideRail.style.height = `${h}px`;
-      xiSideRail.style.minHeight = `${h}px`;
-    }
+    if (!xiSideRail) return;
+    // Desktop page-fit uses CSS stretch; clear any leftover inline heights.
+    xiSideRail.style.height = "";
+    xiSideRail.style.minHeight = "";
   }
 
   function render() {

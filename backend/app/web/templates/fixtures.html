@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Fixtures · {{ app_name }}{% endblock %}
+{% block body_class %}page-fit page-fixtures{% endblock %}
 {% block content %}
 {% from "macros_gw.html" import gw_bar %}
 {{ gw_bar(gw, deadline_label, edits_locked, prev_gw, next_gw, '/fixtures') }}

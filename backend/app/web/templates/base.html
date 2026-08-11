@@ -15,7 +15,7 @@
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
   <header class="top">
     <a class="brand" href="/">{{ app_name }}</a>
     {% if gw %}<span class="pill">GW {{ gw.number }}</span>{% endif %}
