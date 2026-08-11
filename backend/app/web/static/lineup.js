@@ -751,11 +751,16 @@
         ? ranked.filter((r) => r.total === topTotal).sort(byPts)[0]
         : null;
 
+    function roleMark(id) {
+      if (id === captainId) return `<span class="live-role is-c" title="Captain">C</span>`;
+      if (id === viceId) return `<span class="live-role is-v" title="Vice-captain">V</span>`;
+      return "";
+    }
+
     if (xiLiveLeader) {
       if (topRow) {
-        const role = topRow.p.id === captainId ? " (C)" : topRow.p.id === viceId ? " (V)" : "";
         xiLiveLeader.hidden = false;
-        xiLiveLeader.textContent = `Top · ${topRow.p.name}${role} · ${fmtPts(topRow.total)} pts`;
+        xiLiveLeader.innerHTML = `Top · ${topRow.p.name}${roleMark(topRow.p.id)} · ${fmtPts(topRow.total)} pts`;
       } else {
         xiLiveLeader.hidden = true;
         xiLiveLeader.textContent = "";
@@ -763,7 +768,6 @@
     }
 
     function rowHtml({ p, base, mult, total, bd }, onBench) {
-      const role = p.id === captainId ? " C" : p.id === viceId ? " V" : "";
       const cells = cols
         .map(([key]) => {
           const v = Number(bd[key] || 0);
@@ -773,15 +777,9 @@
         .join("");
       const ptsLabel = mult > 1 ? `${fmtPts(base)}×${mult}` : fmtPts(total);
       const isTop = Boolean(topRow && p.id === topRow.p.id);
-      const classes = [
-        p.id === captainId ? "is-captain" : "",
-        isTop ? "is-top" : "",
-        onBench ? "is-bench" : "is-xi",
-      ]
-        .filter(Boolean)
-        .join(" ");
+      const classes = [isTop ? "is-top" : "", onBench ? "is-bench" : "is-xi"].filter(Boolean).join(" ");
       return `<tr class="${classes}">
-        <td>${isTop ? "★ " : ""}${p.name}${role}</td>
+        <td>${isTop ? "★ " : ""}${p.name}${roleMark(p.id)}</td>
         ${cells}
         <td class="pts-total">${ptsLabel}</td>
       </tr>`;

@@ -590,23 +590,24 @@ select {
 .pitch-team-banner {
   position: absolute;
   top: 0.4rem;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0.4rem;
+  right: auto;
+  transform: none;
   z-index: 3;
   display: grid;
-  justify-items: center;
-  gap: 0.1rem;
-  max-width: min(72%, 18rem);
-  padding: 0.28rem 0.85rem 0.32rem;
-  border-radius: 999px;
+  justify-items: start;
+  gap: 0.08rem;
+  max-width: min(58%, 14rem);
+  padding: 0.24rem 0.7rem 0.28rem;
+  border-radius: 0.55rem;
   background: rgba(6, 20, 58, 0.88);
   color: #fff;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
-  text-align: center;
+  text-align: left;
   pointer-events: none;
 }
 .pitch-team-name {
-  font-size: clamp(0.78rem, 1.6vw, 1.05rem);
+  font-size: clamp(0.7rem, 1.35vw, 0.92rem);
   font-weight: 900;
   font-family: var(--font-display);
   letter-spacing: 0.02em;
@@ -618,12 +619,15 @@ select {
   color: #fff;
 }
 .pitch-team-role {
-  font-size: 0.62rem;
+  font-size: 0.56rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #00ff87;
   line-height: 1;
+}
+.chip-blurb {
+  display: none;
 }
 .td-corner {
   position: absolute;
@@ -3490,16 +3494,34 @@ body.picker-open {
   body.page-squad .pitch-team-banner,
   body.page-xi .pitch-team-banner {
     top: 0.55rem;
-    max-width: min(58%, 22rem);
-    padding: 0.34rem 1.1rem 0.38rem;
+    left: 0.55rem;
+    right: auto;
+    transform: none;
+    max-width: min(42%, 16rem);
+    padding: 0.28rem 0.75rem 0.3rem;
+    justify-items: start;
+    text-align: left;
   }
   body.page-squad .pitch-team-name,
   body.page-xi .pitch-team-name {
-    font-size: clamp(0.95rem, 1.35vw, 1.25rem);
+    font-size: clamp(0.82rem, 1.05vw, 1.02rem);
   }
   body.page-squad .pitch-team-role,
   body.page-xi .pitch-team-role {
+    font-size: 0.6rem;
+  }
+  body.page-squad .chip-blurb {
+    display: block;
+    grid-row: 1;
+    grid-column: 4;
+    justify-self: stretch;
+    align-self: center;
+    min-width: 0;
+    margin: 0;
     font-size: 0.68rem;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--muted);
   }
   body.page-squad .td-corner,
   body.page-xi .td-corner {
@@ -3693,21 +3715,40 @@ body.picker-open {
     color: #06143a;
   }
   body.page-xi .xi-live-leader[hidden] { display: none !important; }
-  body.page-xi .xi-live-table tr.is-captain td {
-    background: rgba(0, 255, 135, 0.22);
-    color: #06143a;
-  }
   body.page-xi .xi-live-table tr.is-top td {
     background: #fff3bf;
     color: #5a4300;
   }
-  body.page-xi .xi-live-table tr.is-captain.is-top td {
-    background: linear-gradient(90deg, rgba(0, 255, 135, 0.28), #fff3bf 55%);
-    color: #0b2a16;
-  }
-  body.page-xi .xi-live-table tr.is-captain .pts-total,
   body.page-xi .xi-live-table tr.is-top .pts-total {
     font-weight: 900;
+  }
+  body.page-xi .xi-live-table .live-role {
+    display: inline-grid;
+    place-items: center;
+    width: 1.05em;
+    height: 1.05em;
+    margin-left: 0.28em;
+    border-radius: 999px;
+    border: 1.5px solid currentColor;
+    font-size: 0.72em;
+    font-weight: 800;
+    line-height: 1;
+    vertical-align: middle;
+  }
+  body.page-xi .xi-live-table .live-role.is-c {
+    background: #00ff87;
+    border-color: #06143a;
+    color: #06143a;
+  }
+  body.page-xi .xi-live-table .live-role.is-v {
+    background: #fff;
+    border-color: #06143a;
+    color: #06143a;
+  }
+  body.page-xi .xi-live-leader .live-role {
+    width: 1.1em;
+    height: 1.1em;
+    font-size: 0.85em;
   }
   body.page-xi .xi-live-table-wrap {
     flex: 1 1 auto;

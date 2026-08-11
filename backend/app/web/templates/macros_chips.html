@@ -13,6 +13,14 @@
   {% endif %}
 {% endmacro %}
 
+{% macro chip_blurb(key) %}
+  {% if key == 'wildcard' %}
+  Unlimited transfers this GW. 2nd available from GW20.
+  {% elif key == 'free_hit' %}
+  One-week squad only — reverts after the GW.
+  {% endif %}
+{% endmacro %}
+
 {% macro chip_strip(chips, active_chip, edits_locked, bench_options=[], group='all', next_path='/team', gw_number=none, gw_total=none) %}
 {% set squad_items = [
   ('wildcard', 'Wildcard', chips.wildcard_remaining if chips else 0),
@@ -93,6 +101,9 @@
             <input type="hidden" name="next" value="{{ next_path }}" />
             <button class="chip-play" type="submit">Play</button>
           </form>
+        {% endif %}
+        {% if key in ['wildcard', 'free_hit'] %}
+        <span class="chip-blurb">{{ chip_blurb(key) }}</span>
         {% endif %}
       </div>
     {% endfor %}
