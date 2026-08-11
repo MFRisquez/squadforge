@@ -3103,7 +3103,7 @@ body.picker-open {
     padding: 0.08rem 0.1rem 0.16rem;
   }
   .xi-bench-wrap .bench { gap: 1.45rem; }
-  .chip-card-fpl.chip-card-ss { width: min(28rem, 96vw); }
+  .chip-card-fpl.chip-card-ss { width: min(36rem, 100%); }
   .stat strong { font-size: 0.95rem; }
   .stat { padding: 0.38rem 0.45rem; }
   .chip-strip-cards { justify-content: center; }
