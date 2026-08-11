@@ -59,6 +59,17 @@
     {% if notice %}<p class="flash notice" role="status">{{ notice }}</p>{% endif %}
     {% block content %}{% endblock %}
   </main>
+  <div class="install-banner" id="installBanner" hidden>
+    <div class="install-banner-copy">
+      <strong>Install SquadForge</strong>
+      <span class="install-banner-tip" hidden>Share → Add to Home Screen</span>
+      <span class="muted tiny">Open it like an app on your phone.</span>
+    </div>
+    <div class="install-banner-actions">
+      <button type="button" class="btn mini-btn" id="installBannerBtn">Install</button>
+      <button type="button" class="btn ghost mini-btn" id="installBannerDismiss" aria-label="Dismiss">✕</button>
+    </div>
+  </div>
   <script src="/static/ui.js"></script>
   <script>
     if ("serviceWorker" in navigator) {
