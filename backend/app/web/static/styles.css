@@ -4785,7 +4785,11 @@ body.page-fit .pitch-cap-hint {
     min-width: 1.05rem;
     font-size: 0.54rem;
   }
-  /* XI phone: pitch fills space, bench pinned to bottom */
+  /* XI phone: pitch fills space, bench flush to screen bottom */
+  body.page-xi.page-fit .shell {
+    padding-bottom: 0;
+    gap: 0.18rem;
+  }
   body.page-xi .desk-board.desk-xi {
     display: flex;
     flex-direction: column;
@@ -4807,26 +4811,23 @@ body.page-fit .pitch-cap-hint {
   }
   /* Pitch is clipped by the bench — shift XI lines up so they stay clear */
   body.page-xi .xi-pitch {
-    gap: 0.85rem;
-    padding-bottom: 2.85rem;
+    gap: 0.7rem;
+    padding-bottom: 2.2rem;
     align-content: start;
-    padding-top: 1.55rem;
+    padding-top: 1.35rem;
   }
-  body.page-xi .xi-pitch .pitch-row {
-    transform: translateY(-0.85rem);
-  }
-  body.page-xi .xi-pitch .pitch-row.zone-gk { transform: translateY(-1.15rem); }
-  body.page-xi .xi-pitch .pitch-row.zone-def { transform: translateY(-1rem); }
-  body.page-xi .xi-pitch .pitch-row.zone-mid { transform: translateY(-0.85rem); }
-  body.page-xi .xi-pitch .pitch-row.zone-att { transform: translateY(-0.7rem); }
+  body.page-xi .xi-pitch .pitch-row.zone-gk { transform: translateY(-1.55rem); }
+  body.page-xi .xi-pitch .pitch-row.zone-def { transform: translateY(-1.4rem); }
+  body.page-xi .xi-pitch .pitch-row.zone-mid { transform: translateY(-1.25rem); }
+  body.page-xi .xi-pitch .pitch-row.zone-att { transform: translateY(-1.1rem); }
   body.page-xi .xi-bench-phone {
     flex: 0 0 auto;
     margin-top: auto;
     margin-bottom: 0;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding: 0.12rem 0 calc(0.12rem + env(safe-area-inset-bottom, 0px));
   }
   body.page-xi .xi-bench-phone-head {
-    margin: 0 0 0.18rem;
+    margin: 0 0 0.1rem;
     padding: 0;
     border: 0;
   }
@@ -4846,6 +4847,8 @@ body.page-fit .pitch-cap-hint {
   }
   body.page-xi .xi-bench-phone .bench {
     margin-top: 0;
+    padding: 0.28rem 0.2rem;
+    gap: 0.45rem;
   }
   .pitch-save-btn {
     top: 0.28rem;
