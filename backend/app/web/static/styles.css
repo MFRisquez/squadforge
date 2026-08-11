@@ -2775,6 +2775,7 @@ body.picker-open {
   .xi-pitch .pitch-row { gap: 1rem; }
   .squad-pitch .pitch-row { gap: 0.85rem; }
   .fixture-list { max-width: 22rem; gap: 0.3rem; }
+  .fixture-list-wide { max-width: min(42rem, 100%); }
   .fx-card { padding: 0.32rem 0.5rem 0.35rem; border-radius: 0.55rem; }
   .fx-badge { width: 1.55rem; height: 1.55rem; }
   .fx-club strong { font-size: 0.74rem; }
