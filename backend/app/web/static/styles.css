@@ -4700,7 +4700,7 @@ body.page-fit .pitch-cap-hint {
   /* Phone: wider pitch; DT stays inside bottom-right corner */
   .squad-pitch-wrap,
   .xi-pitch-wrap {
-    --pitch-token-w: 3.35rem;
+    --pitch-token-w: 3.85rem;
     width: 100%;
     max-width: none;
     margin-left: 0;
@@ -4712,34 +4712,35 @@ body.page-fit .pitch-cap-hint {
   }
   .xi-pitch .pitch-row,
   .squad-pitch .pitch-row {
-    gap: 0.32rem;
+    gap: 0.28rem;
     justify-content: center;
     flex-wrap: nowrap;
   }
   .xi-pitch {
     position: relative;
-    padding-top: 1.85rem;
-    gap: 0.5rem;
+    padding-top: 1.75rem;
+    gap: 1.05rem;
     min-height: 0;
     height: 100%;
-    padding-bottom: 3.35rem;
-    padding-left: 0.28rem;
-    padding-right: 0.28rem;
+    padding-bottom: 3.45rem;
+    padding-left: 0.22rem;
+    padding-right: 0.22rem;
+    align-content: space-evenly;
   }
   .squad-pitch {
     position: relative;
-    padding-top: 1.55rem;
-    gap: 0.6rem;
+    padding-top: 1.45rem;
+    gap: 1.15rem;
     min-height: 0;
     height: 100%;
-    padding-bottom: 3.55rem;
-    padding-left: 0.28rem;
-    padding-right: 0.28rem;
+    padding-bottom: 3.65rem;
+    padding-left: 0.22rem;
+    padding-right: 0.22rem;
     align-content: space-evenly;
   }
   body.page-squad .squad-pitch .pitch-row,
   body.page-xi .xi-pitch .pitch-row {
-    gap: 0.28rem;
+    gap: 0.26rem;
     transform: none;
   }
   body.page-squad .squad-pitch-wrap .squad-card,
@@ -4752,28 +4753,37 @@ body.page-fit .pitch-cap-hint {
   }
   body.page-squad .squad-pitch .xi-shirt .shirt-kit,
   body.page-xi .xi-pitch .xi-shirt .shirt-kit {
-    min-height: 3.85rem;
+    min-height: 4.75rem;
   }
   body.page-squad .squad-pitch .jersey-img,
   body.page-xi .xi-pitch .jersey-img {
-    width: 2.45rem;
+    width: 3.05rem;
   }
   body.page-squad .squad-pitch .shirt-overlay,
   body.page-xi .xi-pitch .shirt-overlay {
-    width: 2.65rem;
+    width: 3.25rem;
   }
   body.page-squad .squad-pitch .shirt-nameplate,
   body.page-xi .xi-pitch .shirt-nameplate {
-    font-size: 0.42rem;
+    font-size: 0.52rem;
+    padding: 0.12rem 0.08rem 0.06rem;
   }
   body.page-squad .squad-pitch .shirt-foot,
   body.page-xi .xi-pitch .shirt-foot {
-    font-size: 0.4rem;
+    font-size: 0.48rem;
+    padding: 0.06rem 0.08rem 0.12rem;
   }
   body.page-squad .squad-pitch .shirt.empty,
   body.page-squad .squad-pitch .shirt.jersey-empty {
-    min-height: 3.7rem;
+    min-height: 4.55rem;
     width: var(--pitch-token-w);
+  }
+  body.page-squad .squad-pitch .role-badge,
+  body.page-xi .xi-pitch .role-badge {
+    width: 1.05rem;
+    height: 1.05rem;
+    min-width: 1.05rem;
+    font-size: 0.54rem;
   }
   /* XI phone: pitch fills space, bench pinned to bottom */
   body.page-xi .desk-board.desk-xi {
@@ -4864,7 +4874,7 @@ body.page-fit .pitch-cap-hint {
   .fixture-list { gap: 0.12rem; }
   .xi-score-pill strong { font-size: 1.3rem; }
 
-  .shirt-card { width: var(--pitch-token-w, 3.15rem); gap: 0.08rem; }
+  .shirt-card { width: var(--pitch-token-w, 3.85rem); gap: 0.08rem; }
   .shirt {
     width: 100%;
     min-height: 3.5rem;
@@ -4903,21 +4913,21 @@ body.page-fit .pitch-cap-hint {
   .shirt-card.is-vice .shirt {
     padding-bottom: 0.12rem;
   }
-  .xi-card { width: var(--pitch-token-w, 3.15rem); }
+  .xi-card { width: var(--pitch-token-w, 3.85rem); }
   .xi-shirt { width: 100%; padding: 0; gap: 0; }
-  .xi-shirt .shirt-kit { min-height: 3.85rem; padding: 0; }
-  .xi-shirt .jersey-img { width: 2.45rem; }
-  .xi-shirt .shirt-overlay { width: 2.65rem; }
-  .xi-shirt .shirt-nameplate { font-size: 0.42rem; padding: 0.1rem 0.06rem 0.04rem; }
-  .xi-shirt .shirt-foot { font-size: 0.4rem; padding: 0.04rem 0.06rem 0.1rem; }
+  .xi-shirt .shirt-kit { min-height: 4.75rem; padding: 0; }
+  .xi-shirt .jersey-img { width: 3.05rem; }
+  .xi-shirt .shirt-overlay { width: 3.25rem; }
+  .xi-shirt .shirt-nameplate { font-size: 0.52rem; padding: 0.12rem 0.08rem 0.06rem; }
+  .xi-shirt .shirt-foot { font-size: 0.48rem; padding: 0.06rem 0.08rem 0.12rem; }
   .xi-bench-wrap .bench { gap: 0.55rem; padding: 0.35rem 0.25rem; flex-wrap: nowrap; justify-content: center; }
-  .xi-bench-wrap .xi-card { width: 3.15rem; }
-  .xi-bench-wrap .xi-shirt { width: 3.15rem; }
-  .xi-bench-wrap .xi-shirt .shirt-kit { min-height: 3.85rem; }
-  .xi-bench-wrap .jersey-img { width: 2.45rem; }
-  .xi-bench-wrap .shirt-overlay { width: 2.65rem; }
-  .xi-bench-wrap .shirt-nameplate { font-size: 0.42rem; }
-  .xi-bench-wrap .shirt-foot { font-size: 0.4rem; }
+  .xi-bench-wrap .xi-card { width: 3.55rem; }
+  .xi-bench-wrap .xi-shirt { width: 3.55rem; }
+  .xi-bench-wrap .xi-shirt .shirt-kit { min-height: 4.4rem; }
+  .xi-bench-wrap .jersey-img { width: 2.8rem; }
+  .xi-bench-wrap .shirt-overlay { width: 3rem; }
+  .xi-bench-wrap .shirt-nameplate { font-size: 0.48rem; }
+  .xi-bench-wrap .shirt-foot { font-size: 0.44rem; }
   .picker-card { max-height: min(54vh, 24rem); }
   .pick-name { font-size: 0.9rem; }
   .pick-sub { font-size: 0.7rem; }
@@ -5019,13 +5029,27 @@ body.page-fit .pitch-cap-hint {
 @media (max-width: 390px) {
   .squad-pitch-wrap,
   .xi-pitch-wrap {
-    --pitch-token-w: 3.1rem;
+    --pitch-token-w: 3.55rem;
   }
+  .xi-pitch { gap: 0.9rem; }
+  .squad-pitch { gap: 1rem; }
   .shirt:not(.xi-shirt) { width: 2.95rem; min-height: 3.45rem; }
   .jersey-img { width: 2rem; }
   .xi-pitch .jersey-img,
   .squad-pitch .jersey-img {
-    width: 2.4rem;
+    width: 2.85rem;
+  }
+  .xi-pitch .shirt-overlay,
+  .squad-pitch .shirt-overlay {
+    width: 3.05rem;
+  }
+  .xi-pitch .shirt-nameplate,
+  .squad-pitch .shirt-nameplate {
+    font-size: 0.48rem;
+  }
+  .xi-pitch .shirt-foot,
+  .squad-pitch .shirt-foot {
+    font-size: 0.45rem;
   }
   .shirt-name { max-width: 2.85rem; font-size: 0.48rem; }
   .td-corner { max-width: 6.8rem; }
