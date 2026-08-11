@@ -38,30 +38,24 @@
     <form method="post" action="/lineup/save" id="lineupForm">
       <div id="hiddenFields"></div>
       <section class="pitch-wrap xi-pitch-wrap">
-        <div class="pitch-stage">
-          <div class="pitch field pitch-photo xi-pitch" id="pitch">
-            <div class="pitch-markings" aria-hidden="true"></div>
-            <div class="pitch-team-banner" aria-label="Your team">
-              <strong class="pitch-team-name">{{ xi_title }}</strong>
-              <span class="pitch-team-role">{% if edits_locked %}Live XI{% else %}Starting XI{% endif %}</span>
-            </div>
-            {% if not edits_locked %}
-            <button class="pitch-save-btn is-idle" type="submit" id="saveXiBtn" disabled aria-label="Save XI">
-              <span class="pitch-save-ico" aria-hidden="true"></span>
-              <span class="pitch-save-label">Save</span>
-            </button>
-            {% elif captain_editable %}
-            <input type="hidden" name="roles_only" value="1" />
-            <button class="pitch-save-btn is-idle" type="submit" id="saveCaptainBtn" disabled aria-label="Save captain">
-              <span class="pitch-save-ico" aria-hidden="true"></span>
-              <span class="pitch-save-label">Save C</span>
-            </button>
-            {% endif %}
-            <div class="pitch-row zone-gk" data-row="gk"></div>
-            <div class="pitch-row zone-def" data-row="def"></div>
-            <div class="pitch-row zone-mid" data-row="mid"></div>
-            <div class="pitch-row zone-att" data-row="att"></div>
+        <div class="pitch field pitch-photo xi-pitch" id="pitch">
+          <div class="pitch-markings" aria-hidden="true"></div>
+          <div class="pitch-team-banner" aria-label="Your team">
+            <strong class="pitch-team-name">{{ xi_title }}</strong>
+            <span class="pitch-team-role">{% if edits_locked %}Live XI{% else %}Starting XI{% endif %}</span>
           </div>
+          {% if not edits_locked %}
+          <button class="pitch-save-btn is-idle" type="submit" id="saveXiBtn" disabled aria-label="Save XI">
+            <span class="pitch-save-ico" aria-hidden="true"></span>
+            <span class="pitch-save-label">Save</span>
+          </button>
+          {% elif captain_editable %}
+          <input type="hidden" name="roles_only" value="1" />
+          <button class="pitch-save-btn is-idle" type="submit" id="saveCaptainBtn" disabled aria-label="Save captain">
+            <span class="pitch-save-ico" aria-hidden="true"></span>
+            <span class="pitch-save-label">Save C</span>
+          </button>
+          {% endif %}
           <aside class="td-corner td-corner-xi" aria-label="Technical Director">
             {% if td_info and td_info.club_code %}
               {% if td_info.badge %}
@@ -86,6 +80,10 @@
               </div>
             {% endif %}
           </aside>
+          <div class="pitch-row zone-gk" data-row="gk"></div>
+          <div class="pitch-row zone-def" data-row="def"></div>
+          <div class="pitch-row zone-mid" data-row="mid"></div>
+          <div class="pitch-row zone-att" data-row="att"></div>
         </div>
       </section>
       <section class="bench-wrap xi-bench-wrap xi-bench-phone">

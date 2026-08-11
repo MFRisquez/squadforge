@@ -50,24 +50,18 @@
     <form method="post" action="/team/save" id="squadForm">
       <div id="hiddenFields"></div>
       <section class="pitch-wrap squad-pitch-wrap">
-        <div class="pitch-stage">
-          <div class="pitch field pitch-photo xi-pitch squad-pitch" id="squadPitch">
-            <div class="pitch-markings" aria-hidden="true"></div>
-            <div class="pitch-team-banner" aria-label="Your team">
-              <strong class="pitch-team-name">{{ manager.team_name if manager.team_name else manager.display_name }}</strong>
-              <span class="pitch-team-role">Squad</span>
-            </div>
-            {% if not edits_locked %}
-            <button class="pitch-save-btn is-idle" type="submit" id="saveSquadBtn" disabled aria-label="Save squad">
-              <span class="pitch-save-ico" aria-hidden="true"></span>
-              <span class="pitch-save-label">Save</span>
-            </button>
-            {% endif %}
-            <div class="pitch-row zone-gk" data-pos="GK"></div>
-            <div class="pitch-row zone-def" data-pos="DEF"></div>
-            <div class="pitch-row zone-mid" data-pos="MID"></div>
-            <div class="pitch-row zone-att" data-pos="ATT"></div>
+        <div class="pitch field pitch-photo xi-pitch squad-pitch" id="squadPitch">
+          <div class="pitch-markings" aria-hidden="true"></div>
+          <div class="pitch-team-banner" aria-label="Your team">
+            <strong class="pitch-team-name">{{ manager.team_name if manager.team_name else manager.display_name }}</strong>
+            <span class="pitch-team-role">Squad</span>
           </div>
+          {% if not edits_locked %}
+          <button class="pitch-save-btn is-idle" type="submit" id="saveSquadBtn" disabled aria-label="Save squad">
+            <span class="pitch-save-ico" aria-hidden="true"></span>
+            <span class="pitch-save-label">Save</span>
+          </button>
+          {% endif %}
           <aside class="td-corner" aria-label="Technical Director">
             {% if td_info and td_info.club_code %}
               {% if td_info.badge %}
@@ -106,6 +100,10 @@
               <span class="td-locked muted tiny">Locked</span>
             {% endif %}
           </aside>
+          <div class="pitch-row zone-gk" data-pos="GK"></div>
+          <div class="pitch-row zone-def" data-pos="DEF"></div>
+          <div class="pitch-row zone-mid" data-pos="MID"></div>
+          <div class="pitch-row zone-att" data-pos="ATT"></div>
         </div>
       </section>
     </form>

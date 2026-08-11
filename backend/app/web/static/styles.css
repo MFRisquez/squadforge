@@ -609,14 +609,6 @@ select {
   margin-left: auto;
   margin-right: auto;
 }
-.pitch-stage {
-  position: relative;
-  display: block;
-  width: 100%;
-  min-height: 0;
-  flex: 1 1 auto;
-  height: 100%;
-}
 .xi-pitch {
   min-height: min(58vh, 30rem);
   height: auto;
@@ -3185,28 +3177,6 @@ body.picker-open {
     margin-left: 0;
     margin-right: 0;
   }
-  .pitch-stage {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    height: 100%;
-    min-height: 0;
-  }
-  /* Desktop: DT overlays bottom-right of the grass */
-  .pitch-stage > .td-corner {
-    position: absolute;
-    right: 0.55rem;
-    bottom: 0.55rem;
-    left: auto;
-    top: auto;
-    align-self: auto;
-  }
-  .pitch-stage > .xi-pitch,
-  .pitch-stage > .squad-pitch {
-    flex: 1 1 auto;
-    min-height: 0;
-  }
   .xi-pitch,
   .squad-pitch {
     min-height: min(72vh, 40rem);
@@ -4410,11 +4380,6 @@ body.page-fit .xi-pitch-wrap {
   display: flex;
   flex-direction: column;
 }
-body.page-fit .pitch-stage {
-  min-height: 0;
-  height: 100%;
-  flex: 1 1 auto;
-}
 body.page-fit .squad-pitch,
 body.page-fit .xi-pitch {
   flex: 1 1 auto;
@@ -4732,65 +4697,14 @@ body.page-fit .pitch-cap-hint {
     gap: 0.12rem;
   }
   .pitch-row { gap: 0.32rem; }
-  /* Phone: full-width pitch + DT column on the right */
+  /* Phone: wider pitch; DT stays inside bottom-right corner */
   .squad-pitch-wrap,
   .xi-pitch-wrap {
-    --pitch-token-w: 3.15rem;
+    --pitch-token-w: 3.35rem;
     width: 100%;
     max-width: none;
     margin-left: 0;
     margin-right: 0;
-  }
-  .pitch-stage,
-  body.page-fit .pitch-stage {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0.3rem;
-    align-items: stretch;
-    width: 100%;
-    min-height: 0;
-    flex: 1 1 auto;
-    height: 100%;
-  }
-  .pitch-stage > .xi-pitch,
-  .pitch-stage > .squad-pitch {
-    min-width: 0;
-    width: 100%;
-    height: 100%;
-  }
-  .pitch-stage > .td-corner {
-    position: relative;
-    top: auto;
-    right: auto;
-    bottom: auto;
-    left: auto;
-    align-self: end;
-    width: 4.55rem;
-    max-width: 4.55rem;
-    grid-template-columns: 1fr;
-    justify-items: center;
-    text-align: center;
-    padding: 0.28rem 0.22rem;
-    gap: 0.12rem;
-  }
-  .pitch-stage > .td-corner .td-badge {
-    width: 2rem;
-    height: 2rem;
-    grid-row: auto;
-  }
-  .pitch-stage > .td-corner .td-corner-meta {
-    justify-items: center;
-  }
-  .pitch-stage > .td-corner .td-select {
-    font-size: 0.52rem;
-    min-height: 1.35rem;
-    height: 1.35rem;
-    padding: 0.1rem 0.15rem;
-  }
-  .pitch-stage > .td-corner .td-ban,
-  .pitch-stage > .td-corner .td-locked {
-    font-size: 0.48rem;
-    text-align: center;
   }
   .shell {
     margin-left: auto;
@@ -4798,27 +4712,29 @@ body.page-fit .pitch-cap-hint {
   }
   .xi-pitch .pitch-row,
   .squad-pitch .pitch-row {
-    gap: 0.28rem;
+    gap: 0.32rem;
     justify-content: center;
     flex-wrap: nowrap;
   }
   .xi-pitch {
+    position: relative;
     padding-top: 1.85rem;
-    gap: 0.45rem;
+    gap: 0.5rem;
     min-height: 0;
     height: 100%;
-    padding-bottom: 0.55rem;
-    padding-left: 0.2rem;
-    padding-right: 0.2rem;
+    padding-bottom: 3.35rem;
+    padding-left: 0.28rem;
+    padding-right: 0.28rem;
   }
   .squad-pitch {
+    position: relative;
     padding-top: 1.55rem;
-    gap: 0.55rem;
+    gap: 0.6rem;
     min-height: 0;
     height: 100%;
-    padding-bottom: 0.55rem;
-    padding-left: 0.2rem;
-    padding-right: 0.2rem;
+    padding-bottom: 3.55rem;
+    padding-left: 0.28rem;
+    padding-right: 0.28rem;
     align-content: space-evenly;
   }
   body.page-squad .squad-pitch .pitch-row,
@@ -4905,6 +4821,14 @@ body.page-fit .pitch-cap-hint {
   .stat strong { font-size: 0.72rem; }
   .stat-sub { display: none; }
   .td-corner {
+    position: absolute;
+    top: auto;
+    left: auto;
+    right: 0.28rem;
+    bottom: 0.28rem;
+    max-width: 7.4rem;
+    padding: 0.26rem 0.3rem;
+    gap: 0.1rem 0.26rem;
     border-radius: 0.48rem;
   }
   .pitch-team-banner {
@@ -4919,16 +4843,16 @@ body.page-fit .pitch-cap-hint {
   }
   .pitch-team-name { font-size: 0.66rem; }
   .pitch-team-role { font-size: 0.5rem; }
-  .td-badge { width: 2.15rem; height: 2.15rem; }
+  .td-badge { width: 2.05rem; height: 2.05rem; }
   .td-kicker { font-size: 0.56rem; }
   .td-corner-meta strong { font-size: 0.68rem; }
   .td-window,
   .td-foot { font-size: 0.52rem; }
   .td-select {
-    font-size: 0.6rem;
-    min-height: 1.5rem;
-    height: 1.5rem;
-    padding: 0.14rem 0.28rem;
+    font-size: 0.58rem;
+    min-height: 1.45rem;
+    height: 1.45rem;
+    padding: 0.12rem 0.24rem;
   }
   .fx-badge { width: 1.45rem; height: 1.45rem; }
   .fx-club-name { display: none; }
@@ -5095,19 +5019,16 @@ body.page-fit .pitch-cap-hint {
 @media (max-width: 390px) {
   .squad-pitch-wrap,
   .xi-pitch-wrap {
-    --pitch-token-w: 2.95rem;
-  }
-  .pitch-stage > .td-corner {
-    width: 4.2rem;
-    max-width: 4.2rem;
+    --pitch-token-w: 3.1rem;
   }
   .shirt:not(.xi-shirt) { width: 2.95rem; min-height: 3.45rem; }
   .jersey-img { width: 2rem; }
   .xi-pitch .jersey-img,
   .squad-pitch .jersey-img {
-    width: 2.3rem;
+    width: 2.4rem;
   }
   .shirt-name { max-width: 2.85rem; font-size: 0.48rem; }
+  .td-corner { max-width: 6.8rem; }
   .stat-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.12rem; }
   .stat { padding: 0.16rem 0.08rem; }
   .stat-label { font-size: 0.36rem; }
