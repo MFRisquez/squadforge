@@ -609,6 +609,13 @@
     return wrap;
   }
 
+  const POS_FULL = {
+    GK: "Goalkeeper",
+    DEF: "Defender",
+    MID: "Midfielder",
+    ATT: "Attacker",
+  };
+
   function deskBenchCard(player) {
     const wrap = shirtCard(player, true);
     wrap.classList.add("xi-bench-row");
@@ -630,10 +637,12 @@
     } else {
       fixtureHtml = `<span class="xi-bench-fixture">TBD</span>`;
     }
+    const teamName = player.club || player.team || "";
+    const posName = POS_FULL[player.position] || player.position || "";
     meta.innerHTML = `
       <strong class="xi-bench-name">${player.name}</strong>
-      <span class="xi-bench-team">${player.team}</span>
-      <span class="xi-bench-pos">${player.position}</span>
+      <span class="xi-bench-team">${teamName}</span>
+      <span class="xi-bench-pos">${posName}</span>
       ${fixtureHtml}
     `;
     wrap.appendChild(meta);
@@ -654,6 +663,17 @@
         if (!benchPlayers.length) {
           benchDesk.innerHTML = `<p class="muted tiny">No bench players.</p>`;
         } else {
+          const head = document.createElement("div");
+          head.className = "xi-bench-cols";
+          head.setAttribute("aria-hidden", "true");
+          head.innerHTML = `
+            <span class="xi-bench-cols-kit"></span>
+            <span>Player</span>
+            <span>Team</span>
+            <span>Position</span>
+            <span>Fixture</span>
+          `;
+          benchDesk.appendChild(head);
           benchPlayers.forEach((p) => benchDesk.appendChild(deskBenchCard(p)));
         }
       }
@@ -751,6 +771,32 @@
       parts.push(...benchRanked.map((r) => rowHtml(r, true)));
     }
     tbody.innerHTML = parts.join("");
+    fitLiveTableType();
+  }
+
+  function fitLiveTableType() {
+    const wrap = document.querySelector(".xi-live-table-wrap");
+    if (!xiLiveTable || !wrap || !isDesktop()) {
+      if (xiLiveTable) xiLiveTable.style.fontSize = "";
+      return;
+    }
+    let size = 15;
+    xiLiveTable.style.fontSize = `${size}px`;
+    // Shrink until it fits the box
+    while (size > 10 && xiLiveTable.scrollHeight > wrap.clientHeight + 1) {
+      size -= 0.5;
+      xiLiveTable.style.fontSize = `${size}px`;
+    }
+    // Grow to fill leftover space without overflowing
+    while (size < 18 && xiLiveTable.scrollHeight < wrap.clientHeight - 10) {
+      size += 0.5;
+      xiLiveTable.style.fontSize = `${size}px`;
+      if (xiLiveTable.scrollHeight > wrap.clientHeight + 1) {
+        size -= 0.5;
+        xiLiveTable.style.fontSize = `${size}px`;
+        break;
+      }
+    }
   }
 
   function syncXiSideLayout() {
@@ -758,6 +804,7 @@
     // Desktop page-fit uses CSS stretch; clear any leftover inline heights.
     xiSideRail.style.height = "";
     xiSideRail.style.minHeight = "";
+    fitLiveTableType();
   }
 
   function render() {
@@ -878,6 +925,7 @@
   window.addEventListener("resize", () => {
     paintBench();
     syncXiSideLayout();
+    fitLiveTableType();
   });
   if (DESK_MQ && typeof DESK_MQ.addEventListener === "function") {
     DESK_MQ.addEventListener("change", () => render());
