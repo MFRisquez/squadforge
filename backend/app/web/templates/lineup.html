@@ -32,7 +32,7 @@
   <button class="btn ghost" type="button" id="cancelSwap">Cancel</button>
 </div>
 
-<div class="desk-board desk-xi desk-xi-solo">
+<div class="desk-board desk-xi">
   <div class="desk-main">
     <form method="post" action="/lineup/save" id="lineupForm">
       <div id="hiddenFields"></div>
@@ -90,6 +90,14 @@
       {% endif %}
     </form>
   </div>
+  <aside class="desk-rail xi-role-rail" id="xiRoleRail" aria-label="Captain and vice">
+    <header class="desk-rail-head">
+      <p class="eyebrow">Roles</p>
+      <h2>Captain &amp; Vice</h2>
+      <p class="muted tiny">Tap C or V next to a starter — no need to open the player sheet.</p>
+    </header>
+    <ul class="xi-role-list" id="xiRoleList"></ul>
+  </aside>
 </div>
 
 <div class="drawer" id="playerDetail" hidden>

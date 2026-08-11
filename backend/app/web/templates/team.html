@@ -112,19 +112,32 @@
   <aside class="desk-rail transfer-rail" id="transferRail" aria-label="Transfer targets">
     <header class="desk-rail-head">
       <p class="eyebrow">Transfers</p>
-      <label class="rail-sort">
-        <span class="sr-only">Sort by</span>
-        <select id="transferSort" aria-label="Sort transfer targets">
-          <option value="points">Points</option>
-          <option value="form">Form</option>
-          <option value="price">Price</option>
-        </select>
-      </label>
+      <div class="rail-filters">
+        <label class="rail-sort">
+          <span class="sr-only">Position</span>
+          <select id="transferPosFilter" aria-label="Filter by position">
+            <option value="">All positions</option>
+            <option value="GK">GK</option>
+            <option value="DEF">DEF</option>
+            <option value="MID">MID</option>
+            <option value="ATT">ATT</option>
+          </select>
+        </label>
+        <label class="rail-sort">
+          <span class="sr-only">Sort by</span>
+          <select id="transferSort" aria-label="Sort transfer targets">
+            <option value="points">Points</option>
+            <option value="form">Form</option>
+            <option value="price">Price</option>
+          </select>
+        </label>
+      </div>
     </header>
     <div class="rail-kpis" id="transferRailCols" aria-hidden="true">
       <span>Player</span>
-      <span id="transferRailMetricCol">Pts</span>
       <span>£</span>
+      <span>Form</span>
+      <span>Pts</span>
     </div>
     <ul class="transfer-rail-list" id="transferRailList"></ul>
   </aside>

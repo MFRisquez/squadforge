@@ -42,6 +42,7 @@
     document.getElementById("saveXiBtn") || document.getElementById("saveCaptainBtn");
   const lineupForm = document.getElementById("lineupForm");
   const rolesOnly = Boolean(document.querySelector('input[name="roles_only"]'));
+  const xiRoleList = document.getElementById("xiRoleList");
 
   let detailPlayer = null;
   /** @type {null | { id: number, side: "xi" | "bench" }} */
@@ -557,10 +558,17 @@
     } else {
       footHtml = `<span class="shirt-foot shirt-opp">TBD</span>`;
     }
+    const roleChip =
+      !onBench && player.id === captainId
+        ? `<span class="role-badge role-c" title="Captain">C</span>`
+        : !onBench && player.id === viceId
+          ? `<span class="role-badge role-v" title="Vice-captain">V</span>`
+          : "";
     main.innerHTML = `
       <span class="shirt-kit">
         <img class="jersey-img" src="${player.shirt || ""}" alt="${player.team} kit" width="66" height="87" loading="lazy" decoding="async" />
         ${flag ? `<span class="shirt-status-flag" title="${player.news || flag}">${flag}</span>` : ""}
+        ${roleChip}
         <span class="shirt-overlay">
           <span class="shirt-nameplate">${shortName(player.name)}</span>
           ${footHtml}
@@ -577,22 +585,54 @@
     });
     wrap.appendChild(main);
 
-    if (!onBench && player.id === captainId) {
-      const badge = document.createElement("span");
-      badge.className = "role-badge role-c";
-      badge.textContent = "C";
-      badge.title = "Captain · tap player to change";
-      wrap.appendChild(badge);
-    }
-    if (!onBench && player.id === viceId) {
-      const badge = document.createElement("span");
-      badge.className = "role-badge role-v";
-      badge.textContent = "V";
-      badge.title = "Vice-captain · receives ×2 if captain does not play";
-      wrap.appendChild(badge);
-    }
-
     return wrap;
+  }
+
+  function paintRoleRail() {
+    if (!xiRoleList) return;
+    const starters = OWNED.filter((p) => starterIds.has(p.id));
+    const order = { GK: 0, DEF: 1, MID: 2, ATT: 3 };
+    starters.sort(
+      (a, b) =>
+        (order[a.position] || 0) - (order[b.position] || 0) ||
+        String(a.name).localeCompare(String(b.name))
+    );
+    const canEditRoles = !LOCKED || CAPTAIN_EDITABLE;
+    xiRoleList.innerHTML = "";
+    if (!starters.length) {
+      xiRoleList.innerHTML = `<li class="muted tiny">Pick your XI first.</li>`;
+      return;
+    }
+    starters.forEach((p) => {
+      const isCap = p.id === captainId;
+      const isVice = p.id === viceId;
+      const lockedRole = CAPTAIN_EDITABLE && !canPickAsCaptain(p.id);
+      const li = document.createElement("li");
+      li.className =
+        "xi-role-row" +
+        (isCap ? " is-captain" : "") +
+        (isVice ? " is-vice" : "") +
+        (lockedRole ? " is-role-locked" : "");
+      li.innerHTML = `
+        <div class="xi-role-meta">
+          <strong>${p.name}</strong>
+          <span>${p.team} · ${p.position}${lockedRole ? " · started" : ""}</span>
+        </div>
+        <div class="xi-role-actions">
+          <button type="button" class="role-pick role-pick-c${isCap ? " is-on" : ""}" ${
+            !canEditRoles || lockedRole ? "disabled" : ""
+          } aria-label="Make ${p.name} captain">C</button>
+          <button type="button" class="role-pick role-pick-v${isVice ? " is-on" : ""}" ${
+            !canEditRoles || lockedRole ? "disabled" : ""
+          } aria-label="Make ${p.name} vice">V</button>
+        </div>
+      `;
+      const cBtn = li.querySelector(".role-pick-c");
+      const vBtn = li.querySelector(".role-pick-v");
+      if (cBtn && !cBtn.disabled) cBtn.addEventListener("click", () => setCaptain(p.id));
+      if (vBtn && !vBtn.disabled) vBtn.addEventListener("click", () => setVice(p.id));
+      xiRoleList.appendChild(li);
+    });
   }
 
   function render() {
@@ -618,6 +658,7 @@
     syncHidden();
     updateHints();
     paintSaveBtn();
+    paintRoleRail();
   }
 
   if (closeDetailBtn) closeDetailBtn.addEventListener("click", closeDetail);

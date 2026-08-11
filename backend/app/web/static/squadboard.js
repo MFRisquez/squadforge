@@ -53,10 +53,11 @@
   const clearSwapBtn = document.getElementById("clearSwap");
   const squadForm = document.getElementById("squadForm");
   const transferRailList = document.getElementById("transferRailList");
-  const transferRailMetricCol = document.getElementById("transferRailMetricCol");
   const transferSort = document.getElementById("transferSort");
+  const transferPosFilter = document.getElementById("transferPosFilter");
   const playerDetail = document.getElementById("playerDetail");
   const DESK_MQ = window.matchMedia("(min-width: 900px)");
+  let posFilterTouched = false;
 
   function isDesktop() {
     return Boolean(DESK_MQ && DESK_MQ.matches);
@@ -334,38 +335,62 @@
     return ORDER.filter((pos) => slots[pos].some((id) => id == null));
   }
 
+  function railPosFilter() {
+    const v = transferPosFilter && transferPosFilter.value;
+    return v === "GK" || v === "DEF" || v === "MID" || v === "ATT" ? v : "";
+  }
+
+  let lastAutoPosKey = "";
+  function syncPosFilterDefault() {
+    if (!transferPosFilter) return;
+    let auto = "";
+    if (outPlayer && removedSlot && !freeEdit()) auto = outPlayer.position || "";
+    else if (freeEdit() && active && slots[active.pos][active.index] == null) auto = active.pos || "";
+    else if (freeEdit() && !isComplete()) {
+      const needed = neededPositions();
+      auto = needed.length === 1 ? needed[0] : "";
+    }
+    const key = `${auto}|${outPlayer ? outPlayer.id : ""}|${active ? `${active.pos}:${active.index}` : ""}`;
+    if (key !== lastAutoPosKey) {
+      lastAutoPosKey = key;
+      if (auto) {
+        transferPosFilter.value = auto;
+        posFilterTouched = false;
+      }
+    }
+  }
+
   function railContext() {
     const bank = BUDGET - spend();
     if (outPlayer && removedSlot && !freeEdit()) {
       return {
         mode: "transfer",
-        positions: [outPlayer.position],
         maxPrice: bank + 1e-9,
         excludeId: outPlayer.id,
+        selectable: true,
       };
     }
     if (freeEdit() && active && slots[active.pos][active.index] == null) {
       return {
         mode: "add",
-        positions: [active.pos],
         maxPrice: bank + 1e-9,
         excludeId: null,
+        selectable: true,
       };
     }
     if (freeEdit() && !isComplete()) {
-      const needed = neededPositions();
       return {
         mode: "add",
-        positions: needed.length ? needed : null,
         maxPrice: bank + 1e-9,
         excludeId: null,
+        selectable: true,
       };
     }
     return {
       mode: "browse",
-      positions: null,
       maxPrice: null,
       excludeId: null,
+      selectable: false,
     };
   }
 
@@ -375,45 +400,38 @@
     if (ctx.excludeId) owned.add(ctx.excludeId);
     const counts = clubCounts(ctx.excludeId);
     const lockBudget = ctx.maxPrice != null;
+    const posOnly = railPosFilter();
     const rows = PLAYERS.filter((p) => {
       if (!p || owned.has(p.id)) return false;
-      if (ctx.positions && ctx.positions.length && !ctx.positions.includes(p.position)) {
-        return false;
-      }
+      if (posOnly && p.position !== posOnly) return false;
       return true;
     }).map((p) => {
       const clubBlocked = (counts[p.team] || 0) >= MAX_CLUB;
       const budgetBlocked = lockBudget && p.price > ctx.maxPrice;
+      const browseLocked = !ctx.selectable;
+      const locked = browseLocked || clubBlocked || budgetBlocked;
+      let lockReason = "";
+      if (browseLocked) lockReason = "Transfer someone out first";
+      else if (clubBlocked) lockReason = `Max ${MAX_CLUB} from ${p.team}`;
+      else if (budgetBlocked) lockReason = "Over budget";
       return {
         ...p,
-        locked: clubBlocked || budgetBlocked,
-        lockReason: clubBlocked
-          ? `Max ${MAX_CLUB} from ${p.team}`
-          : budgetBlocked
-            ? "Over budget"
-            : "",
+        locked,
+        lockReason,
       };
     });
-    return sortRailPlayers(rows).slice(0, 24);
+    return sortRailPlayers(rows);
   }
 
   function paintTransferRail() {
     if (!transferRailList) return;
-    const ctx = railContext();
+    syncPosFilterDefault();
     const rows = transferCandidates();
-    if (transferRailMetricCol) {
-      transferRailMetricCol.textContent = railSortKey() === "form" ? "Form" : "Pts";
-    }
     transferRailList.innerHTML = "";
     if (!rows.length) {
       const empty = document.createElement("li");
       empty.className = "muted tiny fx-rail-empty";
-      const posLabel =
-        ctx.positions && ctx.positions.length === 1
-          ? ctx.positions[0]
-          : ctx.positions && ctx.positions.length
-            ? ctx.positions.join("/")
-            : "";
+      const posLabel = railPosFilter();
       empty.textContent = LOCKED
         ? "Squad locked this GW."
         : posLabel
@@ -426,21 +444,24 @@
       const li = document.createElement("li");
       const btn = document.createElement("button");
       btn.type = "button";
+      const avail = p.availability || "ok";
       btn.className =
         "transfer-rail-row" +
         (inPlayer && inPlayer.id === p.id ? " is-selected" : "") +
-        (p.locked ? " is-locked" : "");
+        (p.locked ? " is-locked" : "") +
+        (!p.locked && avail === "doubt" ? " avail-doubt" : "") +
+        (!p.locked && avail === "out" ? " avail-out" : "");
       btn.disabled = Boolean(p.locked);
-      if (p.lockReason) btn.title = p.lockReason;
-      const metric =
-        railSortKey() === "form" ? formScore(p).toFixed(1) : String(pointsScore(p));
+      const tip = [p.lockReason, p.news].filter(Boolean).join(" · ");
+      if (tip) btn.title = tip;
       btn.innerHTML = `
         <span class="tr-name">
           <strong>${p.name}</strong>
           <span>${p.team} · ${p.position}${p.lockReason ? ` · ${p.lockReason}` : ""}</span>
         </span>
-        <span class="tr-metric">${metric}</span>
         <span class="tr-price">£${Number(p.price).toFixed(1)}</span>
+        <span class="tr-form">${formScore(p).toFixed(1)}</span>
+        <span class="tr-pts">${pointsScore(p)}</span>
       `;
       if (!p.locked) btn.addEventListener("click", () => pickFromTransferRail(p));
       li.appendChild(btn);
@@ -456,6 +477,10 @@
         alert("Pick who to transfer out first.");
         return;
       }
+      if (p.position !== outPlayer.position) {
+        alert(`Pick a ${outPlayer.position} to replace ${outPlayer.name}.`);
+        return;
+      }
       active = { pos: slot.pos, index: slot.index };
       pickerMode = "transfer";
       pickPlayer(p);
@@ -465,15 +490,22 @@
       let target = active && slots[active.pos][active.index] == null ? active : null;
       if (!target) {
         const idx = slots[p.position].findIndex((id) => id == null);
-        if (idx < 0) return;
+        if (idx < 0) {
+          alert(`No empty ${p.position} slot — remove someone first.`);
+          return;
+        }
         target = { pos: p.position, index: idx };
       }
-      if (p.position !== target.pos) return;
+      if (p.position !== target.pos) {
+        alert(`That slot needs a ${target.pos}.`);
+        return;
+      }
       active = target;
       pickerMode = "add";
       pickPlayer(p);
       return;
     }
+    alert("Transfer someone out on the pitch first.");
   }
 
   function refreshSwapBar() {
@@ -1025,6 +1057,12 @@
     }
     if (transferSort) {
       transferSort.addEventListener("change", () => paintTransferRail());
+    }
+    if (transferPosFilter) {
+      transferPosFilter.addEventListener("change", () => {
+        posFilterTouched = true;
+        paintTransferRail();
+      });
     }
 
     if (squadForm) {
