@@ -150,12 +150,7 @@
       if (maxP != null && p.price > maxP) return false;
       if (q && !`${p.name} ${p.team}`.toLowerCase().includes(q)) return false;
       return true;
-    }).sort((a, b) => {
-      const aBlocked = (clubs[a.team] || 0) >= MAX_CLUB ? 1 : 0;
-      const bBlocked = (clubs[b.team] || 0) >= MAX_CLUB ? 1 : 0;
-      if (aBlocked !== bBlocked) return aBlocked - bBlocked;
-      return b.price - a.price || a.name.localeCompare(b.name);
-    });
+    }).sort((a, b) => b.price - a.price || a.name.localeCompare(b.name));
 
     pickerList.innerHTML = "";
     if (!items.length) {

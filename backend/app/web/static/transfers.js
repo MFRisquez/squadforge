@@ -149,15 +149,10 @@
       if (maxP != null && p.price > maxP) return false;
       return true;
     }).sort((a, b) => {
-      const aBlocked =
-        (clubs[a.team] || 0) >= MAX_CLUB || a.price > maxAfford + 1e-9 ? 1 : 0;
-      const bBlocked =
-        (clubs[b.team] || 0) >= MAX_CLUB || b.price > maxAfford + 1e-9 ? 1 : 0;
-      if (aBlocked !== bBlocked) return aBlocked - bBlocked;
       const ap = a.position === outPlayer.position ? 0 : 1;
       const bp = b.position === outPlayer.position ? 0 : 1;
       if (ap !== bp) return ap - bp;
-      return b.price - a.price;
+      return b.price - a.price || a.name.localeCompare(b.name);
     });
 
     items.slice(0, 100).forEach((p) => {

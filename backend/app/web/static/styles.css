@@ -4968,10 +4968,27 @@ body.page-fit .pitch-cap-hint {
   .xi-bench-wrap .shirt-nameplate { font-size: 0.48rem; }
   .xi-bench-wrap .shirt-foot { font-size: 0.44rem; }
   .picker-card { max-height: min(54vh, 24rem); }
-  .pick-name { font-size: 0.9rem; }
-  .pick-sub { font-size: 0.7rem; }
-  .pick-price { font-size: 0.82rem; }
-  .pick-row { padding: 0.4rem 0.5rem; gap: 0.35rem; min-height: 2.3rem; }
+  .pick-name { font-size: 0.9rem; text-align: center; }
+  .pick-sub { font-size: 0.7rem; text-align: center; }
+  .pick-price {
+    font-size: 0.82rem;
+    text-align: center;
+    justify-self: center;
+  }
+  .pick-row {
+    padding: 0.4rem 0.5rem;
+    gap: 0.35rem;
+    min-height: 2.3rem;
+    grid-template-columns: minmax(0, 1fr) minmax(4.2rem, 4.8rem);
+    text-align: center;
+  }
+  .pick-main {
+    justify-items: center;
+    text-align: center;
+  }
+  .pick-row-wrap {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
   .picker-search input { font-size: 16px; /* iOS: avoid zoom */ }
   .shirt-fdr {
     top: 0.05rem;

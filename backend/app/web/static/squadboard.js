@@ -965,14 +965,7 @@
       if (maxP != null && p.price > maxP) return false;
       if (q && !`${p.name} ${p.team} ${p.club || ""}`.toLowerCase().includes(q)) return false;
       return true;
-    }).sort((a, b) => {
-      const aBlocked =
-        (clubs[a.team] || 0) >= MAX_CLUB || a.price > maxAfford + 1e-9 ? 1 : 0;
-      const bBlocked =
-        (clubs[b.team] || 0) >= MAX_CLUB || b.price > maxAfford + 1e-9 ? 1 : 0;
-      if (aBlocked !== bBlocked) return aBlocked - bBlocked;
-      return b.price - a.price || a.name.localeCompare(b.name);
-    });
+    }).sort((a, b) => b.price - a.price || a.name.localeCompare(b.name));
 
     pickerList.innerHTML = "";
     if (!items.length) {
