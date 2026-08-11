@@ -271,6 +271,64 @@ def fixtures_for_gameweek(db: Session, *, gw_number: int) -> list[dict[str, Any]
     return out
 
 
+def _kickoff_day(kickoff: str | None) -> str | None:
+    if not kickoff:
+        return None
+    text = str(kickoff)
+    return text[:10] if len(text) >= 10 else None
+
+
+def _scorer_lines(events: dict[str, Any], side: str) -> list[dict[str, Any]]:
+    """Flatten goal rows for UI. FPL has no minute — minute stays null for now."""
+    lines: list[dict[str, Any]] = []
+    for row in (events.get("goals") or {}).get(side) or []:
+        name = row.get("name") or "Player"
+        count = int(row.get("value") or 1)
+        for _ in range(max(1, count)):
+            lines.append({"name": name, "minute": None, "own_goal": False})
+    for row in (events.get("own_goals") or {}).get(side) or []:
+        name = row.get("name") or "Player"
+        count = int(row.get("value") or 1)
+        for _ in range(max(1, count)):
+            lines.append({"name": f"{name} (OG)", "minute": None, "own_goal": True})
+    return lines
+
+
+def fixtures_live_board(db: Session, *, gw_number: int, today: str | None = None) -> dict[str, Any]:
+    """GW fixtures with scorers, preferring matches on `today` (YYYY-MM-DD)."""
+    from datetime import datetime, timezone
+
+    ensure_fixtures_ready(db)
+    if not today:
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    base = fixtures_for_gameweek(db, gw_number=gw_number)
+    by_id = {
+        fx.id: fx
+        for fx in db.query(Fixture).filter(Fixture.gameweek_number == gw_number).all()
+    }
+    enriched = []
+    for row in base:
+        fx = by_id.get(row["id"])
+        events = parse_match_events(db, fx) if fx else {"goals": {"home": [], "away": []}, "own_goals": {"home": [], "away": []}}
+        item = dict(row)
+        item["day"] = _kickoff_day(row.get("kickoff"))
+        item["scorers"] = {
+            "home": _scorer_lines(events, "home"),
+            "away": _scorer_lines(events, "away"),
+        }
+        enriched.append(item)
+
+    day_matches = [m for m in enriched if m.get("day") == today]
+    use_day = bool(day_matches)
+    matches = day_matches if use_day else enriched
+    return {
+        "today": today,
+        "scope": "today" if use_day else "gameweek",
+        "title": "Today's matches" if use_day else f"GW{gw_number} fixtures",
+        "matches": matches,
+    }
+
+
 def _player_name_map(db: Session) -> dict[int, str]:
     """FPL element id → web name."""
     out: dict[int, str] = {}

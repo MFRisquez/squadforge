@@ -32,61 +32,134 @@
   <button class="btn ghost" type="button" id="cancelSwap">Cancel</button>
 </div>
 
-<form method="post" action="/lineup/save" id="lineupForm">
-  <div id="hiddenFields"></div>
-  <section class="pitch-wrap xi-pitch-wrap">
-    <div class="pitch field pitch-photo xi-pitch" id="pitch">
-      <div class="pitch-markings" aria-hidden="true"></div>
-      {% if not edits_locked %}
-      <button class="pitch-save-btn is-idle" type="submit" id="saveXiBtn" disabled aria-label="Save XI">
-        <span class="pitch-save-ico" aria-hidden="true"></span>
-        <span class="pitch-save-label">Save</span>
-      </button>
-      {% elif captain_editable %}
-      <input type="hidden" name="roles_only" value="1" />
-      <button class="pitch-save-btn is-idle" type="submit" id="saveCaptainBtn" disabled aria-label="Save captain">
-        <span class="pitch-save-ico" aria-hidden="true"></span>
-        <span class="pitch-save-label">Save C</span>
-      </button>
-      {% endif %}
-      <aside class="td-corner td-corner-xi" aria-label="Technical Director">
-        {% if td_info and td_info.club_code %}
-          {% if td_info.badge %}
-          <img class="td-badge" src="{{ td_info.badge }}" alt="" width="56" height="56" />
+<div class="desk-board desk-xi">
+  <div class="desk-main">
+    <form method="post" action="/lineup/save" id="lineupForm">
+      <div id="hiddenFields"></div>
+      <section class="pitch-wrap xi-pitch-wrap">
+        <div class="pitch field pitch-photo xi-pitch" id="pitch">
+          <div class="pitch-markings" aria-hidden="true"></div>
+          {% if not edits_locked %}
+          <button class="pitch-save-btn is-idle" type="submit" id="saveXiBtn" disabled aria-label="Save XI">
+            <span class="pitch-save-ico" aria-hidden="true"></span>
+            <span class="pitch-save-label">Save</span>
+          </button>
+          {% elif captain_editable %}
+          <input type="hidden" name="roles_only" value="1" />
+          <button class="pitch-save-btn is-idle" type="submit" id="saveCaptainBtn" disabled aria-label="Save captain">
+            <span class="pitch-save-ico" aria-hidden="true"></span>
+            <span class="pitch-save-label">Save C</span>
+          </button>
           {% endif %}
-          <div class="td-corner-meta">
-            <span class="td-kicker">{{ td_info.club_code }}</span>
-            <strong>DT</strong>
-            {% if edits_locked and td_info.points is not none %}
-            <span class="td-foot td-pts">{% if td_info.points >= 0 %}+{% endif %}{{ '%.0f'|format(td_info.points) }}</span>
-            {% elif td_info.fixture_line %}
-            <span class="td-foot fdr-{{ td_info.fixture_fdr or 3 }}">{{ td_info.fixture_line }}</span>
+          <aside class="td-corner td-corner-xi" aria-label="Technical Director">
+            {% if td_info and td_info.club_code %}
+              {% if td_info.badge %}
+              <img class="td-badge" src="{{ td_info.badge }}" alt="" width="56" height="56" />
+              {% endif %}
+              <div class="td-corner-meta">
+                <span class="td-kicker">{{ td_info.club_code }}</span>
+                <strong>DT</strong>
+                {% if edits_locked and td_info.points is not none %}
+                <span class="td-foot td-pts">{% if td_info.points >= 0 %}+{% endif %}{{ '%.0f'|format(td_info.points) }}</span>
+                {% elif td_info.fixture_line %}
+                <span class="td-foot fdr-{{ td_info.fixture_fdr or 3 }}">{{ td_info.fixture_line }}</span>
+                {% else %}
+                <span class="td-foot">GW{{ td_info.start_gw }}–{{ td_info.end_gw }}</span>
+                {% endif %}
+              </div>
             {% else %}
-            <span class="td-foot">GW{{ td_info.start_gw }}–{{ td_info.end_gw }}</span>
+              <div class="td-corner-meta">
+                <span class="td-kicker">Squad</span>
+                <strong>DT</strong>
+                <span class="td-foot"><a href="/team">Pick club</a></span>
+              </div>
+            {% endif %}
+          </aside>
+          <div class="pitch-row zone-gk" data-row="gk"></div>
+          <div class="pitch-row zone-def" data-row="def"></div>
+          <div class="pitch-row zone-mid" data-row="mid"></div>
+          <div class="pitch-row zone-att" data-row="att"></div>
+        </div>
+      </section>
+      <section class="bench-wrap xi-bench-wrap">
+        <h2>Bench</h2>
+        <div class="bench" id="bench"></div>
+      </section>
+      {% if edits_locked and captain_editable %}
+      <p class="muted tiny pitch-cap-hint">XI locked — you can still change C/V to players yet to play.</p>
+      {% endif %}
+    </form>
+  </div>
+  <aside class="desk-rail fixture-rail" aria-label="{{ live_board.title if live_board else 'Fixtures' }}">
+    <header class="desk-rail-head">
+      <p class="eyebrow">Matchday</p>
+      <h2>{{ live_board.title if live_board else 'Fixtures' }}</h2>
+      <p class="muted tiny">Scores &amp; scorers</p>
+    </header>
+    {% if live_board and live_board.matches %}
+    <ul class="fixture-rail-list">
+      {% for m in live_board.matches %}
+      <li class="fx-rail-card status-{{ m.status }}">
+        <div class="fx-rail-top">
+          {% if m.status == 'live' %}<em class="live-dot">LIVE</em>
+          {% elif m.status == 'finished' %}<span class="fx-status">FT</span>
+          {% elif m.kickoff %}
+            <span class="fx-status">{{ m.kickoff[11:16] if m.kickoff|length > 16 else m.kickoff }}</span>
+          {% else %}
+            <span class="fx-status">TBC</span>
+          {% endif %}
+        </div>
+        <div class="fx-rail-match">
+          <div class="fx-rail-club">
+            {% if m.home.badge %}<img class="fx-badge" src="{{ m.home.badge }}" alt="" width="28" height="28" loading="lazy" />{% endif %}
+            <strong>{{ m.home.code }}</strong>
+          </div>
+          <div class="fx-rail-score">
+            {% if m.home.score is not none and m.away.score is not none %}
+              <span>{{ m.home.score }}</span><span class="fx-score-sep">–</span><span>{{ m.away.score }}</span>
+            {% else %}
+              <span class="fx-vs">vs</span>
             {% endif %}
           </div>
-        {% else %}
-          <div class="td-corner-meta">
-            <span class="td-kicker">Squad</span>
-            <strong>DT</strong>
-            <span class="td-foot"><a href="/team">Pick club</a></span>
+          <div class="fx-rail-club away">
+            <strong>{{ m.away.code }}</strong>
+            {% if m.away.badge %}<img class="fx-badge" src="{{ m.away.badge }}" alt="" width="28" height="28" loading="lazy" />{% endif %}
           </div>
+        </div>
+        {% set home_scorers = m.scorers.home if m.scorers else [] %}
+        {% set away_scorers = m.scorers.away if m.scorers else [] %}
+        {% if home_scorers or away_scorers %}
+        <div class="fx-rail-scorers">
+          <ul class="fx-scorer-col">
+            {% for g in home_scorers %}
+            <li>
+              <span class="ball" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="currentColor" d="M12 7.2l2.1 1.5-.8 2.5H10.7l-.8-2.5L12 7.2zm-3.4 3.3l1.6 2-.9 2.2-2.4.1-.8-2.3 2.5-2zm6.8 0l2.5 2-.8 2.3-2.4-.1-.9-2.2 1.6-2zM9.8 16.2h4.4l.7 2.1-2.9 1.5-2.9-1.5.7-2.1z"/></svg></span>
+              {% if g.minute is not none %}<span class="fx-min">{{ g.minute }}'</span>{% endif %}
+              <span class="fx-scorer-name">{{ g.name }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+          <ul class="fx-scorer-col away">
+            {% for g in away_scorers %}
+            <li>
+              <span class="ball" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path fill="currentColor" d="M12 7.2l2.1 1.5-.8 2.5H10.7l-.8-2.5L12 7.2zm-3.4 3.3l1.6 2-.9 2.2-2.4.1-.8-2.3 2.5-2zm6.8 0l2.5 2-.8 2.3-2.4-.1-.9-2.2 1.6-2zM9.8 16.2h4.4l.7 2.1-2.9 1.5-2.9-1.5.7-2.1z"/></svg></span>
+              {% if g.minute is not none %}<span class="fx-min">{{ g.minute }}'</span>{% endif %}
+              <span class="fx-scorer-name">{{ g.name }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% elif m.status != 'upcoming' %}
+        <p class="muted tiny fx-rail-empty">No scorers yet</p>
         {% endif %}
-      </aside>
-      <div class="pitch-row zone-gk" data-row="gk"></div>
-      <div class="pitch-row zone-def" data-row="def"></div>
-      <div class="pitch-row zone-mid" data-row="mid"></div>
-      <div class="pitch-row zone-att" data-row="att"></div>
-    </div>
-  </section>
-  <section class="bench-wrap xi-bench-wrap">
-    <h2>Bench</h2>
-    <div class="bench" id="bench"></div>
-  </section>
-  {% if edits_locked and captain_editable %}
-  <p class="muted tiny pitch-cap-hint">XI locked — you can still change C/V to players yet to play.</p>
-  {% endif %}
-</form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted tiny fx-rail-empty">No fixtures for this GW.</p>
+    {% endif %}
+  </aside>
+</div>
 
 <div class="drawer" id="playerDetail" hidden>
   <div class="drawer-sheet player-detail-sheet">

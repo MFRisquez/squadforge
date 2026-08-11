@@ -49,63 +49,81 @@
 </form>
 
 <form method="post" action="/td/save" id="tdForm" hidden aria-hidden="true"></form>
-<form method="post" action="/team/save" id="squadForm">
-  <div id="hiddenFields"></div>
-  <section class="pitch-wrap squad-pitch-wrap">
-    <div class="pitch field pitch-photo xi-pitch squad-pitch" id="squadPitch">
-      <div class="pitch-markings" aria-hidden="true"></div>
-      {% if not edits_locked %}
-      <button class="pitch-save-btn is-idle" type="submit" id="saveSquadBtn" disabled aria-label="Save squad">
-        <span class="pitch-save-ico" aria-hidden="true"></span>
-        <span class="pitch-save-label">Save</span>
-      </button>
-      {% endif %}
-      <aside class="td-corner" aria-label="Technical Director">
-        {% if td_info and td_info.club_code %}
-          {% if td_info.badge %}
-          <img class="td-badge" src="{{ td_info.badge }}" alt="{{ td_info.club_code }} badge" width="56" height="56" />
+<div class="desk-board desk-squad">
+  <div class="desk-main">
+    <form method="post" action="/team/save" id="squadForm">
+      <div id="hiddenFields"></div>
+      <section class="pitch-wrap squad-pitch-wrap">
+        <div class="pitch field pitch-photo xi-pitch squad-pitch" id="squadPitch">
+          <div class="pitch-markings" aria-hidden="true"></div>
+          {% if not edits_locked %}
+          <button class="pitch-save-btn is-idle" type="submit" id="saveSquadBtn" disabled aria-label="Save squad">
+            <span class="pitch-save-ico" aria-hidden="true"></span>
+            <span class="pitch-save-label">Save</span>
+          </button>
           {% endif %}
-          <div class="td-corner-meta">
-            <span class="td-kicker">{{ td_info.club_code }}</span>
-            <strong>DT</strong>
-            {% if td_info.fixture_line %}
-            <span class="td-foot fdr-{{ td_info.fixture_fdr or 3 }}">{{ td_info.fixture_line }}</span>
+          <aside class="td-corner" aria-label="Technical Director">
+            {% if td_info and td_info.club_code %}
+              {% if td_info.badge %}
+              <img class="td-badge" src="{{ td_info.badge }}" alt="{{ td_info.club_code }} badge" width="56" height="56" />
+              {% endif %}
+              <div class="td-corner-meta">
+                <span class="td-kicker">{{ td_info.club_code }}</span>
+                <strong>DT</strong>
+                {% if td_info.fixture_line %}
+                <span class="td-foot fdr-{{ td_info.fixture_fdr or 3 }}">{{ td_info.fixture_line }}</span>
+                {% else %}
+                <span class="td-window">GW{{ td_info.start_gw }}–{{ td_info.end_gw }}</span>
+                {% endif %}
+              </div>
             {% else %}
-            <span class="td-window">GW{{ td_info.start_gw }}–{{ td_info.end_gw }}</span>
+              <div class="td-corner-meta">
+                <span class="td-kicker">Pick</span>
+                <strong>DT</strong>
+                <span class="td-window">Choose a club</span>
+              </div>
             {% endif %}
-          </div>
-        {% else %}
-          <div class="td-corner-meta">
-            <span class="td-kicker">Pick</span>
-            <strong>DT</strong>
-            <span class="td-window">Choose a club</span>
-          </div>
-        {% endif %}
-        {% if can_set_td %}
-        <label class="sr-only" for="tdClub">Technical Director club</label>
-        <select name="club_code" id="tdClub" class="td-select" form="tdForm" required>
-          {% if not td_info or not td_info.club_code %}
-          <option value="" selected disabled>Pick club…</option>
-          {% endif %}
-          {% for c in td_club_choices %}
-          <option value="{{ c.code }}" {% if td_info and td_info.club_code == c.code %}selected{% endif %}>{{ c.name }}</option>
-          {% endfor %}
-        </select>
-        {% if td_info and td_info.banned_club %}
-        <p class="td-ban muted tiny">Not {{ td_info.banned_club }} next</p>
-        {% endif %}
-        {% elif td_info and td_info.club_code %}
-          <span class="td-locked muted tiny">Locked</span>
-        {% endif %}
-      </aside>
-      <div class="pitch-row zone-gk" data-pos="GK"></div>
-      <div class="pitch-row zone-def" data-pos="DEF"></div>
-      <div class="pitch-row zone-mid" data-pos="MID"></div>
-      <div class="pitch-row zone-att" data-pos="ATT"></div>
+            {% if can_set_td %}
+            <label class="sr-only" for="tdClub">Technical Director club</label>
+            <select name="club_code" id="tdClub" class="td-select" form="tdForm" required>
+              {% if not td_info or not td_info.club_code %}
+              <option value="" selected disabled>Pick club…</option>
+              {% endif %}
+              {% for c in td_club_choices %}
+              <option value="{{ c.code }}" {% if td_info and td_info.club_code == c.code %}selected{% endif %}>{{ c.name }}</option>
+              {% endfor %}
+            </select>
+            {% if td_info and td_info.banned_club %}
+            <p class="td-ban muted tiny">Not {{ td_info.banned_club }} next</p>
+            {% endif %}
+            {% elif td_info and td_info.club_code %}
+              <span class="td-locked muted tiny">Locked</span>
+            {% endif %}
+          </aside>
+          <div class="pitch-row zone-gk" data-pos="GK"></div>
+          <div class="pitch-row zone-def" data-pos="DEF"></div>
+          <div class="pitch-row zone-mid" data-pos="MID"></div>
+          <div class="pitch-row zone-att" data-pos="ATT"></div>
+        </div>
+      </section>
+      <p class="pitch-meta" id="pitchMeta">2 GK · 5 DEF · 5 MID · 3 ATT · DT top-left</p>
+    </form>
+  </div>
+  <aside class="desk-rail transfer-rail" id="transferRail" aria-label="Transfer targets">
+    <header class="desk-rail-head">
+      <p class="eyebrow">Transfers</p>
+      <h2 id="transferRailTitle">Targets</h2>
+      <p class="muted tiny" id="transferRailHint">Form · price · points</p>
+    </header>
+    <div class="rail-kpis" aria-hidden="true">
+      <span>Player</span>
+      <span>Form</span>
+      <span>£</span>
+      <span>Pts</span>
     </div>
-  </section>
-  <p class="pitch-meta" id="pitchMeta">2 GK · 5 DEF · 5 MID · 3 ATT · DT top-left</p>
-</form>
+    <ul class="transfer-rail-list" id="transferRailList"></ul>
+  </aside>
+</div>
 
 <div class="picker-modal" id="picker" hidden>
   <div class="picker-card" role="dialog" aria-modal="true" aria-labelledby="pickerPos">

@@ -83,6 +83,24 @@ def _ctx(request: Request, db: Session, **extra):
     return data
 
 
+def _season_kpis(player: Player) -> dict:
+    try:
+        stats = json.loads(getattr(player, "season_stats_json", None) or "{}")
+    except json.JSONDecodeError:
+        stats = {}
+    if not isinstance(stats, dict):
+        stats = {}
+    try:
+        form = float(stats.get("form") or 0)
+    except (TypeError, ValueError):
+        form = 0.0
+    try:
+        total_points = int(float(stats.get("total_points") or 0))
+    except (TypeError, ValueError):
+        total_points = 0
+    return {"form": form, "total_points": total_points}
+
+
 def _players_payload(db: Session) -> list[dict]:
     from app.kits import kit_for
     from app.services import fixtures as fixtures_svc
@@ -109,6 +127,7 @@ def _players_payload(db: Session) -> list[dict]:
                 getattr(p, "chance_of_playing", None),
             ),
             "fdr": fdr_by_club.get(p.team_code),
+            **_season_kpis(p),
             **kit_for(
                 p.team_code,
                 position=p.position,
@@ -703,6 +722,7 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
         for p in picks
     }
     td_info = td_svc.td_view(db, manager.id, gw.number, gameweek_id=gw.id)
+    live_board = fixtures_svc.fixtures_live_board(db, gw_number=gw.number)
 
     return templates.TemplateResponse(
         "lineup.html",
@@ -729,6 +749,7 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
             bench_options=bench_options,
             captain_editable=captain_editable,
             td_info=td_info,
+            live_board=live_board,
             notice=notice,
             error=error,
             **view,
@@ -822,6 +843,7 @@ async def lineup_save(request: Request, db: Session = Depends(get_db)):
                     "points": {},
                 },
                 spend=squad_svc.squad_spend(owned),
+                live_board={"title": "Fixtures", "matches": [], "scope": "gameweek"},
                 error=str(exc),
             ),
             status_code=400,

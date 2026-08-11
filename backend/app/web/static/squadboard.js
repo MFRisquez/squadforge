@@ -52,6 +52,9 @@
   const saveSquadBtn = document.getElementById("saveSquadBtn");
   const clearSwapBtn = document.getElementById("clearSwap");
   const squadForm = document.getElementById("squadForm");
+  const transferRailList = document.getElementById("transferRailList");
+  const transferRailTitle = document.getElementById("transferRailTitle");
+  const transferRailHint = document.getElementById("transferRailHint");
   const playerDetail = document.getElementById("playerDetail");
   const detailEyebrow = document.getElementById("detailEyebrow");
   const detailName = document.getElementById("detailName");
@@ -246,6 +249,128 @@
     syncHidden();
     refreshSwapBar();
     paintSaveBtn();
+    paintTransferRail();
+  }
+
+  function formScore(p) {
+    const n = Number(p?.form);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function transferCandidates() {
+    const owned = new Set(filledIds());
+    const bank = BUDGET - spend();
+    let pos = null;
+    let maxPrice = Infinity;
+    let excludeTeamBoost = null;
+    if (outPlayer && !freeEdit()) {
+      pos = outPlayer.position;
+      maxPrice = bank + (outPlayer.price || 0) + 1e-9;
+      excludeTeamBoost = outPlayer.id;
+    } else if (active && freeEdit()) {
+      pos = active.pos;
+      const currentId = slots[active.pos][active.index];
+      const currentPrice = byId[currentId]?.price || 0;
+      maxPrice = bank + currentPrice + 1e-9;
+    }
+    return PLAYERS.filter((p) => {
+      if (!p || owned.has(p.id)) return false;
+      if (pos && p.position !== pos) return false;
+      if (p.price > maxPrice) return false;
+      const counts = clubCounts(excludeTeamBoost);
+      if ((counts[p.team] || 0) >= MAX_CLUB) return false;
+      return true;
+    })
+      .sort((a, b) => formScore(b) - formScore(a) || (b.total_points || 0) - (a.total_points || 0) || b.price - a.price)
+      .slice(0, 18);
+  }
+
+  function paintTransferRail() {
+    if (!transferRailList) return;
+    const rows = transferCandidates();
+    if (transferRailTitle) {
+      transferRailTitle.textContent = outPlayer && !freeEdit()
+        ? `In for ${shortName(outPlayer.name)}`
+        : active && freeEdit()
+          ? `${active.pos} options`
+          : "Top form";
+    }
+    if (transferRailHint) {
+      transferRailHint.textContent = outPlayer && !freeEdit()
+        ? `Same position · under budget`
+        : "Form · price · points";
+    }
+    transferRailList.innerHTML = "";
+    if (!rows.length) {
+      const empty = document.createElement("li");
+      empty.className = "muted tiny fx-rail-empty";
+      empty.textContent = LOCKED
+        ? "Squad locked this GW."
+        : outPlayer
+          ? "No affordable targets in that position."
+          : "Tap a player to transfer, or an empty slot to add.";
+      transferRailList.appendChild(empty);
+      return;
+    }
+    rows.forEach((p) => {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "transfer-rail-row" + (inPlayer && inPlayer.id === p.id ? " is-selected" : "");
+      btn.innerHTML = `
+        <span class="tr-name">
+          <strong>${p.name}</strong>
+          <span>${p.team} · ${p.position}</span>
+        </span>
+        <span class="tr-form">${formScore(p).toFixed(1)}</span>
+        <span class="tr-price">£${Number(p.price).toFixed(1)}</span>
+        <span class="tr-pts">${Number(p.total_points || 0)}</span>
+      `;
+      btn.addEventListener("click", () => pickFromTransferRail(p));
+      li.appendChild(btn);
+      transferRailList.appendChild(li);
+    });
+  }
+
+  function pickFromTransferRail(p) {
+    if (LOCKED || !p) return;
+    if (outPlayer && !freeEdit()) {
+      const slot =
+        removedSlot ||
+        (() => {
+          const idx = slots[outPlayer.position].findIndex((id) => id === outPlayer.id);
+          return idx >= 0 ? { pos: outPlayer.position, index: idx } : null;
+        })();
+      if (!slot) {
+        alert("Pick the empty slot for the player coming in.");
+        return;
+      }
+      active = { pos: slot.pos, index: slot.index };
+      pickerMode = "transfer";
+      pickPlayer(p);
+      return;
+    }
+    if (freeEdit()) {
+      let target = active;
+      if (!target || slots[target.pos][target.index] != null) {
+        const pos = p.position;
+        const idx = slots[pos].findIndex((id) => id == null);
+        if (idx < 0) {
+          openPlayerDetail(p, { fromPicker: false });
+          return;
+        }
+        target = { pos, index: idx };
+      }
+      if (p.position !== target.pos) {
+        openPlayerDetail(p, { fromPicker: false });
+        return;
+      }
+      active = target;
+      pickerMode = "add";
+      pickPlayer(p);
+      return;
+    }
+    openPlayerDetail(p, { fromPicker: false });
   }
 
   function refreshSwapBar() {
