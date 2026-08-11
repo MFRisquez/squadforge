@@ -947,9 +947,16 @@
     const maxP = filterMaxPrice.value ? Number(filterMaxPrice.value) : null;
     const currentId = slots[active.pos][active.index];
     const excludeForClub = pickerMode === "transfer" && outPlayer ? outPlayer.id : currentId;
+    const excludeForBudget =
+      pickerMode === "transfer" && outPlayer ? outPlayer.id : currentId || null;
     const taken = new Set(filledIds());
     if (excludeForClub) taken.delete(excludeForClub);
     const clubs = clubCounts(excludeForClub);
+    const baseSpend = filledIds().reduce((s, id) => {
+      if (excludeForBudget && id === excludeForBudget) return s;
+      return s + (byId[id]?.price || 0);
+    }, 0);
+    const maxAfford = BUDGET - baseSpend;
 
     const items = PLAYERS.filter((p) => {
       if (p.position !== active.pos) return false;
@@ -959,8 +966,10 @@
       if (q && !`${p.name} ${p.team} ${p.club || ""}`.toLowerCase().includes(q)) return false;
       return true;
     }).sort((a, b) => {
-      const aBlocked = (clubs[a.team] || 0) >= MAX_CLUB ? 1 : 0;
-      const bBlocked = (clubs[b.team] || 0) >= MAX_CLUB ? 1 : 0;
+      const aBlocked =
+        (clubs[a.team] || 0) >= MAX_CLUB || a.price > maxAfford + 1e-9 ? 1 : 0;
+      const bBlocked =
+        (clubs[b.team] || 0) >= MAX_CLUB || b.price > maxAfford + 1e-9 ? 1 : 0;
       if (aBlocked !== bBlocked) return aBlocked - bBlocked;
       return b.price - a.price || a.name.localeCompare(b.name);
     });
@@ -974,20 +983,25 @@
     items.forEach((p) => {
       const clubN = clubs[p.team] || 0;
       const clubBlocked = clubN >= MAX_CLUB;
+      const budgetBlocked = p.price > maxAfford + 1e-9;
+      const blocked = clubBlocked || budgetBlocked;
       const li = document.createElement("li");
       li.className = "pick-row-wrap";
-      const clubNote = clubBlocked
-        ? `<span class="club-limit">3/${MAX_CLUB} club</span>`
-        : clubN > 0
-          ? `<span class="muted tiny"> · ${clubN}/${MAX_CLUB}</span>`
-          : "";
+      let limitNote = "";
+      if (clubBlocked) {
+        limitNote = `<span class="club-limit">3/${MAX_CLUB} club</span>`;
+      } else if (budgetBlocked) {
+        limitNote = `<span class="club-limit is-budget">Over budget</span>`;
+      } else if (clubN > 0) {
+        limitNote = `<span class="muted tiny"> · ${clubN}/${MAX_CLUB}</span>`;
+      }
       const flag =
         p.availability === "out" ? "OUT" : p.availability === "doubt" ? "DOUBT" : "";
       li.innerHTML = `
-        <button type="button" class="pick-row avail-${p.availability || "ok"}${clubBlocked ? " is-blocked" : ""}" ${clubBlocked ? "disabled" : ""}>
+        <button type="button" class="pick-row avail-${p.availability || "ok"}${blocked ? " is-blocked" : ""}" ${blocked ? "disabled" : ""}>
           <span class="pick-main">
             <span class="pick-name">${p.name}</span>
-            <span class="pick-sub">${p.team}${flag ? ` · ${flag}` : ""}${clubNote}</span>
+            <span class="pick-sub">${p.team}${flag ? ` · ${flag}` : ""}${limitNote}</span>
           </span>
           <span class="pick-price">£${p.price.toFixed(1)}</span>
         </button>
@@ -995,13 +1009,13 @@
       `;
       const btn = li.querySelector(".pick-row");
       const info = li.querySelector(".pick-info-btn");
-      if (!clubBlocked) {
+      if (!blocked) {
         btn.addEventListener("click", () => pickPlayer(p));
       }
       info.addEventListener("click", (e) => {
         e.stopPropagation();
         openPlayerDetail(p, {
-          fromPicker: !clubBlocked,
+          fromPicker: !blocked,
           pos: active.pos,
           index: active.index,
         });
