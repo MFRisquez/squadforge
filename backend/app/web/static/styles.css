@@ -552,6 +552,44 @@ select {
   outline: 2px dashed rgba(0, 255, 135, 0.85);
   outline-offset: 2px;
 }
+/* Desktop pitch: ring the kit (same right nudge as players), not the full card box */
+@media (min-width: 900px) {
+  body.page-xi .xi-pitch .shirt-card.is-swap-selected .shirt,
+  body.page-xi .xi-pitch .shirt-card.is-swap-target .shirt,
+  body.page-squad .squad-pitch .shirt-card.is-swap-selected .shirt,
+  body.page-squad .squad-pitch .shirt-card.is-swap-target .shirt,
+  body.page-xi .xi-pitch .shirt-card.is-swap-selected .shirt,
+  body.page-squad .squad-pitch .shirt.empty.is-transfer-slot,
+  body.page-squad .squad-pitch .shirt.is-pending-in {
+    outline: none;
+    box-shadow: none;
+  }
+  body.page-xi .xi-pitch .shirt-card.is-swap-selected .shirt-kit,
+  body.page-squad .squad-pitch .shirt-card.is-swap-selected .shirt-kit {
+    box-shadow: 0 0 0 2px #00ff87, 0 0 0 4px rgba(0, 255, 135, 0.28);
+    border-radius: 0.35rem;
+  }
+  body.page-xi .xi-pitch .shirt-card.is-swap-target .shirt-kit,
+  body.page-squad .squad-pitch .shirt-card.is-swap-target .shirt-kit {
+    box-shadow: 0 0 0 2px rgba(0, 255, 135, 0.9);
+    border-radius: 0.35rem;
+    outline: 2px dashed rgba(0, 255, 135, 0.95);
+    outline-offset: 3px;
+  }
+  body.page-squad .squad-pitch .shirt.empty.is-transfer-slot .shirt-kit,
+  body.page-squad .squad-pitch .shirt.empty.is-transfer-slot {
+    border-color: #00ff87;
+    box-shadow: 0 0 0 2px rgba(0, 255, 135, 0.45);
+  }
+  body.page-squad .squad-pitch .shirt.is-pending-in .shirt-kit {
+    box-shadow: 0 0 0 2px #00ff87, 0 0 0 4px rgba(0, 255, 135, 0.28);
+    border-radius: 0.35rem;
+  }
+  body.page-xi .xi-pitch-wrap,
+  body.page-squad .squad-pitch-wrap {
+    overflow: visible;
+  }
+}
 .shirt-card.is-swap-dim {
   opacity: 0.42;
 }
@@ -3032,7 +3070,6 @@ body.picker-open {
     z-index: 2;
   }
   .xi-live-table th:first-child { z-index: 3; }
-  .xi-live-table .is-captain td:first-child { font-weight: 800; }
   .xi-live-table .pts-total {
     font-weight: 900;
     color: #06143a;
@@ -3162,7 +3199,7 @@ body.picker-open {
   .fixture-list { max-width: 22rem; gap: 0.22rem; }
   .fixture-list-wide { max-width: min(36rem, 100%); }
   .fx-card { padding: 0.2rem 0.4rem 0.22rem; border-radius: 0.45rem; }
-  .fx-badge { width: 1.7rem; height: 1.7rem; }
+  .fx-badge { width: 2.15rem; height: 2.15rem; }
   .fx-club strong { font-size: 0.68rem; }
   .fx-score-num { font-size: 0.82rem; }
   .fx-card-top { margin-bottom: 0.1rem; }
@@ -3200,18 +3237,92 @@ body.picker-open {
     box-shadow: none;
   }
   .fixtures-desk .fx-card-match { gap: 0.25rem; }
-  .fixtures-desk .fx-badge { width: 1.85rem; height: 1.85rem; }
+  .fixtures-desk .fx-badge { width: 2.45rem; height: 2.45rem; }
   .fixtures-desk .fx-club strong { font-size: 0.64rem; }
   .fixture-detail-panel .match-scoreline .fx-badge,
-  .match-detail-sheet .match-scoreline .fx-badge {
-    width: 4.25rem;
-    height: 4.25rem;
+  .fixture-detail-panel .match-scoreline .fx-badge-detail,
+  .match-detail-sheet .match-scoreline .fx-badge,
+  .match-detail-sheet .match-scoreline .fx-badge-detail {
+    width: 5.25rem;
+    height: 5.25rem;
   }
   .fixture-detail-panel .match-scoreline .match-club,
   .match-detail-sheet .match-scoreline .match-club {
     display: grid;
     justify-items: center;
     gap: 0.35rem;
+  }
+  .fixture-detail-panel .match-club-name,
+  .match-detail-sheet .match-club-name {
+    font-size: 0.82rem;
+    line-height: 1.15;
+    text-align: center;
+  }
+  .fx-badge-fallback {
+    display: grid;
+    place-items: center;
+    width: 5.25rem;
+    height: 5.25rem;
+    border-radius: 999px;
+    background: #06143a;
+    color: #fff;
+    font-weight: 900;
+    font-size: 1rem;
+  }
+  .fx-detail-status {
+    margin: 0.35rem 0 0.55rem;
+    text-align: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--muted);
+  }
+  .fx-detail-status.is-live {
+    color: #0b2a16;
+    background: rgba(0, 255, 135, 0.18);
+    border-radius: 999px;
+    padding: 0.28rem 0.7rem;
+    display: inline-block;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .fx-detail-section {
+    margin: 0.7rem 0 0;
+    padding-top: 0.55rem;
+    border-top: 1px solid var(--line);
+  }
+  .fx-detail-section h3 {
+    margin: 0 0 0.35rem;
+    font-size: 0.78rem;
+  }
+  .fx-detail-section h4 {
+    margin: 0 0 0.25rem;
+    font-size: 0.72rem;
+  }
+  .fx-detail-squad {
+    display: grid;
+    gap: 0.55rem;
+  }
+  .fx-detail-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-bottom: 0.25rem;
+  }
+  .fx-detail-news {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.22rem;
+    font-size: 0.68rem;
+    color: var(--ink);
+  }
+  .match-scoreline-badges {
+    align-items: start;
+  }
+  .match-scoreline-badges .match-score {
+    align-self: center;
+    font-size: 1.85rem;
   }
   .fixtures-desk .fx-score-num { font-size: 0.78rem; }
   .fixture-detail-panel {
@@ -3541,6 +3652,11 @@ body.picker-open {
     padding-left: 1.15rem;
     box-sizing: border-box;
   }
+  /* Keep swap/transfer rings on the same right-nudged cards */
+  body.page-squad .squad-pitch .pitch-row > .shirt-card,
+  body.page-xi .xi-pitch .pitch-row > .shirt-card {
+    position: relative;
+  }
   body.page-squad .squad-pitch-wrap .squad-card,
   body.page-squad .squad-pitch-wrap .squad-shirt,
   body.page-xi .xi-pitch-wrap .xi-card,
@@ -3827,8 +3943,8 @@ body.picker-open {
     padding: 0.12rem 0.3rem 0.14rem;
   }
   body.page-fixtures .fixtures-desk .fx-badge {
-    width: 2rem;
-    height: 2rem;
+    width: 2.45rem;
+    height: 2.45rem;
   }
   body.page-fixtures .fixture-detail-panel {
     position: static;
@@ -3844,9 +3960,10 @@ body.picker-open {
     overflow: auto;
     padding: 0.55rem 0.7rem 0.75rem;
   }
-  body.page-fixtures .fixture-detail-panel .match-scoreline .fx-badge {
-    width: 4.75rem;
-    height: 4.75rem;
+  body.page-fixtures .fixture-detail-panel .match-scoreline .fx-badge,
+  body.page-fixtures .fixture-detail-panel .match-scoreline .fx-badge-detail {
+    width: 5.25rem;
+    height: 5.25rem;
   }
 }
 .soft-form {
@@ -4341,11 +4458,16 @@ body.picker-open {
   }
   .pitch-team-banner {
     top: 0.28rem;
-    max-width: min(70%, 14rem);
-    padding: 0.22rem 0.65rem 0.26rem;
+    left: 0.28rem;
+    right: auto;
+    transform: none;
+    max-width: min(56%, 11rem);
+    padding: 0.2rem 0.55rem 0.22rem;
+    justify-items: start;
+    text-align: left;
   }
-  .pitch-team-name { font-size: 0.72rem; }
-  .pitch-team-role { font-size: 0.55rem; }
+  .pitch-team-name { font-size: 0.66rem; }
+  .pitch-team-role { font-size: 0.5rem; }
   .td-badge { width: 2.15rem; height: 2.15rem; }
   .td-kicker { font-size: 0.56rem; }
   .td-corner-meta strong { font-size: 0.68rem; }

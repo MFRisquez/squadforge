@@ -438,6 +438,26 @@ def parse_match_events(db: Session, fixture: Fixture) -> dict[str, Any]:
             "home": side_list("own_goals", "h"),
             "away": side_list("own_goals", "a"),
         },
+        "yellow_cards": {
+            "home": side_list("yellow_cards", "h"),
+            "away": side_list("yellow_cards", "a"),
+        },
+        "red_cards": {
+            "home": side_list("red_cards", "h"),
+            "away": side_list("red_cards", "a"),
+        },
+        "penalties_saved": {
+            "home": side_list("penalties_saved", "h"),
+            "away": side_list("penalties_saved", "a"),
+        },
+        "penalties_missed": {
+            "home": side_list("penalties_missed", "h"),
+            "away": side_list("penalties_missed", "a"),
+        },
+        "saves": {
+            "home": side_list("saves", "h"),
+            "away": side_list("saves", "a"),
+        },
         "raw_identifiers": sorted(by_id.keys()),
     }
 
