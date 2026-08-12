@@ -8,9 +8,21 @@ Deploy once to Render (free tier) — this gives a stable HTTPS URL for phones a
 
 1. Push this repo to GitHub (already done for `MFRisquez/squadforge`).
 2. Open: [Deploy to Render](https://render.com/deploy?repo=https://github.com/MFRisquez/squadforge)
-3. Create a free Web Service from `render.yaml` (or the Python blueprint).
+3. Create a free Web Service from `render.yaml` (includes a free **Postgres** database).
 4. After deploy, your app URL looks like: `https://squadforge.onrender.com`
 5. Set env var `PUBLIC_BASE_URL` to that URL (for password-reset links).
+
+**Accounts survive redeploys** only when `DATABASE_URL` points at Render Postgres (the blueprint sets this).  
+If you already created the web service without a database, fix it once:
+
+1. Render Dashboard → **New** → **PostgreSQL** → Free → create `squadforge-db`
+2. Open that database → copy **Internal Database URL**
+3. Open your **squadforge** web service → **Environment** → add  
+   `DATABASE_URL` = that URL → **Save**
+4. **Manual Deploy** → Deploy latest commit (use branch with Postgres support)
+5. Register your account again **once** — later redeploys will keep it
+
+Note: free Render Postgres expires after 30 days unless you upgrade the DB plan.
 
 Then on iPhone: Safari → that URL → Share → **Add to Home Screen**.
 
