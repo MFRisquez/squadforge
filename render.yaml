@@ -16,6 +16,3 @@ services:
         value: "3.12.8"
       - key: SECRET_KEY
         generateValue: true
-      # Optional — set after first deploy to your real URL, e.g. https://squadforge.onrender.com
-      - key: PUBLIC_BASE_URL
-        value: ""
