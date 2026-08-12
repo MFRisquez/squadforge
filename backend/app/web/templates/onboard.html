@@ -23,7 +23,7 @@
       </div>
       <div class="stat">
         <span class="stat-label">Selected</span>
-        <strong>{{ owned|length if owned else 0 }}/15</strong>
+        <strong id="squadCount">{{ owned|length if owned else 0 }}/15</strong>
         <span class="stat-sub">squad</span>
       </div>
       <div class="stat">
@@ -41,6 +41,15 @@
       <button class="btn ghost" type="button" id="clearSwap">Cancel</button>
     </form>
   </div>
+
+  <section class="squad-alerts desk-only" id="squadAlerts" aria-label="Watch list">
+    <header class="squad-alerts-head">
+      <p class="eyebrow">Watch list</p>
+    </header>
+    <div id="squadAlertsBody">
+      <p class="squad-alerts-empty muted">No injury or doubt flags right now.</p>
+    </div>
+  </section>
 
   <div class="desk-main">
     <form method="post" action="/team/save" id="squadForm">

@@ -48,28 +48,30 @@
     </form>
   </div>
 
-  <section class="squad-alerts desk-only" aria-label="Watch list">
-    <header class="squad-alerts-head">
-      <p class="eyebrow">Watch list</p>
-    </header>
-    {% if squad_alerts %}
-    <ul class="squad-alerts-list">
-      {% for a in squad_alerts %}
-      <li class="squad-alert is-{{ a.flag }}">
-        <span class="sa-name">{{ a.name }}</span>
-        <span class="sa-team">{{ a.club }}</span>
-        <span class="sa-chance">{% if a.chance is not none %}{{ a.chance }}%{% else %}—{% endif %}</span>
-        <span class="sa-reason">{% if a.news %}{{ a.news }}{% else %}—{% endif %}</span>
-        <span class="squad-alert-flag">{{ a.flag_label }}</span>
-      </li>
-      {% endfor %}
-    </ul>
-    {% else %}
-    <p class="squad-alerts-empty muted">No injury or doubt flags right now.</p>
-    {% endif %}
-  </section>
+    <section class="squad-alerts desk-only" id="squadAlerts" aria-label="Watch list">
+      <header class="squad-alerts-head">
+        <p class="eyebrow">Watch list</p>
+      </header>
+      <div id="squadAlertsBody">
+        {% if squad_alerts %}
+        <ul class="squad-alerts-list">
+          {% for a in squad_alerts %}
+          <li class="squad-alert is-{{ a.flag }}">
+            <span class="sa-name">{{ a.name }}</span>
+            <span class="sa-team">{{ a.club }}</span>
+            <span class="sa-chance">{% if a.chance is not none %}{{ a.chance }}%{% else %}—{% endif %}</span>
+            <span class="sa-reason">{% if a.news %}{{ a.news }}{% else %}—{% endif %}</span>
+            <span class="squad-alert-flag">{{ a.flag_label }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="squad-alerts-empty muted">No injury or doubt flags right now.</p>
+        {% endif %}
+      </div>
+    </section>
 
-  <div class="desk-main">
+    <div class="desk-main">
     <form method="post" action="/team/save" id="squadForm">
       <div id="hiddenFields"></div>
       <section class="pitch-wrap squad-pitch-wrap">

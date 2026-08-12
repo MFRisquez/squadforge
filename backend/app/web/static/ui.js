@@ -93,6 +93,27 @@
     btn.addEventListener("click", toggleTheme);
   });
 
+  // Prefetch nav targets so Home ↔ XI ↔ Transfers feel instant
+  const prefetched = new Set();
+  function prefetchHref(href) {
+    if (!href || prefetched.has(href)) return;
+    try {
+      const u = new URL(href, window.location.origin);
+      if (u.origin !== window.location.origin) return;
+      prefetched.add(href);
+      const link = document.createElement("link");
+      link.rel = "prefetch";
+      link.href = u.pathname + u.search;
+      link.as = "document";
+      document.head.appendChild(link);
+    } catch (_) {}
+  }
+  document.querySelectorAll(".nav a[href]").forEach((a) => {
+    const run = () => prefetchHref(a.href);
+    a.addEventListener("pointerenter", run, { once: true });
+    a.addEventListener("touchstart", run, { once: true, passive: true });
+  });
+
   // Chip info: hover on desktop (CSS), tap toggle on phone
   function closeAllChipTips(except) {
     document.querySelectorAll(".chip-info-wrap.is-open").forEach((wrap) => {

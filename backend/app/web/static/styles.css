@@ -1367,6 +1367,18 @@ select {
 .transfer-rail-row.is-locked:disabled {
   pointer-events: none;
 }
+.transfer-rail-row.is-owned {
+  background: rgba(192, 255, 0, 0.12) !important;
+  color: #fff !important;
+  border-bottom-color: rgba(192, 255, 0, 0.28);
+  cursor: pointer;
+}
+.transfer-rail-row.is-owned .tr-name span,
+.transfer-rail-row.is-owned .tr-price,
+.transfer-rail-row.is-owned .tr-form,
+.transfer-rail-row.is-owned .tr-pts {
+  color: rgba(255, 255, 255, 0.72) !important;
+}
 .transfer-rail-row.avail-doubt {
   background: #fff3bf !important;
   color: #6a5200 !important;
@@ -5800,7 +5812,11 @@ html[data-theme="light"] .onboard-banner {
     grid-template-rows: auto minmax(0, 1fr);
   }
   .desk-onboard > .desk-main-top {
-    grid-column: 1 / -1;
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .desk-onboard > .squad-alerts {
+    grid-column: 2;
     grid-row: 1;
   }
   .desk-onboard > .desk-main {

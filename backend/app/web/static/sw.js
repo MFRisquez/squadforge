@@ -1,8 +1,6 @@
 /* FutFantasy phone app shell */
-const CACHE = "futfantasy-v63";
+const CACHE = "futfantasy-v64";
 const PRECACHE = [
-  "/",
-  "/login",
   "/static/styles.css",
   "/static/ui.js",
   "/static/lineup.js",
@@ -39,7 +37,9 @@ self.addEventListener("fetch", (event) => {
     url.pathname === "/lineup" ||
     url.pathname === "/fixtures" ||
     url.pathname === "/rules" ||
-    url.pathname === "/leagues";
+    url.pathname === "/leagues" ||
+    url.pathname === "/onboard" ||
+    url.pathname.startsWith("/standings/");
 
   if (!isStatic && !isShell) return;
 
@@ -54,9 +54,16 @@ self.addEventListener("fetch", (event) => {
           return res;
         })
         .catch(() => cached);
-      // Shell pages: network first so live GW data stays fresh; static: cache first
-      if (isShell) return fetched.then((res) => res || cached);
-      return cached || fetched;
+
+      // Static assets: cache-first
+      if (isStatic) return cached || fetched;
+
+      // Shell HTML: stale-while-revalidate — paint cached page instantly, refresh in background
+      if (cached) {
+        event.waitUntil(fetched);
+        return cached;
+      }
+      return fetched;
     })
   );
 });

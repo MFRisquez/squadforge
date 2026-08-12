@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -108,12 +109,18 @@ def _players_payload(db: Session) -> list[dict]:
     from app.services import fixtures as fixtures_svc
     from app.services.fpl_sync import availability_flag
 
+    # Short in-process cache — full player JSON is the heavy part of /team and /onboard.
+    cache = getattr(_players_payload, "_cache", None)
+    now = time.monotonic()
+    if cache and now - cache[0] < 45:
+        return cache[1]
+
     clubs = {c.code: c for c in db.query(Club).all()}
     players = db.query(Player).order_by(Player.position, Player.price.desc()).all()
     current = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
     from_gw = current.number if current else 1
     fdr_by_club = fixtures_svc.club_next_fdr_map(db, from_gw=from_gw)
-    return [
+    payload = [
         {
             "id": p.id,
             "name": p.name,
@@ -140,6 +147,8 @@ def _players_payload(db: Session) -> list[dict]:
         }
         for p in players
     ]
+    _players_payload._cache = (now, payload)
+    return payload
 
 
 def _owned_payload(
@@ -655,6 +664,7 @@ def _squad_board_response(
                 "maxPerClub": settings.max_per_club,
                 "unlimited": unlimited and not view["edits_locked"],
                 "hasSquad": len(owned) == settings.squad_size,
+                "requireTd": template_name == "onboard.html" or len(owned) != settings.squad_size,
                 "ft": ft_state.free_transfers,
                 "hitCost": squad_svc.HIT_COST,
                 "locked": view["edits_locked"],
@@ -1113,6 +1123,7 @@ def sync_players(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/login", status_code=303)
     try:
         info = sync_from_fpl(db)
+        _players_payload._cache = None
         notice = f"Updated from FPL: {info['players']} players · current GW{info['current_gw']}"
     except Exception as exc:
         notice = None
