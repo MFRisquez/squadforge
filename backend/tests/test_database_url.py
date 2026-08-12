@@ -14,3 +14,12 @@ def test_normalize_render_postgres_url() -> None:
         "postgresql+psycopg://"
     )
     assert normalize_database_url("sqlite:///./data/squadforge.db").startswith("sqlite:")
+
+
+def test_normalize_supabase_adds_ssl() -> None:
+    url = normalize_database_url(
+        "postgresql://postgres.abc:secret@aws-0-us-east-1.pooler.supabase.com:5432/postgres"
+    )
+    assert url.startswith("postgresql+psycopg://")
+    assert "sslmode=require" in url
+    assert "pooler.supabase.com" in url
