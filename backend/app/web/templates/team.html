@@ -13,7 +13,7 @@
 
 <form method="post" action="/td/save" id="tdForm" hidden aria-hidden="true"></form>
 <div class="desk-board desk-squad">
-  <div class="desk-main">
+  <div class="desk-main-top">
     {{ chip_strip(chips, active_chip, edits_locked, bench_options, group='squad', next_path='/team') }}
 
     <div class="stat-strip" aria-label="Squad snapshot">
@@ -46,14 +46,37 @@
       <button class="btn" type="submit" id="confirmSwap" disabled>Confirm swap</button>
       <button class="btn ghost" type="button" id="clearSwap">Cancel</button>
     </form>
+  </div>
 
+  <section class="squad-alerts desk-only" aria-label="Watch list">
+    <header class="squad-alerts-head">
+      <p class="eyebrow">Watch list</p>
+    </header>
+    {% if squad_alerts %}
+    <ul class="squad-alerts-list">
+      {% for a in squad_alerts %}
+      <li class="squad-alert is-{{ a.flag }}">
+        <span class="sa-name">{{ a.name }}</span>
+        <span class="sa-team">{{ a.club }}</span>
+        <span class="sa-chance">{% if a.chance is not none %}{{ a.chance }}%{% else %}—{% endif %}</span>
+        <span class="sa-reason">{% if a.news %}{{ a.news }}{% else %}—{% endif %}</span>
+        <span class="squad-alert-flag">{{ a.flag_label }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="squad-alerts-empty muted">No injury or doubt flags right now.</p>
+    {% endif %}
+  </section>
+
+  <div class="desk-main">
     <form method="post" action="/team/save" id="squadForm">
       <div id="hiddenFields"></div>
       <section class="pitch-wrap squad-pitch-wrap">
         <div class="pitch field pitch-photo xi-pitch squad-pitch" id="squadPitch">
           <div class="pitch-markings" aria-hidden="true"></div>
           <div class="pitch-team-banner" aria-label="Your team">
-            <strong class="pitch-team-name">{{ manager.team_name if manager.team_name else manager.display_name }}</strong>
+            <strong class="pitch-team-name">{{ manager.team_name if manager.team_name else " " }}</strong>
             <span class="pitch-team-role">Squad</span>
           </div>
           {% if not edits_locked %}
@@ -108,65 +131,42 @@
       </section>
     </form>
   </div>
-  <div class="desk-side">
-    <section class="squad-alerts desk-only" aria-label="Squad news">
-      <header class="squad-alerts-head">
-        <p class="eyebrow">Squad news</p>
-        <h2>Watch list</h2>
-      </header>
-      {% if squad_alerts %}
-      <ul class="squad-alerts-list">
-        {% for a in squad_alerts %}
-        <li class="squad-alert is-{{ a.flag }}">
-          <div class="squad-alert-top">
-            <strong>{{ a.name }}</strong>
-            <span class="squad-alert-flag">{{ a.flag_label }}</span>
-          </div>
-          <p class="squad-alert-meta">{{ a.club }}{% if a.chance is not none %} · {{ a.chance }}%{% endif %}</p>
-          {% if a.news %}<p class="squad-alert-news">{{ a.news }}</p>{% endif %}
-        </li>
-        {% endfor %}
-      </ul>
-      {% else %}
-      <p class="squad-alerts-empty muted">No injury or doubt flags in your 15 right now.</p>
-      {% endif %}
-    </section>
-    <aside class="desk-rail transfer-rail" id="transferRail" aria-label="Free agents">
-      <header class="desk-rail-head">
-        <p class="eyebrow">Free Agents</p>
-        <div class="rail-filters">
-          <label class="rail-sort">
-            <span class="sr-only">Position</span>
-            <select id="transferPosFilter" aria-label="Filter by position">
-              <option value="">All positions</option>
-              <option value="GK">GK</option>
-              <option value="DEF">DEF</option>
-              <option value="MID">MID</option>
-              <option value="ATT">ATT</option>
-            </select>
-          </label>
-          <label class="rail-sort">
-            <span class="sr-only">Sort by</span>
-            <select id="transferSort" aria-label="Sort free agents">
-              <option value="points">Points</option>
-              <option value="form">Form</option>
-              <option value="price">Price</option>
-            </select>
-          </label>
+
+  <aside class="desk-rail transfer-rail" id="transferRail" aria-label="Free agents">
+    <header class="desk-rail-head">
+      <p class="eyebrow">Free Agents</p>
+      <div class="rail-filters">
+        <label class="rail-sort">
+          <span class="sr-only">Position</span>
+          <select id="transferPosFilter" aria-label="Filter by position">
+            <option value="">All positions</option>
+            <option value="GK">GK</option>
+            <option value="DEF">DEF</option>
+            <option value="MID">MID</option>
+            <option value="ATT">ATT</option>
+          </select>
+        </label>
+        <label class="rail-sort">
+          <span class="sr-only">Sort by</span>
+          <select id="transferSort" aria-label="Sort free agents">
+            <option value="points">Points</option>
+            <option value="form">Form</option>
+            <option value="price">Price</option>
+          </select>
+        </label>
+      </div>
+    </header>
+    <ul class="transfer-rail-list" id="transferRailList">
+      <li class="transfer-rail-head" aria-hidden="true">
+        <div class="transfer-rail-row is-head">
+          <span class="tr-name">Player</span>
+          <span class="tr-price">Price</span>
+          <span class="tr-form">Form</span>
+          <span class="tr-pts">Pts</span>
         </div>
-      </header>
-      <ul class="transfer-rail-list" id="transferRailList">
-        <li class="transfer-rail-head" aria-hidden="true">
-          <div class="transfer-rail-row is-head">
-            <span class="tr-name">Player</span>
-            <span class="tr-price">Price</span>
-            <span class="tr-form">Form</span>
-            <span class="tr-pts">Pts</span>
-          </div>
-        </li>
-      </ul>
-    </aside>
-  </div>
+      </li>
+    </ul>
+  </aside>
 </div>
 
 <div class="picker-modal" id="picker" hidden>

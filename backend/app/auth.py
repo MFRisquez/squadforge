@@ -5,7 +5,8 @@ from __future__ import annotations
 from fastapi import HTTPException, Request
 from sqlalchemy.orm import Session
 
-from app.models import Manager
+from app.config import settings
+from app.models import Manager, OwnedPlayer
 
 
 def current_manager(request: Request, db: Session) -> Manager | None:
@@ -28,3 +29,9 @@ def login_manager(request: Request, manager: Manager) -> None:
 
 def logout_manager(request: Request) -> None:
     request.session.clear()
+
+
+def manager_has_complete_squad(db: Session, manager_id: int) -> bool:
+    """True when the manager has saved a full 15 (2·5·5·3)."""
+    n = db.query(OwnedPlayer).filter(OwnedPlayer.manager_id == manager_id).count()
+    return n >= settings.squad_size

@@ -1,51 +1,66 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#000000" />
+  <meta name="theme-color" content="#121212" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="FutFantasy" />
+  <meta name="apple-mobile-web-app-title" content="Fut Fantasy" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="description" content="Private Fantasy Premier League for your friends." />
   <link rel="manifest" href="/static/manifest.webmanifest" />
   <link rel="apple-touch-icon" href="/static/icons/icon-192.png" />
   <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/icon-192.png" />
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem("ff_theme");
+        if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {}
+    })();
+  </script>
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body class="{% block body_class %}{% endblock %}">
   <header class="top">
-    <a class="brand" href="/">{{ app_name }}</a>
+    <a class="brand" href="{% if has_complete_squad %}/{% else %}/team?onboard=1{% endif %}">
+      <img class="brand-mark" src="/static/icons/logo.svg" width="28" height="28" alt="" />
+      <span class="brand-text">Fut Fantasy</span>
+    </a>
     {% if gw %}<span class="pill">GW {{ gw.number }}</span>{% endif %}
-    {% if manager %}
-      <span class="who">{{ manager.display_name }}</span>
-    {% endif %}
+    <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle theme">Theme</button>
   </header>
 
   {% if manager %}
   {% set path = request.url.path %}
   <nav class="nav" aria-label="Main">
+    {% if has_complete_squad %}
     <a href="/" class="{% if path == '/' %}is-active{% endif %}">
       <span class="nav-ico" aria-hidden="true">⌂</span><span>Home</span>
     </a>
-    <a href="/team" class="{% if path == '/team' or path.startswith('/transfers') %}is-active{% endif %}">
-      <span class="nav-ico" aria-hidden="true">▦</span><span>Transfers</span>
+    {% else %}
+    <a href="/team?onboard=1" class="is-disabled" aria-disabled="true" title="Pick your 15 first">
+      <span class="nav-ico" aria-hidden="true">⌂</span><span>Home</span>
     </a>
+    {% endif %}
     <a href="/lineup" class="{% if path.startswith('/lineup') or path.startswith('/points') or path.startswith('/score') %}is-active{% endif %}">
       <span class="nav-ico" aria-hidden="true">◫</span><span>XI</span>
+    </a>
+    <a href="/team" class="{% if path == '/team' or path.startswith('/transfers') %}is-active{% endif %}">
+      <span class="nav-ico" aria-hidden="true">▦</span><span>Transfers</span>
     </a>
     <a href="/fixtures" class="{% if path.startswith('/fixtures') %}is-active{% endif %}">
       <span class="nav-ico" aria-hidden="true">┊</span><span>Fixtures</span>
     </a>
     {% if nav_leagues and nav_leagues|length == 1 %}
     <a href="/standings/{{ nav_leagues[0].id }}" class="{% if path.startswith('/standings') or path.startswith('/league') or path.startswith('/leagues') %}is-active{% endif %}">
-      <span class="nav-ico" aria-hidden="true">☰</span><span>{% if nav_leagues[0].league_type == 'h2h' %}H2H{% else %}Table{% endif %}</span>
+      <span class="nav-ico" aria-hidden="true">☰</span><span>{% if nav_leagues[0].league_type == 'h2h' %}H2H{% else %}League{% endif %}</span>
     </a>
     {% else %}
     <a href="/leagues" class="{% if path.startswith('/standings') or path.startswith('/league') or path.startswith('/leagues') %}is-active{% endif %}">
-      <span class="nav-ico" aria-hidden="true">☰</span><span>Table</span>
+      <span class="nav-ico" aria-hidden="true">☰</span><span>League</span>
     </a>
     {% endif %}
     <a href="/rules" class="{% if path.startswith('/rules') %}is-active{% endif %}">
@@ -61,7 +76,7 @@
   </main>
   <div class="install-banner" id="installBanner" hidden>
     <div class="install-banner-copy">
-      <strong>Install FutFantasy</strong>
+      <strong>Install Fut Fantasy</strong>
       <span class="install-banner-tip" hidden>Share → Add to Home Screen</span>
       <span class="muted tiny">Open it like an app on your phone.</span>
     </div>

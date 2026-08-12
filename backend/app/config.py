@@ -26,7 +26,7 @@ def normalize_database_url(url: str) -> str:
 
 
 class Settings(BaseSettings):
-    app_name: str = "FutFantasy"
+    app_name: str = "Fut Fantasy"
     debug: bool = True
     secret_key: str = "squadforge-dev-change-me"
     # Local default: SQLite file. On Render, set DATABASE_URL to Supabase Postgres.

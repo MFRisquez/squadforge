@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
-from app.auth import current_manager, login_manager, logout_manager
+from app.auth import current_manager, login_manager, logout_manager, manager_has_complete_squad
 from app.config import settings
 from app.db import get_db
 from app.models import ChipState, Club, Gameweek, Membership, Player, SquadPick
@@ -69,6 +69,7 @@ def _ctx(request: Request, db: Session, **extra):
     except Exception:
         pass
     leagues = league_svc.manager_leagues(db, manager.id) if manager else []
+    has_squad = bool(manager and manager_has_complete_squad(db, manager.id))
     data = {
         "request": request,
         "app_name": settings.app_name,
@@ -76,6 +77,7 @@ def _ctx(request: Request, db: Session, **extra):
         "gw": gw,
         "budget": settings.budget,
         "nav_leagues": leagues,
+        "has_complete_squad": has_squad,
         "error": None,
         "notice": None,
     }
@@ -217,6 +219,8 @@ def home(request: Request, db: Session = Depends(get_db)):
                 error=request.query_params.get("error"),
             ),
         )
+    if not manager_has_complete_squad(db, manager.id):
+        return RedirectResponse("/team?onboard=1", status_code=303)
     leagues = league_svc.manager_leagues(db, manager.id)
     live_demo = False
     try:
@@ -242,7 +246,6 @@ def login_page(request: Request):
     return RedirectResponse("/", status_code=303)
 
 
-
 @router.post("/login")
 def login_submit(
     request: Request,
@@ -259,7 +262,9 @@ def login_submit(
             status_code=400,
         )
     login_manager(request, manager)
-    return RedirectResponse("/", status_code=303)
+    if manager_has_complete_squad(db, manager.id):
+        return RedirectResponse("/", status_code=303)
+    return RedirectResponse("/team?onboard=1", status_code=303)
 
 
 @router.get("/register", response_class=HTMLResponse)
@@ -291,7 +296,7 @@ def register_submit(
             status_code=400,
         )
     login_manager(request, manager)
-    return RedirectResponse("/?notice=Welcome+·+your+account+is+ready", status_code=303)
+    return RedirectResponse("/team?onboard=1", status_code=303)
 
 
 @router.get("/forgot-password", response_class=HTMLResponse)
@@ -622,12 +627,18 @@ def team_page(request: Request, db: Session = Depends(get_db)):
                 "gw": gw.number,
             },
             player_count=db.query(Player).count(),
+            onboard=request.query_params.get("onboard") == "1",
             ok=request.query_params.get("ok"),
             error=request.query_params.get("error") or request.query_params.get("chip_error"),
             notice=(
                 request.query_params.get("notice")
                 or ("Transfer done." if request.query_params.get("ok") else None)
                 or ("Chip played." if request.query_params.get("chip_ok") else None)
+                or (
+                    "Pick your 15 (2 GK · 5 DEF · 5 MID · 3 ATT) within budget, then Save to open Home."
+                    if request.query_params.get("onboard") == "1"
+                    else None
+                )
             ),
             **view,
         ),
@@ -775,6 +786,8 @@ async def team_save(request: Request, db: Session = Depends(get_db)):
         )
     if wants_json:
         return JSONResponse({"ok": True, "saved": "squad", "player_ids": player_ids})
+    if manager_has_complete_squad(db, manager.id):
+        return RedirectResponse("/?notice=Squad+saved", status_code=303)
     return RedirectResponse("/team?notice=Squad+saved", status_code=303)
 
 

@@ -75,6 +75,24 @@
   }
   if (isStandalone) showInstallUi(false);
 
+  // Theme: dark by default; toggle persists
+  function applyTheme(theme) {
+    const next = theme === "light" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try {
+      localStorage.setItem("ff_theme", next);
+    } catch (_) {}
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", next === "dark" ? "#121212" : "#FFFFFF");
+  }
+  function toggleTheme() {
+    const cur = document.documentElement.getAttribute("data-theme") || "dark";
+    applyTheme(cur === "dark" ? "light" : "dark");
+  }
+  document.querySelectorAll("#themeToggle, #themeToggleHome").forEach((btn) => {
+    btn.addEventListener("click", toggleTheme);
+  });
+
   // Chip info: hover on desktop (CSS), tap toggle on phone
   function closeAllChipTips(except) {
     document.querySelectorAll(".chip-info-wrap.is-open").forEach((wrap) => {

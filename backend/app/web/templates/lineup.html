@@ -4,7 +4,7 @@
 {% block content %}
 {% from "macros_gw.html" import gw_bar %}
 {% from "macros_chips.html" import chip_strip %}
-{% set xi_title = (manager.team_name if manager.team_name else manager.display_name) %}
+{% set xi_title = (manager.team_name if manager.team_name else " ") %}
 {{ gw_bar(gw, deadline_label, edits_locked, prev_gw, next_gw, '/lineup') }}
 
 <div class="xi-top">

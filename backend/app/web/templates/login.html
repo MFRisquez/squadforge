@@ -1,14 +1,15 @@
 {% extends "base.html" %}
-{% block title %}{{ app_name }}{% endblock %}
+{% block title %}Fut Fantasy{% endblock %}
 {% block body_class %}page-auth{% endblock %}
 {% block content %}
-<div class="auth-stage">
-  <div class="auth-brand" aria-hidden="false">
-    <span class="auth-brand-mark"></span>
-    <h1 class="auth-logo">{{ app_name }}</h1>
+<div class="auth-stage auth-splash">
+  <div class="auth-brand">
+    <img class="auth-logo-mark" src="/static/icons/logo.svg" width="72" height="72" alt="" />
+    <h1 class="auth-logo"><span class="auth-logo-fut">Fut</span> Fantasy</h1>
+    <p class="auth-tagline">Your team. Your strategy. Your glory.</p>
   </div>
 
-  <form class="auth-card stack" method="post" action="/login">
+  <form class="auth-card stack" method="post" action="/login" id="loginForm">
     <label class="auth-field">Username
       <input name="login" required maxlength="120" placeholder="Username or email" autocomplete="username" />
     </label>
@@ -17,7 +18,7 @@
     </label>
     <a class="auth-text-link" href="/forgot-password">Recover password</a>
     <button class="btn auth-primary" type="submit">Sign in</button>
-    <a class="auth-text-link auth-secondary-link" href="/register">Create account</a>
+    <a class="btn auth-secondary" href="/register">Create account</a>
   </form>
 </div>
 {% endblock %}
