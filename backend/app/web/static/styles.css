@@ -4885,6 +4885,86 @@ body.page-fit .pitch-cap-hint {
     padding-right: 0.22rem;
     align-content: space-evenly;
   }
+  /* Transfers phone: full pitch + DT visible without scrolling; shirts stay same size */
+  body.page-squad.page-fit .shell {
+    padding-bottom: calc(0.2rem + env(safe-area-inset-bottom, 0px));
+    gap: 0.16rem;
+    overflow: hidden;
+  }
+  body.page-squad.page-fit .gw-bar {
+    margin-bottom: 0.12rem;
+  }
+  body.page-squad.page-fit .desk-board.desk-squad {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  body.page-squad.page-fit .desk-main-top {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.18rem;
+    min-height: 0;
+    margin: 0;
+  }
+  body.page-squad.page-fit .chip-strip-wrap {
+    margin-bottom: 0;
+  }
+  body.page-squad.page-fit .stat-strip {
+    margin-bottom: 0;
+  }
+  body.page-squad.page-fit .squad-alerts,
+  body.page-squad.page-fit .transfer-rail {
+    display: none !important;
+  }
+  body.page-squad.page-fit .desk-main {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  body.page-squad.page-fit .desk-main > form {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  body.page-squad.page-fit .squad-pitch-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 0;
+    height: auto;
+    max-height: 100%;
+  }
+  body.page-squad.page-fit .squad-pitch {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
+    /* Only compress empty grass between lines — shirt tokens unchanged */
+    gap: 0.28rem;
+    padding-top: 1.2rem;
+    padding-bottom: 2.45rem;
+    padding-left: 0.22rem;
+    padding-right: 0.22rem;
+    align-content: space-between;
+    justify-content: center;
+    overflow: hidden;
+  }
+  body.page-squad.page-fit .squad-pitch .pitch-row {
+    transform: none;
+  }
+  body.page-squad.page-fit .td-corner {
+    bottom: 0.22rem;
+    right: 0.22rem;
+  }
   body.page-squad .squad-pitch .pitch-row,
   body.page-xi .xi-pitch .pitch-row {
     gap: 0.26rem;
@@ -5236,6 +5316,11 @@ body.page-fit .pitch-cap-hint {
   }
   .xi-pitch { gap: 0.65rem; }
   .squad-pitch { gap: 1rem; }
+  body.page-squad.page-fit .squad-pitch {
+    gap: 0.2rem;
+    padding-top: 1.05rem;
+    padding-bottom: 2.25rem;
+  }
   body.page-xi .xi-pitch .pitch-row.zone-gk { transform: translateY(-1.35rem); }
   body.page-xi .xi-pitch .pitch-row.zone-def { transform: translateY(-1.25rem); }
   body.page-xi .xi-pitch .pitch-row.zone-mid { transform: translateY(-1.1rem); }
