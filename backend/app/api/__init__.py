@@ -63,6 +63,28 @@ def demo_scores() -> dict:
     return out
 
 
+@router.get("/players/catalog")
+def players_catalog() -> Response:
+    """Full Free Agents catalog for Transfers / onboard (browser-cached)."""
+    from fastapi.responses import JSONResponse
+
+    from app.services.player_catalog import build_players_catalog
+
+    db = SessionLocal()
+    try:
+        players, version = build_players_catalog(db)
+        etag = f'W/"{version}"'
+        return JSONResponse(
+            content={"ok": True, "version": version, "players": players},
+            headers={
+                "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
+                "ETag": etag,
+            },
+        )
+    finally:
+        db.close()
+
+
 @router.get("/players/{player_id}/photo")
 def player_photo(player_id: int) -> Response:
     """Best available headshot (cached). Falls back to FotMob when PL CDN 403s."""

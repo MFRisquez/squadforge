@@ -5335,12 +5335,18 @@ body.page-fit .pitch-cap-hint {
 .auth-links a:hover { text-decoration: underline; }
 
 body.page-auth {
-  background: #121212;
+  background: #121212 !important;
+  color: #fff;
   min-height: 100dvh;
+}
+html[data-theme="light"] body.page-auth {
+  background: #121212 !important;
+  color: #fff;
 }
 body.page-auth .top,
 body.page-auth .nav,
-body.page-auth .install-banner {
+body.page-auth .install-banner,
+body.page-auth .theme-toggle {
   display: none !important;
 }
 body.page-auth .shell {
@@ -5351,6 +5357,34 @@ body.page-auth .shell {
   display: flex;
   flex-direction: column;
   justify-content: center;
+}
+html[data-theme="light"] body.page-auth .shell {
+  background: transparent;
+}
+html[data-theme="light"] body.page-auth .auth-logo,
+html[data-theme="light"] body.page-auth .auth-card-title {
+  color: #fff;
+}
+html[data-theme="light"] body.page-auth .auth-tagline,
+html[data-theme="light"] body.page-auth .auth-field,
+html[data-theme="light"] body.page-auth .auth-card-lede {
+  color: rgba(255, 255, 255, 0.78);
+}
+html[data-theme="light"] body.page-auth .auth-card {
+  background: rgba(0, 0, 0, 0.42);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+html[data-theme="light"] body.page-auth .auth-field input {
+  background: #fff;
+  color: #000;
+}
+html[data-theme="light"] body.page-auth .auth-secondary,
+html[data-theme="light"] body.page-auth .auth-secondary-link {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.28);
+}
+html[data-theme="light"] body.page-auth .auth-text-link {
+  color: #B6DB00;
 }
 .auth-logo-mark {
   width: 4.5rem;

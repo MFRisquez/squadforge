@@ -1,5 +1,64 @@
-(() => {
-  const PLAYERS = JSON.parse(document.getElementById("playersData").textContent);
+(async () => {
+  const CATALOG_KEY = "ff_players_catalog_v1";
+  const CATALOG_META = "ff_players_catalog_meta_v1";
+
+  async function loadPlayersCatalog() {
+    const el = document.getElementById("playersData");
+    let embedded = [];
+    try {
+      embedded = JSON.parse(el && el.textContent ? el.textContent : "[]");
+    } catch (_) {
+      embedded = [];
+    }
+    if (Array.isArray(embedded) && embedded.length) return embedded;
+
+    try {
+      const cached = JSON.parse(sessionStorage.getItem(CATALOG_KEY) || "null");
+      const meta = JSON.parse(sessionStorage.getItem(CATALOG_META) || "null");
+      if (Array.isArray(cached) && cached.length) {
+        // Revalidate in background; paint from cache immediately.
+        fetchPlayersCatalog(meta && meta.version).catch(() => {});
+        return cached;
+      }
+    } catch (_) {}
+
+    return fetchPlayersCatalog();
+  }
+
+  async function fetchPlayersCatalog(knownVersion) {
+    const res = await fetch("/api/players/catalog", {
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) throw new Error("Could not load players");
+    const data = await res.json();
+    const players = Array.isArray(data.players) ? data.players : [];
+    try {
+      sessionStorage.setItem(CATALOG_KEY, JSON.stringify(players));
+      sessionStorage.setItem(
+        CATALOG_META,
+        JSON.stringify({ version: data.version || "", at: Date.now() })
+      );
+    } catch (_) {
+      /* quota / private mode */
+    }
+    if (knownVersion && data.version && data.version !== knownVersion) {
+      // Newer catalog arrived after painting cache — soft refresh list if board is up.
+      window.dispatchEvent(new CustomEvent("ff-players-updated", { detail: { players } }));
+    }
+    return players;
+  }
+
+  let PLAYERS = [];
+  try {
+    PLAYERS = await loadPlayersCatalog();
+  } catch (err) {
+    const hint = document.getElementById("modeHint");
+    if (hint) hint.textContent = "Could not load players — refresh and try again.";
+    console.error(err);
+    PLAYERS = [];
+  }
+
   const INITIAL = JSON.parse(document.getElementById("initialSquad").textContent);
   const BUDGET = Number(INITIAL.budget);
   const MAX_CLUB = Number(INITIAL.maxPerClub || 3);

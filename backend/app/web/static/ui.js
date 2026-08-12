@@ -93,25 +93,46 @@
     btn.addEventListener("click", toggleTheme);
   });
 
-  // Prefetch nav targets so Home ↔ XI ↔ Transfers feel instant
+  // Prefetch XI / Transfers / player catalog (phone + desktop)
   const prefetched = new Set();
-  function prefetchHref(href) {
+  function prefetchHref(href, asType) {
     if (!href || prefetched.has(href)) return;
     try {
       const u = new URL(href, window.location.origin);
       if (u.origin !== window.location.origin) return;
       prefetched.add(href);
+      // Warm HTTP + SW caches with a real fetch (works on touch devices).
+      fetch(u.pathname + u.search, {
+        credentials: "same-origin",
+        headers: { Purpose: "prefetch", Accept: asType === "json" ? "application/json" : "text/html" },
+      }).catch(() => {});
       const link = document.createElement("link");
       link.rel = "prefetch";
       link.href = u.pathname + u.search;
-      link.as = "document";
+      if (asType) link.as = asType === "json" ? "fetch" : "document";
       document.head.appendChild(link);
     } catch (_) {}
+  }
+  function warmAppShell() {
+    prefetchHref("/lineup");
+    prefetchHref("/team");
+    prefetchHref("/api/players/catalog", "json");
   }
   document.querySelectorAll(".nav a[href]").forEach((a) => {
     const run = () => prefetchHref(a.href);
     a.addEventListener("pointerenter", run, { once: true });
+    a.addEventListener("pointerdown", run, { once: true });
     a.addEventListener("touchstart", run, { once: true, passive: true });
+  });
+  // Idle warm after Home / any page load so first XI/Transfers tap is already cached.
+  if ("requestIdleCallback" in window) {
+    requestIdleCallback(() => warmAppShell(), { timeout: 1800 });
+  } else {
+    setTimeout(warmAppShell, 600);
+  }
+  // Also warm when returning to the tab.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") warmAppShell();
   });
 
   // Chip info: hover on desktop (CSS), tap toggle on phone

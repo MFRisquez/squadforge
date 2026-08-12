@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import time
 from pathlib import Path
 from typing import Optional
 
@@ -86,71 +85,6 @@ def _ctx(request: Request, db: Session, **extra):
     return data
 
 
-def _season_kpis(player: Player) -> dict:
-    try:
-        stats = json.loads(getattr(player, "season_stats_json", None) or "{}")
-    except json.JSONDecodeError:
-        stats = {}
-    if not isinstance(stats, dict):
-        stats = {}
-    try:
-        form = float(stats.get("form") or 0)
-    except (TypeError, ValueError):
-        form = 0.0
-    try:
-        total_points = int(float(stats.get("total_points") or 0))
-    except (TypeError, ValueError):
-        total_points = 0
-    return {"form": form, "total_points": total_points}
-
-
-def _players_payload(db: Session) -> list[dict]:
-    from app.kits import kit_for
-    from app.services import fixtures as fixtures_svc
-    from app.services.fpl_sync import availability_flag
-
-    # Short in-process cache — full player JSON is the heavy part of /team and /onboard.
-    cache = getattr(_players_payload, "_cache", None)
-    now = time.monotonic()
-    if cache and now - cache[0] < 45:
-        return cache[1]
-
-    clubs = {c.code: c for c in db.query(Club).all()}
-    players = db.query(Player).order_by(Player.position, Player.price.desc()).all()
-    current = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
-    from_gw = current.number if current else 1
-    fdr_by_club = fixtures_svc.club_next_fdr_map(db, from_gw=from_gw)
-    payload = [
-        {
-            "id": p.id,
-            "name": p.name,
-            "position": p.position,
-            "team": p.team_code,
-            "club": getattr(clubs.get(p.team_code), "name", None) or p.team_code,
-            "price": p.price,
-            "status": getattr(p, "status", "a") or "a",
-            "chance": getattr(p, "chance_of_playing", None),
-            "news": getattr(p, "news", "") or "",
-            "availability": availability_flag(
-                getattr(p, "status", "a") or "a",
-                getattr(p, "chance_of_playing", None),
-            ),
-            "fdr": fdr_by_club.get(p.team_code),
-            **_season_kpis(p),
-            **kit_for(
-                p.team_code,
-                position=p.position,
-                kit_code=getattr(clubs.get(p.team_code), "kit_code", None),
-                photo=getattr(p, "photo", "") or "",
-                player_id=p.id,
-            ),
-        }
-        for p in players
-    ]
-    _players_payload._cache = (now, payload)
-    return payload
-
-
 def _owned_payload(
     players: list[Player],
     db: Session | None = None,
@@ -165,7 +99,6 @@ def _owned_payload(
     fdr_by_club: dict[str, dict] = {}
     if db is not None:
         clubs = {c.code: c for c in db.query(Club).all()}
-        fixtures_svc.ensure_fixtures_ready(db)
         if gw_number:
             for match in fixtures_svc.fixtures_for_gameweek(db, gw_number=gw_number):
                 fdr_by_club[match["home"]["code"]] = {
@@ -656,7 +589,7 @@ def _squad_board_response(
             transfers_gw=transfers_gw,
             hits_gw=hits_gw,
             hit_cost=squad_svc.HIT_COST,
-            players_json=_players_payload(db),
+            players_json=[],  # loaded client-side from /api/players/catalog
             squad_alerts=squad_alerts,
             initial_squad={
                 "selected": [p.id for p in owned],
@@ -799,7 +732,7 @@ async def team_save(request: Request, db: Session = Depends(get_db)):
                 transfers_gw=0,
                 hits_gw=0,
                 hit_cost=squad_svc.HIT_COST,
-                players_json=_players_payload(db),
+                players_json=[],
                 initial_squad={
                     "selected": player_ids,
                     "budget": settings.budget,
@@ -884,8 +817,10 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
     if view["edits_locked"]:
         from app.services.auto_score import maybe_score_locked_gw
         from app.models import ManagerGameweekScore, PlayerPoints
+        import threading
 
-        maybe_score_locked_gw()
+        # Don't block navigation on scoring — refresh scores in the background.
+        threading.Thread(target=lambda: maybe_score_locked_gw(), daemon=True).start()
         for row in (
             db.query(PlayerPoints)
             .filter(
@@ -924,15 +859,20 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
     error = request.query_params.get("error") or request.query_params.get("chip_error")
 
     from app.services import deadline as deadline_svc
-    from app.services import fixtures as fixtures_svc
+    from app.models import Fixture
 
     captain_editable = False
     if view["gw"].id == view["current_gw"].id:
         captain_editable = deadline_svc.can_edit_captain(view["current_gw"])
-    fixture_started = {
-        p.id: fixtures_svc.club_fixture_started(db, club_code=p.team_code, gw_number=gw.number)
-        for p in owned
-    }
+    # One query for the GW instead of per-club lookups.
+    started_clubs: set[str] = set()
+    for fx in db.query(Fixture).filter(Fixture.gameweek_number == gw.number).all():
+        if fx.started or fx.finished:
+            if fx.home_club_code:
+                started_clubs.add(fx.home_club_code)
+            if fx.away_club_code:
+                started_clubs.add(fx.away_club_code)
+    fixture_started = {p.id: p.team_code in started_clubs for p in owned}
     armed = {
         p.player_id: bool(getattr(p, "captain_armed", 0))
         for p in picks
@@ -1123,7 +1063,9 @@ def sync_players(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/login", status_code=303)
     try:
         info = sync_from_fpl(db)
-        _players_payload._cache = None
+        from app.services.player_catalog import clear_players_catalog_cache
+
+        clear_players_catalog_cache()
         notice = f"Updated from FPL: {info['players']} players · current GW{info['current_gw']}"
     except Exception as exc:
         notice = None

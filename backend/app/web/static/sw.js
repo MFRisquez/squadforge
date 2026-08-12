@@ -1,5 +1,5 @@
 /* FutFantasy phone app shell */
-const CACHE = "futfantasy-v66";
+const CACHE = "futfantasy-v67";
 const PRECACHE = [
   "/static/styles.css",
   "/static/ui.js",
@@ -30,6 +30,7 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   const isStatic = url.pathname.startsWith("/static/");
+  const isCatalog = url.pathname === "/api/players/catalog";
   const isShell =
     url.pathname === "/" ||
     url.pathname === "/login" ||
@@ -41,7 +42,7 @@ self.addEventListener("fetch", (event) => {
     url.pathname === "/onboard" ||
     url.pathname.startsWith("/standings/");
 
-  if (!isStatic && !isShell) return;
+  if (!isStatic && !isShell && !isCatalog) return;
 
   event.respondWith(
     caches.match(req).then((cached) => {
@@ -55,10 +56,10 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(() => cached);
 
-      // Static assets: cache-first
-      if (isStatic) return cached || fetched;
+      // Static + player catalog: cache-first (catalog also has short HTTP max-age)
+      if (isStatic || isCatalog) return cached || fetched;
 
-      // Shell HTML: stale-while-revalidate — paint cached page instantly, refresh in background
+      // Shell HTML: stale-while-revalidate — paint cached page instantly
       if (cached) {
         event.waitUntil(fetched);
         return cached;
