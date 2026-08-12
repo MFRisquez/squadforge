@@ -1,5 +1,5 @@
 /* SquadForge phone app shell */
-const CACHE = "squadforge-v58";
+const CACHE = "squadforge-v59";
 const PRECACHE = [
   "/",
   "/login",
