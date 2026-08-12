@@ -2982,14 +2982,33 @@ body.picker-open {
   }
   .player-detail-actions .btn { font-size: 0.95rem; }
 
-  /* Align with stat strip: pitch through Hits (3/5), rail from Squad (2/5) */
+  /* Align with stat strip: pitch left, free agents right — never let left chrome spill */
   .desk-board,
   .desk-squad,
   .desk-xi {
     display: grid;
-    grid-template-columns: 3fr 2fr;
+    grid-template-columns: minmax(0, 1.7fr) minmax(15.5rem, 1fr);
     gap: 0.3rem;
     align-items: start;
+  }
+  .desk-squad > .desk-main-top,
+  .desk-xi > .desk-main-top {
+    grid-column: 1;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .desk-squad > .desk-main,
+  .desk-xi > .desk-main {
+    grid-column: 1;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .desk-squad > .transfer-rail,
+  .desk-squad > .desk-rail,
+  .desk-xi > .desk-rail {
+    grid-column: 2;
+    min-width: 0;
+    max-width: 100%;
   }
   .desk-main {
     min-width: 0;
@@ -5631,7 +5650,13 @@ body.page-auth .flash.error {
 }
 
 /* Desktop: chips+stats | watchlist ; pitch | free agents */
-.desk-main-top { display: contents; }
+.desk-main-top {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+  width: 100%;
+}
 .squad-alerts.desk-only { display: none; }
 
 @media (min-width: 900px) {
@@ -5643,20 +5668,24 @@ body.page-auth .flash.error {
     align-items: stretch;
   }
   .desk-main-top {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
     grid-column: 1;
     grid-row: 1;
     min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
   }
   .desk-main-top .chip-strip-wrap,
   .desk-main-top .stat-strip,
   .desk-main-top .swap-bar {
     width: 100%;
+    max-width: 100%;
     margin: 0;
+    box-sizing: border-box;
   }
-  .desk-main-top .chip-strip-cards { overflow: visible; }
+  .desk-main-top .chip-strip-cards {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
   .squad-alerts.desk-only {
     display: flex;
     flex-direction: column;
@@ -5736,12 +5765,20 @@ body.page-auth .flash.error {
     grid-column: 1;
     grid-row: 2;
     min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
   }
   .desk-squad > .transfer-rail {
     grid-column: 2;
     grid-row: 2;
+    min-width: 0;
+    max-width: 100%;
     min-height: 0;
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
     display: flex;
+    align-self: stretch;
   }
 }
 
@@ -5784,6 +5821,111 @@ html[data-theme="dark"] select {
   border-color: rgba(255,255,255,0.18);
 }
 
+/* Fixtures — readable on dark theme (cards used light ink otherwise) */
+html[data-theme="dark"] .fx-card {
+  background: linear-gradient(180deg, #222222 0%, #181818 100%);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+html[data-theme="dark"] .fx-card:hover {
+  border-color: rgba(192, 255, 0, 0.35);
+  transform: translateY(-1px);
+}
+html[data-theme="dark"] .fx-card.status-live {
+  background: linear-gradient(180deg, #1c2a1c 0%, #152018 100%);
+  border-color: rgba(192, 255, 0, 0.45);
+}
+html[data-theme="dark"] .fx-card.status-finished {
+  opacity: 0.92;
+}
+html[data-theme="dark"] .fx-card.is-selected {
+  border-color: rgba(192, 255, 0, 0.55);
+  box-shadow: 0 0 0 1px rgba(192, 255, 0, 0.28);
+}
+html[data-theme="dark"] .fx-card.has-mine {
+  border-color: rgba(192, 255, 0, 0.4);
+  box-shadow: 0 0 0 1px rgba(192, 255, 0, 0.18);
+}
+html[data-theme="dark"] .fx-club strong,
+html[data-theme="dark"] .fx-score-num,
+html[data-theme="dark"] .fixture-detail-panel .drawer-head h2,
+html[data-theme="dark"] .fx-detail-section h3,
+html[data-theme="dark"] .fx-detail-section h4,
+html[data-theme="dark"] .match-scoreline .match-club strong,
+html[data-theme="dark"] .match-events h3 {
+  color: #fff;
+}
+html[data-theme="dark"] .fx-status,
+html[data-theme="dark"] .fx-club-name,
+html[data-theme="dark"] .fx-mine-label,
+html[data-theme="dark"] .fx-detail-status,
+html[data-theme="dark"] .fixture-detail-panel .eyebrow,
+html[data-theme="dark"] .fixture-detail-panel .match-scoreline .match-club .muted,
+html[data-theme="dark"] .match-detail-sheet .match-scoreline .match-club .muted {
+  color: #b0b0b0;
+}
+html[data-theme="dark"] .fx-mine {
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+html[data-theme="dark"] .fx-mine-chip {
+  background: rgba(192, 255, 0, 0.18);
+  color: #f5ffe0;
+}
+html[data-theme="dark"] .fx-mine-chip.avail-doubt {
+  background: rgba(255, 176, 32, 0.22);
+  color: #ffd48a;
+}
+html[data-theme="dark"] .fx-mine-chip.avail-out {
+  background: rgba(255, 138, 128, 0.2);
+  color: #ffb4ae;
+}
+html[data-theme="dark"] .fx-news {
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+html[data-theme="dark"] .fx-news li {
+  color: #c8c8c8;
+}
+html[data-theme="dark"] .fx-detail-status.is-live {
+  color: #000;
+  background: rgba(192, 255, 0, 0.85);
+}
+html[data-theme="dark"] .fixture-detail-panel {
+  background: #1a1a1a;
+  border-color: var(--line);
+  color: #fff;
+}
+html[data-theme="dark"] .fx-detail-section {
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+html[data-theme="dark"] .fx-detail-news,
+html[data-theme="dark"] .fx-detail-chips .fx-mine-chip {
+  color: inherit;
+}
+
+/* Free Agents rail — keep numbers readable on dark panels */
+html[data-theme="dark"] .transfer-rail-head {
+  background: rgba(26, 26, 26, 0.98);
+}
+html[data-theme="dark"] .transfer-rail-row {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+html[data-theme="dark"] .transfer-rail-row .tr-name span {
+  color: #a8a8a8;
+}
+html[data-theme="dark"] .transfer-rail-row .tr-form,
+html[data-theme="dark"] .transfer-rail-row .tr-price,
+html[data-theme="dark"] .transfer-rail-row .tr-pts {
+  color: #fff;
+}
+html[data-theme="dark"] .transfer-rail-row.is-head .tr-name,
+html[data-theme="dark"] .transfer-rail-row.is-head .tr-price,
+html[data-theme="dark"] .transfer-rail-row.is-head .tr-form,
+html[data-theme="dark"] .transfer-rail-row.is-head .tr-pts {
+  color: #a0a0a0;
+}
+
 
 /* First-time team setup */
 body.page-onboard .nav { display: none !important; }
@@ -5814,18 +5956,33 @@ html[data-theme="light"] .onboard-banner {
   .desk-onboard > .desk-main-top {
     grid-column: 1;
     grid-row: 1;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
   }
   .desk-onboard > .squad-alerts {
     grid-column: 2;
     grid-row: 1;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
   }
   .desk-onboard > .desk-main {
     grid-column: 1;
     grid-row: 2;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
   }
   .desk-onboard > .transfer-rail {
     grid-column: 2;
     grid-row: 2;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+  body.page-onboard .stat-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
