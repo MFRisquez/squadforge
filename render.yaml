@@ -1,5 +1,6 @@
-# Free Render blueprint — gives a stable HTTPS URL for phone + computer.
+# Free Render blueprint — stable HTTPS URL for phone + computer.
 # Deploy: https://render.com/deploy?repo=https://github.com/MFRisquez/squadforge
+# Branch: cursor/auth-register-permanent-url-9855 (until merged to main)
 
 services:
   - type: web
@@ -15,5 +16,6 @@ services:
         value: "3.12.8"
       - key: SECRET_KEY
         generateValue: true
+      # Optional — set after first deploy to your real URL, e.g. https://squadforge.onrender.com
       - key: PUBLIC_BASE_URL
-        sync: false
+        value: ""
