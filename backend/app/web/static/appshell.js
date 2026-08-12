@@ -84,8 +84,10 @@
   function hideSplash() {
     const splash = document.getElementById("appSplash");
     if (!splash) return;
+    splash.setAttribute("aria-busy", "false");
     splash.classList.add("is-done");
-    window.setTimeout(() => splash.remove(), 320);
+    document.documentElement.classList.remove("ff-splash-lock");
+    window.setTimeout(() => splash.remove(), 340);
   }
 
   async function runColdStartSplash() {
@@ -98,26 +100,14 @@
       warmShellData();
       return;
     }
-    let alreadyWarm = false;
-    try {
-      alreadyWarm = Boolean(sessionStorage.getItem(WARM_KEY));
-      const cached = JSON.parse(sessionStorage.getItem(CATALOG_KEY) || "null");
-      alreadyWarm = alreadyWarm && Array.isArray(cached) && cached.length > 0;
-    } catch (_) {
-      alreadyWarm = false;
-    }
-    if (alreadyWarm) {
-      hideSplash();
-      warmShellData(); // refresh in background
-      return;
-    }
-    const minShow = new Promise((r) => setTimeout(r, 480));
+
+    // Full-screen brand hold for 2s; warm catalog/pages in parallel, then enter.
+    document.documentElement.classList.add("ff-splash-lock");
     const warm = warmShellData().catch(() => {});
-    await Promise.race([
-      Promise.all([minShow, warm]),
-      new Promise((r) => setTimeout(r, 2400)),
-    ]);
+    await new Promise((r) => setTimeout(r, 2000));
     hideSplash();
+    // Finish warming in background if still going.
+    void warm;
   }
 
   function updateNavActive(path) {
