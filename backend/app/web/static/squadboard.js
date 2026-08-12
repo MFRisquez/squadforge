@@ -1294,7 +1294,9 @@
             baselineTd = currentTd();
           }
           if (goHomeAfter) {
-            window.location.assign("/?notice=" + encodeURIComponent("Squad saved"));
+            const dest = "/?notice=" + encodeURIComponent("Squad saved");
+            if (typeof window.__ffNavigate === "function") window.__ffNavigate(dest);
+            else window.location.assign(dest);
             return;
           }
           saveVisual = "saved";
@@ -1426,13 +1428,25 @@
   baselineTd = currentTd();
   saveVisual = "idle";
   render();
-  window.addEventListener("resize", () => syncTransferRailLayout());
+  const onResize = () => syncTransferRailLayout();
+  window.addEventListener("resize", onResize);
   if (DESK_MQ && typeof DESK_MQ.addEventListener === "function") {
-    DESK_MQ.addEventListener("change", () => syncTransferRailLayout());
+    DESK_MQ.addEventListener("change", onResize);
   }
+  let pitchRo = null;
   const squadPitchEl = document.getElementById("squadPitch");
   if (typeof ResizeObserver !== "undefined" && squadPitchEl) {
-    const ro = new ResizeObserver(() => syncTransferRailLayout());
-    ro.observe(squadPitchEl);
+    pitchRo = new ResizeObserver(() => syncTransferRailLayout());
+    pitchRo.observe(squadPitchEl);
   }
+  window.__ffTeardown = () => {
+    window.removeEventListener("resize", onResize);
+    if (DESK_MQ && typeof DESK_MQ.removeEventListener === "function") {
+      DESK_MQ.removeEventListener("change", onResize);
+    }
+    if (pitchRo) pitchRo.disconnect();
+    document.querySelectorAll("body > .drawer, body > .picker-modal").forEach((el) => el.remove());
+    document.body.classList.remove("picker-open");
+    document.body.style.top = "";
+  };
 })();

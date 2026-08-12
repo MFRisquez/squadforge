@@ -415,14 +415,23 @@
       if (e.target === matchDetail) matchDetail.hidden = true;
     });
   }
+  const onMq = () => {
+    if (isDesktop() && matchDetail) matchDetail.hidden = true;
+  };
   if (DESK_MQ && typeof DESK_MQ.addEventListener === "function") {
-    DESK_MQ.addEventListener("change", () => {
-      if (isDesktop() && matchDetail) matchDetail.hidden = true;
-    });
+    DESK_MQ.addEventListener("change", onMq);
   }
 
   // Live poll while any match may be in progress
+  let pollTimer = null;
   if (BOOT.poll) {
-    setInterval(refreshQuiet, 45000);
+    pollTimer = setInterval(refreshQuiet, 45000);
   }
+  window.__ffTeardown = () => {
+    if (pollTimer) clearInterval(pollTimer);
+    if (DESK_MQ && typeof DESK_MQ.removeEventListener === "function") {
+      DESK_MQ.removeEventListener("change", onMq);
+    }
+    document.querySelectorAll("body > .drawer").forEach((el) => el.remove());
+  };
 })();

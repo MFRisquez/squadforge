@@ -932,16 +932,27 @@
   baselineSig = lineupSignature();
   saveVisual = "idle";
   render();
-  window.addEventListener("resize", () => {
+  const onResize = () => {
     paintBench();
     syncXiSideLayout();
     fitLiveTableType();
-  });
+  };
+  window.addEventListener("resize", onResize);
+  const onMq = () => render();
   if (DESK_MQ && typeof DESK_MQ.addEventListener === "function") {
-    DESK_MQ.addEventListener("change", () => render());
+    DESK_MQ.addEventListener("change", onMq);
   }
+  let pitchRo = null;
   if (typeof ResizeObserver !== "undefined" && pitch) {
-    const ro = new ResizeObserver(() => syncXiSideLayout());
-    ro.observe(pitch);
+    pitchRo = new ResizeObserver(() => syncXiSideLayout());
+    pitchRo.observe(pitch);
   }
+  window.__ffTeardown = () => {
+    window.removeEventListener("resize", onResize);
+    if (DESK_MQ && typeof DESK_MQ.removeEventListener === "function") {
+      DESK_MQ.removeEventListener("change", onMq);
+    }
+    if (pitchRo) pitchRo.disconnect();
+    document.querySelectorAll("body > .drawer").forEach((el) => el.remove());
+  };
 })();

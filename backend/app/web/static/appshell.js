@@ -1,0 +1,289 @@
+(() => {
+  const CATALOG_KEY = "ff_players_catalog_v1";
+  const CATALOG_META = "ff_players_catalog_meta_v1";
+  const WARM_KEY = "ff_shell_warmed_v1";
+  const SHELL_PATHS = new Set(["/", "/lineup", "/team", "/fixtures", "/rules", "/leagues", "/onboard"]);
+  const pageCache = new Map(); // path -> { html, at }
+  const CACHE_TTL_MS = 45_000;
+  let navigating = false;
+
+  function isAuthPage() {
+    return document.body.classList.contains("page-auth");
+  }
+
+  function hasAppNav() {
+    return Boolean(document.querySelector("nav.nav"));
+  }
+
+  function sameOriginPath(href) {
+    try {
+      const u = new URL(href, window.location.origin);
+      if (u.origin !== window.location.origin) return null;
+      return u.pathname + u.search;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function isShellPath(pathWithSearch) {
+    if (!pathWithSearch) return false;
+    const path = pathWithSearch.split("?")[0];
+    if (SHELL_PATHS.has(path)) return true;
+    if (path.startsWith("/standings/")) return true;
+    if (path.startsWith("/league")) return true;
+    return false;
+  }
+
+  async function warmCatalog() {
+    try {
+      const cached = JSON.parse(sessionStorage.getItem(CATALOG_KEY) || "null");
+      if (Array.isArray(cached) && cached.length) return cached;
+    } catch (_) {}
+    const res = await fetch("/api/players/catalog", {
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) throw new Error("catalog");
+    const data = await res.json();
+    const players = Array.isArray(data.players) ? data.players : [];
+    try {
+      sessionStorage.setItem(CATALOG_KEY, JSON.stringify(players));
+      sessionStorage.setItem(
+        CATALOG_META,
+        JSON.stringify({ version: data.version || "", at: Date.now() })
+      );
+    } catch (_) {}
+    return players;
+  }
+
+  function prefetch(url) {
+    return fetch(url, {
+      credentials: "same-origin",
+      headers: { Accept: "text/html", Purpose: "prefetch" },
+    })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const html = await res.text();
+        pageCache.set(url.split("?")[0], { html, at: Date.now() });
+      })
+      .catch(() => {});
+  }
+
+  async function warmShellData() {
+    await Promise.allSettled([
+      warmCatalog(),
+      prefetch("/lineup"),
+      prefetch("/team"),
+      prefetch("/fixtures"),
+    ]);
+    try {
+      sessionStorage.setItem(WARM_KEY, String(Date.now()));
+    } catch (_) {}
+  }
+
+  function hideSplash() {
+    const splash = document.getElementById("appSplash");
+    if (!splash) return;
+    splash.classList.add("is-done");
+    window.setTimeout(() => splash.remove(), 320);
+  }
+
+  async function runColdStartSplash() {
+    if (isAuthPage() || !hasAppNav()) {
+      hideSplash();
+      return;
+    }
+    const splash = document.getElementById("appSplash");
+    if (!splash) {
+      warmShellData();
+      return;
+    }
+    let alreadyWarm = false;
+    try {
+      alreadyWarm = Boolean(sessionStorage.getItem(WARM_KEY));
+      const cached = JSON.parse(sessionStorage.getItem(CATALOG_KEY) || "null");
+      alreadyWarm = alreadyWarm && Array.isArray(cached) && cached.length > 0;
+    } catch (_) {
+      alreadyWarm = false;
+    }
+    if (alreadyWarm) {
+      hideSplash();
+      warmShellData(); // refresh in background
+      return;
+    }
+    const minShow = new Promise((r) => setTimeout(r, 480));
+    const warm = warmShellData().catch(() => {});
+    await Promise.race([
+      Promise.all([minShow, warm]),
+      new Promise((r) => setTimeout(r, 2400)),
+    ]);
+    hideSplash();
+  }
+
+  function updateNavActive(path) {
+    const nav = document.querySelector("nav.nav");
+    if (!nav) return;
+    const clean = path.split("?")[0];
+    nav.querySelectorAll("a[href]").forEach((a) => {
+      const href = sameOriginPath(a.getAttribute("href") || "");
+      if (!href) return;
+      const aPath = href.split("?")[0];
+      let active = aPath === clean;
+      if (aPath === "/lineup" && (clean.startsWith("/lineup") || clean.startsWith("/points") || clean.startsWith("/score"))) {
+        active = true;
+      }
+      if (aPath === "/team" && (clean === "/team" || clean.startsWith("/transfers"))) {
+        active = true;
+      }
+      if (aPath === "/fixtures" && clean.startsWith("/fixtures")) active = true;
+      if (aPath === "/rules" && clean.startsWith("/rules")) active = true;
+      if (
+        (aPath === "/leagues" || aPath.startsWith("/standings/")) &&
+        (clean.startsWith("/standings") || clean.startsWith("/league"))
+      ) {
+        active = true;
+      }
+      if (aPath === "/" && clean === "/") active = true;
+      a.classList.toggle("is-active", active);
+    });
+  }
+
+  function teardownPage() {
+    if (typeof window.__ffTeardown === "function") {
+      try {
+        window.__ffTeardown();
+      } catch (_) {}
+    }
+    window.__ffTeardown = null;
+    document.querySelectorAll("body > .drawer, body > .picker-modal").forEach((el) => el.remove());
+    document.body.classList.remove("picker-open");
+    document.body.style.top = "";
+  }
+
+  async function runScripts(root) {
+    const scripts = Array.from(root.querySelectorAll("script"));
+    for (const old of scripts) {
+      const type = (old.getAttribute("type") || "").toLowerCase();
+      if (type && type !== "text/javascript" && type !== "module" && type !== "application/javascript") {
+        // keep JSON / other data scripts in place
+        continue;
+      }
+      const s = document.createElement("script");
+      for (const attr of old.attributes) {
+        s.setAttribute(attr.name, attr.value);
+      }
+      if (old.src) {
+        await new Promise((resolve, reject) => {
+          s.onload = () => resolve();
+          s.onerror = () => resolve(); // don't block nav
+          old.parentNode.replaceChild(s, old);
+        });
+      } else {
+        s.textContent = old.textContent || "";
+        old.parentNode.replaceChild(s, old);
+      }
+    }
+  }
+
+  async function fetchPageHtml(path) {
+    const key = path.split("?")[0];
+    const hit = pageCache.get(key);
+    if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
+      // revalidate in background
+      fetch(path, { credentials: "same-origin", headers: { Accept: "text/html" } })
+        .then(async (res) => {
+          if (!res.ok) return;
+          pageCache.set(key, { html: await res.text(), at: Date.now() });
+        })
+        .catch(() => {});
+      return hit.html;
+    }
+    const res = await fetch(path, {
+      credentials: "same-origin",
+      headers: { Accept: "text/html", "X-Requested-With": "ff-shell" },
+    });
+    if (!res.ok) throw new Error("nav");
+    // login redirect etc.
+    if (res.redirected && res.url) {
+      const dest = sameOriginPath(res.url);
+      if (dest && dest.startsWith("/login")) {
+        window.location.href = dest;
+        return null;
+      }
+    }
+    const html = await res.text();
+    pageCache.set(key, { html, at: Date.now() });
+    return html;
+  }
+
+  async function softNavigate(path, { push = true } = {}) {
+    if (navigating) return;
+    if (!isShellPath(path)) {
+      window.location.href = path;
+      return;
+    }
+    navigating = true;
+    const main = document.querySelector("main.shell");
+    if (main) main.classList.add("shell-swap");
+    try {
+      const html = await fetchPageHtml(path);
+      if (html == null) return;
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const nextMain = doc.querySelector("main.shell");
+      if (!nextMain || !main) {
+        window.location.href = path;
+        return;
+      }
+      teardownPage();
+      document.body.className = doc.body.className || "";
+      document.title = doc.title || document.title;
+      main.replaceWith(nextMain);
+      nextMain.classList.add("shell-enter");
+      updateNavActive(path.split("?")[0]);
+      if (push) history.pushState({ ffShell: true }, "", path);
+      await runScripts(nextMain);
+      window.scrollTo(0, 0);
+      requestAnimationFrame(() => nextMain.classList.remove("shell-enter"));
+    } catch (_) {
+      window.location.href = path;
+    } finally {
+      navigating = false;
+      document.querySelector("main.shell")?.classList.remove("shell-swap");
+    }
+  }
+
+  function onDocumentClick(e) {
+    if (e.defaultPrevented) return;
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (e.button !== 0) return;
+    const a = e.target.closest("a[href]");
+    if (!a) return;
+    if (a.target && a.target !== "_self") return;
+    if (a.hasAttribute("download")) return;
+    const path = sameOriginPath(a.getAttribute("href") || "");
+    if (!path || !isShellPath(path)) return;
+    // allow hash-only on same page
+    if (path.split("?")[0] === window.location.pathname && path.includes("#")) return;
+    e.preventDefault();
+    softNavigate(path);
+  }
+
+  window.addEventListener("popstate", () => {
+    softNavigate(window.location.pathname + window.location.search, { push: false });
+  });
+
+  document.addEventListener("click", onDocumentClick);
+
+  // Expose for other modules (e.g. after save redirect)
+  window.__ffNavigate = (url) => {
+    const path = sameOriginPath(url);
+    if (path && isShellPath(path)) softNavigate(path);
+    else window.location.href = url;
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", runColdStartSplash);
+  } else {
+    runColdStartSplash();
+  }
+})();
