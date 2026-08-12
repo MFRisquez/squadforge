@@ -220,7 +220,7 @@ def home(request: Request, db: Session = Depends(get_db)):
             ),
         )
     if not manager_has_complete_squad(db, manager.id):
-        return RedirectResponse("/team?onboard=1", status_code=303)
+        return RedirectResponse("/onboard", status_code=303)
     leagues = league_svc.manager_leagues(db, manager.id)
     live_demo = False
     try:
@@ -264,7 +264,7 @@ def login_submit(
     login_manager(request, manager)
     if manager_has_complete_squad(db, manager.id):
         return RedirectResponse("/", status_code=303)
-    return RedirectResponse("/team?onboard=1", status_code=303)
+    return RedirectResponse("/onboard", status_code=303)
 
 
 @router.get("/register", response_class=HTMLResponse)
@@ -296,7 +296,7 @@ def register_submit(
             status_code=400,
         )
     login_manager(request, manager)
-    return RedirectResponse("/team?onboard=1", status_code=303)
+    return RedirectResponse("/onboard", status_code=303)
 
 
 @router.get("/forgot-password", response_class=HTMLResponse)
@@ -517,13 +517,45 @@ def team_page(request: Request, db: Session = Depends(get_db)):
     manager = current_manager(request, db)
     if not manager:
         return RedirectResponse("/login", status_code=303)
+    if not manager_has_complete_squad(db, manager.id):
+        return RedirectResponse("/onboard", status_code=303)
+    return _squad_board_response(request, db, manager, template_name="team.html")
+
+
+@router.get("/onboard", response_class=HTMLResponse)
+def onboard_page(request: Request, db: Session = Depends(get_db)):
+    manager = current_manager(request, db)
+    if not manager:
+        return RedirectResponse("/login", status_code=303)
+    if manager_has_complete_squad(db, manager.id):
+        return RedirectResponse("/", status_code=303)
+    return _squad_board_response(
+        request,
+        db,
+        manager,
+        template_name="onboard.html",
+        notice=(
+            request.query_params.get("notice")
+            or "Pick your 15 (2 GK · 5 DEF · 5 MID · 3 ATT) within budget, then Save."
+        ),
+    )
+
+
+def _squad_board_response(
+    request: Request,
+    db: Session,
+    manager,
+    *,
+    template_name: str,
+    notice: str | None = None,
+):
     from app.models import TransferLog
     from app.services import chips as chips_svc
     from app.services import td as td_svc
+    from app.services.fpl_sync import availability_flag
 
     view = _resolve_gw(request, db)
     gw = view["gw"]
-    # Bank FTs + restore any expired Free Hit *before* reading ownership
     ft_state = squad_svc.bank_free_transfers(db, manager.id, view["current_gw"].number)
     chips_svc.restore_free_hits_if_needed(db, manager_id=manager.id, current_gw=view["current_gw"])
     owned = squad_svc.owned_players(db, manager.id)
@@ -564,8 +596,6 @@ def team_page(request: Request, db: Session = Depends(get_db)):
         player = by_id.get(pick.player_id)
         if player and not pick.is_captain and not getattr(pick, "is_vice_captain", 0):
             bench_options.append(player)
-    from app.services.fpl_sync import availability_flag
-
     flag_labels = {"out": "Out", "doubt": "Doubt", "ok": "OK"}
     squad_alerts = []
     for player in owned:
@@ -589,8 +619,15 @@ def team_page(request: Request, db: Session = Depends(get_db)):
             a["name"],
         )
     )
+    resolved_notice = notice
+    if resolved_notice is None:
+        resolved_notice = (
+            request.query_params.get("notice")
+            or ("Transfer done." if request.query_params.get("ok") else None)
+            or ("Chip played." if request.query_params.get("chip_ok") else None)
+        )
     return templates.TemplateResponse(
-        "team.html",
+        template_name,
         _ctx(
             request,
             db,
@@ -627,29 +664,12 @@ def team_page(request: Request, db: Session = Depends(get_db)):
                 "gw": gw.number,
             },
             player_count=db.query(Player).count(),
-            onboard=request.query_params.get("onboard") == "1",
             ok=request.query_params.get("ok"),
             error=request.query_params.get("error") or request.query_params.get("chip_error"),
-            notice=(
-                request.query_params.get("notice")
-                or ("Transfer done." if request.query_params.get("ok") else None)
-                or ("Chip played." if request.query_params.get("chip_ok") else None)
-                or (
-                    "Pick your 15 (2 GK · 5 DEF · 5 MID · 3 ATT) within budget, then Save to open Home."
-                    if request.query_params.get("onboard") == "1"
-                    else None
-                )
-            ),
+            notice=resolved_notice,
             **view,
         ),
     )
-
-
-def _safe_next_path(raw: str | None, default: str = "/team") -> str:
-    path = (raw or default).strip() or default
-    if not path.startswith("/") or path.startswith("//"):
-        return default
-    return path
 
 
 @router.post("/team/chip")
@@ -834,7 +854,7 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
     chips_svc.restore_free_hits_if_needed(db, manager_id=manager.id, current_gw=view["current_gw"])
     owned = squad_svc.owned_players(db, manager.id)
     if len(owned) != settings.squad_size:
-        return RedirectResponse("/team", status_code=303)
+        return RedirectResponse("/onboard", status_code=303)
     picks = (
         db.query(SquadPick)
         .filter(SquadPick.manager_id == manager.id, SquadPick.gameweek_id == gw.id)

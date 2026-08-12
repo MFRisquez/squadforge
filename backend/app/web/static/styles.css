@@ -5771,3 +5771,93 @@ html[data-theme="dark"] select {
   color: #fff;
   border-color: rgba(255,255,255,0.18);
 }
+
+
+/* First-time team setup */
+body.page-onboard .nav { display: none !important; }
+.onboard-banner {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin: 0 0 0.75rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 0.85rem;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(192, 255, 0, 0.25);
+}
+html[data-theme="light"] .onboard-banner {
+  background: #fff;
+  border-color: var(--line);
+}
+.onboard-mark { border-radius: 0.55rem; flex: 0 0 auto; }
+.onboard-banner h1 {
+  margin: 0 0 0.2rem;
+  font-size: 1.25rem;
+}
+.onboard-banner .muted { margin: 0; font-size: 0.86rem; }
+@media (min-width: 900px) {
+  .desk-onboard.desk-squad {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .desk-onboard > .desk-main-top {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .desk-onboard > .desk-main {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .desk-onboard > .transfer-rail {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+
+/* XI live points — readable in dark theme */
+html[data-theme="dark"] .xi-live-panel {
+  background: #1a1a1a !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+html[data-theme="dark"] .xi-live-panel .desk-rail-head h2,
+html[data-theme="dark"] .xi-live-panel .eyebrow,
+html[data-theme="dark"] .xi-live-leader {
+  color: #fff !important;
+}
+html[data-theme="dark"] .xi-live-table,
+html[data-theme="dark"] .xi-live-table th,
+html[data-theme="dark"] .xi-live-table td {
+  color: #fff !important;
+  border-bottom-color: rgba(255, 255, 255, 0.12) !important;
+}
+html[data-theme="dark"] .xi-live-table th,
+html[data-theme="dark"] .xi-live-table th:first-child,
+html[data-theme="dark"] .xi-live-table td:first-child {
+  background: #1a1a1a !important;
+}
+html[data-theme="dark"] .xi-live-table .pts-total {
+  color: #C0FF00 !important;
+}
+html[data-theme="dark"] body.page-xi .xi-live-section td {
+  background: rgba(192, 255, 0, 0.18) !important;
+  color: #fff !important;
+  border-top-color: #C0FF00 !important;
+  border-bottom-color: #C0FF00 !important;
+}
+html[data-theme="dark"] body.page-xi .xi-live-split td {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #fff !important;
+  border-top-color: #C0FF00 !important;
+  border-bottom-color: #C0FF00 !important;
+}
+html[data-theme="dark"] body.page-xi .xi-live-table tr.is-bench td {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: rgba(255, 255, 255, 0.88) !important;
+}
+html[data-theme="dark"] body.page-xi .xi-live-table tr.is-top td {
+  background: rgba(192, 255, 0, 0.1) !important;
+}
+html[data-theme="dark"] body.page-xi .xi-live-table .live-role {
+  color: #000 !important;
+  background: #C0FF00;
+}

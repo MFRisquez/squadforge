@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}Build your team · Fut Fantasy{% endblock %}
+{% block body_class %}page-fit page-squad page-onboard{% endblock %}
+{% block content %}
+<section class="onboard-banner">
+  <img class="onboard-mark" src="/static/icons/logo.svg" width="40" height="40" alt="" />
+  <div>
+    <h1>Build your team</h1>
+    <p class="muted">Pick 15 players — 2 GK · 5 DEF · 5 MID · 3 ATT — within £{{ '%.0f'|format(budget) }}m. Then Save to open Home.</p>
+  </div>
+</section>
+
+<p class="sr-only" id="modeHint">Pick your starting 15. Tap empty slots or use Free Agents.</p>
+
+<form method="post" action="/td/save" id="tdForm" hidden aria-hidden="true"></form>
+<div class="desk-board desk-squad desk-onboard">
+  <div class="desk-main-top">
+    <div class="stat-strip" aria-label="Squad snapshot">
+      <div class="stat">
+        <span class="stat-label">Budget</span>
+        <strong id="budgetValue">£{{ '%.1f'|format(budget - spend) }}m</strong>
+        <span class="stat-sub">of £{{ '%.1f'|format(budget) }}m</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Selected</span>
+        <strong>{{ owned|length if owned else 0 }}/15</strong>
+        <span class="stat-sub">squad</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Per club</span>
+        <strong>max 3</strong>
+        <span class="stat-sub">rule</span>
+      </div>
+    </div>
+
+    <form method="post" action="/transfers/make" id="transferForm" class="swap-bar" hidden>
+      <input type="hidden" name="player_out_id" id="outId" />
+      <input type="hidden" name="player_in_id" id="inId" />
+      <p id="swapSummary" class="swap-summary"></p>
+      <button class="btn" type="submit" id="confirmSwap" disabled>Confirm swap</button>
+      <button class="btn ghost" type="button" id="clearSwap">Cancel</button>
+    </form>
+  </div>
+
+  <div class="desk-main">
+    <form method="post" action="/team/save" id="squadForm">
+      <div id="hiddenFields"></div>
+      <section class="pitch-wrap squad-pitch-wrap">
+        <div class="pitch field pitch-photo xi-pitch squad-pitch" id="squadPitch">
+          <div class="pitch-markings" aria-hidden="true"></div>
+          <div class="pitch-team-banner" aria-label="Your team">
+            <strong class="pitch-team-name">{{ manager.team_name if manager.team_name else " " }}</strong>
+            <span class="pitch-team-role">Setup</span>
+          </div>
+          <button class="pitch-save-btn is-idle" type="submit" id="saveSquadBtn" disabled aria-label="Save squad">
+            <span class="pitch-save-ico" aria-hidden="true"></span>
+            <span class="pitch-save-label">Save</span>
+          </button>
+          <aside class="td-corner" aria-label="Technical Director">
+            {% if td_info and td_info.club_code %}
+              {% if td_info.badge %}
+              <img class="td-badge" src="{{ td_info.badge }}" alt="{{ td_info.club_code }} badge" width="56" height="56" />
+              {% endif %}
+              <div class="td-corner-meta">
+                <span class="td-kicker">{{ td_info.club_code }}</span>
+                <strong>DT</strong>
+                {% if td_info.fixture_line %}
+                <span class="td-foot fdr-{{ td_info.fixture_fdr or 3 }}">{{ td_info.fixture_line }}</span>
+                {% else %}
+                <span class="td-window">GW{{ td_info.start_gw }}–{{ td_info.end_gw }}</span>
+                {% endif %}
+              </div>
+            {% else %}
+              <div class="td-corner-meta">
+                <span class="td-kicker">Pick</span>
+                <strong>DT</strong>
+                <span class="td-window">Choose a club</span>
+              </div>
+            {% endif %}
+            {% if can_set_td %}
+            <label class="sr-only" for="tdClub">Technical Director club</label>
+            <select name="club_code" id="tdClub" class="td-select" form="tdForm" required>
+              {% if not td_info or not td_info.club_code %}
+              <option value="" selected disabled>Pick club…</option>
+              {% endif %}
+              {% for c in td_club_choices %}
+              <option value="{{ c.code }}" {% if td_info and td_info.club_code == c.code %}selected{% endif %}>{{ c.name }}</option>
+              {% endfor %}
+            </select>
+            {% endif %}
+          </aside>
+          <div class="pitch-row zone-gk" data-pos="GK"></div>
+          <div class="pitch-row zone-def" data-pos="DEF"></div>
+          <div class="pitch-row zone-mid" data-pos="MID"></div>
+          <div class="pitch-row zone-att" data-pos="ATT"></div>
+        </div>
+      </section>
+    </form>
+  </div>
+
+  <aside class="desk-rail transfer-rail" id="transferRail" aria-label="Free agents">
+    <header class="desk-rail-head">
+      <p class="eyebrow">Free Agents</p>
+      <div class="rail-filters">
+        <label class="rail-sort">
+          <span class="sr-only">Position</span>
+          <select id="transferPosFilter" aria-label="Filter by position">
+            <option value="">All positions</option>
+            <option value="GK">GK</option>
+            <option value="DEF">DEF</option>
+            <option value="MID">MID</option>
+            <option value="ATT">ATT</option>
+          </select>
+        </label>
+        <label class="rail-sort">
+          <span class="sr-only">Sort by</span>
+          <select id="transferSort" aria-label="Sort free agents">
+            <option value="points">Points</option>
+            <option value="form">Form</option>
+            <option value="price">Price</option>
+          </select>
+        </label>
+      </div>
+    </header>
+    <ul class="transfer-rail-list" id="transferRailList">
+      <li class="transfer-rail-head" aria-hidden="true">
+        <div class="transfer-rail-row is-head">
+          <span class="tr-name">Player</span>
+          <span class="tr-price">Price</span>
+          <span class="tr-form">Form</span>
+          <span class="tr-pts">Pts</span>
+        </div>
+      </li>
+    </ul>
+  </aside>
+</div>
+
+<div class="picker-modal" id="picker" hidden>
+  <div class="picker-card" role="dialog" aria-modal="true" aria-labelledby="pickerPos">
+    <header class="picker-card-head">
+      <div>
+        <p class="eyebrow" id="pickerEyebrow">Add player</p>
+        <h2 id="pickerPos">Players</h2>
+      </div>
+      <button type="button" class="icon-btn" id="closePicker" aria-label="Close">✕</button>
+    </header>
+    <label class="picker-search">
+      <span class="sr-only">Search players</span>
+      <input type="search" id="playerSearch" placeholder="Type a name or club…" autocomplete="off" enterkeyhint="search" />
+    </label>
+    <div class="picker-filters">
+      <select id="filterTeam" aria-label="Club">
+        <option value="">All clubs</option>
+        {% for c in clubs %}
+        <option value="{{ c.code }}">{{ c.name }}</option>
+        {% endfor %}
+      </select>
+      <select id="filterMaxPrice" aria-label="Max price">
+        <option value="">Any price</option>
+        <option value="4.5">≤ £4.5m</option>
+        <option value="5.5">≤ £5.5m</option>
+        <option value="7.0">≤ £7.0m</option>
+        <option value="9.0">≤ £9.0m</option>
+        <option value="12">≤ £12.0m</option>
+        <option value="15">≤ £15.0m</option>
+      </select>
+    </div>
+    <ul class="picker-list" id="pickerList"></ul>
+  </div>
+</div>
+
+<div class="drawer" id="playerDetail" hidden>
+  <div class="drawer-sheet player-detail-sheet">
+    <header class="drawer-head player-detail-head">
+      <div class="player-detail-title">
+        <img class="player-detail-photo" id="detailPhoto" alt="" hidden />
+        <div>
+          <p class="eyebrow" id="detailEyebrow">Player</p>
+          <h2 id="detailName">—</h2>
+        </div>
+      </div>
+      <button type="button" class="icon-btn" id="closeDetail" aria-label="Close">✕</button>
+    </header>
+    <div class="player-detail-actions" id="detailActions"></div>
+    <div class="player-detail-body" id="detailBody"></div>
+  </div>
+</div>
+
+<script id="playersData" type="application/json">{{ players_json | tojson }}</script>
+<script id="initialSquad" type="application/json">{{ initial_squad | tojson }}</script>
+<script src="/static/squadboard.js"></script>
+{% endblock %}

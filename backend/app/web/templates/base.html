@@ -25,7 +25,7 @@
 </head>
 <body class="{% block body_class %}{% endblock %}">
   <header class="top">
-    <a class="brand" href="{% if has_complete_squad %}/{% else %}/team?onboard=1{% endif %}">
+    <a class="brand" href="{% if has_complete_squad %}/{% else %}/onboard{% endif %}">
       <img class="brand-mark" src="/static/icons/logo.svg" width="28" height="28" alt="" />
       <span class="brand-text">Fut Fantasy</span>
     </a>
@@ -33,18 +33,12 @@
     <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle theme">Theme</button>
   </header>
 
-  {% if manager %}
+  {% if manager and has_complete_squad %}
   {% set path = request.url.path %}
   <nav class="nav" aria-label="Main">
-    {% if has_complete_squad %}
     <a href="/" class="{% if path == '/' %}is-active{% endif %}">
       <span class="nav-ico" aria-hidden="true">⌂</span><span>Home</span>
     </a>
-    {% else %}
-    <a href="/team?onboard=1" class="is-disabled" aria-disabled="true" title="Pick your 15 first">
-      <span class="nav-ico" aria-hidden="true">⌂</span><span>Home</span>
-    </a>
-    {% endif %}
     <a href="/lineup" class="{% if path.startswith('/lineup') or path.startswith('/points') or path.startswith('/score') %}is-active{% endif %}">
       <span class="nav-ico" aria-hidden="true">◫</span><span>XI</span>
     </a>
