@@ -1,20 +1,19 @@
+# Free Render blueprint — gives a stable HTTPS URL for phone + computer.
+# Deploy: https://render.com/deploy?repo=https://github.com/MFRisquez/squadforge
+
 services:
   - type: web
     name: squadforge
-    runtime: docker
+    runtime: python
     plan: free
+    region: oregon
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
       - key: SECRET_KEY
         generateValue: true
       - key: PUBLIC_BASE_URL
-        fromService:
-          type: web
-          name: squadforge
-          property: host
-      - key: DATABASE_URL
-        value: sqlite:////data/squadforge.db
-    disk:
-      name: squadforge-data
-      mountPath: /data
-      sizeGB: 1
+        sync: false
