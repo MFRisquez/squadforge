@@ -15,9 +15,15 @@
 
 {% macro chip_blurb(key) %}
   {% if key == 'wildcard' %}
-  Unlimited transfers this GW. 2nd available from GW20.
+  Unlimited transfers until the next deadline. Second Wildcard unlocks from GW20.
   {% elif key == 'free_hit' %}
-  One-week squad only — reverts after the GW.
+  Change your whole squad for one GW only — it reverts after that gameweek.
+  {% elif key == 'bench_boost' %}
+  Bench players’ points also count this GW.
+  {% elif key == 'triple_captain' %}
+  Your captain scores ×3 instead of ×2 this GW.
+  {% elif key == 'super_sub' %}
+  Pick one bench player; if they play, their points count at ×2. Consumed even if they don’t play.
   {% endif %}
 {% endmacro %}
 
@@ -102,9 +108,10 @@
             <button class="chip-play" type="submit">Play</button>
           </form>
         {% endif %}
-        {% if key in ['wildcard', 'free_hit'] %}
-        <span class="chip-blurb">{{ chip_blurb(key) }}</span>
-        {% endif %}
+        <span class="chip-info-wrap">
+          <button type="button" class="chip-info-btn" aria-label="About {{ label }}" aria-expanded="false">i</button>
+          <span class="chip-tip" role="tooltip">{{ chip_blurb(key) }}</span>
+        </span>
       </div>
     {% endfor %}
   </div>

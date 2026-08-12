@@ -1,4 +1,4 @@
-"""SquadForge application settings."""
+"""FutFantasy application settings."""
 
 from pathlib import Path
 
@@ -22,7 +22,7 @@ def normalize_database_url(url: str) -> str:
 
 
 class Settings(BaseSettings):
-    app_name: str = "SquadForge"
+    app_name: str = "FutFantasy"
     debug: bool = True
     secret_key: str = "squadforge-dev-change-me"
     # Local default: SQLite file. On Render, set DATABASE_URL to Postgres so accounts survive redeploys.

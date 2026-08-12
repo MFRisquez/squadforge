@@ -84,21 +84,19 @@ def _ensure_schema_patches() -> None:
 
 @app.on_event("startup")
 def on_startup() -> None:
-    required = {
-        "clubs",
-        "td_picks",
-        "chip_states",
-        "memberships",
-        "leagues",
-        "owned_players",
-        "transfer_states",
-        "h2h_matches",
-    }
-    existing = set(inspect(engine).get_table_names())
-    if settings.reset_db_on_startup or not required.issubset(existing):
+    # Never wipe existing data on deploy. Only drop when explicitly requested.
+    if settings.reset_db_on_startup:
         Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     _ensure_schema_patches()
+    db_kind = "postgres" if "postgresql" in settings.database_url else "sqlite"
+    print(f"[futfantasy] database backend: {db_kind}", flush=True)
+    if db_kind == "sqlite":
+        print(
+            "[futfantasy] WARNING: SQLite is wiped on every Render redeploy. "
+            "Set DATABASE_URL to Render Postgres so accounts persist.",
+            flush=True,
+        )
     db = SessionLocal()
     try:
         seed_if_empty(db, force_fpl_sync=False)
