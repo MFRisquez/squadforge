@@ -11,13 +11,17 @@ DATA_DIR.mkdir(exist_ok=True)
 
 
 def normalize_database_url(url: str) -> str:
-    """Render/Neon often give postgres:// — SQLAlchemy + psycopg need postgresql+psycopg://."""
+    """Render/Supabase often give postgres:// — SQLAlchemy + psycopg need postgresql+psycopg://."""
     if not url:
         return url
     if url.startswith("postgres://"):
         url = "postgresql://" + url[len("postgres://") :]
     if url.startswith("postgresql://") and "+psycopg" not in url.split("://", 1)[0]:
         url = "postgresql+psycopg://" + url[len("postgresql://") :]
+    # Supabase requires TLS; Render Postgres usually does too when using external hosts
+    host = url.split("@")[-1].split("/")[0].lower() if "@" in url else ""
+    if "supabase" in host and "sslmode=" not in url:
+        url += ("&" if "?" in url else "?") + "sslmode=require"
     return url
 
 
@@ -25,7 +29,7 @@ class Settings(BaseSettings):
     app_name: str = "FutFantasy"
     debug: bool = True
     secret_key: str = "squadforge-dev-change-me"
-    # Local default: SQLite file. On Render, set DATABASE_URL to Postgres so accounts survive redeploys.
+    # Local default: SQLite file. On Render, set DATABASE_URL to Supabase Postgres.
     database_url: str = f"sqlite:///{DATA_DIR / 'squadforge.db'}"
     formula_version: str = "v0.2.1-cameo"
     budget: float = 100.0
