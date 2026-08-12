@@ -74,4 +74,27 @@
     if (bannerInstall) bannerInstall.hidden = true;
   }
   if (isStandalone) showInstallUi(false);
+
+  // Chip info: hover on desktop (CSS), tap toggle on phone
+  function closeAllChipTips(except) {
+    document.querySelectorAll(".chip-info-wrap.is-open").forEach((wrap) => {
+      if (except && wrap === except) return;
+      wrap.classList.remove("is-open");
+      const btn = wrap.querySelector(".chip-info-btn");
+      if (btn) btn.setAttribute("aria-expanded", "false");
+    });
+  }
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".chip-info-btn");
+    if (btn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const wrap = btn.closest(".chip-info-wrap");
+      const open = wrap.classList.toggle("is-open");
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open) closeAllChipTips(wrap);
+      return;
+    }
+    if (!e.target.closest(".chip-info-wrap")) closeAllChipTips();
+  });
 })();

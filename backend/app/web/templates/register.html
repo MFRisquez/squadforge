@@ -1,27 +1,29 @@
 {% extends "base.html" %}
-{% block title %}Register · {{ app_name }}{% endblock %}
+{% block title %}Create account · {{ app_name }}{% endblock %}
+{% block body_class %}page-auth{% endblock %}
 {% block content %}
-<section class="hero-block compact">
-  <p class="eyebrow">Free account</p>
-  <h1>Register</h1>
-  <p class="lede">Create your manager profile, then build your team.</p>
-</section>
-<form class="panel stack soft-form" method="post" action="/register">
-  <label>User name
-    <input name="display_name" required maxlength="80" placeholder="Manuel" autocomplete="username" />
-  </label>
-  <label>Password
-    <input name="password" type="password" required minlength="6" maxlength="128" autocomplete="new-password" />
-  </label>
-  <label>Email
-    <input name="email" type="email" required maxlength="120" placeholder="you@email.com" autocomplete="email" />
-  </label>
-  <label>Team’s name
-    <input name="team_name" required maxlength="80" placeholder="Forge FC" autocomplete="organization" />
-  </label>
-  <button class="btn" type="submit">Create account</button>
-</form>
-<p class="auth-links muted">
-  Already registered? <a href="/login">Sign in</a>
-</p>
+<div class="auth-stage">
+  <div class="auth-brand">
+    <span class="auth-brand-mark"></span>
+    <h1 class="auth-logo">{{ app_name }}</h1>
+  </div>
+
+  <form class="auth-card stack" method="post" action="/register">
+    <p class="auth-card-title">Create account</p>
+    <label class="auth-field">User name
+      <input name="display_name" required maxlength="80" placeholder="Manuel" autocomplete="username" />
+    </label>
+    <label class="auth-field">Password
+      <input name="password" type="password" required minlength="6" maxlength="128" autocomplete="new-password" />
+    </label>
+    <label class="auth-field">Email
+      <input name="email" type="email" required maxlength="120" placeholder="you@email.com" autocomplete="email" />
+    </label>
+    <label class="auth-field">Team’s name
+      <input name="team_name" required maxlength="80" placeholder="Forge FC" autocomplete="organization" />
+    </label>
+    <button class="btn auth-primary" type="submit">Create account</button>
+    <a class="auth-text-link auth-secondary-link" href="/login">Back to sign in</a>
+  </form>
+</div>
 {% endblock %}

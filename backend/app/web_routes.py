@@ -556,6 +556,31 @@ def team_page(request: Request, db: Session = Depends(get_db)):
         player = by_id.get(pick.player_id)
         if player and not pick.is_captain and not getattr(pick, "is_vice_captain", 0):
             bench_options.append(player)
+    from app.services.fpl_sync import availability_flag
+
+    flag_labels = {"out": "Out", "doubt": "Doubt", "ok": "OK"}
+    squad_alerts = []
+    for player in owned:
+        flag = availability_flag(getattr(player, "status", "a"), getattr(player, "chance_of_playing", None))
+        if flag not in ("out", "doubt"):
+            continue
+        squad_alerts.append(
+            {
+                "name": player.name,
+                "club": player.team_code,
+                "flag": flag,
+                "flag_label": flag_labels.get(flag, flag.title()),
+                "news": (getattr(player, "news", None) or "").strip(),
+                "chance": getattr(player, "chance_of_playing", None),
+            }
+        )
+    squad_alerts.sort(
+        key=lambda a: (
+            0 if a["flag"] == "out" else 1,
+            a["chance"] if a["chance"] is not None else 999,
+            a["name"],
+        )
+    )
     return templates.TemplateResponse(
         "team.html",
         _ctx(
@@ -578,6 +603,7 @@ def team_page(request: Request, db: Session = Depends(get_db)):
             hits_gw=hits_gw,
             hit_cost=squad_svc.HIT_COST,
             players_json=_players_payload(db),
+            squad_alerts=squad_alerts,
             initial_squad={
                 "selected": [p.id for p in owned],
                 "budget": settings.budget,

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Squad · {{ app_name }}{% endblock %}
+{% block title %}Transfers · {{ app_name }}{% endblock %}
 {% block body_class %}page-fit page-squad{% endblock %}
 {% block content %}
 {% from "macros_gw.html" import gw_bar %}
@@ -108,41 +108,65 @@
       </section>
     </form>
   </div>
-  <aside class="desk-rail transfer-rail" id="transferRail" aria-label="Transfer targets">
-    <header class="desk-rail-head">
-      <p class="eyebrow">Transfers</p>
-      <div class="rail-filters">
-        <label class="rail-sort">
-          <span class="sr-only">Position</span>
-          <select id="transferPosFilter" aria-label="Filter by position">
-            <option value="">All positions</option>
-            <option value="GK">GK</option>
-            <option value="DEF">DEF</option>
-            <option value="MID">MID</option>
-            <option value="ATT">ATT</option>
-          </select>
-        </label>
-        <label class="rail-sort">
-          <span class="sr-only">Sort by</span>
-          <select id="transferSort" aria-label="Sort transfer targets">
-            <option value="points">Points</option>
-            <option value="form">Form</option>
-            <option value="price">Price</option>
-          </select>
-        </label>
-      </div>
-    </header>
-    <ul class="transfer-rail-list" id="transferRailList">
-      <li class="transfer-rail-head" aria-hidden="true">
-        <div class="transfer-rail-row is-head">
-          <span class="tr-name">Player</span>
-          <span class="tr-price">Price</span>
-          <span class="tr-form">Form</span>
-          <span class="tr-pts">Pts</span>
+  <div class="desk-side">
+    <section class="squad-alerts desk-only" aria-label="Squad news">
+      <header class="squad-alerts-head">
+        <p class="eyebrow">Squad news</p>
+        <h2>Watch list</h2>
+      </header>
+      {% if squad_alerts %}
+      <ul class="squad-alerts-list">
+        {% for a in squad_alerts %}
+        <li class="squad-alert is-{{ a.flag }}">
+          <div class="squad-alert-top">
+            <strong>{{ a.name }}</strong>
+            <span class="squad-alert-flag">{{ a.flag_label }}</span>
+          </div>
+          <p class="squad-alert-meta">{{ a.club }}{% if a.chance is not none %} · {{ a.chance }}%{% endif %}</p>
+          {% if a.news %}<p class="squad-alert-news">{{ a.news }}</p>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="squad-alerts-empty muted">No injury or doubt flags in your 15 right now.</p>
+      {% endif %}
+    </section>
+    <aside class="desk-rail transfer-rail" id="transferRail" aria-label="Free agents">
+      <header class="desk-rail-head">
+        <p class="eyebrow">Free Agents</p>
+        <div class="rail-filters">
+          <label class="rail-sort">
+            <span class="sr-only">Position</span>
+            <select id="transferPosFilter" aria-label="Filter by position">
+              <option value="">All positions</option>
+              <option value="GK">GK</option>
+              <option value="DEF">DEF</option>
+              <option value="MID">MID</option>
+              <option value="ATT">ATT</option>
+            </select>
+          </label>
+          <label class="rail-sort">
+            <span class="sr-only">Sort by</span>
+            <select id="transferSort" aria-label="Sort free agents">
+              <option value="points">Points</option>
+              <option value="form">Form</option>
+              <option value="price">Price</option>
+            </select>
+          </label>
         </div>
-      </li>
-    </ul>
-  </aside>
+      </header>
+      <ul class="transfer-rail-list" id="transferRailList">
+        <li class="transfer-rail-head" aria-hidden="true">
+          <div class="transfer-rail-row is-head">
+            <span class="tr-name">Player</span>
+            <span class="tr-price">Price</span>
+            <span class="tr-form">Form</span>
+            <span class="tr-pts">Pts</span>
+          </div>
+        </li>
+      </ul>
+    </aside>
+  </div>
 </div>
 
 <div class="picker-modal" id="picker" hidden>
