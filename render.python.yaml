@@ -1,3 +1,8 @@
+databases:
+  - name: squadforge-db
+    plan: free
+    postgresMajorVersion: "16"
+
 services:
   - type: web
     name: squadforge
@@ -12,4 +17,6 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        value: sqlite:///./data/squadforge.db
+        fromDatabase:
+          name: squadforge-db
+          property: connectionString
