@@ -229,19 +229,26 @@ def home(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/login", response_class=HTMLResponse)
 def login_page(request: Request, db: Session = Depends(get_db)):
-    return templates.TemplateResponse("login.html", _ctx(request, db))
+    return templates.TemplateResponse(
+        "login.html",
+        _ctx(
+            request,
+            db,
+            notice=request.query_params.get("notice"),
+            error=request.query_params.get("error"),
+        ),
+    )
 
 
 @router.post("/login")
 def login_submit(
     request: Request,
-    display_name: str = Form(...),
-    pin: str = Form(...),
-    team_name: str = Form(""),
+    login: str = Form(...),
+    password: str = Form(...),
     db: Session = Depends(get_db),
 ):
     try:
-        manager = league_svc.get_or_create_manager(db, display_name, pin, team_name)
+        manager = league_svc.authenticate_manager(db, login=login, password=password)
     except league_svc.LeagueError as exc:
         return templates.TemplateResponse(
             "login.html",
@@ -250,6 +257,118 @@ def login_submit(
         )
     login_manager(request, manager)
     return RedirectResponse("/", status_code=303)
+
+
+@router.get("/register", response_class=HTMLResponse)
+def register_page(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse("register.html", _ctx(request, db))
+
+
+@router.post("/register")
+def register_submit(
+    request: Request,
+    display_name: str = Form(...),
+    password: str = Form(...),
+    email: str = Form(...),
+    team_name: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    try:
+        manager = league_svc.register_manager(
+            db,
+            display_name=display_name,
+            password=password,
+            email=email,
+            team_name=team_name,
+        )
+    except league_svc.LeagueError as exc:
+        return templates.TemplateResponse(
+            "register.html",
+            _ctx(request, db, error=str(exc)),
+            status_code=400,
+        )
+    login_manager(request, manager)
+    return RedirectResponse("/?notice=Welcome+·+your+account+is+ready", status_code=303)
+
+
+@router.get("/forgot-password", response_class=HTMLResponse)
+def forgot_password_page(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse("forgot_password.html", _ctx(request, db))
+
+
+@router.post("/forgot-password")
+def forgot_password_submit(
+    request: Request,
+    email: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    from app.services import mail as mail_svc
+
+    try:
+        manager, raw = league_svc.request_password_reset(db, email)
+    except league_svc.LeagueError as exc:
+        return templates.TemplateResponse(
+            "forgot_password.html",
+            _ctx(request, db, error=str(exc)),
+            status_code=400,
+        )
+
+    # Always show a calm success message (no account enumeration)
+    notice = "If that email is registered, a reset link is ready."
+    reset_url = None
+    if manager and raw:
+        base = (settings.public_base_url or str(request.base_url)).rstrip("/")
+        reset_url = f"{base}/reset-password?token={raw}"
+        sent = mail_svc.send_password_reset_email(
+            to_email=manager.email,
+            reset_url=reset_url,
+            display_name=manager.display_name,
+        )
+        if sent:
+            notice = "Check your email for a password reset link."
+            reset_url = None  # don't show raw link when mail was sent
+        else:
+            notice = "Email delivery isn’t configured yet — use the reset link below."
+
+    return templates.TemplateResponse(
+        "forgot_password.html",
+        _ctx(request, db, notice=notice, reset_url=reset_url),
+    )
+
+
+@router.get("/reset-password", response_class=HTMLResponse)
+def reset_password_page(request: Request, db: Session = Depends(get_db), token: str = ""):
+    if not token:
+        return RedirectResponse("/forgot-password?error=Missing+reset+token", status_code=303)
+    return templates.TemplateResponse(
+        "reset_password.html",
+        _ctx(request, db, token=token),
+    )
+
+
+@router.post("/reset-password")
+def reset_password_submit(
+    request: Request,
+    token: str = Form(...),
+    password: str = Form(...),
+    password_confirm: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    if password != password_confirm:
+        return templates.TemplateResponse(
+            "reset_password.html",
+            _ctx(request, db, token=token, error="Passwords do not match"),
+            status_code=400,
+        )
+    try:
+        league_svc.reset_password_with_token(db, token=token, new_password=password)
+    except league_svc.LeagueError as exc:
+        return templates.TemplateResponse(
+            "reset_password.html",
+            _ctx(request, db, token=token, error=str(exc)),
+            status_code=400,
+        )
+    return RedirectResponse("/login?notice=Password+updated+·+sign+in", status_code=303)
 
 
 @router.post("/logout")

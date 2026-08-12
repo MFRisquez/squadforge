@@ -101,11 +101,25 @@ class Manager(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     display_name: Mapped[str] = mapped_column(String(80), unique=True)
-    pin: Mapped[str] = mapped_column(String(16), default="0000")  # simple friend PIN
+    # Legacy PIN (pre-password accounts). New accounts use password_hash.
+    pin: Mapped[str] = mapped_column(String(16), default="")
+    email: Mapped[str] = mapped_column(String(120), default="", index=True)
+    password_hash: Mapped[str] = mapped_column(String(255), default="")
     team_name: Mapped[str] = mapped_column(String(80), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     memberships: Mapped[list["Membership"]] = relationship(back_populates="manager")
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    manager_id: Mapped[int] = mapped_column(ForeignKey("managers.id"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    used_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class Membership(Base):

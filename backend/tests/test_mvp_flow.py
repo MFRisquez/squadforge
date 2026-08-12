@@ -75,8 +75,20 @@ def test_home_login_squad_lineup_transfer():
     assert client.get("/").status_code == 200
 
     r = client.post(
+        "/register",
+        data={
+            "display_name": "Manuel",
+            "password": "secret12",
+            "email": "manuel@example.com",
+            "team_name": "Forge FC",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    r = client.post(
         "/login",
-        data={"display_name": "Manuel", "pin": "1234", "team_name": "Forge FC"},
+        data={"login": "Manuel", "password": "secret12"},
         follow_redirects=False,
     )
     assert r.status_code == 303

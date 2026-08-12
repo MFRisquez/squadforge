@@ -2,39 +2,155 @@
 
 from __future__ import annotations
 
+import re
+from datetime import datetime, timezone
+
 from sqlalchemy.orm import Session
 
-from app.models import ChipState, League, Manager, Membership
+from app.models import ChipState, League, Manager, Membership, PasswordResetToken
+from app.services import passwords as pw
 from app.services.seed import invite_code
+
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 class LeagueError(ValueError):
     pass
 
 
-def get_or_create_manager(db: Session, display_name: str, pin: str, team_name: str = "") -> Manager:
+def _norm_email(email: str) -> str:
+    return (email or "").strip().lower()
+
+
+def register_manager(
+    db: Session,
+    *,
+    display_name: str,
+    password: str,
+    email: str,
+    team_name: str,
+) -> Manager:
     name = display_name.strip()
+    mail = _norm_email(email)
+    team = (team_name or "").strip()
     if len(name) < 2:
-        raise LeagueError("Name too short")
-    if len(pin) < 4:
-        raise LeagueError("PIN must be at least 4 characters")
+        raise LeagueError("User name too short")
+    if len(password) < 6:
+        raise LeagueError("Password must be at least 6 characters")
+    if not EMAIL_RE.match(mail):
+        raise LeagueError("Enter a valid email")
+    if len(team) < 2:
+        raise LeagueError("Team name is required")
 
-    existing = db.query(Manager).filter(Manager.display_name == name).one_or_none()
-    if existing:
-        if existing.pin != pin:
-            raise LeagueError("Wrong PIN for that name")
-        if team_name and not existing.team_name:
-            existing.team_name = team_name.strip()
-            db.commit()
-        return existing
+    if db.query(Manager).filter(Manager.display_name == name).one_or_none():
+        raise LeagueError("That user name is already taken")
+    if db.query(Manager).filter(Manager.email == mail).one_or_none():
+        raise LeagueError("That email is already registered")
 
-    manager = Manager(display_name=name, pin=pin, team_name=team_name.strip() or f"{name}'s XI")
+    manager = Manager(
+        display_name=name,
+        email=mail,
+        password_hash=pw.hash_password(password),
+        pin="",
+        team_name=team,
+    )
     db.add(manager)
     db.flush()
     db.add(ChipState(manager_id=manager.id))
     db.commit()
     db.refresh(manager)
     return manager
+
+
+def authenticate_manager(db: Session, *, login: str, password: str) -> Manager:
+    key = (login or "").strip()
+    if not key or not password:
+        raise LeagueError("Enter your user name (or email) and password")
+
+    manager = db.query(Manager).filter(Manager.display_name == key).one_or_none()
+    if not manager and "@" in key:
+        manager = db.query(Manager).filter(Manager.email == key.lower()).one_or_none()
+    if not manager:
+        raise LeagueError("Unknown account — register first")
+
+    if manager.password_hash:
+        if not pw.verify_password(password, manager.password_hash):
+            raise LeagueError("Wrong password")
+        return manager
+
+    # Legacy PIN accounts: accept PIN once, then upgrade to hashed password
+    if manager.pin and pw.verify_password(password, manager.pin):
+        manager.password_hash = pw.hash_password(password)
+        manager.pin = ""
+        db.commit()
+        db.refresh(manager)
+        return manager
+
+    raise LeagueError("Wrong password")
+
+
+def request_password_reset(db: Session, email: str) -> tuple[Manager | None, str | None]:
+    """Create a reset token when the email exists. Unknown emails return (None, None)."""
+    mail = _norm_email(email)
+    if not EMAIL_RE.match(mail):
+        raise LeagueError("Enter a valid email")
+    manager = db.query(Manager).filter(Manager.email == mail).one_or_none()
+    if not manager:
+        return None, None
+    raw = pw.new_reset_token()
+    db.add(
+        PasswordResetToken(
+            manager_id=manager.id,
+            token_hash=pw.hash_token(raw),
+            expires_at=pw.reset_expiry(hours=2).replace(tzinfo=None),
+        )
+    )
+    db.commit()
+    return manager, raw
+
+
+def reset_password_with_token(db: Session, *, token: str, new_password: str) -> Manager:
+    if len(new_password) < 6:
+        raise LeagueError("Password must be at least 6 characters")
+    token_hash = pw.hash_token(token)
+    row = (
+        db.query(PasswordResetToken)
+        .filter(PasswordResetToken.token_hash == token_hash, PasswordResetToken.used_at.is_(None))
+        .one_or_none()
+    )
+    if not row:
+        raise LeagueError("Reset link is invalid or already used")
+    expires = row.expires_at
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    if datetime.now(timezone.utc) > expires:
+        raise LeagueError("Reset link has expired — request a new one")
+    manager = db.query(Manager).filter(Manager.id == row.manager_id).one_or_none()
+    if not manager:
+        raise LeagueError("Account not found")
+    manager.password_hash = pw.hash_password(new_password)
+    manager.pin = ""
+    row.used_at = datetime.utcnow()
+    db.commit()
+    db.refresh(manager)
+    return manager
+
+
+def get_or_create_manager(db: Session, display_name: str, pin: str, team_name: str = "") -> Manager:
+    """Backward-compatible helper for older tests — prefer register/authenticate."""
+    name = display_name.strip()
+    existing = db.query(Manager).filter(Manager.display_name == name).one_or_none()
+    if existing:
+        return authenticate_manager(db, login=name, password=pin)
+    pwd = pin if len(pin) >= 6 else f"{pin}00xx"
+    slug = re.sub(r"[^a-z0-9]+", ".", name.lower()).strip(".") or "user"
+    return register_manager(
+        db,
+        display_name=name,
+        password=pwd,
+        email=f"{slug}@example.local",
+        team_name=team_name.strip() or f"{name}'s XI",
+    )
 
 
 def create_league(

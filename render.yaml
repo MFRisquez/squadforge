@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: squadforge
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PUBLIC_BASE_URL
+        fromService:
+          type: web
+          name: squadforge
+          property: host
+      - key: DATABASE_URL
+        value: sqlite:////data/squadforge.db
+    disk:
+      name: squadforge-data
+      mountPath: /data
+      sizeGB: 1

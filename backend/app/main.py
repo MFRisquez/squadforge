@@ -72,6 +72,14 @@ def _ensure_schema_patches() -> None:
         if "is_hit" not in cols:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE transfer_logs ADD COLUMN is_hit INTEGER DEFAULT 0"))
+    if "managers" in tables:
+        cols = {c["name"] for c in inspect(engine).get_columns("managers")}
+        if "email" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE managers ADD COLUMN email VARCHAR(120) DEFAULT ''"))
+        if "password_hash" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE managers ADD COLUMN password_hash VARCHAR(255) DEFAULT ''"))
 
 
 @app.on_event("startup")

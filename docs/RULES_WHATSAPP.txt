@@ -104,6 +104,7 @@ If ONLY YOU own a player in our league, and that player:
 ————————————
 TECHNICAL DIRECTOR (not a chip)
 ————————————
+• Shown on Squad & XI pitch · bottom-right corner
 • Pick a real PL club ANYTIME you don’t already have an active TD window
 • That club then scores for exactly 3 gameweeks (then pick again)
 • Win +3 · Draw +1 · Loss −1

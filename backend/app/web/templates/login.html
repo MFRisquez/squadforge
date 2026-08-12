@@ -4,18 +4,20 @@
 <section class="hero-block compact">
   <p class="eyebrow">Welcome</p>
   <h1>Sign in</h1>
-  <p class="lede">New name creates your manager. Use the same PIN next time.</p>
+  <p class="lede">Free for your friends league. Use the account you registered.</p>
 </section>
 <form class="panel stack soft-form" method="post" action="/login">
-  <label>Your name
-    <input name="display_name" required maxlength="80" placeholder="Manuel" autocomplete="username" />
+  <label>User name or email
+    <input name="login" required maxlength="120" placeholder="Manuel or you@email.com" autocomplete="username" />
   </label>
-  <label>PIN (min 4 chars)
-    <input name="pin" type="password" required minlength="4" maxlength="16" autocomplete="current-password" />
+  <label>Password
+    <input name="password" type="password" required minlength="4" maxlength="128" autocomplete="current-password" />
   </label>
-  <label>Team name (optional)
-    <input name="team_name" maxlength="80" placeholder="Forge FC" />
-  </label>
-  <button class="btn" type="submit">Continue</button>
+  <button class="btn" type="submit">Sign in</button>
 </form>
+<p class="auth-links muted">
+  <a href="/register">Create an account</a>
+  ·
+  <a href="/forgot-password">Recover password</a>
+</p>
 {% endblock %}
