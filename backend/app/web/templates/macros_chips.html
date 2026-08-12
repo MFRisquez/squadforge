@@ -78,10 +78,6 @@
       <div class="chip-card-fpl {% if key == 'super_sub' %}chip-card-ss{% elif key in ['bench_boost', 'triple_captain'] %}chip-card-wide{% endif %} {% if is_active %}is-active{% endif %} {% if left < 1 and not is_active %}is-spent{% endif %} {% if unavailable and not is_active %}is-unavailable{% endif %}" role="listitem">
         <div class="chip-ico" aria-hidden="true">{{ chip_icon(key) }}</div>
         <strong class="chip-name">{{ label }}</strong>
-        <span class="chip-info-wrap">
-          <button type="button" class="chip-info-btn" aria-label="About {{ label }}" aria-expanded="false">i</button>
-          <span class="chip-tip" role="tooltip">{{ chip_blurb(key) }}</span>
-        </span>
         {% if is_active %}
           <span class="chip-status is-on">On</span>
         {% elif left < 1 %}
@@ -112,6 +108,10 @@
             <button class="chip-play" type="submit">Play</button>
           </form>
         {% endif %}
+        <span class="chip-info-wrap">
+          <button type="button" class="chip-info-btn" aria-label="About {{ label }}" aria-expanded="false">i</button>
+          <span class="chip-tip" role="tooltip">{{ chip_blurb(key) }}</span>
+        </span>
       </div>
     {% endfor %}
   </div>

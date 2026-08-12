@@ -1,6 +1,6 @@
 {
-  "name": "SquadForge",
-  "short_name": "SquadForge",
+  "name": "FutFantasy",
+  "short_name": "FutFantasy",
   "description": "Private Fantasy Premier League for friends — phone app",
   "start_url": "/?source=pwa",
   "scope": "/",

@@ -11,42 +11,42 @@
   {% if edits_locked %}Gameweek locked.{% else %}Edit your squad and transfers.{% endif %}
 </p>
 
-{{ chip_strip(chips, active_chip, edits_locked, bench_options, group='squad', next_path='/team') }}
-
-<div class="stat-strip" aria-label="Squad snapshot">
-  <div class="stat">
-    <span class="stat-label">Bank</span>
-    <strong id="budgetValue">£{{ '%.1f'|format(budget - spend) }}m</strong>
-    <span class="stat-sub">of £{{ '%.1f'|format(budget) }}m</span>
-  </div>
-  <div class="stat">
-    <span class="stat-label">Free transfers</span>
-    <strong>{% if unlimited_transfers %}∞{% else %}{{ ft_left }}{% endif %}</strong>
-    <span class="stat-sub">{% if unlimited_transfers %}unlimited{% else %}banked{% endif %}</span>
-  </div>
-  <div class="stat">
-    <span class="stat-label">Hits</span>
-    <strong>{% if hits_gw %}−{{ hits_gw * hit_cost }}{% else %}0{% endif %}</strong>
-    <span class="stat-sub">{% if hits_gw %}{{ hits_gw }}× −{{ hit_cost }}{% else %}this GW{% endif %}</span>
-  </div>
-  <div class="stat">
-    <span class="stat-label">Made</span>
-    <strong>{{ transfers_gw }}</strong>
-    <span class="stat-sub">this GW</span>
-  </div>
-</div>
-
-<form method="post" action="/transfers/make" id="transferForm" class="swap-bar" hidden>
-  <input type="hidden" name="player_out_id" id="outId" />
-  <input type="hidden" name="player_in_id" id="inId" />
-  <p id="swapSummary" class="swap-summary"></p>
-  <button class="btn" type="submit" id="confirmSwap" disabled>Confirm swap</button>
-  <button class="btn ghost" type="button" id="clearSwap">Cancel</button>
-</form>
-
 <form method="post" action="/td/save" id="tdForm" hidden aria-hidden="true"></form>
 <div class="desk-board desk-squad">
   <div class="desk-main">
+    {{ chip_strip(chips, active_chip, edits_locked, bench_options, group='squad', next_path='/team') }}
+
+    <div class="stat-strip" aria-label="Squad snapshot">
+      <div class="stat">
+        <span class="stat-label">Budget</span>
+        <strong id="budgetValue">£{{ '%.1f'|format(budget - spend) }}m</strong>
+        <span class="stat-sub">of £{{ '%.1f'|format(budget) }}m</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Free transfers</span>
+        <strong>{% if unlimited_transfers %}∞{% else %}{{ ft_left }}{% endif %}</strong>
+        <span class="stat-sub">{% if unlimited_transfers %}unlimited{% else %}banked{% endif %}</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Hits</span>
+        <strong>{% if hits_gw %}−{{ hits_gw * hit_cost }}{% else %}0{% endif %}</strong>
+        <span class="stat-sub">{% if hits_gw %}{{ hits_gw }}× −{{ hit_cost }}{% else %}this GW{% endif %}</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Made</span>
+        <strong>{{ transfers_gw }}</strong>
+        <span class="stat-sub">this GW</span>
+      </div>
+    </div>
+
+    <form method="post" action="/transfers/make" id="transferForm" class="swap-bar" hidden>
+      <input type="hidden" name="player_out_id" id="outId" />
+      <input type="hidden" name="player_in_id" id="inId" />
+      <p id="swapSummary" class="swap-summary"></p>
+      <button class="btn" type="submit" id="confirmSwap" disabled>Confirm swap</button>
+      <button class="btn ghost" type="button" id="clearSwap">Cancel</button>
+    </form>
+
     <form method="post" action="/team/save" id="squadForm">
       <div id="hiddenFields"></div>
       <section class="pitch-wrap squad-pitch-wrap">

@@ -1118,20 +1118,22 @@ select {
 }
 .chip-card-fpl {
   flex: 0 0 auto;
-  width: 7.8rem;
+  width: 8.1rem;
   min-height: 0;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   grid-template-rows: auto auto;
   align-items: center;
-  column-gap: 0.35rem;
+  column-gap: 0.3rem;
   row-gap: 0.12rem;
-  padding: 0.28rem 0.45rem 0.28rem 0.35rem;
+  padding: 0.28rem 0.4rem 0.28rem 0.35rem;
   border-radius: 0.55rem;
   background: #fff;
   border: 1px solid #D9D9D9;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   text-align: left;
+  position: relative;
+  overflow: visible;
 }
 .chip-card-fpl .chip-ico {
   grid-row: 1 / span 2;
@@ -1174,15 +1176,16 @@ select {
 }
 .chip-card-fpl .chip-info-wrap {
   grid-column: 3;
-  grid-row: 1;
+  grid-row: 1 / span 2;
   justify-self: end;
   align-self: center;
+  z-index: 5;
 }
 .chip-card-fpl .chip-play,
 .chip-card-fpl .chip-status,
 .chip-card-fpl .chip-play-form,
 .chip-card-fpl .chip-ss-form {
-  grid-column: 2 / 4;
+  grid-column: 2;
   grid-row: 2;
   justify-self: start;
 }
@@ -2918,7 +2921,27 @@ body.picker-open {
     gap: 0.3rem;
     align-items: start;
   }
-  .desk-main { min-width: 0; }
+  .desk-main {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .desk-squad .desk-main .chip-strip-wrap,
+  .desk-squad .desk-main .stat-strip,
+  .desk-squad .desk-main .swap-bar {
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
+    box-sizing: border-box;
+  }
+  .desk-squad .desk-main .chip-strip-wrap {
+    overflow: visible;
+  }
+  .desk-squad .desk-main .chip-strip-cards {
+    overflow: visible;
+  }
   .desk-squad .desk-main > form {
     display: flex;
     flex-direction: column;
@@ -3512,7 +3535,7 @@ body.picker-open {
     min-width: 0;
     box-sizing: border-box;
     display: grid;
-    grid-template-columns: auto auto auto auto;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
     grid-template-rows: auto;
     align-items: center;
     column-gap: 0.45rem;
@@ -3542,21 +3565,22 @@ body.picker-open {
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  /* Play sits after the info tip */
+  /* Play sits after the title; info tip stays on the far right */
   body.page-xi .chip-card-fpl:not(.chip-card-ss) .chip-play-form,
   body.page-xi .chip-card-fpl:not(.chip-card-ss) .chip-status,
   body.page-squad .chip-card-fpl .chip-play-form,
   body.page-squad .chip-card-fpl .chip-status {
     grid-row: 1;
-    grid-column: 4;
+    grid-column: 3;
     justify-self: start;
     margin: 0;
   }
   body.page-xi .chip-card-fpl .chip-info-wrap,
   body.page-squad .chip-card-fpl .chip-info-wrap {
     grid-row: 1;
-    grid-column: 3;
-    justify-self: start;
+    grid-column: 4;
+    justify-self: end;
+    align-self: center;
   }
   body.page-xi .chip-card-fpl .chip-play,
   body.page-squad .chip-card-fpl .chip-play {
@@ -3572,11 +3596,11 @@ body.picker-open {
     display: contents;
   }
   body.page-xi .chip-card-fpl.chip-card-ss {
-    grid-template-columns: auto auto auto auto minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr) auto auto minmax(0, 1.2fr);
   }
   body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form .chip-play {
     grid-row: 1;
-    grid-column: 4;
+    grid-column: 3;
     justify-self: start;
   }
   body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form select {
@@ -3590,8 +3614,11 @@ body.picker-open {
   }
   body.page-xi .chip-card-fpl.chip-card-ss .chip-status {
     grid-row: 1;
-    grid-column: 4 / 6;
+    grid-column: 3;
     justify-self: start;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-info-wrap {
+    grid-column: 4;
   }
   body.page-fit .stat-strip {
     flex: 0 0 auto;
@@ -5330,20 +5357,20 @@ body.page-auth .flash.error {
   justify-self: start;
 }
 .chip-info-btn {
-  width: 1.15rem;
-  height: 1.15rem;
+  width: 0.92rem;
+  height: 0.92rem;
   border-radius: 999px;
-  border: 1.5px solid currentColor;
+  border: 1.4px solid currentColor;
   background: transparent;
   color: inherit;
-  font-size: 0.68rem;
+  font-size: 0.58rem;
   font-weight: 800;
   line-height: 1;
   padding: 0;
   cursor: help;
   display: inline-grid;
   place-items: center;
-  opacity: 0.78;
+  opacity: 0.72;
 }
 .chip-info-btn:hover,
 .chip-info-wrap.is-open .chip-info-btn {
@@ -5354,46 +5381,53 @@ body.page-auth .flash.error {
 }
 .chip-tip {
   position: absolute;
-  left: 50%;
-  bottom: calc(100% + 0.45rem);
-  transform: translateX(-50%) translateY(0.15rem);
-  width: min(15.5rem, 70vw);
-  padding: 0.55rem 0.65rem;
+  left: auto;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  bottom: auto;
+  transform: translateY(-0.12rem);
+  width: min(18rem, 78vw);
+  max-width: 18rem;
+  padding: 0.65rem 0.75rem;
   border-radius: 0.55rem;
-  background: rgba(0, 0, 0, 0.82);
+  background: rgba(0, 0, 0, 0.88);
   color: #FFFFFF;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 600;
-  line-height: 1.35;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  line-height: 1.4;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
   transition: opacity 140ms ease, transform 140ms ease, visibility 140ms ease;
-  z-index: 30;
+  z-index: 40;
   text-align: left;
+  white-space: normal;
 }
 .chip-tip::after {
   content: "";
   position: absolute;
-  top: 100%;
-  left: 50%;
-  margin-left: -5px;
-  border: 5px solid transparent;
-  border-top-color: rgba(0, 0, 0, 0.82);
+  bottom: 100%;
+  top: auto;
+  left: auto;
+  right: 0.55rem;
+  margin-left: 0;
+  border: 6px solid transparent;
+  border-bottom-color: rgba(0, 0, 0, 0.88);
+  border-top-color: transparent;
 }
 @media (hover: hover) and (pointer: fine) {
   .chip-info-wrap:hover .chip-tip,
   .chip-info-wrap:focus-within .chip-tip {
     opacity: 1;
     visibility: visible;
-    transform: translateX(-50%) translateY(0);
+    transform: translateY(0);
   }
 }
 .chip-info-wrap.is-open .chip-tip {
   opacity: 1;
   visibility: visible;
-  transform: translateX(-50%) translateY(0);
+  transform: translateY(0);
   pointer-events: auto;
 }
 

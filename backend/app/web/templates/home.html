@@ -1,24 +1,6 @@
 {% extends "base.html" %}
+{% block title %}{{ app_name }}{% endblock %}
 {% block content %}
-<section class="hero-block">
-  <p class="eyebrow">Private fantasy · {{ formula_version }}</p>
-  <h1>{{ app_name }}</h1>
-  <p class="lede">Pick your 15, lock a lineup, play chips — FPL energy, friend-league rules.</p>
-</section>
-
-{% if not manager %}
-<section class="panel step-card">
-  <div class="step-num">1</div>
-  <div>
-    <h2>Create your free account</h2>
-    <p class="muted">User name, password, email, and your team’s name.</p>
-    <div class="row">
-      <a class="btn" href="/register">Register</a>
-      <a class="btn ghost" href="/login">Sign in</a>
-    </div>
-  </div>
-</section>
-{% else %}
 <section class="panel welcome-row">
   <div>
     <h2>Hi, {{ manager.display_name }}</h2>
@@ -110,7 +92,7 @@
 
 <section class="panel subtle phone-demo-panel">
   <h2>Phone app · live GW test</h2>
-  <p class="muted">Install SquadForge on your phone (Add to Home Screen), then start a live demo to browse XI / Fixtures as if the gameweek already has scores.</p>
+  <p class="muted">Install FutFantasy on your phone (Add to Home Screen), then start a live demo to browse XI / Fixtures as if the gameweek already has scores.</p>
   <div class="row wrap-row">
     {% if live_demo_active %}
     <form method="post" action="/demo/live-stop">
@@ -144,5 +126,4 @@
   <p class="muted">Scoring, chips, TD, and transfers for the group.</p>
   <a class="btn ghost" href="/rules">Open Rules</a>
 </section>
-{% endif %}
 {% endblock %}

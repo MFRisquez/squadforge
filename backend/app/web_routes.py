@@ -207,7 +207,17 @@ def home(request: Request, db: Session = Depends(get_db)):
     from app.services import demo_live as demo_svc
 
     manager = current_manager(request, db)
-    leagues = league_svc.manager_leagues(db, manager.id) if manager else []
+    if not manager:
+        return templates.TemplateResponse(
+            "login.html",
+            _ctx(
+                request,
+                db,
+                notice=request.query_params.get("notice"),
+                error=request.query_params.get("error"),
+            ),
+        )
+    leagues = league_svc.manager_leagues(db, manager.id)
     live_demo = False
     try:
         live_demo = demo_svc.is_live_demo_active(db)
@@ -228,16 +238,9 @@ def home(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/login", response_class=HTMLResponse)
-def login_page(request: Request, db: Session = Depends(get_db)):
-    return templates.TemplateResponse(
-        "login.html",
-        _ctx(
-            request,
-            db,
-            notice=request.query_params.get("notice"),
-            error=request.query_params.get("error"),
-        ),
-    )
+def login_page(request: Request):
+    return RedirectResponse("/", status_code=303)
+
 
 
 @router.post("/login")
