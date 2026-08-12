@@ -94,7 +94,7 @@ def on_startup() -> None:
     if db_kind == "sqlite":
         print(
             "[futfantasy] WARNING: SQLite is wiped on every Render redeploy. "
-            "Set DATABASE_URL to Render Postgres so accounts persist.",
+            "Set DATABASE_URL to your Supabase Postgres URI so accounts persist.",
             flush=True,
         )
     db = SessionLocal()

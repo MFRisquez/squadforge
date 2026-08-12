@@ -4,28 +4,37 @@ Private Fantasy Premier League for ~10 friends. Free to use. Works on **iPhone, 
 
 ## Permanent public link (recommended)
 
-Deploy once to Render (free tier) — this gives a stable HTTPS URL for phones and computers:
+**Render** hosts the website (free). **Supabase** hosts the database (free, no 30-day expiry like Render Postgres).
 
-1. Push this repo to GitHub (already done for `MFRisquez/squadforge`).
-2. Open: [Deploy to Render](https://render.com/deploy?repo=https://github.com/MFRisquez/squadforge)
-3. Create a free Web Service from `render.yaml` (includes a free **Postgres** database).
-4. After deploy, your app URL looks like: `https://squadforge.onrender.com`
-5. Set env var `PUBLIC_BASE_URL` to that URL (for password-reset links).
+### 1) Create a free Supabase database
 
-### Why accounts disappear after Render updates
+1. Go to [https://supabase.com](https://supabase.com) → Sign up / Sign in  
+2. **New project** → name it `futfantasy` → set a strong DB password → create  
+3. Wait until the project is ready  
+4. Click **Connect** (or Project Settings → Database)  
+5. Choose **Session pooler** (port **5432**) — works best from Render  
+6. Copy the URI. It looks like:  
+   `postgresql://postgres.xxxxx:[YOUR-PASSWORD]@aws-0-….pooler.supabase.com:5432/postgres`  
+7. Replace `[YOUR-PASSWORD]` with the real database password if needed  
 
-If `DATABASE_URL` is missing, the app uses a local SQLite file on the web server. Render **deletes that file on every redeploy**. Fix once:
+### 2) Point Render at Supabase
 
-1. Render Dashboard → **New** → **PostgreSQL** → Free → create `squadforge-db`
-2. Open that database → copy **Internal Database URL**
-3. Open your **web service** → **Environment** → add  
-   `DATABASE_URL` = that URL → **Save**
-4. Confirm in **Logs** after deploy: `database backend: postgres` (not `sqlite`)
-5. Register **once more** — later deploys keep the account
+1. Open your **FutFantasy / squadforge** web service on Render  
+2. **Environment** → add or edit:  
+   - **Key:** `DATABASE_URL`  
+   - **Value:** paste the Supabase URI from step 6  
+3. Optional: `PUBLIC_BASE_URL` = your `https://….onrender.com` URL  
+4. **Save** → redeploy (Manual Deploy → latest commit)  
+5. In **Logs**, confirm: `database backend: postgres`  
+6. Register **once** on the live site — later deploys keep the account  
 
-Do **not** remove `DATABASE_URL` when you change branches. Free Postgres expires after 30 days unless upgraded.
+You can **delete / ignore** the expiring Render Postgres database after Supabase works. Do not leave `DATABASE_URL` pointing at the Render DB if you plan to delete it.
 
-Then on iPhone: Safari → that URL → Share → **Add to Home Screen**.
+### 3) Deploy branch
+
+Use branch `cursor/supabase-database-9855` (or merge to your deploy branch).
+
+Then on iPhone: Safari → your Render URL → Share → **Add to Home Screen**.
 
 ## Run locally
 
