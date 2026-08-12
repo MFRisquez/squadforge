@@ -4635,16 +4635,38 @@ body.page-fit .pitch-cap-hint {
   .pill { padding: 0.06rem 0.3rem; font-size: 0.58rem; }
 
   .nav {
-    gap: 0.22rem;
-    padding: 0.4rem 0.45rem;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0.1rem;
+    padding: 0.28rem 0.2rem;
+    padding-left: calc(0.2rem + env(safe-area-inset-left, 0px));
+    padding-right: calc(0.2rem + env(safe-area-inset-right, 0px));
+    overflow-x: hidden;
+    width: 100%;
+    box-sizing: border-box;
     top: calc(1.85rem + env(safe-area-inset-top, 0px));
   }
   .nav a {
-    padding: 0.42rem 0.62rem;
-    font-size: 0.82rem;
-    gap: 0.22rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.06rem;
+    padding: 0.28rem 0.08rem;
+    font-size: 0.58rem;
+    line-height: 1.05;
+    white-space: nowrap;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 0.45rem;
   }
-  .nav-ico { font-size: 0.95rem; }
+  .nav a span:not(.nav-ico) {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .nav-ico { font-size: 0.88rem; line-height: 1; }
 
   .shell {
     padding: 0.4rem 0.45rem calc(0.55rem + env(safe-area-inset-bottom, 0px));
@@ -4700,10 +4722,10 @@ body.page-fit .pitch-cap-hint {
     padding: 0;
   }
   body.page-squad .chip-strip-cards {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
   body.page-xi .chip-strip-cards {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
   body.page-xi .chip-card-fpl.chip-card-ss {
     grid-column: 1 / -1;
@@ -4743,6 +4765,12 @@ body.page-fit .pitch-cap-hint {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  .chip-card-fpl .chip-info-wrap {
+    grid-row: 1;
+    grid-column: 4;
+    justify-self: end;
+    align-self: center;
   }
   .chip-card-fpl:not(.chip-card-ss) .chip-play-form,
   .chip-card-fpl:not(.chip-card-ss) .chip-status {
@@ -5236,7 +5264,8 @@ body.page-fit .pitch-cap-hint {
   .stat { padding: 0.16rem 0.08rem; }
   .stat-label { font-size: 0.36rem; }
   .stat strong { font-size: 0.62rem; }
-  .nav a { padding: 0.38rem 0.5rem; font-size: 0.78rem; }
+  .nav a { padding: 0.22rem 0.04rem; font-size: 0.52rem; }
+  .nav-ico { font-size: 0.8rem; }
   .chip-pill { min-width: 5.2rem; }
 }
 
@@ -5924,6 +5953,52 @@ html[data-theme="dark"] .transfer-rail-row.is-head .tr-price,
 html[data-theme="dark"] .transfer-rail-row.is-head .tr-form,
 html[data-theme="dark"] .transfer-rail-row.is-head .tr-pts {
   color: #a0a0a0;
+}
+
+/* Rules — readable on dark theme */
+html[data-theme="dark"] .rules-panel h2,
+html[data-theme="dark"] .rules-panel h3 {
+  color: #fff;
+}
+html[data-theme="dark"] .rules-list {
+  color: #fff;
+}
+html[data-theme="dark"] .rules-list li {
+  background: #222;
+  color: #fff;
+}
+html[data-theme="dark"] .rules-list li > span:last-child {
+  color: #C0FF00;
+}
+html[data-theme="dark"] .rules-list li.rules-note {
+  background: transparent;
+  color: #b0b0b0;
+}
+html[data-theme="dark"] .rules-pos {
+  background: #1f1f1f;
+}
+html[data-theme="dark"] .rules-pos .rules-list li {
+  background: #2a2a2a;
+}
+html[data-theme="dark"] .rules-toc a {
+  color: #fff;
+  background: #2a2a2a;
+}
+html[data-theme="dark"] .rules-toc a:hover {
+  background: #C0FF00;
+  color: #000;
+}
+html[data-theme="dark"] .rules-score th,
+html[data-theme="dark"] .rules-score td {
+  color: #fff;
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+html[data-theme="dark"] .rules-score th {
+  color: #a0a0a0;
+}
+html[data-theme="dark"] .rules-score td:last-child,
+html[data-theme="dark"] .rules-score th:last-child {
+  color: #C0FF00;
 }
 
 
