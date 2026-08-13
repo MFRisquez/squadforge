@@ -4863,10 +4863,30 @@ body.picker-open {
   color: inherit;
   font-weight: 800;
   text-decoration: none;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .standings-team-link:hover {
   color: var(--accent);
   text-decoration: underline;
+}
+.standings-team-cell {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+  white-space: normal;
+}
+.standings-form-inline { display: none; }
+.standings-num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.standings-classic th:nth-child(3),
+.standings-classic th:nth-child(4),
+.standings-classic td.standings-num {
+  text-align: right;
 }
 .standings tr.is-me {
   background: rgba(182, 219, 0, 0.12);
@@ -5822,10 +5842,34 @@ body.page-fit .pitch-cap-hint {
   .league-list li { padding: 0.45rem 0; }
   .empty-state { padding: 0.85rem 0.55rem; }
 
-  .standings th:nth-child(5),
-  .standings td:nth-child(5),
-  .standings th:nth-child(6),
-  .standings td:nth-child(6) {
+  /* Classic phone: # · Team · GW · Tot (Form under team name) */
+  .standings-classic {
+    font-size: 0.92rem;
+  }
+  .standings-classic th,
+  .standings-classic td {
+    padding: 0.55rem 0.35rem;
+  }
+  .standings-classic .standings-form-col {
+    display: none;
+  }
+  .standings-classic .standings-form-inline {
+    display: block;
+  }
+  .standings-classic th:nth-child(2),
+  .standings-classic td.standings-team-cell {
+    width: 46%;
+  }
+  .standings-hide-phone {
+    display: none !important;
+  }
+  /* H2H phone: keep Team + Pts + GW; hide quieter cols */
+  .standings-h2h th:nth-child(3),
+  .standings-h2h td:nth-child(3),
+  .standings-h2h th:nth-child(5),
+  .standings-h2h td:nth-child(5),
+  .standings-h2h th:nth-child(6),
+  .standings-h2h td:nth-child(6) {
     display: none;
   }
 }

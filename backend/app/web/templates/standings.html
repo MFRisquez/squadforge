@@ -15,38 +15,39 @@
 
 {% if mode == 'classic' %}
 <section class="panel table-wrap standings-panel">
-  <table class="standings">
+  <table class="standings standings-classic">
     <thead>
       <tr>
         <th>#</th>
         <th>Team</th>
         <th>GW</th>
         <th>Tot</th>
-        <th>Form</th>
+        <th class="standings-form-col">Form</th>
       </tr>
     </thead>
     <tbody>
       {% for row in rows %}
       <tr class="{% if me and row.manager.id == me.id %}is-me{% endif %} {% if row.rank <= 3 %}rank-{{ row.rank }}{% endif %}">
         <td class="rank-cell">{{ row.rank }}</td>
-        <td>
+        <td class="standings-team-cell">
           <a class="standings-team-link" href="/league/{{ league.id }}/opponent/{{ row.manager.id }}?gw={{ gw.number }}">
             {{ row.team_name }}
           </a>
+          <span class="standings-form-inline muted tiny">Form {{ row.form or '—' }}</span>
         </td>
-        <td>{{ '%.0f'|format(row.gw_points) }}</td>
-        <td><strong>{{ '%.0f'|format(row.total_points) }}</strong></td>
-        <td class="muted tiny">{{ row.form or '—' }}</td>
+        <td class="standings-num">{{ '%.0f'|format(row.gw_points) }}</td>
+        <td class="standings-num"><strong>{{ '%.0f'|format(row.total_points) }}</strong></td>
+        <td class="standings-form-col muted tiny">{{ row.form or '—' }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
-  <p class="muted tiny">Form = last 5 GW scores. Squad view stays on the last locked GW until the next one starts.</p>
+  <p class="muted tiny">Form = last 5 GW scores. Tap a team to scout their locked GW squad.</p>
 </section>
 {% else %}
 <section class="panel table-wrap standings-panel">
   <h2 class="section-title tight">H2H table</h2>
-  <table class="standings">
+  <table class="standings standings-h2h">
     <thead>
       <tr>
         <th>#</th>
@@ -56,7 +57,7 @@
         <th>D</th>
         <th>L</th>
         <th>Pts</th>
-        <th>PF</th>
+        <th class="standings-hide-phone">PF</th>
         <th>GW</th>
       </tr>
     </thead>
@@ -74,7 +75,7 @@
         <td>{{ row.draws }}</td>
         <td>{{ row.losses }}</td>
         <td><strong>{{ row.h2h_points }}</strong></td>
-        <td>{{ '%.0f'|format(row.pf) }}</td>
+        <td class="standings-hide-phone">{{ '%.0f'|format(row.pf) }}</td>
         <td>{{ '%.0f'|format(row.gw_points) }}</td>
       </tr>
       {% endfor %}
