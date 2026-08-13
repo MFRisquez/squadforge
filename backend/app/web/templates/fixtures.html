@@ -32,7 +32,7 @@
             {% if m.status == 'live' %}<em class="live-dot">LIVE</em>
             {% elif m.status == 'finished' %}<span class="fx-status">Full time</span>
             {% elif m.kickoff %}
-              <span class="fx-status">{{ m.kickoff[11:16] if m.kickoff|length > 16 else m.kickoff }} UTC</span>
+              <span class="fx-status">{{ m.kickoff|kickoff_zones }}</span>
             {% else %}
               <span class="fx-status">TBC</span>
             {% endif %}

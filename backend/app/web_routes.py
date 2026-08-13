@@ -25,6 +25,36 @@ from app.services.seed import seed_if_empty
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "web" / "templates"))
 
+
+def _format_kickoff_zones(iso: str | None) -> str:
+    """Short date + Mexico / US (ET) / Venezuela local times for fixture cards."""
+    if not iso:
+        return "TBC"
+    from datetime import datetime, timezone
+    from zoneinfo import ZoneInfo
+
+    try:
+        raw = str(iso).replace("Z", "+00:00")
+        dt = datetime.fromisoformat(raw)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+    except ValueError:
+        return str(iso)
+
+    local = dt.astimezone(ZoneInfo("America/Mexico_City"))
+    date_part = f"{local.strftime('%a %b')} {local.day}"
+
+    def _t(tz: str) -> str:
+        return dt.astimezone(ZoneInfo(tz)).strftime("%H:%M")
+
+    mx = _t("America/Mexico_City")
+    us = _t("America/New_York")
+    vz = _t("America/Caracas")
+    return f"{date_part}  Mx {mx} | US {us} | VZ {vz}"
+
+
+templates.env.filters["kickoff_zones"] = _format_kickoff_zones
+
 _SHELL_NEXT_PREFIXES = (
     "/team",
     "/lineup",

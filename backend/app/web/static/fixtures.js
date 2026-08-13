@@ -59,10 +59,24 @@
     return { ...data, home, away };
   }
 
+  /** Date + Mx / US (ET) / VZ local kickoff times for the group. */
   function formatKickoff(iso) {
     if (!iso) return "TBC";
-    const m = String(iso).match(/T(\d{2}:\d{2})/);
-    return m ? m[1] : iso;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return String(iso);
+    const datePart = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Mexico_City",
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    })
+      .format(d)
+      .replace(",", "");
+    const timeOpts = { hour: "2-digit", minute: "2-digit", hour12: false };
+    const mx = new Intl.DateTimeFormat("en-GB", { timeZone: "America/Mexico_City", ...timeOpts }).format(d);
+    const us = new Intl.DateTimeFormat("en-GB", { timeZone: "America/New_York", ...timeOpts }).format(d);
+    const vz = new Intl.DateTimeFormat("en-GB", { timeZone: "America/Caracas", ...timeOpts }).format(d);
+    return `${datePart}  Mx ${mx} | US ${us} | VZ ${vz}`;
   }
 
   function sideLines(rows, label) {
@@ -210,10 +224,10 @@
     const kick = formatKickoff(data.kickoff);
     const statusLine =
       status === "live"
-        ? `<p class="fx-detail-status is-live">Live · kickoff ${kick} UTC · GW${data.gw}</p>`
+        ? `<p class="fx-detail-status is-live">Live · kickoff ${kick} · GW${data.gw}</p>`
         : status === "finished"
-          ? `<p class="fx-detail-status">Full time · kicked off ${kick} UTC · GW${data.gw}</p>`
-          : `<p class="fx-detail-status">Upcoming · ${kick} UTC · GW${data.gw}</p>`;
+          ? `<p class="fx-detail-status">Full time · kicked off ${kick} · GW${data.gw}</p>`
+          : `<p class="fx-detail-status">Upcoming · ${kick} · GW${data.gw}</p>`;
 
     const watchBlock = matchStatsCompareHtml(data, status);
 
@@ -395,7 +409,7 @@
             ? `<em class="live-dot">LIVE</em>`
             : m.status === "finished"
               ? `<span class="fx-status">Full time</span>`
-              : `<span class="fx-status">${formatKickoff(m.kickoff)} UTC</span>`;
+              : `<span class="fx-status">${formatKickoff(m.kickoff)}</span>`;
         const scoreBlock = scored
           ? `<span class="fx-score-num">${m.home.score}</span><span class="fx-score-sep">–</span><span class="fx-score-num">${m.away.score}</span>`
           : `<span class="fx-vs">vs</span>`;

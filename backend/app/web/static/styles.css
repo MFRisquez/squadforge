@@ -2606,6 +2606,11 @@ body.picker-open {
   font-weight: 800;
   color: var(--muted);
   letter-spacing: 0.02em;
+  text-align: center;
+  line-height: 1.35;
+  max-width: 100%;
+  white-space: normal;
+  font-variant-numeric: tabular-nums;
 }
 .live-dot {
   color: #ff1751;
@@ -3951,6 +3956,8 @@ body.picker-open {
     font-size: 0.72rem;
     font-weight: 700;
     color: var(--muted);
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
   }
   .fx-detail-status.is-live {
     color: #000000;
