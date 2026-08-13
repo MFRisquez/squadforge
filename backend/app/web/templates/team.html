@@ -24,8 +24,8 @@
       </div>
       <div class="stat">
         <span class="stat-label">Free transfers</span>
-        <strong>{% if unlimited_transfers %}∞{% else %}{{ ft_left }}{% endif %}</strong>
-        <span class="stat-sub">{% if unlimited_transfers %}unlimited{% else %}banked{% endif %}</span>
+        <strong id="ftValue">{% if unlimited_transfers %}∞{% else %}{{ ft_left }}{% endif %}</strong>
+        <span class="stat-sub" id="ftSub">{% if unlimited_transfers %}unlimited{% else %}banked{% endif %}</span>
       </div>
       <div class="stat">
         <span class="stat-label">Hits</span>

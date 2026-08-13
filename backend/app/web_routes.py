@@ -600,7 +600,6 @@ def _squad_board_response(
         resolved_notice = (
             request.query_params.get("notice")
             or ("Transfer done." if request.query_params.get("ok") else None)
-            or ("Chip played." if request.query_params.get("chip_ok") else None)
         )
     return templates.TemplateResponse(
         template_name,
@@ -649,8 +648,31 @@ def _squad_board_response(
     )
 
 
+def _chip_state_payload(db: Session, manager_id: int, gw, *, cancelled_chip: str | None = None) -> dict:
+    from app.services import chips as chips_svc
+
+    state = chips_svc.ensure_chip_state(db, manager_id)
+    active = chips_svc.active_chip(db, manager_id, gw.id)
+    unlimited = squad_svc.transfers_are_unlimited(db, manager_id, gw)
+    return {
+        "ok": True,
+        "active_chip": active.chip if active else None,
+        "active_label": chips_svc.CHIP_LABELS.get(active.chip, active.chip) if active else None,
+        "remaining": {
+            "wildcard": int(state.wildcard_remaining or 0),
+            "free_hit": int(state.free_hit_remaining or 0),
+            "bench_boost": int(state.bench_boost_remaining or 0),
+            "triple_captain": int(state.triple_captain_remaining or 0),
+            "super_sub": int(state.super_sub_remaining or 0),
+        },
+        "unlimited_transfers": bool(unlimited),
+        # Free Hit cancel restores the original 15 — client should refresh squad UI.
+        "reload_squad": cancelled_chip == "free_hit",
+    }
+
+
 @router.post("/team/chip")
-def play_chip_from_squad(
+async def play_chip_from_squad(
     request: Request,
     chip: str = Form(...),
     player_id: Optional[int] = Form(None),
@@ -660,8 +682,11 @@ def play_chip_from_squad(
     from app.services import chips as chips_svc
     from app.services.chips import ChipError
 
+    wants_json = _wants_json(request)
     manager = current_manager(request, db)
     if not manager:
+        if wants_json:
+            return JSONResponse({"ok": False, "error": "login_required"}, status_code=401)
         return RedirectResponse("/login", status_code=303)
     gw = squad_svc.current_gameweek(db)
     dest = _safe_next_path(next_path, "/team")
@@ -674,12 +699,16 @@ def play_chip_from_squad(
             player_id=player_id,
         )
     except ChipError as exc:
+        if wants_json:
+            return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
         return _redirect_with_query(dest, chip_error=str(exc))
+    if wants_json:
+        return JSONResponse(_chip_state_payload(db, manager.id, gw))
     return _redirect_with_query(dest, chip_ok="1")
 
 
 @router.post("/team/chip/cancel")
-def cancel_chip_from_squad(
+async def cancel_chip_from_squad(
     request: Request,
     next_path: str = Form("/team", alias="next"),
     db: Session = Depends(get_db),
@@ -687,15 +716,24 @@ def cancel_chip_from_squad(
     from app.services import chips as chips_svc
     from app.services.chips import ChipError
 
+    wants_json = _wants_json(request)
     manager = current_manager(request, db)
     if not manager:
+        if wants_json:
+            return JSONResponse({"ok": False, "error": "login_required"}, status_code=401)
         return RedirectResponse("/login", status_code=303)
     gw = squad_svc.current_gameweek(db)
     dest = _safe_next_path(next_path, "/team")
+    active = chips_svc.active_chip(db, manager.id, gw.id)
+    cancelled = active.chip if active else None
     try:
         chips_svc.cancel_chip(db, manager_id=manager.id, gameweek_id=gw.id)
     except ChipError as exc:
+        if wants_json:
+            return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
         return _redirect_with_query(dest, chip_error=str(exc))
+    if wants_json:
+        return JSONResponse(_chip_state_payload(db, manager.id, gw, cancelled_chip=cancelled))
     return _redirect_with_query(dest, chip_ok="1")
 
 
@@ -888,8 +926,6 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
     starter_set = set(starters)
     bench_options = [p for p in owned if p.id not in starter_set]
     notice = request.query_params.get("notice")
-    if request.query_params.get("chip_ok") and not notice:
-        notice = "Chip updated"
     error = request.query_params.get("error") or request.query_params.get("chip_error")
 
     from app.services import deadline as deadline_svc

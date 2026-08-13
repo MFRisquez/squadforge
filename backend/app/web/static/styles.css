@@ -1224,7 +1224,7 @@ select {
   align-self: center;
   z-index: 5;
 }
-.chip-card-fpl .chip-play,
+.chip-card-fpl .chip-toggle,
 .chip-card-fpl .chip-status,
 .chip-card-fpl .chip-play-form,
 .chip-card-fpl .chip-ss-form {
@@ -1243,22 +1243,35 @@ select {
   flex: 1 1 auto;
   min-width: 0;
 }
-.chip-card-fpl.chip-card-ss .chip-ss-form .chip-play {
+.chip-card-fpl.chip-card-ss .chip-ss-form .chip-toggle {
   flex: 0 0 auto;
   margin-left: auto;
 }
+.chip-card-fpl .chip-toggle,
 .chip-card-fpl .chip-play {
   border: 1px solid #404040;
   background: #fff;
   color: #000000;
   border-radius: 999px;
-  padding: 0.1rem 0.55rem;
+  padding: 0.12rem 0.65rem;
   font-size: 0.62rem;
   font-weight: 800;
   cursor: pointer;
   width: auto;
+  min-width: 2.4rem;
 }
+.chip-card-fpl .chip-toggle:hover,
 .chip-card-fpl .chip-play:hover {
+  background: #000000;
+  border-color: #000000;
+  color: #fff;
+}
+.chip-card-fpl .chip-toggle.is-on {
+  background: #B6DB00;
+  border-color: #B6DB00;
+  color: #000000;
+}
+.chip-card-fpl .chip-toggle.is-on:hover {
   background: #000000;
   border-color: #000000;
   color: #fff;
@@ -1271,15 +1284,6 @@ select {
   min-height: 0;
   display: block;
 }
-.chip-card-fpl .chip-status.is-on {
-  color: #000000;
-  background: #B6DB00;
-  border-radius: 999px;
-  padding: 0.1rem 0.5rem;
-  font-size: 0.62rem;
-  font-weight: 800;
-  display: inline-block;
-}
 .chip-card-fpl.is-active {
   border-color: #B6DB00;
   box-shadow: 0 0 0 1px rgba(182, 219, 0, 0.35);
@@ -1288,19 +1292,28 @@ select {
 .chip-card-fpl.is-unavailable {
   opacity: 0.45;
 }
-.chip-play-form { margin: 0; }
-.chip-active-label {
+.chip-card-fpl.is-dim {
+  opacity: 0.62;
+}
+.chip-strip-wrap.is-busy {
+  pointer-events: none;
+  opacity: 0.85;
+}
+.chip-strip-hint {
+  margin: 0.28rem 0 0;
+  text-align: center;
+}
+.chip-strip-error {
+  margin: 0.28rem 0 0;
+  text-align: center;
+  color: var(--warn);
   font-size: 0.72rem;
   font-weight: 700;
-  color: var(--muted);
 }
+.chip-play-form { margin: 0; }
 .chip-strip-wrap.chip-strip-xi,
 .chip-strip-wrap.chip-strip-squad {
   margin-bottom: 0.45rem;
-}
-.chip-strip-wrap.chip-strip-xi .chip-strip-head,
-.chip-strip-wrap.chip-strip-squad .chip-strip-head {
-  margin-bottom: 0.25rem;
 }
 .chip-card-fpl .chip-ss-form {
   display: flex;
@@ -1310,6 +1323,17 @@ select {
   width: 100%;
   margin: 0;
   justify-content: flex-start;
+}
+html[data-theme="dark"] .chip-card-fpl .chip-toggle,
+html[data-theme="dark"] .chip-card-fpl .chip-play {
+  background: #111;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.28);
+}
+html[data-theme="dark"] .chip-card-fpl .chip-toggle.is-on {
+  background: #C0FF00;
+  border-color: #C0FF00;
+  color: #000;
 }
 /* Wider BB/TC chip labels apply on desktop only (see min-width: 900px). */
 .chip-card-fpl.chip-card-wide {
@@ -3297,6 +3321,7 @@ body.picker-open {
     line-height: 1.05;
     min-height: 0;
   }
+  .chip-card-fpl.chip-card-wide .chip-toggle,
   .chip-card-fpl.chip-card-wide .chip-play {
     margin-top: 0;
   }
@@ -3404,6 +3429,7 @@ body.picker-open {
   .chip-card-fpl .chip-name { font-size: 0.78rem; }
   .chip-card-fpl .chip-ico { width: 1.7rem; height: 1.7rem; }
   .chip-card-fpl .chip-ico svg { width: 0.95rem; height: 0.95rem; }
+  .chip-card-fpl .chip-toggle,
   .chip-card-fpl .chip-play { font-size: 0.66rem; padding: 0.12rem 0.6rem; }
   .chip-card-fpl .chip-status { font-size: 0.66rem; }
   .xi-pitch .pitch-row { gap: 1rem; }
@@ -3686,10 +3712,10 @@ body.picker-open {
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  /* Info tip sits beside the chip title; Play stays right */
-  body.page-xi .chip-card-fpl:not(.chip-card-ss) .chip-play-form,
+  /* Info tip sits beside the chip title; On/Off stays right */
+  body.page-xi .chip-card-fpl:not(.chip-card-ss) .chip-toggle,
   body.page-xi .chip-card-fpl:not(.chip-card-ss) .chip-status,
-  body.page-squad .chip-card-fpl .chip-play-form,
+  body.page-squad .chip-card-fpl .chip-toggle,
   body.page-squad .chip-card-fpl .chip-status {
     grid-row: 1;
     grid-column: 4;
@@ -3703,8 +3729,8 @@ body.picker-open {
     justify-self: start;
     align-self: center;
   }
-  body.page-xi .chip-card-fpl .chip-play,
-  body.page-squad .chip-card-fpl .chip-play {
+  body.page-xi .chip-card-fpl .chip-toggle,
+  body.page-squad .chip-card-fpl .chip-toggle {
     font-size: 0.82rem;
     padding: 0.24rem 0.9rem;
   }
@@ -3712,7 +3738,7 @@ body.picker-open {
   body.page-squad .chip-card-fpl .chip-status {
     font-size: 0.78rem;
   }
-  /* Super Sub: icon · title · info · Play · bench select — one line */
+  /* Super Sub: icon · title · info · Off · bench select — one line */
   body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form {
     display: contents;
   }
@@ -3722,7 +3748,7 @@ body.picker-open {
   body.page-xi .chip-card-fpl.chip-card-ss .chip-info-wrap {
     grid-column: 3;
   }
-  body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form .chip-play {
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form .chip-toggle {
     grid-row: 1;
     grid-column: 5;
     justify-self: end;
@@ -4826,14 +4852,14 @@ body.page-fit .pitch-cap-hint {
     justify-self: end;
     align-self: center;
   }
-  .chip-card-fpl:not(.chip-card-ss) .chip-play-form,
+  .chip-card-fpl:not(.chip-card-ss) .chip-toggle,
   .chip-card-fpl:not(.chip-card-ss) .chip-status {
     grid-row: 1;
     grid-column: 3;
     justify-self: start;
     margin: 0;
   }
-  .chip-card-fpl .chip-play {
+  .chip-card-fpl .chip-toggle {
     font-size: 0.62rem;
     padding: 0.14rem 0.55rem;
   }
@@ -4844,7 +4870,7 @@ body.page-fit .pitch-cap-hint {
   body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form {
     display: contents;
   }
-  body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form .chip-play {
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form .chip-toggle {
     grid-row: 1;
     grid-column: 3;
     justify-self: start;

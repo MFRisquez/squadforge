@@ -62,7 +62,15 @@
   const INITIAL = JSON.parse(document.getElementById("initialSquad").textContent);
   const BUDGET = Number(INITIAL.budget);
   const MAX_CLUB = Number(INITIAL.maxPerClub || 3);
-  const UNLIMITED = Boolean(INITIAL.unlimited);
+  let UNLIMITED = Boolean(INITIAL.unlimited);
+  window.__ffSquadState = {
+    get unlimited() {
+      return UNLIMITED;
+    },
+    set unlimited(v) {
+      UNLIMITED = !!v;
+    },
+  };
   const LOCKED = Boolean(INITIAL.locked);
   const FT_LEFT = Number(INITIAL.ft || 0);
   const HIT_COST = Number(INITIAL.hitCost || 4);
