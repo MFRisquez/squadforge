@@ -1,16 +1,88 @@
-/* Body: Vielma Regular for every weight (do not fall back to system UI fonts). */
+/*
+  Vielma Grotesk
+  - Body family uses the Regular file at every common weight (no system fallback gaps).
+  - Header family uses the Bold file.
+  - Static fonts: declare discrete weights (ranges break on many mobile browsers).
+  - font-synthesis:none avoids faux-bold smearing Regular.
+*/
 @font-face {
   font-family: "Vielma Grotesk";
-  src: url("/static/fonts/Vielma_Grotesk_Regular.otf") format("opentype");
-  font-weight: 100 900;
+  src:
+    url("/static/fonts/Vielma_Grotesk_Regular.woff2") format("woff2"),
+    url("/static/fonts/Vielma_Grotesk_Regular.otf") format("opentype");
+  font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
-/* Headers only: Vielma Bold. */
+@font-face {
+  font-family: "Vielma Grotesk";
+  src:
+    url("/static/fonts/Vielma_Grotesk_Regular.woff2") format("woff2"),
+    url("/static/fonts/Vielma_Grotesk_Regular.otf") format("opentype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vielma Grotesk";
+  src:
+    url("/static/fonts/Vielma_Grotesk_Regular.woff2") format("woff2"),
+    url("/static/fonts/Vielma_Grotesk_Regular.otf") format("opentype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vielma Grotesk";
+  src:
+    url("/static/fonts/Vielma_Grotesk_Regular.woff2") format("woff2"),
+    url("/static/fonts/Vielma_Grotesk_Regular.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vielma Grotesk";
+  src:
+    url("/static/fonts/Vielma_Grotesk_Regular.woff2") format("woff2"),
+    url("/static/fonts/Vielma_Grotesk_Regular.otf") format("opentype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vielma Grotesk";
+  src:
+    url("/static/fonts/Vielma_Grotesk_Regular.woff2") format("woff2"),
+    url("/static/fonts/Vielma_Grotesk_Regular.otf") format("opentype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
 @font-face {
   font-family: "Vielma Grotesk Header";
-  src: url("/static/fonts/Vielma_Grotesk_Bold.otf") format("opentype");
-  font-weight: 100 900;
+  src:
+    url("/static/fonts/Vielma_Grotesk_Bold.woff2") format("woff2"),
+    url("/static/fonts/Vielma_Grotesk_Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vielma Grotesk Header";
+  src:
+    url("/static/fonts/Vielma_Grotesk_Bold.woff2") format("woff2"),
+    url("/static/fonts/Vielma_Grotesk_Bold.otf") format("opentype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vielma Grotesk Header";
+  src:
+    url("/static/fonts/Vielma_Grotesk_Bold.woff2") format("woff2"),
+    url("/static/fonts/Vielma_Grotesk_Bold.otf") format("opentype");
+  font-weight: 900;
   font-style: normal;
   font-display: swap;
 }
@@ -25,8 +97,8 @@ html[data-theme="dark"] {
   --accent: #C0FF00;
   --line: rgba(255, 255, 255, 0.12);
   --warn: #ff8a80;
-  --font-display: "Vielma Grotesk Header", "Vielma Grotesk", Arial, sans-serif;
-  --font-body: "Vielma Grotesk", Arial, sans-serif;
+  --font-display: "Vielma Grotesk Header", "Vielma Grotesk", sans-serif;
+  --font-body: "Vielma Grotesk", sans-serif;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
 }
@@ -47,6 +119,10 @@ html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  font-family: var(--font-body);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 html, body {
   margin: 0;
@@ -56,15 +132,15 @@ body {
   color: var(--ink);
   font-family: var(--font-body);
   font-weight: 400;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+  font-synthesis: none;
   background:
     radial-gradient(900px 420px at 100% -10%, rgba(192, 255, 0, 0.08), transparent 55%),
     linear-gradient(180deg, var(--bg) 0%, var(--bg) 100%);
   background-attachment: fixed;
 }
-body, button, input, select, textarea {
-  font-family: inherit;
+body, button, input, select, textarea, option {
+  font-family: var(--font-body);
+  font-synthesis: none;
 }
 html[data-theme="light"] body {
   background:
