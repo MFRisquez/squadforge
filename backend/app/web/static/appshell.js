@@ -3,9 +3,10 @@
   const CATALOG_META = "ff_players_catalog_meta_v1";
   const WARM_KEY = "ff_shell_warmed_v1";
   const SHELL_PATHS = new Set(["/", "/lineup", "/team", "/fixtures", "/rules", "/leagues", "/onboard"]);
-  const pageCache = new Map(); // path -> { html, at }
+  const pageCache = new Map(); // full path+search -> { html, at }
   const CACHE_TTL_MS = 45_000;
   let navigating = false;
+  let pendingNav = null; // latest path queued while a soft-nav is in flight
 
   function isAuthPage() {
     return document.body.classList.contains("page-auth");
@@ -64,7 +65,8 @@
       .then(async (res) => {
         if (!res.ok) return;
         const html = await res.text();
-        pageCache.set(url.split("?")[0], { html, at: Date.now() });
+        // Keep query string (e.g. ?gw=) so GW arrows don't reuse the wrong page.
+        pageCache.set(url, { html, at: Date.now() });
       })
       .catch(() => {});
   }
@@ -176,10 +178,10 @@
   }
 
   async function fetchPageHtml(path) {
-    const key = path.split("?")[0];
+    // Cache by full path including ?gw= so gameweek arrows change on first click.
+    const key = path;
     const hit = pageCache.get(key);
     if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
-      // revalidate in background
       fetch(path, { credentials: "same-origin", headers: { Accept: "text/html" } })
         .then(async (res) => {
           if (!res.ok) return;
@@ -193,7 +195,6 @@
       headers: { Accept: "text/html", "X-Requested-With": "ff-shell" },
     });
     if (!res.ok) throw new Error("nav");
-    // login redirect etc.
     if (res.redirected && res.url) {
       const dest = sameOriginPath(res.url);
       if (dest && dest.startsWith("/login")) {
@@ -207,7 +208,11 @@
   }
 
   async function softNavigate(path, { push = true } = {}) {
-    if (navigating) return;
+    if (navigating) {
+      // Keep only the latest click (rapid GW arrow taps).
+      pendingNav = { path, push };
+      return;
+    }
     if (!isShellPath(path)) {
       window.location.href = path;
       return;
@@ -223,8 +228,6 @@
         window.location.href = path;
         return;
       }
-      // Keep outgoing page fully opaque while fetching; swap only after the
-      // next main is painted ready — avoids pitch flicker (opacity flash).
       nextMain.classList.add("shell-pending");
       teardownPage();
       document.body.className = doc.body.className || "";
@@ -234,7 +237,6 @@
       if (push) history.pushState({ ffShell: true }, "", path);
       await runScripts(nextMain);
       window.scrollTo(0, 0);
-      // Reveal on the next frame so shirt/pitch DOM is in place first.
       requestAnimationFrame(() => {
         nextMain.classList.remove("shell-pending");
       });
@@ -242,6 +244,11 @@
       window.location.href = path;
     } finally {
       navigating = false;
+      if (pendingNav) {
+        const next = pendingNav;
+        pendingNav = null;
+        softNavigate(next.path, { push: next.push });
+      }
     }
   }
 

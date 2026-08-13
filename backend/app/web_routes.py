@@ -1380,9 +1380,14 @@ def points_page(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/league/{league_id}/opponent/{manager_id}", response_class=HTMLResponse)
 def h2h_opponent_peek(league_id: int, manager_id: int, request: Request, db: Session = Depends(get_db)):
-    """Peek at another manager’s GW lineup (H2H scouting)."""
+    """Peek at another manager’s locked GW squad (classic + H2H scouting).
+
+    Between gameweeks (before the next deadline), keep showing the last locked
+    GW squad — transfer changes only appear once that next GW starts.
+    """
     from app.kits import kit_for
-    from app.models import Manager, ManagerGameweekScore
+    from app.models import Fixture, Manager, ManagerGameweekScore, PlayerPoints
+    from app.services import fixtures as fixtures_svc
     from app.services.fpl_sync import availability_flag
 
     me = current_manager(request, db)
@@ -1404,20 +1409,80 @@ def h2h_opponent_peek(league_id: int, manager_id: int, request: Request, db: Ses
         return RedirectResponse(f"/standings/{league_id}", status_code=303)
 
     view = _resolve_gw(request, db)
-    gw = view["gw"]
+    requested_gw = view["gw"]
+    squad_gw = requested_gw
+    squad_frozen = False
+    # Pre-deadline on the viewed GW → freeze on previous locked GW squad
+    if not view["edits_locked"] and requested_gw.id == view["current_gw"].id:
+        prev = (
+            db.query(Gameweek)
+            .filter(Gameweek.number == requested_gw.number - 1)
+            .one_or_none()
+        )
+        if prev:
+            squad_gw = prev
+            squad_frozen = True
+
     opponent = db.query(Manager).filter(Manager.id == manager_id).one()
-    owned = squad_svc.owned_players(db, opponent.id)
     picks = (
         db.query(SquadPick)
-        .filter(SquadPick.manager_id == opponent.id, SquadPick.gameweek_id == gw.id)
+        .filter(SquadPick.manager_id == opponent.id, SquadPick.gameweek_id == squad_gw.id)
         .all()
     )
     clubs = {c.code: c for c in db.query(Club).all()}
-    by_id = {p.id: p for p in owned}
-    starter_ids = {p.player_id for p in picks if p.is_starter}
-    if not starter_ids and owned:
+    player_ids = [p.player_id for p in picks]
+    players = (
+        db.query(Player).filter(Player.id.in_(player_ids)).all() if player_ids else []
+    )
+    by_id = {p.id: p for p in players}
+
+    if not picks:
+        owned = squad_svc.owned_players(db, opponent.id)
+        by_id = {p.id: p for p in owned}
         starter_ids, _, _, _ = squad_svc.default_lineup_from_owned(owned)
         starter_ids = set(starter_ids)
+        bench_ids = [p.id for p in owned if p.id not in starter_ids]
+        picks_by_player: dict[int, SquadPick] = {}
+    else:
+        starter_ids = {p.player_id for p in picks if p.is_starter}
+        bench_ids = [
+            p.player_id
+            for p in sorted(picks, key=lambda x: (x.bench_order or 99, x.player_id))
+            if not p.is_starter
+        ]
+        picks_by_player = {p.player_id: p for p in picks}
+
+    started_clubs: set[str] = set()
+    for fx in db.query(Fixture).filter(Fixture.gameweek_number == squad_gw.number).all():
+        if fx.started or fx.finished:
+            if fx.home_club_code:
+                started_clubs.add(fx.home_club_code)
+            if fx.away_club_code:
+                started_clubs.add(fx.away_club_code)
+
+    points_map: dict[int, float] = {}
+    for row in (
+        db.query(PlayerPoints)
+        .filter(
+            PlayerPoints.gameweek_id == squad_gw.id,
+            PlayerPoints.formula_version == settings.formula_version,
+        )
+        .all()
+    ):
+        points_map[row.player_id] = float(row.total or 0)
+
+    fdr_by_club: dict[str, dict] = {}
+    for match in fixtures_svc.fixtures_for_gameweek(db, gw_number=squad_gw.number):
+        fdr_by_club[match["home"]["code"]] = {
+            "opponent": match["away"]["code"],
+            "venue": "H",
+            "difficulty": match["home"]["difficulty"],
+        }
+        fdr_by_club[match["away"]["code"]] = {
+            "opponent": match["home"]["code"],
+            "venue": "A",
+            "difficulty": match["away"]["difficulty"],
+        }
 
     def pack(player: Player, on_bench: bool) -> dict:
         kit = kit_for(
@@ -1425,7 +1490,9 @@ def h2h_opponent_peek(league_id: int, manager_id: int, request: Request, db: Ses
             position=player.position,
             kit_code=getattr(clubs.get(player.team_code), "kit_code", None),
         )
-        pick = next((x for x in picks if x.player_id == player.id), None)
+        pick = picks_by_player.get(player.id)
+        started = player.team_code in started_clubs
+        pts = points_map.get(player.id) if started else None
         return {
             "player": player,
             "shirt": kit["shirt"],
@@ -1436,6 +1503,9 @@ def h2h_opponent_peek(league_id: int, manager_id: int, request: Request, db: Ses
                 getattr(player, "status", "a") or "a",
                 getattr(player, "chance_of_playing", None),
             ),
+            "fixture_started": started,
+            "points": pts,
+            "fdr": fdr_by_club.get(player.team_code),
         }
 
     by_pos = {"GK": [], "DEF": [], "MID": [], "ATT": []}
@@ -1443,12 +1513,12 @@ def h2h_opponent_peek(league_id: int, manager_id: int, request: Request, db: Ses
         p = by_id.get(pid)
         if p:
             by_pos[p.position].append(pack(p, False))
-    bench = [pack(p, True) for p in owned if p.id not in starter_ids]
+    bench = [pack(by_id[pid], True) for pid in bench_ids if pid in by_id]
     score = (
         db.query(ManagerGameweekScore)
         .filter(
             ManagerGameweekScore.manager_id == opponent.id,
-            ManagerGameweekScore.gameweek_id == gw.id,
+            ManagerGameweekScore.gameweek_id == squad_gw.id,
         )
         .one_or_none()
     )
@@ -1462,6 +1532,8 @@ def h2h_opponent_peek(league_id: int, manager_id: int, request: Request, db: Ses
             by_pos=by_pos,
             bench_players=bench,
             score=score,
+            squad_gw=squad_gw,
+            squad_frozen=squad_frozen,
             **view,
         ),
     )

@@ -6,9 +6,9 @@
   <h1>{{ league.name }}</h1>
   <p class="lede tight">
     {% if mode == 'h2h' %}
-      Weekly matches · 3 pts win · 1 draw. Even number of managers works best ({{ member_count }} now).
+      Weekly matches · 3 pts win · 1 draw. Tap a team to scout their XI for this gameweek.
     {% else %}
-      Rank by season total · GW score · value · transfers · chips · TD.
+      Rank by season total. Tap a team name to see their locked gameweek squad.
     {% endif %}
   </p>
 </section>
@@ -19,13 +19,10 @@
     <thead>
       <tr>
         <th>#</th>
-        <th>Manager</th>
+        <th>Team</th>
         <th>GW</th>
         <th>Tot</th>
-        <th>£</th>
-        <th>TR</th>
-        <th>Chip</th>
-        <th>TD</th>
+        <th>Form</th>
       </tr>
     </thead>
     <tbody>
@@ -33,23 +30,18 @@
       <tr class="{% if me and row.manager.id == me.id %}is-me{% endif %} {% if row.rank <= 3 %}rank-{{ row.rank }}{% endif %}">
         <td class="rank-cell">{{ row.rank }}</td>
         <td>
-          <div class="standings-name">
-            <strong>{{ row.team_name }}</strong>
-            <span class="muted tiny">{{ row.manager.team_name or " " }}</span>
-          </div>
-          <a class="text-link tiny" href="/league/{{ league.id }}/opponent/{{ row.manager.id }}?gw={{ gw.number }}">See XI</a>
+          <a class="standings-team-link" href="/league/{{ league.id }}/opponent/{{ row.manager.id }}?gw={{ gw.number }}">
+            {{ row.team_name }}
+          </a>
         </td>
         <td>{{ '%.0f'|format(row.gw_points) }}</td>
         <td><strong>{{ '%.0f'|format(row.total_points) }}</strong></td>
-        <td>{{ '%.1f'|format(row.squad_value) }}</td>
-        <td>{{ row.transfers }}</td>
-        <td>{% if row.chip != '—' %}<span class="chip-tag">{{ row.chip }}</span>{% else %}—{% endif %}</td>
-        <td>{{ row.td_club }}</td>
+        <td class="muted tiny">{{ row.form or '—' }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
-  <p class="muted tiny">Scores update on XI → Refresh, and automatically after the deadline.</p>
+  <p class="muted tiny">Form = last 5 GW scores. Squad view stays on the last locked GW until the next one starts.</p>
 </section>
 {% else %}
 <section class="panel table-wrap standings-panel">
@@ -65,7 +57,6 @@
         <th>L</th>
         <th>Pts</th>
         <th>PF</th>
-        <th>PA</th>
         <th>GW</th>
       </tr>
     </thead>
@@ -74,8 +65,9 @@
       <tr class="{% if me and row.manager.id == me.id %}is-me{% endif %} {% if row.rank <= 3 %}rank-{{ row.rank }}{% endif %}">
         <td class="rank-cell">{{ row.rank }}</td>
         <td>
-          <strong>{{ row.team_name }}</strong>
-          <span class="muted tiny">{{ row.manager.team_name or " " }}</span>
+          <a class="standings-team-link" href="/league/{{ league.id }}/opponent/{{ row.manager.id }}?gw={{ gw.number }}">
+            {{ row.team_name }}
+          </a>
         </td>
         <td>{{ row.played }}</td>
         <td>{{ row.wins }}</td>
@@ -83,7 +75,6 @@
         <td>{{ row.losses }}</td>
         <td><strong>{{ row.h2h_points }}</strong></td>
         <td>{{ '%.0f'|format(row.pf) }}</td>
-        <td>{{ '%.0f'|format(row.pa) }}</td>
         <td>{{ '%.0f'|format(row.gw_points) }}</td>
       </tr>
       {% endfor %}
@@ -102,11 +93,12 @@
         {% set away_win = fx.result == 'away' %}
         <article class="h2h-card {% if fx.result == 'pending' %}is-pending{% elif fx.result == 'draw' %}is-draw{% endif %}">
           <div class="h2h-side {% if home_win %}is-winner{% endif %}">
-            <strong>{{ home_name }}</strong>
-            <span class="h2h-pts">{{ '%.0f'|format(fx.home_points) }}</span>
             {% if fx.home %}
-              <a class="text-link tiny" href="/league/{{ league.id }}/opponent/{{ fx.home.id }}?gw={{ gw.number }}">XI</a>
+              <a class="standings-team-link" href="/league/{{ league.id }}/opponent/{{ fx.home.id }}?gw={{ gw.number }}"><strong>{{ home_name }}</strong></a>
+            {% else %}
+              <strong>{{ home_name }}</strong>
             {% endif %}
+            <span class="h2h-pts">{{ '%.0f'|format(fx.home_points) }}</span>
           </div>
           <div class="h2h-vs">
             {% if fx.result == 'pending' %}
@@ -118,11 +110,12 @@
             {% endif %}
           </div>
           <div class="h2h-side {% if away_win %}is-winner{% endif %}">
-            <strong>{{ away_name }}</strong>
-            <span class="h2h-pts">{{ '%.0f'|format(fx.away_points) }}</span>
             {% if fx.away %}
-              <a class="text-link tiny" href="/league/{{ league.id }}/opponent/{{ fx.away.id }}?gw={{ gw.number }}">XI</a>
+              <a class="standings-team-link" href="/league/{{ league.id }}/opponent/{{ fx.away.id }}?gw={{ gw.number }}"><strong>{{ away_name }}</strong></a>
+            {% else %}
+              <strong>{{ away_name }}</strong>
             {% endif %}
+            <span class="h2h-pts">{{ '%.0f'|format(fx.away_points) }}</span>
           </div>
         </article>
       {% endfor %}
@@ -134,8 +127,6 @@
 {% endif %}
 
 <div class="row standings-actions">
-  <a class="btn ghost" href="/league/{{ league.id }}">League hub</a>
-  <a class="btn ghost" href="/leagues">All leagues</a>
   <form method="post" action="/score/run">
     <input type="hidden" name="mode" value="auto" />
     <button class="btn" type="submit">Refresh scores</button>

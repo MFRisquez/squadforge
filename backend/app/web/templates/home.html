@@ -58,12 +58,9 @@
   </div>
 </section>
 
-<section class="home-links-row">
-  <a class="home-link" href="/lineup">XI</a>
-  <a class="home-link" href="/fixtures">Fixtures</a>
-  <a class="home-link" href="/rules">Rules</a>
-  <form method="post" action="/sync/players" class="home-link-form">
-    <button class="home-link" type="submit">Refresh FPL</button>
+<section class="home-card home-admin-card">
+  <form method="post" action="/sync/players" class="home-inline-form">
+    <button class="btn ghost mini-btn" type="submit">Refresh FPL data</button>
   </form>
 </section>
 {% endblock %}

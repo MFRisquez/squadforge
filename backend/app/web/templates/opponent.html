@@ -5,11 +5,13 @@
 {{ gw_bar(gw, deadline_label, True, prev_gw, next_gw, '/league/' ~ league.id ~ '/opponent/' ~ opponent.id) }}
 
 <section class="hero-block compact">
-  <p class="eyebrow">{{ league.name }} · H2H peek</p>
+  <p class="eyebrow">{{ league.name }} · GW {{ squad_gw.number }}{% if squad_frozen %} · locked squad{% endif %}</p>
   <h1>{{ opponent.team_name or opponent.display_name }}</h1>
   <p class="lede tight">
-    {{ opponent.display_name }}
-    {% if score %} · GW score <strong>{{ '%.0f'|format(score.total) }}</strong>{% endif %}
+    {% if score %}GW score <strong>{{ '%.0f'|format(score.total) }}</strong>{% else %}GW score pending{% endif %}
+    {% if squad_frozen %}
+      <span class="muted"> · Showing last locked gameweek until the next GW starts</span>
+    {% endif %}
   </p>
 </section>
 
@@ -22,8 +24,16 @@
       <div class="shirt-card">
         <div class="shirt filled jersey avail-{{ row.availability }}">
           <img class="jersey-img" src="{{ row.shirt }}" alt="" width="66" height="87" loading="lazy" />
-          <span class="shirt-name">{{ row.player.name }}</span>
-          <span class="shirt-team">{{ row.player.team_code }} · £{{ '%.1f'|format(row.player.price) }}</span>
+          <span class="shirt-overlay">
+            <span class="shirt-nameplate">{{ row.player.name }}</span>
+            {% if row.fixture_started and row.points is not none %}
+              <span class="shirt-foot shirt-opp shirt-pts-fx">{{ '%.0f'|format(row.points) }}</span>
+            {% elif row.fdr %}
+              <span class="shirt-foot shirt-opp fdr-{{ row.fdr.difficulty }}">{{ row.fdr.opponent }} ({{ row.fdr.venue }})</span>
+            {% else %}
+              <span class="shirt-foot shirt-opp">TBD</span>
+            {% endif %}
+          </span>
         </div>
         {% if row.is_captain %}<span class="role-badge role-c">C</span>{% endif %}
         {% if row.is_vice %}<span class="role-badge role-v">V</span>{% endif %}
@@ -41,12 +51,21 @@
     <div class="shirt-card">
       <div class="shirt filled jersey avail-{{ row.availability }}">
         <img class="jersey-img" src="{{ row.shirt }}" alt="" width="66" height="87" loading="lazy" />
-        <span class="shirt-name">{{ row.player.name }}</span>
+        <span class="shirt-overlay">
+          <span class="shirt-nameplate">{{ row.player.name }}</span>
+          {% if row.fixture_started and row.points is not none %}
+            <span class="shirt-foot shirt-opp shirt-pts-fx">{{ '%.0f'|format(row.points) }}</span>
+          {% elif row.fdr %}
+            <span class="shirt-foot shirt-opp fdr-{{ row.fdr.difficulty }}">{{ row.fdr.opponent }} ({{ row.fdr.venue }})</span>
+          {% else %}
+            <span class="shirt-foot shirt-opp">TBD</span>
+          {% endif %}
+        </span>
       </div>
     </div>
     {% endfor %}
   </div>
 </section>
 
-<a class="btn ghost" href="/standings/{{ league.id }}?gw={{ gw.number }}">Back to standings</a>
+<a class="btn ghost" href="/standings/{{ league.id }}">Back to standings</a>
 {% endblock %}

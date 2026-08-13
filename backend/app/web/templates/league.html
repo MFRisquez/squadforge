@@ -16,7 +16,6 @@
     <a class="btn" href="/standings/{{ league.id }}">
       {% if league.league_type == 'h2h' %}H2H standings{% else %}Standings{% endif %}
     </a>
-    <a class="btn ghost" href="/leagues">All leagues</a>
   </div>
 </section>
 
@@ -38,9 +37,4 @@
     <button class="btn ghost" type="submit">Save format</button>
   </form>
 </section>
-
-<div class="row">
-  <a class="btn" href="/team">Squad &amp; Transfers</a>
-  <a class="btn ghost" href="/lineup">XI</a>
-</div>
 {% endblock %}
