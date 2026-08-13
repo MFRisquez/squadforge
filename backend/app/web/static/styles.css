@@ -1,65 +1,16 @@
-/* Body: Regular face registered at common weights (static fonts; phone-safe). */
+/* Body: Vielma Regular for every weight (do not fall back to system UI fonts). */
 @font-face {
   font-family: "Vielma Grotesk";
-  src:
-    url("/static/fonts/Vielma_Grotesk_Regular.woff2") format("woff2"),
-    url("/static/fonts/Vielma_Grotesk_Regular.otf") format("opentype");
-  font-weight: 400;
+  src: url("/static/fonts/Vielma_Grotesk_Regular.otf") format("opentype");
+  font-weight: 100 900;
   font-style: normal;
   font-display: swap;
 }
-@font-face {
-  font-family: "Vielma Grotesk";
-  src:
-    url("/static/fonts/Vielma_Grotesk_Regular.woff2") format("woff2"),
-    url("/static/fonts/Vielma_Grotesk_Regular.otf") format("opentype");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Vielma Grotesk";
-  src:
-    url("/static/fonts/Vielma_Grotesk_Regular.woff2") format("woff2"),
-    url("/static/fonts/Vielma_Grotesk_Regular.otf") format("opentype");
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Vielma Grotesk";
-  src:
-    url("/static/fonts/Vielma_Grotesk_Regular.woff2") format("woff2"),
-    url("/static/fonts/Vielma_Grotesk_Regular.otf") format("opentype");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Vielma Grotesk";
-  src:
-    url("/static/fonts/Vielma_Grotesk_Regular.woff2") format("woff2"),
-    url("/static/fonts/Vielma_Grotesk_Regular.otf") format("opentype");
-  font-weight: 800;
-  font-style: normal;
-  font-display: swap;
-}
-/* Headers only: Bold face. */
+/* Headers only: Vielma Bold. */
 @font-face {
   font-family: "Vielma Grotesk Header";
-  src:
-    url("/static/fonts/Vielma_Grotesk_Bold.woff2") format("woff2"),
-    url("/static/fonts/Vielma_Grotesk_Bold.otf") format("opentype");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Vielma Grotesk Header";
-  src:
-    url("/static/fonts/Vielma_Grotesk_Bold.woff2") format("woff2"),
-    url("/static/fonts/Vielma_Grotesk_Bold.otf") format("opentype");
-  font-weight: 800;
+  src: url("/static/fonts/Vielma_Grotesk_Bold.otf") format("opentype");
+  font-weight: 100 900;
   font-style: normal;
   font-display: swap;
 }
@@ -74,8 +25,8 @@ html[data-theme="dark"] {
   --accent: #C0FF00;
   --line: rgba(255, 255, 255, 0.12);
   --warn: #ff8a80;
-  --font-display: "Vielma Grotesk Header", "Vielma Grotesk", sans-serif;
-  --font-body: "Vielma Grotesk", "Segoe UI", sans-serif;
+  --font-display: "Vielma Grotesk Header", "Vielma Grotesk", Arial, sans-serif;
+  --font-body: "Vielma Grotesk", Arial, sans-serif;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
 }
