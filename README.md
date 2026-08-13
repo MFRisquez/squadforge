@@ -23,12 +23,28 @@ Private Fantasy Premier League for ~10 friends. Free to use. Works on **iPhone, 
 2. **Environment** → add or edit:  
    - **Key:** `DATABASE_URL`  
    - **Value:** paste the Supabase URI from step 6  
-3. Optional: `PUBLIC_BASE_URL` = your `https://….onrender.com` URL  
+3. Optional: `PUBLIC_BASE_URL` = your public site URL (same as the link friends use), e.g. `https://futfantasy.onrender.com`  
 4. **Save** → redeploy (Manual Deploy → latest commit)  
 5. In **Logs**, confirm: `database backend: postgres`  
 6. Register **once** on the live site — later deploys keep the account  
 
 You can **delete / ignore** the expiring Render Postgres database after Supabase works. Do not leave `DATABASE_URL` pointing at the Render DB if you plan to delete it.
+
+### Change the public link (Render URL)
+
+**Rename the free `*.onrender.com` address**
+1. Render Dashboard → your **futfantasy** web service → **Settings**
+2. Edit **Name** (this becomes `https://NEW-NAME.onrender.com`)
+3. Save → wait for redeploy
+4. Update env `PUBLIC_BASE_URL` to the new URL (needed for password-reset emails)
+
+**Use your own domain (optional)**  
+Settings → **Custom Domains** → add e.g. `play.futfantasy.app` → follow DNS instructions.
+
+### App icon (browser tab + Add to Home Screen)
+
+Icons live in `backend/app/web/static/icons/` (`logo.svg`, `icon-192.png`, `icon-512.png`, `favicon.ico`).  
+After deploy: hard-refresh (or delete the old Home Screen shortcut and **Add to Home Screen** again) so the new Fut Fantasy mark shows.
 
 ### 3) Deploy branch
 

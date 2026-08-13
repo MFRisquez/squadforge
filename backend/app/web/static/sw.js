@@ -1,5 +1,5 @@
 /* FutFantasy phone app shell */
-const CACHE = "futfantasy-v86";
+const CACHE = "futfantasy-v87";
 const PRECACHE = [
   "/static/styles.css",
   "/static/ui.js",
@@ -13,6 +13,11 @@ const PRECACHE = [
   "/static/manifest.webmanifest",
   "/static/icons/icon-192.png",
   "/static/icons/icon-512.png",
+  "/static/icons/icon-512-maskable.png",
+  "/static/icons/apple-touch-icon.png",
+  "/static/icons/favicon-32.png",
+  "/static/icons/logo.svg",
+  "/favicon.ico",
 ];
 
 self.addEventListener("install", (event) => {
