@@ -21,13 +21,14 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="preload" href="/static/fonts/Vielma_Grotesk_Regular.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="/static/fonts/Vielma_Grotesk_Bold.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="/static/styles.css" />
   <style>
-    /* Early apply so first paint isn’t system UI before CSS finishes */
-    html, body { font-family: "Vielma Grotesk", sans-serif; font-synthesis: none; }
-    h1, h2, h3, h4, .brand, .brand-text { font-family: "Vielma Grotesk Header", "Vielma Grotesk", sans-serif; }
+    html, body, button, input, select, textarea {
+      font-family: "Vielma Grotesk", sans-serif;
+      font-weight: 400;
+      font-synthesis: none;
+    }
   </style>
 </head>
 <body class="{% block body_class %}{% endblock %}">
