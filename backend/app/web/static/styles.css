@@ -55,6 +55,7 @@ html, body {
 body {
   color: var(--ink);
   font-family: var(--font-body);
+  font-weight: 400;
   background:
     radial-gradient(900px 420px at 100% -10%, rgba(192, 255, 0, 0.08), transparent 55%),
     linear-gradient(180deg, var(--bg) 0%, var(--bg) 100%);
@@ -777,8 +778,8 @@ select {
 }
 .pitch-team-name {
   font-size: clamp(0.7rem, 1.35vw, 0.92rem);
-  font-weight: 900;
-  font-family: var(--font-display);
+  font-weight: 700;
+  font-family: var(--font-body);
   letter-spacing: 0.02em;
   line-height: 1.1;
   white-space: nowrap;
@@ -977,7 +978,7 @@ select {
 }
 .xi-score-pill strong {
   font-size: 1.45rem;
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   color: #B6DB00;
   line-height: 1;
 }
@@ -2527,8 +2528,8 @@ body.picker-open {
 }
 .fx-score-num {
   font-size: 0.88rem;
-  font-weight: 900;
-  font-family: var(--font-display);
+  font-weight: 700;
+  font-family: var(--font-body);
   line-height: 1;
 }
 .fx-score-sep { opacity: 0.55; font-weight: 700; }
@@ -4768,8 +4769,8 @@ body.picker-open {
 .h2h-side strong { font-size: 0.92rem; line-height: 1.2; }
 .h2h-pts {
   font-size: 1.55rem;
-  font-weight: 900;
-  font-family: var(--font-display);
+  font-weight: 700;
+  font-family: var(--font-body);
   letter-spacing: -0.02em;
   color: var(--ink);
 }
