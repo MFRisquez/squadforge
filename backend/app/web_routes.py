@@ -5,13 +5,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Optional
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
-from app.auth import current_manager, login_manager, logout_manager
+from app.auth import current_manager, login_manager, logout_manager, manager_has_complete_squad
 from app.config import settings
 from app.db import get_db
 from app.models import ChipState, Club, Gameweek, Membership, Player, SquadPick
@@ -23,6 +24,39 @@ from app.services.seed import seed_if_empty
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "web" / "templates"))
+
+_SHELL_NEXT_PREFIXES = (
+    "/team",
+    "/lineup",
+    "/fixtures",
+    "/home",
+    "/rules",
+    "/standings",
+    "/league",
+    "/onboard",
+)
+
+
+def _safe_next_path(raw: str | None, default: str = "/team") -> str:
+    """Allow only same-app relative paths (no open redirects)."""
+    path = (raw or "").strip() or default
+    if not path.startswith("/") or path.startswith("//"):
+        return default
+    if "\\" in path or "://" in path:
+        return default
+    base = path.split("?", 1)[0].split("#", 1)[0]
+    if not any(base == p or base.startswith(p + "/") for p in _SHELL_NEXT_PREFIXES):
+        return default
+    return path
+
+
+def _redirect_with_query(path: str, **params: str) -> RedirectResponse:
+    """Append query params safely (handles existing ? and encodes values)."""
+    parts = urlsplit(path)
+    q = dict(parse_qsl(parts.query, keep_blank_values=True))
+    q.update({k: str(v) for k, v in params.items() if v is not None})
+    dest = urlunsplit((parts.scheme, parts.netloc, parts.path or "/", urlencode(q), parts.fragment))
+    return RedirectResponse(dest, status_code=303)
 
 
 def _wants_json(request: Request) -> bool:
@@ -69,6 +103,7 @@ def _ctx(request: Request, db: Session, **extra):
     except Exception:
         pass
     leagues = league_svc.manager_leagues(db, manager.id) if manager else []
+    has_squad = bool(manager and manager_has_complete_squad(db, manager.id))
     data = {
         "request": request,
         "app_name": settings.app_name,
@@ -76,68 +111,12 @@ def _ctx(request: Request, db: Session, **extra):
         "gw": gw,
         "budget": settings.budget,
         "nav_leagues": leagues,
+        "has_complete_squad": has_squad,
         "error": None,
         "notice": None,
     }
     data.update(extra)
     return data
-
-
-def _season_kpis(player: Player) -> dict:
-    try:
-        stats = json.loads(getattr(player, "season_stats_json", None) or "{}")
-    except json.JSONDecodeError:
-        stats = {}
-    if not isinstance(stats, dict):
-        stats = {}
-    try:
-        form = float(stats.get("form") or 0)
-    except (TypeError, ValueError):
-        form = 0.0
-    try:
-        total_points = int(float(stats.get("total_points") or 0))
-    except (TypeError, ValueError):
-        total_points = 0
-    return {"form": form, "total_points": total_points}
-
-
-def _players_payload(db: Session) -> list[dict]:
-    from app.kits import kit_for
-    from app.services import fixtures as fixtures_svc
-    from app.services.fpl_sync import availability_flag
-
-    clubs = {c.code: c for c in db.query(Club).all()}
-    players = db.query(Player).order_by(Player.position, Player.price.desc()).all()
-    current = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
-    from_gw = current.number if current else 1
-    fdr_by_club = fixtures_svc.club_next_fdr_map(db, from_gw=from_gw)
-    return [
-        {
-            "id": p.id,
-            "name": p.name,
-            "position": p.position,
-            "team": p.team_code,
-            "club": getattr(clubs.get(p.team_code), "name", None) or p.team_code,
-            "price": p.price,
-            "status": getattr(p, "status", "a") or "a",
-            "chance": getattr(p, "chance_of_playing", None),
-            "news": getattr(p, "news", "") or "",
-            "availability": availability_flag(
-                getattr(p, "status", "a") or "a",
-                getattr(p, "chance_of_playing", None),
-            ),
-            "fdr": fdr_by_club.get(p.team_code),
-            **_season_kpis(p),
-            **kit_for(
-                p.team_code,
-                position=p.position,
-                kit_code=getattr(clubs.get(p.team_code), "kit_code", None),
-                photo=getattr(p, "photo", "") or "",
-                player_id=p.id,
-            ),
-        }
-        for p in players
-    ]
 
 
 def _owned_payload(
@@ -154,7 +133,6 @@ def _owned_payload(
     fdr_by_club: dict[str, dict] = {}
     if db is not None:
         clubs = {c.code: c for c in db.query(Club).all()}
-        fixtures_svc.ensure_fixtures_ready(db)
         if gw_number:
             for match in fixtures_svc.fixtures_for_gameweek(db, gw_number=gw_number):
                 fdr_by_club[match["home"]["code"]] = {
@@ -217,6 +195,8 @@ def home(request: Request, db: Session = Depends(get_db)):
                 error=request.query_params.get("error"),
             ),
         )
+    if not manager_has_complete_squad(db, manager.id):
+        return RedirectResponse("/onboard", status_code=303)
     leagues = league_svc.manager_leagues(db, manager.id)
     live_demo = False
     try:
@@ -242,7 +222,6 @@ def login_page(request: Request):
     return RedirectResponse("/", status_code=303)
 
 
-
 @router.post("/login")
 def login_submit(
     request: Request,
@@ -259,7 +238,9 @@ def login_submit(
             status_code=400,
         )
     login_manager(request, manager)
-    return RedirectResponse("/", status_code=303)
+    if manager_has_complete_squad(db, manager.id):
+        return RedirectResponse("/", status_code=303)
+    return RedirectResponse("/onboard", status_code=303)
 
 
 @router.get("/register", response_class=HTMLResponse)
@@ -291,7 +272,7 @@ def register_submit(
             status_code=400,
         )
     login_manager(request, manager)
-    return RedirectResponse("/?notice=Welcome+·+your+account+is+ready", status_code=303)
+    return RedirectResponse("/onboard", status_code=303)
 
 
 @router.get("/forgot-password", response_class=HTMLResponse)
@@ -512,13 +493,45 @@ def team_page(request: Request, db: Session = Depends(get_db)):
     manager = current_manager(request, db)
     if not manager:
         return RedirectResponse("/login", status_code=303)
+    if not manager_has_complete_squad(db, manager.id):
+        return RedirectResponse("/onboard", status_code=303)
+    return _squad_board_response(request, db, manager, template_name="team.html")
+
+
+@router.get("/onboard", response_class=HTMLResponse)
+def onboard_page(request: Request, db: Session = Depends(get_db)):
+    manager = current_manager(request, db)
+    if not manager:
+        return RedirectResponse("/login", status_code=303)
+    if manager_has_complete_squad(db, manager.id):
+        return RedirectResponse("/", status_code=303)
+    return _squad_board_response(
+        request,
+        db,
+        manager,
+        template_name="onboard.html",
+        notice=(
+            request.query_params.get("notice")
+            or "Pick your 15 (2 GK · 5 DEF · 5 MID · 3 ATT) within budget, then Save."
+        ),
+    )
+
+
+def _squad_board_response(
+    request: Request,
+    db: Session,
+    manager,
+    *,
+    template_name: str,
+    notice: str | None = None,
+):
     from app.models import TransferLog
     from app.services import chips as chips_svc
     from app.services import td as td_svc
+    from app.services.fpl_sync import availability_flag
 
     view = _resolve_gw(request, db)
     gw = view["gw"]
-    # Bank FTs + restore any expired Free Hit *before* reading ownership
     ft_state = squad_svc.bank_free_transfers(db, manager.id, view["current_gw"].number)
     chips_svc.restore_free_hits_if_needed(db, manager_id=manager.id, current_gw=view["current_gw"])
     owned = squad_svc.owned_players(db, manager.id)
@@ -559,8 +572,6 @@ def team_page(request: Request, db: Session = Depends(get_db)):
         player = by_id.get(pick.player_id)
         if player and not pick.is_captain and not getattr(pick, "is_vice_captain", 0):
             bench_options.append(player)
-    from app.services.fpl_sync import availability_flag
-
     flag_labels = {"out": "Out", "doubt": "Doubt", "ok": "OK"}
     squad_alerts = []
     for player in owned:
@@ -584,8 +595,14 @@ def team_page(request: Request, db: Session = Depends(get_db)):
             a["name"],
         )
     )
+    resolved_notice = notice
+    if resolved_notice is None:
+        resolved_notice = (
+            request.query_params.get("notice")
+            or ("Transfer done." if request.query_params.get("ok") else None)
+        )
     return templates.TemplateResponse(
-        "team.html",
+        template_name,
         _ctx(
             request,
             db,
@@ -605,7 +622,7 @@ def team_page(request: Request, db: Session = Depends(get_db)):
             transfers_gw=transfers_gw,
             hits_gw=hits_gw,
             hit_cost=squad_svc.HIT_COST,
-            players_json=_players_payload(db),
+            players_json=[],  # loaded client-side from /api/players/catalog
             squad_alerts=squad_alerts,
             initial_squad={
                 "selected": [p.id for p in owned],
@@ -613,6 +630,7 @@ def team_page(request: Request, db: Session = Depends(get_db)):
                 "maxPerClub": settings.max_per_club,
                 "unlimited": unlimited and not view["edits_locked"],
                 "hasSquad": len(owned) == settings.squad_size,
+                "requireTd": template_name == "onboard.html" or len(owned) != settings.squad_size,
                 "ft": ft_state.free_transfers,
                 "hitCost": squad_svc.HIT_COST,
                 "locked": view["edits_locked"],
@@ -624,39 +642,63 @@ def team_page(request: Request, db: Session = Depends(get_db)):
             player_count=db.query(Player).count(),
             ok=request.query_params.get("ok"),
             error=request.query_params.get("error") or request.query_params.get("chip_error"),
-            notice=(
-                request.query_params.get("notice")
-                or ("Transfer done." if request.query_params.get("ok") else None)
-                or ("Chip played." if request.query_params.get("chip_ok") else None)
-            ),
+            notice=resolved_notice,
             **view,
         ),
     )
 
 
-def _safe_next_path(raw: str | None, default: str = "/team") -> str:
-    path = (raw or default).strip() or default
-    if not path.startswith("/") or path.startswith("//"):
-        return default
-    return path
+def _chip_state_payload(db: Session, manager_id: int, gw, *, cancelled_chip: str | None = None) -> dict:
+    from app.services import chips as chips_svc
+
+    state = chips_svc.ensure_chip_state(db, manager_id)
+    active = chips_svc.active_chip(db, manager_id, gw.id)
+    unlimited = squad_svc.transfers_are_unlimited(db, manager_id, gw)
+    super_sub_player_id = None
+    if active and active.chip == "super_sub":
+        try:
+            meta = json.loads(active.meta_json or "{}")
+        except json.JSONDecodeError:
+            meta = {}
+        if meta.get("player_id") is not None:
+            super_sub_player_id = int(meta["player_id"])
+    return {
+        "ok": True,
+        "active_chip": active.chip if active else None,
+        "active_label": chips_svc.CHIP_LABELS.get(active.chip, active.chip) if active else None,
+        "super_sub_player_id": super_sub_player_id,
+        "remaining": {
+            "wildcard": int(state.wildcard_remaining or 0),
+            "free_hit": int(state.free_hit_remaining or 0),
+            "bench_boost": int(state.bench_boost_remaining or 0),
+            "triple_captain": int(state.triple_captain_remaining or 0),
+            "super_sub": int(state.super_sub_remaining or 0),
+        },
+        "unlimited_transfers": bool(unlimited),
+        # Free Hit cancel restores the original 15 — client should refresh squad UI.
+        "reload_squad": cancelled_chip == "free_hit",
+    }
 
 
 @router.post("/team/chip")
-def play_chip_from_squad(
+async def play_chip_from_squad(
     request: Request,
     chip: str = Form(...),
     player_id: Optional[int] = Form(None),
-    next: str = Form("/team"),
+    next_path: str = Form("/team", alias="next"),
     db: Session = Depends(get_db),
 ):
     from app.services import chips as chips_svc
     from app.services.chips import ChipError
 
+    wants_json = _wants_json(request)
     manager = current_manager(request, db)
     if not manager:
+        if wants_json:
+            return JSONResponse({"ok": False, "error": "login_required"}, status_code=401)
         return RedirectResponse("/login", status_code=303)
     gw = squad_svc.current_gameweek(db)
-    dest = _safe_next_path(next, "/team")
+    dest = _safe_next_path(next_path, "/team")
     try:
         chips_svc.play_chip(
             db,
@@ -666,29 +708,42 @@ def play_chip_from_squad(
             player_id=player_id,
         )
     except ChipError as exc:
-        return RedirectResponse(f"{dest}?chip_error={exc}", status_code=303)
-    return RedirectResponse(f"{dest}?chip_ok=1", status_code=303)
+        if wants_json:
+            return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
+        return _redirect_with_query(dest, chip_error=str(exc))
+    if wants_json:
+        return JSONResponse(_chip_state_payload(db, manager.id, gw))
+    return _redirect_with_query(dest, chip_ok="1")
 
 
 @router.post("/team/chip/cancel")
-def cancel_chip_from_squad(
+async def cancel_chip_from_squad(
     request: Request,
-    next: str = Form("/team"),
+    next_path: str = Form("/team", alias="next"),
     db: Session = Depends(get_db),
 ):
     from app.services import chips as chips_svc
     from app.services.chips import ChipError
 
+    wants_json = _wants_json(request)
     manager = current_manager(request, db)
     if not manager:
+        if wants_json:
+            return JSONResponse({"ok": False, "error": "login_required"}, status_code=401)
         return RedirectResponse("/login", status_code=303)
     gw = squad_svc.current_gameweek(db)
-    dest = _safe_next_path(next, "/team")
+    dest = _safe_next_path(next_path, "/team")
+    active = chips_svc.active_chip(db, manager.id, gw.id)
+    cancelled = active.chip if active else None
     try:
         chips_svc.cancel_chip(db, manager_id=manager.id, gameweek_id=gw.id)
     except ChipError as exc:
-        return RedirectResponse(f"{dest}?chip_error={exc}", status_code=303)
-    return RedirectResponse(f"{dest}?chip_ok=1", status_code=303)
+        if wants_json:
+            return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
+        return _redirect_with_query(dest, chip_error=str(exc))
+    if wants_json:
+        return JSONResponse(_chip_state_payload(db, manager.id, gw, cancelled_chip=cancelled))
+    return _redirect_with_query(dest, chip_ok="1")
 
 
 @router.get("/team/edit", response_class=HTMLResponse)
@@ -758,7 +813,7 @@ async def team_save(request: Request, db: Session = Depends(get_db)):
                 transfers_gw=0,
                 hits_gw=0,
                 hit_cost=squad_svc.HIT_COST,
-                players_json=_players_payload(db),
+                players_json=[],
                 initial_squad={
                     "selected": player_ids,
                     "budget": settings.budget,
@@ -775,6 +830,8 @@ async def team_save(request: Request, db: Session = Depends(get_db)):
         )
     if wants_json:
         return JSONResponse({"ok": True, "saved": "squad", "player_ids": player_ids})
+    if manager_has_complete_squad(db, manager.id):
+        return RedirectResponse("/?notice=Squad+saved", status_code=303)
     return RedirectResponse("/team?notice=Squad+saved", status_code=303)
 
 
@@ -821,7 +878,7 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
     chips_svc.restore_free_hits_if_needed(db, manager_id=manager.id, current_gw=view["current_gw"])
     owned = squad_svc.owned_players(db, manager.id)
     if len(owned) != settings.squad_size:
-        return RedirectResponse("/team", status_code=303)
+        return RedirectResponse("/onboard", status_code=303)
     picks = (
         db.query(SquadPick)
         .filter(SquadPick.manager_id == manager.id, SquadPick.gameweek_id == gw.id)
@@ -841,8 +898,10 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
     if view["edits_locked"]:
         from app.services.auto_score import maybe_score_locked_gw
         from app.models import ManagerGameweekScore, PlayerPoints
+        import threading
 
-        maybe_score_locked_gw()
+        # Don't block navigation on scoring — refresh scores in the background.
+        threading.Thread(target=lambda: maybe_score_locked_gw(), daemon=True).start()
         for row in (
             db.query(PlayerPoints)
             .filter(
@@ -876,25 +935,36 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
     starter_set = set(starters)
     bench_options = [p for p in owned if p.id not in starter_set]
     notice = request.query_params.get("notice")
-    if request.query_params.get("chip_ok") and not notice:
-        notice = "Chip updated"
     error = request.query_params.get("error") or request.query_params.get("chip_error")
 
     from app.services import deadline as deadline_svc
-    from app.services import fixtures as fixtures_svc
+    from app.models import Fixture
 
     captain_editable = False
     if view["gw"].id == view["current_gw"].id:
         captain_editable = deadline_svc.can_edit_captain(view["current_gw"])
-    fixture_started = {
-        p.id: fixtures_svc.club_fixture_started(db, club_code=p.team_code, gw_number=gw.number)
-        for p in owned
-    }
+    # One query for the GW instead of per-club lookups.
+    started_clubs: set[str] = set()
+    for fx in db.query(Fixture).filter(Fixture.gameweek_number == gw.number).all():
+        if fx.started or fx.finished:
+            if fx.home_club_code:
+                started_clubs.add(fx.home_club_code)
+            if fx.away_club_code:
+                started_clubs.add(fx.away_club_code)
+    fixture_started = {p.id: p.team_code in started_clubs for p in owned}
     armed = {
         p.player_id: bool(getattr(p, "captain_armed", 0))
         for p in picks
     }
     td_info = td_svc.td_view(db, manager.id, gw.number, gameweek_id=gw.id)
+    super_sub_player_id = None
+    if active_chip and active_chip.chip == "super_sub":
+        try:
+            ss_meta = json.loads(active_chip.meta_json or "{}")
+            if ss_meta.get("player_id") is not None:
+                super_sub_player_id = int(ss_meta["player_id"])
+        except (json.JSONDecodeError, TypeError, ValueError):
+            super_sub_player_id = None
 
     return templates.TemplateResponse(
         "lineup.html",
@@ -914,6 +984,8 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
                 "points": points_map,
                 "breakdowns": points_breakdown,
                 "gwTotal": gw_total,
+                "activeChip": active_chip.chip if active_chip else None,
+                "superSubPlayerId": super_sub_player_id,
             },
             spend=squad_svc.squad_spend(owned),
             gw_total=gw_total,
@@ -1080,6 +1152,9 @@ def sync_players(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/login", status_code=303)
     try:
         info = sync_from_fpl(db)
+        from app.services.player_catalog import clear_players_catalog_cache
+
+        clear_players_catalog_cache()
         notice = f"Updated from FPL: {info['players']} players · current GW{info['current_gw']}"
     except Exception as exc:
         notice = None

@@ -1,17 +1,19 @@
 {% extends "base.html" %}
-{% block title %}{{ app_name }}{% endblock %}
+{% block title %}Fut Fantasy{% endblock %}
 {% block body_class %}page-auth{% endblock %}
 {% block content %}
-<div class="auth-stage">
+<script>document.documentElement.setAttribute("data-theme", "dark");</script>
+<div class="auth-stage auth-splash">
   <div class="auth-brand">
-    <span class="auth-brand-mark"></span>
-    <h1 class="auth-logo">{{ app_name }}</h1>
+    <img class="auth-logo-mark" src="/static/icons/logo.svg" width="72" height="72" alt="" />
+    <h1 class="auth-logo"><span class="auth-logo-fut">Fut</span> Fantasy</h1>
+    <p class="auth-tagline">Your team. Your strategy. Your glory.</p>
   </div>
 
   <form class="auth-card stack" method="post" action="/register">
     <p class="auth-card-title">Create account</p>
     <label class="auth-field">User name
-      <input name="display_name" required maxlength="80" placeholder="Manuel" autocomplete="username" />
+      <input name="display_name" required maxlength="80" placeholder="" autocomplete="username" />
     </label>
     <label class="auth-field">Password
       <input name="password" type="password" required minlength="6" maxlength="128" autocomplete="new-password" />
@@ -20,10 +22,10 @@
       <input name="email" type="email" required maxlength="120" placeholder="you@email.com" autocomplete="email" />
     </label>
     <label class="auth-field">Team’s name
-      <input name="team_name" required maxlength="80" placeholder="Forge FC" autocomplete="organization" />
+      <input name="team_name" required maxlength="80" placeholder="" autocomplete="organization" />
     </label>
     <button class="btn auth-primary" type="submit">Create account</button>
-    <a class="auth-text-link auth-secondary-link" href="/login">Back to sign in</a>
+    <a class="auth-text-link auth-secondary-link" href="/">Back to sign in</a>
   </form>
 </div>
 {% endblock %}

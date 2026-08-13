@@ -1,21 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Transfers · {{ app_name }}{% endblock %}
-{% block body_class %}page-fit page-squad{% endblock %}
+{% block title %}Build your team · Fut Fantasy{% endblock %}
+{% block body_class %}page-fit page-squad page-onboard{% endblock %}
 {% block content %}
-{% from "macros_gw.html" import gw_bar %}
-{% from "macros_chips.html" import chip_strip %}
+<section class="onboard-banner">
+  <img class="onboard-mark" src="/static/icons/logo.svg" width="40" height="40" alt="" />
+  <div>
+    <h1>Build your team</h1>
+    <p class="muted">Pick 15 players — 2 GK · 5 DEF · 5 MID · 3 ATT — within £{{ '%.0f'|format(budget) }}m. Then Save to open Home.</p>
+  </div>
+</section>
 
-{{ gw_bar(gw, deadline_label, edits_locked, prev_gw, next_gw, '/team') }}
-
-<p class="sr-only" id="modeHint">
-  {% if edits_locked %}Gameweek locked.{% else %}Edit your squad and transfers.{% endif %}
-</p>
+<p class="sr-only" id="modeHint">Pick your starting 15. Tap empty slots or use Free Agents.</p>
 
 <form method="post" action="/td/save" id="tdForm" hidden aria-hidden="true"></form>
-<div class="desk-board desk-squad">
+<div class="desk-board desk-squad desk-onboard">
   <div class="desk-main-top">
-    {{ chip_strip(chips, active_chip, edits_locked, bench_options, group='squad', next_path='/team', gw_number=gw.number) }}
-
     <div class="stat-strip" aria-label="Squad snapshot">
       <div class="stat">
         <span class="stat-label">Budget</span>
@@ -23,19 +22,14 @@
         <span class="stat-sub">of £{{ '%.1f'|format(budget) }}m</span>
       </div>
       <div class="stat">
-        <span class="stat-label">Free transfers</span>
-        <strong id="ftValue">{% if unlimited_transfers %}∞{% else %}{{ ft_left }}{% endif %}</strong>
-        <span class="stat-sub" id="ftSub">{% if unlimited_transfers %}unlimited{% else %}banked{% endif %}</span>
+        <span class="stat-label">Selected</span>
+        <strong id="squadCount">{{ owned|length if owned else 0 }}/15</strong>
+        <span class="stat-sub">squad</span>
       </div>
       <div class="stat">
-        <span class="stat-label">Hits</span>
-        <strong>{% if hits_gw %}−{{ hits_gw * hit_cost }}{% else %}0{% endif %}</strong>
-        <span class="stat-sub">{% if hits_gw %}{{ hits_gw }}× −{{ hit_cost }}{% else %}this GW{% endif %}</span>
-      </div>
-      <div class="stat">
-        <span class="stat-label">Made</span>
-        <strong>{{ transfers_gw }}</strong>
-        <span class="stat-sub">this GW</span>
+        <span class="stat-label">Per club</span>
+        <strong>max 3</strong>
+        <span class="stat-sub">rule</span>
       </div>
     </div>
 
@@ -48,30 +42,16 @@
     </form>
   </div>
 
-    <section class="squad-alerts desk-only" id="squadAlerts" aria-label="Watch list">
-      <header class="squad-alerts-head">
-        <p class="eyebrow">Watch list</p>
-      </header>
-      <div id="squadAlertsBody">
-        {% if squad_alerts %}
-        <ul class="squad-alerts-list">
-          {% for a in squad_alerts %}
-          <li class="squad-alert is-{{ a.flag }}">
-            <span class="sa-name">{{ a.name }}</span>
-            <span class="sa-team">{{ a.club }}</span>
-            <span class="sa-chance">{% if a.chance is not none %}{{ a.chance }}%{% else %}—{% endif %}</span>
-            <span class="sa-reason">{% if a.news %}{{ a.news }}{% else %}—{% endif %}</span>
-            <span class="squad-alert-flag">{{ a.flag_label }}</span>
-          </li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <p class="squad-alerts-empty muted">No injury or doubt flags right now.</p>
-        {% endif %}
-      </div>
-    </section>
+  <section class="squad-alerts desk-only" id="squadAlerts" aria-label="Watch list">
+    <header class="squad-alerts-head">
+      <p class="eyebrow">Watch list</p>
+    </header>
+    <div id="squadAlertsBody">
+      <p class="squad-alerts-empty muted">No injury or doubt flags right now.</p>
+    </div>
+  </section>
 
-    <div class="desk-main">
+  <div class="desk-main">
     <form method="post" action="/team/save" id="squadForm">
       <div id="hiddenFields"></div>
       <section class="pitch-wrap squad-pitch-wrap">
@@ -79,14 +59,12 @@
           <div class="pitch-markings" aria-hidden="true"></div>
           <div class="pitch-team-banner" aria-label="Your team">
             <strong class="pitch-team-name">{{ manager.team_name if manager.team_name else " " }}</strong>
-            <span class="pitch-team-role">Squad</span>
+            <span class="pitch-team-role">Setup</span>
           </div>
-          {% if not edits_locked %}
           <button class="pitch-save-btn is-idle" type="submit" id="saveSquadBtn" disabled aria-label="Save squad">
             <span class="pitch-save-ico" aria-hidden="true"></span>
             <span class="pitch-save-label">Save</span>
           </button>
-          {% endif %}
           <aside class="td-corner" aria-label="Technical Director">
             {% if td_info and td_info.club_code %}
               {% if td_info.badge %}
@@ -118,11 +96,6 @@
               <option value="{{ c.code }}" {% if td_info and td_info.club_code == c.code %}selected{% endif %}>{{ c.name }}</option>
               {% endfor %}
             </select>
-            {% if td_info and td_info.banned_club %}
-            <p class="td-ban muted tiny">Not {{ td_info.banned_club }} next</p>
-            {% endif %}
-            {% elif td_info and td_info.club_code %}
-              <span class="td-locked muted tiny">Locked</span>
             {% endif %}
           </aside>
           <div class="pitch-row zone-gk" data-pos="GK"></div>

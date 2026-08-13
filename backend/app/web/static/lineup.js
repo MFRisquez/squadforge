@@ -18,6 +18,8 @@
   const CAPTAIN_EDITABLE = Boolean(INITIAL.captainEditable);
   const FIXTURE_STARTED = INITIAL.fixtureStarted || {};
   const CAPTAIN_ARMED = INITIAL.captainArmed || {};
+  let activeChip = INITIAL.activeChip || null;
+  let superSubPlayerId = INITIAL.superSubPlayerId || null;
   if (!viceId || viceId === captainId) {
     viceId = [...starterIds].find((id) => id !== captainId) || null;
   }
@@ -37,10 +39,50 @@
   const playerDetail = document.getElementById("playerDetail");
   const detailEyebrow = document.getElementById("detailEyebrow");
   const detailName = document.getElementById("detailName");
+  const detailSub = document.getElementById("detailSub");
   const detailPhoto = document.getElementById("detailPhoto");
   const detailBody = document.getElementById("detailBody");
   const detailActions = document.getElementById("detailActions");
+  const detailHeadActions = document.getElementById("detailHeadActions");
   const closeDetailBtn = document.getElementById("closeDetail");
+
+  const MATCH_STATS_BY_POS = {
+    GK: ["Minutes", "Saves", "Clean sheet", "Goals conc.", "Pen saves", "Goals", "Assists", "Yellow", "Red"],
+    DEF: ["Minutes", "Goals", "Assists", "Clean sheet", "Goals conc.", "Yellow", "Red", "Own goals"],
+    MID: ["Minutes", "Goals", "Assists", "Clean sheet", "Yellow", "Red", "Pen missed"],
+    ATT: ["Minutes", "Goals", "Assists", "Pen missed", "Yellow", "Red"],
+  };
+
+  function matchStatsTableHtml(position, rows, emptyHint) {
+    const labels =
+      MATCH_STATS_BY_POS[position] || MATCH_STATS_BY_POS.MID;
+    const byLabel = Object.fromEntries((rows || []).map((r) => [r.label, r.value]));
+    const body = labels
+      .map(
+        (label) => `
+        <tr>
+          <th scope="row">${label}</th>
+          <td>${byLabel[label] != null ? byLabel[label] : "—"}</td>
+        </tr>`
+      )
+      .join("");
+    const extra = (rows || [])
+      .filter((r) => String(r.label || "").startsWith("Pts ·"))
+      .map(
+        (r) => `
+        <tr class="is-pts">
+          <th scope="row">${r.label}</th>
+          <td>${r.value}</td>
+        </tr>`
+      )
+      .join("");
+    return `
+      <table class="match-stat-table" aria-label="Gameweek stats">
+        <tbody>${body}${extra}</tbody>
+      </table>
+      ${emptyHint ? `<p class="muted tiny match-stat-hint">${emptyHint}</p>` : ""}
+    `;
+  }
   const swapBar = document.getElementById("swapBar");
   const swapHint = document.getElementById("swapHint");
   const cancelSwapBtn = document.getElementById("cancelSwap");
@@ -263,9 +305,36 @@
 
   function closeDetail() {
     if (!playerDetail) return;
-    playerDetail.hidden = true;
-    detailPlayer = null;
+    const finish = () => {
+      detailPlayer = null;
+    };
+    if (typeof window.__ffCloseDrawer === "function") {
+      window.__ffCloseDrawer(playerDetail).then(finish);
+    } else {
+      playerDetail.hidden = true;
+      finish();
+    }
   }
+
+  function applyChipVisuals() {
+    const bbOn = activeChip === "bench_boost";
+    document.body.classList.toggle("chip-bb-on", bbOn);
+    document.body.classList.toggle("chip-tc-on", activeChip === "triple_captain");
+    document.body.classList.toggle("chip-ss-on", activeChip === "super_sub");
+    document.querySelectorAll(".xi-bench-wrap, .xi-bench-stack, .xi-bench-panel").forEach((el) => {
+      el.classList.toggle("bb-active", bbOn);
+    });
+    document.querySelectorAll("[data-bench-title]").forEach((el) => {
+      el.textContent = bbOn ? "Bench Boost" : "Bench";
+    });
+  }
+
+  document.addEventListener("ff:chip-change", (e) => {
+    activeChip = e.detail?.chip || null;
+    superSubPlayerId = e.detail?.superSubPlayerId ?? null;
+    applyChipVisuals();
+    render();
+  });
 
   function clearSwap() {
     swapPending = null;
@@ -358,12 +427,19 @@
     const isCap = player.id === captainId && !onBench;
     const isVice = player.id === viceId && !onBench;
     const partners = LOCKED ? [] : eligiblePartners(player);
-    const fdr = player.fdr;
-    const oppLine = fdr
-      ? `${fdr.opponent} (${fdr.venue === "H" ? "H" : "A"})`
-      : "Fixture TBD";
-    detailEyebrow.textContent = LOCKED ? `Match · GW${GW || ""}` : `XI · ${player.position}`;
+    const roleLabel = onBench ? "Bench" : "Starting XI";
+    detailEyebrow.textContent = LOCKED
+      ? `Match · GW${GW || ""} · ${player.position}`
+      : `${roleLabel} · ${player.position}`;
     detailName.textContent = player.name;
+    if (detailSub) {
+      const team = player.club || player.team || "";
+      const price =
+        player.price != null && player.price !== ""
+          ? `£${Number(player.price).toFixed(1)}m`
+          : "";
+      detailSub.textContent = [team, price].filter(Boolean).join(" · ");
+    }
     if (detailPhoto) {
       detailPhoto.onerror = null;
       const chain = [player.photo, player.photoFallback, player.photoFallback2].filter(Boolean);
@@ -386,35 +462,42 @@
         detailPhoto.alt = "";
       }
     }
+    const isSS = activeChip === "super_sub" && Number(superSubPlayerId) === Number(player.id);
     detailBody.innerHTML = `
-      <div class="player-detail-hero player-detail-hero-meta">
+      <div class="player-detail-hero player-detail-hero-meta compact-meta">
         <div class="meta">
-          <strong>${player.team}</strong>
-          <span class="muted">${player.position} · vs ${oppLine}</span>
-          <span class="role-pill ${onBench ? "is-bench" : "is-xi"}">${onBench ? "Bench" : "Starting XI"}</span>
-          ${isCap ? `<span class="role-pill is-c">Captain ×2</span>` : ""}
+          ${isCap ? `<span class="role-pill is-c">${activeChip === "triple_captain" ? "Triple captain ×3" : "Captain ×2"}</span>` : ""}
           ${isVice ? `<span class="role-pill is-v">Vice-captain</span>` : ""}
+          ${isSS ? `<span class="role-pill is-ss">Super Sub ×2</span>` : ""}
           ${LOCKED && pts != null ? `<strong class="match-pts">${Number(pts).toFixed(0)} pts</strong>` : ""}
         </div>
       </div>
       <div class="kpi-block">
         <div class="player-fdr-head">
-          <strong>${LOCKED ? "This gameweek" : "Match stats"}</strong>
-          <span class="muted tiny">${LOCKED ? "After kickoff" : "Unlock after deadline"}</span>
+          <strong>Gameweek stats · ${player.position}</strong>
         </div>
-        <div class="kpi-grid" id="detailKpis">
-          <span class="muted tiny">${LOCKED ? "Loading match stats…" : "Scores appear here once the GW is locked."}</span>
+        <div id="detailKpis">
+          ${
+            LOCKED
+              ? `<p class="muted tiny">Loading match stats…</p>`
+              : matchStatsTableHtml(
+                  player.position,
+                  [],
+                  "Values fill in after the deadline / kickoff."
+                )
+          }
         </div>
       </div>
     `;
     detailActions.innerHTML = "";
+    if (detailHeadActions) detailHeadActions.innerHTML = "";
     if (!LOCKED || CAPTAIN_EDITABLE) {
       if (!onBench && (!LOCKED || CAPTAIN_EDITABLE)) {
         const cvRow = document.createElement("div");
         cvRow.className = "cv-action-row";
         const cBtn = actionBtn(
           isCap ? "Captain ✓" : "Make captain",
-          `btn cv-btn is-c${isCap ? " is-active" : ""}`,
+          `btn ghost cv-btn is-c${isCap ? " is-active" : ""}`,
           () => setCaptain(player.id)
         );
         if (isCap || (CAPTAIN_EDITABLE && !canPickAsCaptain(player.id))) cBtn.disabled = true;
@@ -423,7 +506,7 @@
         }
         const vBtn = actionBtn(
           isVice ? "Vice ✓" : "Make vice",
-          `btn cv-btn is-v${isVice ? " is-active" : ""}`,
+          `btn ghost cv-btn is-v${isVice ? " is-active" : ""}`,
           () => setVice(player.id)
         );
         if (isVice || (CAPTAIN_EDITABLE && !canPickAsCaptain(player.id))) vBtn.disabled = true;
@@ -508,17 +591,12 @@
         }
         if (kpis) {
           const items = data.kpis || [];
-          kpis.innerHTML = items.length
-            ? items
-                .map(
-                  (k) => `
-              <div class="kpi-cell">
-                <span>${k.label}</span>
-                <strong>${k.value}</strong>
-              </div>`
-                )
-                .join("")
-            : `<span class="muted tiny">No live events yet — tap Refresh live scores.</span>`;
+          const pos = detailPlayer.position || data.position || "MID";
+          kpis.innerHTML = matchStatsTableHtml(
+            pos,
+            items,
+            items.length ? "" : "No live events yet — tap Refresh live scores."
+          );
         }
       })
       .catch(() => {
@@ -566,12 +644,21 @@
     } else {
       footHtml = `<span class="shirt-foot shirt-opp">TBD</span>`;
     }
-    const roleChip =
-      !onBench && player.id === captainId
-        ? `<span class="role-badge role-c" title="Captain">C</span>`
-        : !onBench && player.id === viceId
-          ? `<span class="role-badge role-v" title="Vice-captain">V</span>`
-          : "";
+    const isTC = activeChip === "triple_captain";
+    const isSS = activeChip === "super_sub" && Number(superSubPlayerId) === Number(player.id);
+    let roleChip = "";
+    if (!onBench && player.id === captainId) {
+      roleChip = isTC
+        ? `<span class="role-badge role-c role-star" title="Triple Captain">★</span>`
+        : `<span class="role-badge role-c" title="Captain">C</span>`;
+      if (isTC) wrap.classList.add("is-tc-captain");
+    } else if (!onBench && player.id === viceId) {
+      roleChip = `<span class="role-badge role-v" title="Vice-captain">V</span>`;
+    }
+    if (isSS) {
+      roleChip += `<span class="role-badge role-s" title="Super Sub">S</span>`;
+      wrap.classList.add("is-super-sub");
+    }
     main.innerHTML = `
       <span class="shirt-kit">
         <img class="jersey-img" src="${player.shirt || ""}" alt="${player.team} kit" width="66" height="87" loading="lazy" decoding="async" />
@@ -931,17 +1018,29 @@
   ensureRoles();
   baselineSig = lineupSignature();
   saveVisual = "idle";
+  applyChipVisuals();
   render();
-  window.addEventListener("resize", () => {
+  const onResize = () => {
     paintBench();
     syncXiSideLayout();
     fitLiveTableType();
-  });
+  };
+  window.addEventListener("resize", onResize);
+  const onMq = () => render();
   if (DESK_MQ && typeof DESK_MQ.addEventListener === "function") {
-    DESK_MQ.addEventListener("change", () => render());
+    DESK_MQ.addEventListener("change", onMq);
   }
+  let pitchRo = null;
   if (typeof ResizeObserver !== "undefined" && pitch) {
-    const ro = new ResizeObserver(() => syncXiSideLayout());
-    ro.observe(pitch);
+    pitchRo = new ResizeObserver(() => syncXiSideLayout());
+    pitchRo.observe(pitch);
   }
+  window.__ffTeardown = () => {
+    window.removeEventListener("resize", onResize);
+    if (DESK_MQ && typeof DESK_MQ.removeEventListener === "function") {
+      DESK_MQ.removeEventListener("change", onMq);
+    }
+    if (pitchRo) pitchRo.disconnect();
+    document.querySelectorAll("body > .drawer").forEach((el) => el.remove());
+  };
 })();

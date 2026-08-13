@@ -1,9 +1,76 @@
-(() => {
-  const PLAYERS = JSON.parse(document.getElementById("playersData").textContent);
+(async () => {
+  const CATALOG_KEY = "ff_players_catalog_v1";
+  const CATALOG_META = "ff_players_catalog_meta_v1";
+
+  async function loadPlayersCatalog() {
+    const el = document.getElementById("playersData");
+    let embedded = [];
+    try {
+      embedded = JSON.parse(el && el.textContent ? el.textContent : "[]");
+    } catch (_) {
+      embedded = [];
+    }
+    if (Array.isArray(embedded) && embedded.length) return embedded;
+
+    try {
+      const cached = JSON.parse(sessionStorage.getItem(CATALOG_KEY) || "null");
+      const meta = JSON.parse(sessionStorage.getItem(CATALOG_META) || "null");
+      if (Array.isArray(cached) && cached.length) {
+        // Revalidate in background; paint from cache immediately.
+        fetchPlayersCatalog(meta && meta.version).catch(() => {});
+        return cached;
+      }
+    } catch (_) {}
+
+    return fetchPlayersCatalog();
+  }
+
+  async function fetchPlayersCatalog(knownVersion) {
+    const res = await fetch("/api/players/catalog", {
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) throw new Error("Could not load players");
+    const data = await res.json();
+    const players = Array.isArray(data.players) ? data.players : [];
+    try {
+      sessionStorage.setItem(CATALOG_KEY, JSON.stringify(players));
+      sessionStorage.setItem(
+        CATALOG_META,
+        JSON.stringify({ version: data.version || "", at: Date.now() })
+      );
+    } catch (_) {
+      /* quota / private mode */
+    }
+    if (knownVersion && data.version && data.version !== knownVersion) {
+      // Newer catalog arrived after painting cache — soft refresh list if board is up.
+      window.dispatchEvent(new CustomEvent("ff-players-updated", { detail: { players } }));
+    }
+    return players;
+  }
+
+  let PLAYERS = [];
+  try {
+    PLAYERS = await loadPlayersCatalog();
+  } catch (err) {
+    const hint = document.getElementById("modeHint");
+    if (hint) hint.textContent = "Could not load players — refresh and try again.";
+    console.error(err);
+    PLAYERS = [];
+  }
+
   const INITIAL = JSON.parse(document.getElementById("initialSquad").textContent);
   const BUDGET = Number(INITIAL.budget);
   const MAX_CLUB = Number(INITIAL.maxPerClub || 3);
-  const UNLIMITED = Boolean(INITIAL.unlimited);
+  let UNLIMITED = Boolean(INITIAL.unlimited);
+  window.__ffSquadState = {
+    get unlimited() {
+      return UNLIMITED;
+    },
+    set unlimited(v) {
+      UNLIMITED = !!v;
+    },
+  };
   const LOCKED = Boolean(INITIAL.locked);
   const FT_LEFT = Number(INITIAL.ft || 0);
   const HIT_COST = Number(INITIAL.hitCost || 4);
@@ -55,7 +122,10 @@
   const transferRailList = document.getElementById("transferRailList");
   const transferSort = document.getElementById("transferSort");
   const transferPosFilter = document.getElementById("transferPosFilter");
+  const transferSearch = document.getElementById("transferSearch");
+  const transferClubFilter = document.getElementById("transferClubFilter");
   const playerDetail = document.getElementById("playerDetail");
+  if (transferSort && !transferSort.value) transferSort.value = "price";
   const DESK_MQ = window.matchMedia("(min-width: 900px)");
 
   function isDesktop() {
@@ -63,9 +133,11 @@
   }
   const detailEyebrow = document.getElementById("detailEyebrow");
   const detailName = document.getElementById("detailName");
+  const detailSub = document.getElementById("detailSub");
   const detailPhoto = document.getElementById("detailPhoto");
   const detailBody = document.getElementById("detailBody");
   const detailActions = document.getElementById("detailActions");
+  const detailHeadActions = document.getElementById("detailHeadActions");
   const closeDetailBtn = document.getElementById("closeDetail");
 
   let starterIds = new Set(); // unused on Squad — lineup lives on /lineup
@@ -123,12 +195,22 @@
     return squadDirty() || tdDirty();
   }
 
+  function isOnboardPage() {
+    return document.body.classList.contains("page-onboard");
+  }
+
+  /** First team build: Save stays off until a DT club is picked. */
+  function requiresTdToSave() {
+    return Boolean(INITIAL.requireTd) || !INITIAL.hasSquad || isOnboardPage();
+  }
+
   function canSaveSquadPlayers() {
     return freeEdit() && isComplete() && squadDirty() && !outPlayer && spend() <= BUDGET + 0.001;
   }
 
   function canSave() {
     if (LOCKED || outPlayer) return false;
+    if (requiresTdToSave() && !currentTd()) return false;
     if (tdDirty() && !squadDirty()) return true;
     return canSaveSquadPlayers();
   }
@@ -153,11 +235,12 @@
       label.textContent = state === "saved" ? "Saved" : state === "saving" ? "Saving…" : "Save";
     }
     if (state === "dirty") {
-      saveSquadBtn.disabled = !canSave();
-      saveSquadBtn.setAttribute(
-        "aria-label",
-        tdDirty() && !squadDirty() ? "Unsaved DT change" : "Unsaved squad changes"
-      );
+      const ok = canSave();
+      saveSquadBtn.disabled = !ok;
+      let aria = "Unsaved squad changes";
+      if (requiresTdToSave() && !currentTd()) aria = "Pick a DT club before saving";
+      else if (tdDirty() && !squadDirty()) aria = "Unsaved DT change";
+      saveSquadBtn.setAttribute("aria-label", aria);
     } else if (state === "saved") {
       saveSquadBtn.disabled = true;
       saveSquadBtn.setAttribute("aria-label", "Saved");
@@ -270,6 +353,7 @@
       if (saveSquadBtn) saveSquadBtn.hidden = true;
       syncHidden();
       refreshSwapBar();
+      paintWatchList();
       return;
     }
     const canFree = freeEdit();
@@ -297,8 +381,52 @@
     }
     syncHidden();
     refreshSwapBar();
+    paintWatchList();
     paintSaveBtn();
     paintTransferRail();
+  }
+
+  function paintWatchList() {
+    const section = document.getElementById("squadAlerts");
+    const body = document.getElementById("squadAlertsBody");
+    if (!body) return;
+    if (section) section.hidden = false;
+    const FLAG_LABEL = { out: "Out", doubt: "Doubt" };
+    const esc = (s) =>
+      String(s ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/"/g, "&quot;");
+    const alerts = filledIds()
+      .map((id) => byId[id])
+      .filter((p) => p && (p.availability === "out" || p.availability === "doubt"))
+      .sort((a, b) => {
+        const ao = a.availability === "out" ? 0 : 1;
+        const bo = b.availability === "out" ? 0 : 1;
+        if (ao !== bo) return ao - bo;
+        const ac = a.chance == null ? 999 : Number(a.chance);
+        const bc = b.chance == null ? 999 : Number(b.chance);
+        if (ac !== bc) return ac - bc;
+        return String(a.name).localeCompare(String(b.name));
+      });
+    if (!alerts.length) {
+      body.innerHTML = `<p class="squad-alerts-empty muted">No injury or doubt flags right now.</p>`;
+      return;
+    }
+    body.innerHTML = `<ul class="squad-alerts-list">${alerts
+      .map((p) => {
+        const flag = p.availability === "out" ? "out" : "doubt";
+        const chance = p.chance == null || p.chance === "" ? "—" : `${p.chance}%`;
+        const news = (p.news || "").trim() || "—";
+        return `<li class="squad-alert is-${flag}">
+          <span class="sa-name">${esc(p.name)}</span>
+          <span class="sa-team">${esc(p.team)}</span>
+          <span class="sa-chance">${esc(chance)}</span>
+          <span class="sa-reason">${esc(news)}</span>
+          <span class="squad-alert-flag">${FLAG_LABEL[flag]}</span>
+        </li>`;
+      })
+      .join("")}</ul>`;
   }
 
   function formScore(p) {
@@ -313,7 +441,17 @@
 
   function railSortKey() {
     const v = transferSort && transferSort.value;
-    return v === "form" || v === "price" || v === "points" ? v : "points";
+    return v === "form" || v === "price" || v === "points" ? v : "price";
+  }
+
+  function railSearchQuery() {
+    return String(transferSearch && transferSearch.value ? transferSearch.value : "")
+      .trim()
+      .toLowerCase();
+  }
+
+  function railClubFilter() {
+    return String(transferClubFilter && transferClubFilter.value ? transferClubFilter.value : "").trim();
   }
 
   function sortRailPlayers(rows) {
@@ -391,9 +529,16 @@
     const counts = clubCounts(ctx.excludeId);
     const lockBudget = ctx.maxPrice != null;
     const posOnly = railPosFilter();
+    const q = railSearchQuery();
+    const clubOnly = railClubFilter();
     const rows = PLAYERS.filter((p) => {
       if (!p) return false;
       if (posOnly && p.position !== posOnly) return false;
+      if (clubOnly && String(p.team) !== clubOnly) return false;
+      if (q) {
+        const hay = `${p.name || ""} ${p.team || ""} ${p.position || ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
       return true;
     }).map((p) => {
       const inSquad = owned.has(p.id) && p.id !== ctx.excludeId;
@@ -405,15 +550,17 @@
       else if (!inSquad && ctx.requireAny && ctx.requireAny.length && !ctx.requireAny.includes(p.position)) {
         posBlocked = true;
       }
-      const locked = inSquad || browseLocked || clubBlocked || budgetBlocked || posBlocked;
+      // In-squad players stay clickable so you can deselect / transfer them out anytime.
+      const locked = !inSquad && (browseLocked || clubBlocked || budgetBlocked || posBlocked);
       let lockReason = "";
-      if (inSquad) lockReason = "In squad";
+      if (inSquad) lockReason = "Tap to remove";
       else if (browseLocked) lockReason = "Transfer someone out first";
       else if (posBlocked) lockReason = ctx.requirePos ? `Need ${ctx.requirePos}` : "Wrong position";
       else if (clubBlocked) lockReason = `Max ${MAX_CLUB} from ${p.team}`;
       else if (budgetBlocked) lockReason = "Over budget";
       return {
         ...p,
+        inSquad,
         locked,
         lockReason,
       };
@@ -462,9 +609,10 @@
       btn.className =
         "transfer-rail-row" +
         (inPlayer && inPlayer.id === p.id ? " is-selected" : "") +
+        (p.inSquad ? " is-owned" : "") +
         (p.locked ? " is-locked" : "") +
-        (!p.locked && avail === "doubt" ? " avail-doubt" : "") +
-        (!p.locked && avail === "out" ? " avail-out" : "");
+        (!p.locked && !p.inSquad && avail === "doubt" ? " avail-doubt" : "") +
+        (!p.locked && !p.inSquad && avail === "out" ? " avail-out" : "");
       btn.disabled = Boolean(p.locked);
       const tip = [p.lockReason, p.news].filter(Boolean).join(" · ");
       if (tip) btn.title = tip;
@@ -477,11 +625,31 @@
         <span class="tr-form">${formScore(p).toFixed(1)}</span>
         <span class="tr-pts">${pointsScore(p)}</span>
       `;
-      if (!p.locked) btn.addEventListener("click", () => pickFromTransferRail(p));
+      if (!p.locked) {
+        btn.addEventListener("click", () => {
+          if (p.inSquad) deselectFromRail(p);
+          else pickFromTransferRail(p);
+        });
+      }
       li.appendChild(btn);
       transferRailList.appendChild(li);
     });
     syncTransferRailLayout();
+  }
+
+  function findSlotForPlayer(playerId) {
+    for (const pos of ORDER) {
+      const index = slots[pos].findIndex((id) => id === playerId);
+      if (index >= 0) return { pos, index };
+    }
+    return null;
+  }
+
+  function deselectFromRail(p) {
+    if (LOCKED || !p) return;
+    const slot = findSlotForPlayer(p.id);
+    if (!slot) return;
+    removeFromSquad(slot.pos, slot.index, { openPicker: false });
   }
 
   function pickFromTransferRail(p) {
@@ -559,11 +727,12 @@
     render();
   }
 
-  function removeFromSquad(pos, index) {
+  function removeFromSquad(pos, index, opts = {}) {
     const id = slots[pos][index];
     if (!id || LOCKED) return;
     const p = byId[id];
     if (!p) return;
+    const openSearch = opts.openPicker !== false;
 
     if (freeEdit()) {
       slots[pos][index] = null;
@@ -575,7 +744,7 @@
       closeDetail();
       if (isDesktop()) setTransferPosFilter(pos);
       render();
-      if (!isDesktop()) openPicker(pos, index, "add");
+      if (!isDesktop() && openSearch) openPicker(pos, index, "add");
       return;
     }
 
@@ -593,7 +762,7 @@
     closeDetail();
     if (isDesktop()) setTransferPosFilter(pos);
     render();
-    if (!isDesktop()) openPicker(pos, index, "transfer");
+    if (!isDesktop() && openSearch) openPicker(pos, index, "transfer");
   }
 
   function statusLabel(p) {
@@ -606,8 +775,15 @@
 
   function closeDetail() {
     if (!playerDetail) return;
-    playerDetail.hidden = true;
-    detailContext = null;
+    const finish = () => {
+      detailContext = null;
+    };
+    if (typeof window.__ffCloseDrawer === "function") {
+      window.__ffCloseDrawer(playerDetail).then(finish);
+    } else {
+      playerDetail.hidden = true;
+      finish();
+    }
   }
 
   function setDetailPhoto(p) {
@@ -644,47 +820,35 @@
       pos: opts.pos ?? p.position,
       index: opts.index ?? null,
     };
-    detailEyebrow.textContent = `Season · ${p.position}`;
+    const club = p.club || p.team || "";
+    const inSquad = (INITIAL.selected || []).includes(p.id);
+    detailEyebrow.textContent = inSquad
+      ? `Squad · ${p.position}`
+      : `Free agent · ${p.position}`;
     detailName.textContent = p.name;
+    if (detailSub) {
+      detailSub.textContent = [club, `£${Number(p.price).toFixed(1)}m`].filter(Boolean).join(" · ");
+    }
     setDetailPhoto(p);
-    const club = p.club || p.team;
-    const chance =
-      p.chance == null || p.chance === ""
-        ? "—"
-        : `${p.chance}%`;
     const news = (p.news || "").trim();
     const avail = p.availability || "ok";
-    const fdr = p.fdr;
-    const fixtureLine = fdr
-      ? `${fdr.opponent} (${fdr.venue === "H" ? "H" : "A"})`
-      : "TBD";
     detailBody.innerHTML = `
-      <div class="player-detail-hero player-detail-hero-meta">
+      <div class="player-detail-hero player-detail-hero-meta compact-meta">
         <div class="meta">
-          <strong>${club}</strong>
-          <span class="muted">${p.position} · vs ${fixtureLine}</span>
-          <span class="avail-text-${(p.availability || "ok") === "ok" ? "ok" : p.availability || "ok"}">${statusLabel(p)}</span>
+          <span class="avail-text-${avail === "ok" ? "ok" : avail}">${statusLabel(p)}</span>
         </div>
-      </div>
-      <div class="player-detail-facts">
-        <div class="fact fact-price"><span>Price</span><strong>£${Number(p.price).toFixed(1)}m</strong></div>
-        <div class="fact"><span>Club</span><strong>${club}</strong></div>
-        <div class="fact"><span>Status</span><strong>${statusLabel(p)}</strong></div>
-        <div class="fact"><span>Chance next</span><strong>${chance}</strong></div>
       </div>
       <div class="kpi-block">
         <div class="player-fdr-head">
           <strong>Season stats</strong>
-          <span class="muted tiny">${p.position}</span>
         </div>
-        <div class="kpi-grid" id="detailKpis">
+        <div class="kpi-grid kpi-grid-compact" id="detailKpis">
           <span class="muted tiny">Loading stats…</span>
         </div>
       </div>
       <div class="player-fdr" id="detailFdr">
         <div class="player-fdr-head">
-          <strong>Next 3</strong>
-          <span class="muted tiny">Fixture difficulty</span>
+          <strong>Next 3 fixtures</strong>
         </div>
         <div class="player-fdr-row" id="detailFdrRow">
           <span class="muted tiny">Loading fixtures…</span>
@@ -693,11 +857,13 @@
       ${
         news
           ? `<div class="player-detail-news ${avail === "out" ? "is-out" : ""}">${news}</div>`
-          : `<p class="muted tiny">No injury news right now.</p>`
+          : ""
       }
     `;
 
     detailActions.innerHTML = "";
+    if (detailHeadActions) detailHeadActions.innerHTML = "";
+    if (detailActions) detailActions.classList.remove("is-ghost");
     if (!LOCKED) {
       if (opts.fromPicker) {
         const select = document.createElement("button");
@@ -717,25 +883,26 @@
       } else if (opts.pos != null && opts.index != null) {
         const transferBtn = document.createElement("button");
         transferBtn.type = "button";
-        transferBtn.className = "btn danger-btn transfer-out-btn";
-        transferBtn.textContent = freeEdit() ? "Transfer out" : "Transfer out";
-        transferBtn.addEventListener("click", () => removeFromSquad(opts.pos, opts.index));
-        detailActions.appendChild(transferBtn);
-
-        const hint = document.createElement("p");
-        hint.className = "muted tiny transfer-hint";
-        hint.textContent = freeEdit()
-          ? "Removes them, then opens the player search for this slot."
+        transferBtn.className = "btn danger-btn transfer-out-btn transfer-out-inline";
+        transferBtn.textContent = "Transfer out";
+        transferBtn.title = freeEdit()
+          ? "Remove and open search for this slot"
           : !UNLIMITED && FT_LEFT < 1
-            ? `Uses a hit (−${HIT_COST}) if you have no free transfers.`
-            : "Opens search to bring someone into this slot.";
-        detailActions.appendChild(hint);
+            ? `Hit (−${HIT_COST}) if no free transfers`
+            : "Open search to bring someone into this slot";
+        transferBtn.addEventListener("click", () => removeFromSquad(opts.pos, opts.index));
+        if (detailHeadActions) {
+          detailHeadActions.appendChild(transferBtn);
+        } else {
+          detailActions.appendChild(transferBtn);
+        }
 
         const toLineup = document.createElement("a");
         toLineup.className = "btn ghost";
         toLineup.href = "/lineup";
         toLineup.textContent = "Set XI";
         detailActions.appendChild(toLineup);
+        if (detailActions) detailActions.classList.add("is-ghost");
       }
     } else {
       const lockedNote = document.createElement("p");
@@ -763,7 +930,9 @@
           setDetailPhoto(detailContext.player);
         }
         if (kpis) {
-          const items = data.kpis || [];
+          const items = (data.kpis || []).filter(
+            (k) => !/mins\s*\/\s*start/i.test(String(k.label || ""))
+          );
           kpis.innerHTML = items.length
             ? items
                 .map(
@@ -785,8 +954,8 @@
             row.innerHTML = items
               .map(
                 (fx) => `
-              <div class="fdr-chip fdr-${fx.difficulty}" title="${fx.opponent_name} (${fx.venue}) · FDR ${fx.difficulty}">
-                <span class="fdr-opp">${fx.opponent} (${fx.venue})</span>
+              <div class="fdr-chip fdr-pro fdr-${fx.difficulty}" title="${fx.opponent_name} (${fx.venue}) · FDR ${fx.difficulty}">
+                <span class="fdr-opp">${fx.opponent} <em>${fx.venue}</em></span>
                 <span class="fdr-gw">GW${fx.gw}</span>
               </div>`
               )
@@ -1091,15 +1260,26 @@
     if (transferPosFilter) {
       transferPosFilter.addEventListener("change", () => paintTransferRail());
     }
+    if (transferSearch) {
+      transferSearch.addEventListener("input", () => paintTransferRail());
+    }
+    if (transferClubFilter) {
+      transferClubFilter.addEventListener("change", () => paintTransferRail());
+    }
 
     if (squadForm) {
       squadForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         const needSquad = squadDirty();
         const needTd = tdDirty();
+        const goHomeAfter = isOnboardPage() || (!INITIAL.hasSquad && needSquad);
         if (!needSquad && !needTd) return;
         if (outPlayer) {
           alert("Finish or cancel the transfer first.");
+          return;
+        }
+        if (requiresTdToSave() && !currentTd()) {
+          alert("Pick a Technical Director (DT) club before saving.");
           return;
         }
         if (needSquad) {
@@ -1145,9 +1325,15 @@
             INITIAL.hasSquad = true;
             INITIAL.selected = filledIds().slice();
           }
-          if (needTd) {
+          if (needTd || (goHomeAfter && currentTd())) {
             await saveTdClub(tdSelect());
             baselineTd = currentTd();
+          }
+          if (goHomeAfter) {
+            const dest = "/?notice=" + encodeURIComponent("Squad saved");
+            if (typeof window.__ffNavigate === "function") window.__ffNavigate(dest);
+            else window.location.assign(dest);
+            return;
           }
           saveVisual = "saved";
           paintSaveBtn();
@@ -1278,13 +1464,25 @@
   baselineTd = currentTd();
   saveVisual = "idle";
   render();
-  window.addEventListener("resize", () => syncTransferRailLayout());
+  const onResize = () => syncTransferRailLayout();
+  window.addEventListener("resize", onResize);
   if (DESK_MQ && typeof DESK_MQ.addEventListener === "function") {
-    DESK_MQ.addEventListener("change", () => syncTransferRailLayout());
+    DESK_MQ.addEventListener("change", onResize);
   }
+  let pitchRo = null;
   const squadPitchEl = document.getElementById("squadPitch");
   if (typeof ResizeObserver !== "undefined" && squadPitchEl) {
-    const ro = new ResizeObserver(() => syncTransferRailLayout());
-    ro.observe(squadPitchEl);
+    pitchRo = new ResizeObserver(() => syncTransferRailLayout());
+    pitchRo.observe(squadPitchEl);
   }
+  window.__ffTeardown = () => {
+    window.removeEventListener("resize", onResize);
+    if (DESK_MQ && typeof DESK_MQ.removeEventListener === "function") {
+      DESK_MQ.removeEventListener("change", onResize);
+    }
+    if (pitchRo) pitchRo.disconnect();
+    document.querySelectorAll("body > .drawer, body > .picker-modal").forEach((el) => el.remove());
+    document.body.classList.remove("picker-open");
+    document.body.style.top = "";
+  };
 })();

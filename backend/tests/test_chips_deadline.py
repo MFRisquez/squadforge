@@ -47,6 +47,42 @@ def test_play_tc_bb_and_cancel():
         db.close()
 
 
+def test_wildcard_and_free_hit_locked_in_gw1():
+    db = SessionLocal()
+    try:
+        manager = Manager(display_name="LateChips", pin="3333", team_name="Lock FC")
+        db.add(manager)
+        db.commit()
+        db.refresh(manager)
+        gw1 = db.query(Gameweek).filter(Gameweek.number == 1).one()
+        gw1.deadline_at = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat().replace("+00:00", "Z")
+        db.commit()
+
+        try:
+            chips_svc.play_chip(db, manager_id=manager.id, gameweek_id=gw1.id, chip="wildcard")
+            assert False, "wildcard should be locked in GW1"
+        except chips_svc.ChipError as exc:
+            assert "GW2" in str(exc)
+
+        try:
+            chips_svc.play_chip(db, manager_id=manager.id, gameweek_id=gw1.id, chip="free_hit")
+            assert False, "free hit should be locked in GW1"
+        except chips_svc.ChipError as exc:
+            assert "GW2" in str(exc)
+
+        # Other chips still playable in GW1
+        chips_svc.play_chip(db, manager_id=manager.id, gameweek_id=gw1.id, chip="triple_captain")
+        assert chips_svc.active_chip(db, manager.id, gw1.id).chip == "triple_captain"
+        # One chip per GW
+        try:
+            chips_svc.play_chip(db, manager_id=manager.id, gameweek_id=gw1.id, chip="bench_boost")
+            assert False, "second chip same GW should fail"
+        except chips_svc.ChipError:
+            pass
+    finally:
+        db.close()
+
+
 def test_deadline_lock():
     db = SessionLocal()
     try:

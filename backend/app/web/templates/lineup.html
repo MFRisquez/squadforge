@@ -4,7 +4,7 @@
 {% block content %}
 {% from "macros_gw.html" import gw_bar %}
 {% from "macros_chips.html" import chip_strip %}
-{% set xi_title = (manager.team_name if manager.team_name else manager.display_name) %}
+{% set xi_title = (manager.team_name if manager.team_name else " ") %}
 {{ gw_bar(gw, deadline_label, edits_locked, prev_gw, next_gw, '/lineup') }}
 
 <div class="xi-top">
@@ -84,7 +84,7 @@
       <section class="bench-wrap xi-bench-wrap xi-bench-phone">
         <header class="desk-rail-head xi-bench-phone-head">
           <p class="eyebrow">Subs</p>
-          <h2>Bench</h2>
+          <h2 data-bench-title>Bench</h2>
         </header>
         <div class="bench" id="bench"></div>
       </section>
@@ -97,7 +97,7 @@
     <section class="xi-bench-panel">
       <header class="desk-rail-head">
         <p class="eyebrow">Subs</p>
-        <h2>Bench</h2>
+        <h2 data-bench-title>Bench</h2>
       </header>
       <div class="bench xi-bench-stack" id="benchDesk"></div>
     </section>
@@ -122,15 +122,17 @@
     <header class="drawer-head player-detail-head">
       <div class="player-detail-title">
         <img class="player-detail-photo" id="detailPhoto" alt="" hidden />
-        <div>
+        <div class="player-detail-copy">
           <p class="eyebrow" id="detailEyebrow">Player</p>
           <h2 id="detailName">—</h2>
+          <p class="player-detail-sub" id="detailSub"></p>
         </div>
+        <div class="player-detail-head-actions" id="detailHeadActions"></div>
       </div>
       <button type="button" class="icon-btn" id="closeDetail" aria-label="Close">✕</button>
     </header>
     <div class="player-detail-body" id="detailBody"></div>
-    <div class="player-detail-actions" id="detailActions"></div>
+    <div class="player-detail-actions is-ghost" id="detailActions"></div>
   </div>
 </div>
 

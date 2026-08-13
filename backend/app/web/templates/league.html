@@ -9,7 +9,7 @@
   <h2>Managers</h2>
   <ul class="list">
     {% for m in members %}
-      <li>{{ m.manager.display_name }} <span class="muted">{{ m.manager.team_name }}</span></li>
+      <li>{{ m.manager.team_name or " " }}</li>
     {% endfor %}
   </ul>
   <div class="row">
