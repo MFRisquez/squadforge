@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Optional
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -23,6 +24,39 @@ from app.services.seed import seed_if_empty
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "web" / "templates"))
+
+_SHELL_NEXT_PREFIXES = (
+    "/team",
+    "/lineup",
+    "/fixtures",
+    "/home",
+    "/rules",
+    "/standings",
+    "/league",
+    "/onboard",
+)
+
+
+def _safe_next_path(raw: str | None, default: str = "/team") -> str:
+    """Allow only same-app relative paths (no open redirects)."""
+    path = (raw or "").strip() or default
+    if not path.startswith("/") or path.startswith("//"):
+        return default
+    if "\\" in path or "://" in path:
+        return default
+    base = path.split("?", 1)[0].split("#", 1)[0]
+    if not any(base == p or base.startswith(p + "/") for p in _SHELL_NEXT_PREFIXES):
+        return default
+    return path
+
+
+def _redirect_with_query(path: str, **params: str) -> RedirectResponse:
+    """Append query params safely (handles existing ? and encodes values)."""
+    parts = urlsplit(path)
+    q = dict(parse_qsl(parts.query, keep_blank_values=True))
+    q.update({k: str(v) for k, v in params.items() if v is not None})
+    dest = urlunsplit((parts.scheme, parts.netloc, parts.path or "/", urlencode(q), parts.fragment))
+    return RedirectResponse(dest, status_code=303)
 
 
 def _wants_json(request: Request) -> bool:
@@ -620,7 +654,7 @@ def play_chip_from_squad(
     request: Request,
     chip: str = Form(...),
     player_id: Optional[int] = Form(None),
-    next: str = Form("/team"),
+    next_path: str = Form("/team", alias="next"),
     db: Session = Depends(get_db),
 ):
     from app.services import chips as chips_svc
@@ -630,7 +664,7 @@ def play_chip_from_squad(
     if not manager:
         return RedirectResponse("/login", status_code=303)
     gw = squad_svc.current_gameweek(db)
-    dest = _safe_next_path(next, "/team")
+    dest = _safe_next_path(next_path, "/team")
     try:
         chips_svc.play_chip(
             db,
@@ -640,14 +674,14 @@ def play_chip_from_squad(
             player_id=player_id,
         )
     except ChipError as exc:
-        return RedirectResponse(f"{dest}?chip_error={exc}", status_code=303)
-    return RedirectResponse(f"{dest}?chip_ok=1", status_code=303)
+        return _redirect_with_query(dest, chip_error=str(exc))
+    return _redirect_with_query(dest, chip_ok="1")
 
 
 @router.post("/team/chip/cancel")
 def cancel_chip_from_squad(
     request: Request,
-    next: str = Form("/team"),
+    next_path: str = Form("/team", alias="next"),
     db: Session = Depends(get_db),
 ):
     from app.services import chips as chips_svc
@@ -657,12 +691,12 @@ def cancel_chip_from_squad(
     if not manager:
         return RedirectResponse("/login", status_code=303)
     gw = squad_svc.current_gameweek(db)
-    dest = _safe_next_path(next, "/team")
+    dest = _safe_next_path(next_path, "/team")
     try:
         chips_svc.cancel_chip(db, manager_id=manager.id, gameweek_id=gw.id)
     except ChipError as exc:
-        return RedirectResponse(f"{dest}?chip_error={exc}", status_code=303)
-    return RedirectResponse(f"{dest}?chip_ok=1", status_code=303)
+        return _redirect_with_query(dest, chip_error=str(exc))
+    return _redirect_with_query(dest, chip_ok="1")
 
 
 @router.get("/team/edit", response_class=HTMLResponse)

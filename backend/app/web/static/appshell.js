@@ -214,7 +214,6 @@
     }
     navigating = true;
     const main = document.querySelector("main.shell");
-    if (main) main.classList.add("shell-swap");
     try {
       const html = await fetchPageHtml(path);
       if (html == null) return;
@@ -224,21 +223,25 @@
         window.location.href = path;
         return;
       }
+      // Keep outgoing page fully opaque while fetching; swap only after the
+      // next main is painted ready — avoids pitch flicker (opacity flash).
+      nextMain.classList.add("shell-pending");
       teardownPage();
       document.body.className = doc.body.className || "";
       document.title = doc.title || document.title;
       main.replaceWith(nextMain);
-      nextMain.classList.add("shell-enter");
       updateNavActive(path.split("?")[0]);
       if (push) history.pushState({ ffShell: true }, "", path);
       await runScripts(nextMain);
       window.scrollTo(0, 0);
-      requestAnimationFrame(() => nextMain.classList.remove("shell-enter"));
+      // Reveal on the next frame so shirt/pitch DOM is in place first.
+      requestAnimationFrame(() => {
+        nextMain.classList.remove("shell-pending");
+      });
     } catch (_) {
       window.location.href = path;
     } finally {
       navigating = false;
-      document.querySelector("main.shell")?.classList.remove("shell-swap");
     }
   }
 

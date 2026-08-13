@@ -126,6 +126,10 @@ def play_chip(
     if already:
         raise ChipError(f"Already playing {CHIP_LABELS.get(already.chip, already.chip)} this GW")
 
+    # Wildcard + Free Hit unlock from GW2 (not available in GW1).
+    if chip in {"wildcard", "free_hit"} and gw.number < 2:
+        raise ChipError(f"{CHIP_LABELS[chip]} unlocks from GW2")
+
     meta: dict = {}
 
     if chip == "wildcard":

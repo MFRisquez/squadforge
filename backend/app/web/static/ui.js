@@ -5,11 +5,18 @@
     flash.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
-  // Mark drawer sheets for enter animation when opened
+  // Mark drawer sheets for enter animation when opened (bottom slide-up)
   const observer = new MutationObserver(() => {
-    document.querySelectorAll(".drawer:not([hidden]) .drawer-sheet").forEach((el) => {
-      el.classList.add("sheet-in");
-    });
+    document
+      .querySelectorAll(
+        ".drawer:not([hidden]) .drawer-sheet, .drawer:not([hidden]) .match-detail-sheet, .drawer:not([hidden]) .player-detail-sheet"
+      )
+      .forEach((el) => {
+        el.classList.remove("sheet-in");
+        // Retrigger animation on each open
+        void el.offsetWidth;
+        el.classList.add("sheet-in");
+      });
   });
   observer.observe(document.body, { attributes: true, subtree: true, attributeFilter: ["hidden"] });
 
