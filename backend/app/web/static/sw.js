@@ -1,5 +1,5 @@
 /* FutFantasy phone app shell */
-const CACHE = "futfantasy-v76";
+const CACHE = "futfantasy-v77";
 const PRECACHE = [
   "/static/styles.css",
   "/static/ui.js",
@@ -8,6 +8,8 @@ const PRECACHE = [
   "/static/lineup.js",
   "/static/squadboard.js",
   "/static/fixtures.js",
+  "/static/fonts/Vielma_Grotesk_Regular.woff2",
+  "/static/fonts/Vielma_Grotesk_Bold.woff2",
   "/static/fonts/Vielma_Grotesk_Regular.otf",
   "/static/fonts/Vielma_Grotesk_Bold.otf",
   "/static/manifest.webmanifest",

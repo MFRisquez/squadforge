@@ -317,11 +317,15 @@
   }
 
   function applyChipVisuals() {
-    document.body.classList.toggle("chip-bb-on", activeChip === "bench_boost");
+    const bbOn = activeChip === "bench_boost";
+    document.body.classList.toggle("chip-bb-on", bbOn);
     document.body.classList.toggle("chip-tc-on", activeChip === "triple_captain");
     document.body.classList.toggle("chip-ss-on", activeChip === "super_sub");
-    document.querySelectorAll(".xi-bench-wrap, .xi-bench-stack").forEach((el) => {
-      el.classList.toggle("bb-active", activeChip === "bench_boost");
+    document.querySelectorAll(".xi-bench-wrap, .xi-bench-stack, .xi-bench-panel").forEach((el) => {
+      el.classList.toggle("bb-active", bbOn);
+    });
+    document.querySelectorAll("[data-bench-title]").forEach((el) => {
+      el.textContent = bbOn ? "Bench Boost" : "Bench";
     });
   }
 

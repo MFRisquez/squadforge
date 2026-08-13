@@ -122,7 +122,10 @@
   const transferRailList = document.getElementById("transferRailList");
   const transferSort = document.getElementById("transferSort");
   const transferPosFilter = document.getElementById("transferPosFilter");
+  const transferSearch = document.getElementById("transferSearch");
+  const transferClubFilter = document.getElementById("transferClubFilter");
   const playerDetail = document.getElementById("playerDetail");
+  if (transferSort && !transferSort.value) transferSort.value = "price";
   const DESK_MQ = window.matchMedia("(min-width: 900px)");
 
   function isDesktop() {
@@ -438,7 +441,17 @@
 
   function railSortKey() {
     const v = transferSort && transferSort.value;
-    return v === "form" || v === "price" || v === "points" ? v : "points";
+    return v === "form" || v === "price" || v === "points" ? v : "price";
+  }
+
+  function railSearchQuery() {
+    return String(transferSearch && transferSearch.value ? transferSearch.value : "")
+      .trim()
+      .toLowerCase();
+  }
+
+  function railClubFilter() {
+    return String(transferClubFilter && transferClubFilter.value ? transferClubFilter.value : "").trim();
   }
 
   function sortRailPlayers(rows) {
@@ -516,9 +529,16 @@
     const counts = clubCounts(ctx.excludeId);
     const lockBudget = ctx.maxPrice != null;
     const posOnly = railPosFilter();
+    const q = railSearchQuery();
+    const clubOnly = railClubFilter();
     const rows = PLAYERS.filter((p) => {
       if (!p) return false;
       if (posOnly && p.position !== posOnly) return false;
+      if (clubOnly && String(p.team) !== clubOnly) return false;
+      if (q) {
+        const hay = `${p.name || ""} ${p.team || ""} ${p.position || ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
       return true;
     }).map((p) => {
       const inSquad = owned.has(p.id) && p.id !== ctx.excludeId;
@@ -1239,6 +1259,12 @@
     }
     if (transferPosFilter) {
       transferPosFilter.addEventListener("change", () => paintTransferRail());
+    }
+    if (transferSearch) {
+      transferSearch.addEventListener("input", () => paintTransferRail());
+    }
+    if (transferClubFilter) {
+      transferClubFilter.addEventListener("change", () => paintTransferRail());
     }
 
     if (squadForm) {

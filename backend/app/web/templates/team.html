@@ -137,6 +137,21 @@
   <aside class="desk-rail transfer-rail" id="transferRail" aria-label="Free agents">
     <header class="desk-rail-head">
       <p class="eyebrow">Free Agents</p>
+      <div class="rail-filters-primary">
+        <label class="rail-search">
+          <span class="sr-only">Search players</span>
+          <input type="search" id="transferSearch" class="transfer-rail-search" placeholder="Search player…" autocomplete="off" />
+        </label>
+        <label class="rail-sort">
+          <span class="sr-only">Club</span>
+          <select id="transferClubFilter" aria-label="Filter by club">
+            <option value="">All clubs</option>
+            {% for c in clubs %}
+            <option value="{{ c.code }}">{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
       <div class="rail-filters">
         <label class="rail-sort">
           <span class="sr-only">Position</span>
@@ -148,12 +163,12 @@
             <option value="ATT">ATT</option>
           </select>
         </label>
-        <label class="rail-sort">
-          <span class="sr-only">Sort by</span>
+        <label class="rail-sort rail-sort-label">
+          <span>Sort by</span>
           <select id="transferSort" aria-label="Sort free agents">
+            <option value="price" selected>Price</option>
             <option value="points">Points</option>
             <option value="form">Form</option>
-            <option value="price">Price</option>
           </select>
         </label>
       </div>

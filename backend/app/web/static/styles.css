@@ -1,7 +1,9 @@
-/* Body copy: Regular only (all weights map to this face). */
+/* Body copy: Regular face for all non-header weights (phone + desktop). */
 @font-face {
   font-family: "Vielma Grotesk";
-  src: url("/static/fonts/Vielma_Grotesk_Regular.otf") format("opentype");
+  src:
+    url("/static/fonts/Vielma_Grotesk_Regular.woff2") format("woff2"),
+    url("/static/fonts/Vielma_Grotesk_Regular.otf") format("opentype");
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
@@ -9,7 +11,9 @@
 /* Headers only: Bold face. */
 @font-face {
   font-family: "Vielma Grotesk Header";
-  src: url("/static/fonts/Vielma_Grotesk_Bold.otf") format("opentype");
+  src:
+    url("/static/fonts/Vielma_Grotesk_Bold.woff2") format("woff2"),
+    url("/static/fonts/Vielma_Grotesk_Bold.otf") format("opentype");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -56,10 +60,15 @@ body {
   color: var(--ink);
   font-family: var(--font-body);
   font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   background:
     radial-gradient(900px 420px at 100% -10%, rgba(192, 255, 0, 0.08), transparent 55%),
     linear-gradient(180deg, var(--bg) 0%, var(--bg) 100%);
   background-attachment: fixed;
+}
+body, button, input, select, textarea {
+  font-family: inherit;
 }
 html[data-theme="light"] body {
   background:
@@ -638,12 +647,31 @@ select {
 }
 .xi-bench-wrap.bb-active .bench,
 .xi-bench-stack.bb-active,
-.bb-active.xi-bench-wrap .bench {
+.bb-active.xi-bench-wrap .bench,
+body.chip-bb-on .xi-bench-panel,
+body.chip-bb-on .xi-bench-wrap .bench {
   outline: 2px solid #C0FF00;
   outline-offset: 2px;
   border-radius: 0.65rem;
-  background: rgba(192, 255, 0, 0.1);
-  box-shadow: inset 0 0 0 1px rgba(192, 255, 0, 0.35);
+  background:
+    linear-gradient(180deg, rgba(192, 255, 0, 0.42), rgba(192, 255, 0, 0.18) 78%),
+    color-mix(in oklab, #C0FF00 22%, #1a1a1a);
+  box-shadow:
+    inset 0 0 0 1px rgba(192, 255, 0, 0.45),
+    0 0 0 1px rgba(192, 255, 0, 0.2);
+}
+html[data-theme="light"] .xi-bench-wrap.bb-active .bench,
+html[data-theme="light"] .xi-bench-stack.bb-active,
+html[data-theme="light"] body.chip-bb-on .xi-bench-panel,
+html[data-theme="light"] body.chip-bb-on .xi-bench-wrap .bench {
+  background:
+    linear-gradient(180deg, rgba(182, 219, 0, 0.38), rgba(182, 219, 0, 0.14) 80%),
+    color-mix(in oklab, #B6DB00 18%, #fff);
+}
+body.chip-bb-on .xi-bench-phone-head h2,
+body.chip-bb-on .xi-bench-panel .desk-rail-head h2 {
+  background: #C0FF00;
+  color: #000;
 }
 .shirt-card.is-captain .shirt,
 .shirt-card.is-vice .shirt {
@@ -1423,12 +1451,12 @@ html[data-theme="dark"] .chip-card-fpl.is-active select[data-ss-player] {
   background: #ffffff !important;
 }
 html[data-theme="dark"] .picker-search input {
-  color: #fff !important;
-  background: #111 !important;
-  border-color: rgba(255, 255, 255, 0.22);
+  color: #102033 !important;
+  background: #eef4fb !important;
+  border-color: color-mix(in oklab, #C0FF00 28%, #c5d2e2);
 }
 html[data-theme="dark"] .picker-search input::placeholder {
-  color: rgba(255, 255, 255, 0.55) !important;
+  color: color-mix(in oklab, #102033 55%, #6a7d93) !important;
 }
 html[data-theme="dark"] .picker-filters select {
   color: #fff !important;
@@ -1548,7 +1576,60 @@ html[data-theme="dark"] .chip-card-fpl .chip-toggle.is-on {
   gap: 0.35rem;
   margin-top: 0.35rem;
 }
-.rail-filters .rail-sort { margin-top: 0; }
+.rail-filters-primary {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+.rail-filters .rail-sort,
+.rail-filters-primary .rail-sort { margin-top: 0; }
+.rail-search input,
+.transfer-rail-search {
+  width: 100%;
+  font-size: 0.72rem;
+  font-weight: 700;
+  min-height: 2rem;
+  padding: 0.28rem 0.55rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: #111;
+  outline: none;
+}
+.rail-search input:focus,
+.transfer-rail-search:focus {
+  border-color: #B6DB00;
+  box-shadow: 0 0 0 3px rgba(182, 219, 0, 0.18);
+}
+html[data-theme="dark"] .rail-search input,
+html[data-theme="dark"] .transfer-rail-search {
+  background: #eef4fb;
+  color: #102033;
+  border-color: color-mix(in oklab, #C0FF00 28%, #c5d2e2);
+}
+html[data-theme="dark"] .rail-search input::placeholder,
+html[data-theme="dark"] .transfer-rail-search::placeholder {
+  color: color-mix(in oklab, #102033 55%, #6a7d93);
+}
+.rail-sort-label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+}
+.rail-sort-label > span {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.rail-sort-label select {
+  min-width: 0;
+}
 .chip-card-fpl.chip-card-ss {
   width: min(20rem, 96vw);
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -6188,18 +6269,20 @@ body.page-auth .flash.error {
   position: absolute;
   left: auto;
   right: 0;
-  top: calc(100% + 0.35rem);
+  top: calc(100% + 0.28rem);
   width: max-content;
-  max-width: 10.5rem;
-  padding: 0.42rem 0.5rem;
-  border-radius: 0.4rem;
-  background: #1a1a1a;
+  max-width: 9rem;
+  padding: 0.4rem 0.48rem;
+  border-radius: 0.45rem;
+  background: rgba(26, 26, 26, 0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   color: #FFFFFF;
-  border: 1px solid rgba(192, 255, 0, 0.45);
-  font-size: 0.64rem;
+  border: 1px solid rgba(192, 255, 0, 0.4);
+  font-size: 0.62rem;
   font-weight: 600;
-  line-height: 1.35;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  line-height: 1.32;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -6207,6 +6290,12 @@ body.page-auth .flash.error {
   z-index: 120;
   text-align: left;
   white-space: normal;
+}
+html[data-theme="light"] .chip-tip {
+  background: rgba(255, 255, 255, 0.82);
+  color: #111;
+  border-color: rgba(182, 219, 0, 0.55);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
 }
 .chip-tip.is-fixed {
   position: fixed;
@@ -6219,8 +6308,8 @@ body.page-auth .flash.error {
 }
 @media (max-width: 640px) {
   .chip-tip {
-    max-width: min(10.5rem, calc(100vw - 1.5rem));
-    font-size: 0.62rem;
+    max-width: min(9rem, calc(100vw - 1.2rem));
+    font-size: 0.6rem;
   }
 }
 
@@ -6806,6 +6895,22 @@ html[data-theme="dark"] .fx-stat-table td.is-lead { color: #C0FF00; }
     background: #f4f4f4;
     color: #111;
   }
+  html[data-theme="dark"] body.page-xi.chip-bb-on .xi-bench-panel,
+  html[data-theme="dark"] body.page-xi.chip-bb-on .xi-bench-stack.bench,
+  html[data-theme="dark"] body.page-xi .xi-bench-stack.bb-active {
+    background:
+      linear-gradient(180deg, rgba(192, 255, 0, 0.48), rgba(192, 255, 0, 0.22) 78%),
+      color-mix(in oklab, #C0FF00 28%, #ececec);
+    border-color: rgba(120, 160, 0, 0.45);
+    color: #111;
+    outline: 2px solid #C0FF00;
+    outline-offset: 2px;
+    box-shadow: inset 0 0 0 1px rgba(192, 255, 0, 0.4);
+  }
+  html[data-theme="dark"] body.page-xi.chip-bb-on .xi-bench-panel .desk-rail-head h2 {
+    background: #C0FF00;
+    color: #000;
+  }
   html[data-theme="dark"] body.page-xi .xi-bench-name {
     color: #111;
   }
@@ -6817,6 +6922,13 @@ html[data-theme="dark"] .fx-stat-table td.is-lead { color: #C0FF00; }
   html[data-theme="dark"] body.page-xi .xi-bench-cols {
     border-bottom-color: rgba(0, 0, 0, 0.12);
   }
+}
+html[data-theme="dark"] body.chip-bb-on .xi-bench-wrap .bench,
+html[data-theme="dark"] body.chip-bb-on .xi-bench-wrap.bb-active .bench {
+  background:
+    linear-gradient(180deg, rgba(192, 255, 0, 0.4), rgba(192, 255, 0, 0.16) 78%),
+    color-mix(in oklab, #C0FF00 24%, #1a1a1a) !important;
+  border-color: rgba(192, 255, 0, 0.55);
 }
 
 html[data-theme="dark"] .chip-card-fpl.is-active {
