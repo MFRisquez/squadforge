@@ -2212,8 +2212,9 @@ body.picker-open {
 }
 .player-detail-sheet > .player-detail-actions {
   border-top: 0;
-  border-bottom: 1px solid var(--line);
-  padding: 0.55rem 1rem 0.65rem;
+  border-bottom: 0;
+  background: transparent;
+  padding: 0.45rem 1rem 0.65rem;
 }
 .player-detail-hero {
   display: grid;
