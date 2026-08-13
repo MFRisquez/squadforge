@@ -952,6 +952,10 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
             if fx.away_club_code:
                 started_clubs.add(fx.away_club_code)
     fixture_started = {p.id: p.team_code in started_clubs for p in owned}
+    any_fixture_started = bool(started_clubs)
+    # Don't show a GW total of 0 before any club has kicked off.
+    if view["edits_locked"] and not any_fixture_started:
+        gw_total = None
     armed = {
         p.player_id: bool(getattr(p, "captain_armed", 0))
         for p in picks
@@ -989,6 +993,7 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
             },
             spend=squad_svc.squad_spend(owned),
             gw_total=gw_total,
+            any_fixture_started=any_fixture_started,
             chips=chips,
             active_chip=active_chip,
             bench_options=bench_options,
@@ -1534,6 +1539,7 @@ def h2h_opponent_peek(league_id: int, manager_id: int, request: Request, db: Ses
             score=score,
             squad_gw=squad_gw,
             squad_frozen=squad_frozen,
+            any_fixture_started=bool(started_clubs),
             **view,
         ),
     )

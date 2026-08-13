@@ -1,71 +1,89 @@
 {% extends "base.html" %}
 {% block title %}{{ opponent.team_name or opponent.display_name }} · {{ app_name }}{% endblock %}
+{% block body_class %}page-fit page-xi page-opponent{% endblock %}
 {% block content %}
 {% from "macros_gw.html" import gw_bar %}
 {{ gw_bar(gw, deadline_label, True, prev_gw, next_gw, '/league/' ~ league.id ~ '/opponent/' ~ opponent.id) }}
 
-<section class="hero-block compact">
-  <p class="eyebrow">{{ league.name }} · GW {{ squad_gw.number }}{% if squad_frozen %} · locked squad{% endif %}</p>
+<section class="hero-block compact opponent-hero">
+  <p class="eyebrow">{{ league.name }}</p>
   <h1>{{ opponent.team_name or opponent.display_name }}</h1>
-  <p class="lede tight">
-    {% if score %}GW score <strong>{{ '%.0f'|format(score.total) }}</strong>{% else %}GW score pending{% endif %}
-    {% if squad_frozen %}
-      <span class="muted"> · Showing last locked gameweek until the next GW starts</span>
+  <div class="opponent-meta">
+    <span class="pill soft">GW {{ squad_gw.number }}</span>
+    {% if any_fixture_started and score %}
+      <span class="pill soft">{{ '%.0f'|format(score.total) }} pts</span>
+    {% else %}
+      <span class="pill soft">pts pending</span>
     {% endif %}
-  </p>
+    {% if squad_frozen %}
+      <span class="pill soft opponent-frozen">Locked squad</span>
+    {% endif %}
+  </div>
+  {% if squad_frozen %}
+  <p class="muted tiny opponent-freeze-note">Showing the last locked gameweek until the next GW starts. Mid-week transfers stay hidden.</p>
+  {% endif %}
 </section>
 
-<section class="pitch-wrap">
-  <div class="pitch field pitch-photo">
-    <div class="pitch-markings" aria-hidden="true"></div>
-    {% for pos in ['GK','DEF','MID','ATT'] %}
-    <div class="pitch-row zone-{{ pos|lower }}">
-      {% for row in by_pos[pos] %}
-      <div class="shirt-card">
-        <div class="shirt filled jersey avail-{{ row.availability }}">
-          <img class="jersey-img" src="{{ row.shirt }}" alt="" width="66" height="87" loading="lazy" />
-          <span class="shirt-overlay">
-            <span class="shirt-nameplate">{{ row.player.name }}</span>
-            {% if row.fixture_started and row.points is not none %}
-              <span class="shirt-foot shirt-opp shirt-pts-fx">{{ '%.0f'|format(row.points) }}</span>
-            {% elif row.fdr %}
-              <span class="shirt-foot shirt-opp fdr-{{ row.fdr.difficulty }}">{{ row.fdr.opponent }} ({{ row.fdr.venue }})</span>
-            {% else %}
-              <span class="shirt-foot shirt-opp">TBD</span>
-            {% endif %}
-          </span>
+<div class="desk-board desk-xi">
+  <div class="desk-main">
+    <form class="pitch-wrap xi-pitch-wrap" id="opponentPitch">
+      <section class="pitch field pitch-photo xi-pitch">
+        <div class="pitch-markings" aria-hidden="true"></div>
+        {% for pos in ['GK','DEF','MID','ATT'] %}
+        <div class="pitch-row zone-{{ pos|lower }}">
+          {% for row in by_pos[pos] %}
+          <div class="shirt-card xi-card">
+            <div class="shirt filled jersey xi-shirt avail-{{ row.availability }}">
+              <span class="shirt-kit">
+                <img class="jersey-img" src="{{ row.shirt }}" alt="" width="66" height="87" loading="lazy" />
+                {% if row.is_captain %}<span class="role-badge role-c">C</span>{% endif %}
+                {% if row.is_vice %}<span class="role-badge role-v">V</span>{% endif %}
+                <span class="shirt-overlay">
+                  <span class="shirt-nameplate">{{ row.player.name }}</span>
+                  {% if row.fixture_started and row.points is not none %}
+                    <span class="shirt-foot shirt-opp shirt-pts-fx">{{ '%.0f'|format(row.points) }}</span>
+                  {% elif row.fdr %}
+                    <span class="shirt-foot shirt-opp fdr-{{ row.fdr.difficulty }}">{{ row.fdr.opponent }} ({{ row.fdr.venue }})</span>
+                  {% else %}
+                    <span class="shirt-foot shirt-opp">TBD</span>
+                  {% endif %}
+                </span>
+              </span>
+            </div>
+          </div>
+          {% endfor %}
         </div>
-        {% if row.is_captain %}<span class="role-badge role-c">C</span>{% endif %}
-        {% if row.is_vice %}<span class="role-badge role-v">V</span>{% endif %}
-      </div>
-      {% endfor %}
-    </div>
-    {% endfor %}
+        {% endfor %}
+      </section>
+      <section class="bench-wrap xi-bench-wrap xi-bench-phone">
+        <header class="desk-rail-head xi-bench-phone-head">
+          <h2>Bench</h2>
+        </header>
+        <div class="bench">
+          {% for row in bench_players %}
+          <div class="shirt-card xi-card">
+            <div class="shirt filled jersey xi-shirt avail-{{ row.availability }}">
+              <span class="shirt-kit">
+                <img class="jersey-img" src="{{ row.shirt }}" alt="" width="66" height="87" loading="lazy" />
+                <span class="shirt-overlay">
+                  <span class="shirt-nameplate">{{ row.player.name }}</span>
+                  {% if row.fixture_started and row.points is not none %}
+                    <span class="shirt-foot shirt-opp shirt-pts-fx">{{ '%.0f'|format(row.points) }}</span>
+                  {% elif row.fdr %}
+                    <span class="shirt-foot shirt-opp fdr-{{ row.fdr.difficulty }}">{{ row.fdr.opponent }} ({{ row.fdr.venue }})</span>
+                  {% else %}
+                    <span class="shirt-foot shirt-opp">TBD</span>
+                  {% endif %}
+                </span>
+              </span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+    </form>
   </div>
-</section>
+</div>
 
-<section class="bench-wrap">
-  <h2>Bench</h2>
-  <div class="bench">
-    {% for row in bench_players %}
-    <div class="shirt-card">
-      <div class="shirt filled jersey avail-{{ row.availability }}">
-        <img class="jersey-img" src="{{ row.shirt }}" alt="" width="66" height="87" loading="lazy" />
-        <span class="shirt-overlay">
-          <span class="shirt-nameplate">{{ row.player.name }}</span>
-          {% if row.fixture_started and row.points is not none %}
-            <span class="shirt-foot shirt-opp shirt-pts-fx">{{ '%.0f'|format(row.points) }}</span>
-          {% elif row.fdr %}
-            <span class="shirt-foot shirt-opp fdr-{{ row.fdr.difficulty }}">{{ row.fdr.opponent }} ({{ row.fdr.venue }})</span>
-          {% else %}
-            <span class="shirt-foot shirt-opp">TBD</span>
-          {% endif %}
-        </span>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-</section>
-
-<a class="btn ghost" href="/standings/{{ league.id }}">Back to standings</a>
+<a class="btn ghost opponent-back" href="/standings/{{ league.id }}">Back to standings</a>
 {% endblock %}

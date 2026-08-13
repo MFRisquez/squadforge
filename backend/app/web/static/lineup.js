@@ -469,7 +469,8 @@
           ${isCap ? `<span class="role-pill is-c">${activeChip === "triple_captain" ? "Triple captain ×3" : "Captain ×2"}</span>` : ""}
           ${isVice ? `<span class="role-pill is-v">Vice-captain</span>` : ""}
           ${isSS ? `<span class="role-pill is-ss">Super Sub ×2</span>` : ""}
-          ${LOCKED && pts != null ? `<strong class="match-pts">${Number(pts).toFixed(0)} pts</strong>` : ""}
+          ${LOCKED && matchStarted(player.id) && pts != null ? `<strong class="match-pts">${Number(pts).toFixed(0)} pts</strong>` : ""}
+          ${LOCKED && !matchStarted(player.id) && player.fdr ? `<span class="muted tiny">${player.fdr.opponent} (${player.fdr.venue === "H" ? "H" : "A"})</span>` : ""}
         </div>
       </div>
       <div class="kpi-block">
@@ -580,7 +581,7 @@
           };
           detailPhoto.src = chain[0];
         }
-        if (data.gw_points != null) {
+        if (data.gw_points != null && matchStarted(playerId)) {
           const meta = detailBody.querySelector(".meta");
           if (meta && !meta.querySelector(".match-pts")) {
             const s = document.createElement("strong");

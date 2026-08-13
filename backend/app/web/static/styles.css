@@ -4856,6 +4856,16 @@ body.picker-open {
 .shirt-card .shirt,
 .pitch .shirt { position: relative; }
 
+.opponent-hero { margin-bottom: 0.55rem; }
+.opponent-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.35rem 0 0.25rem;
+}
+.opponent-freeze-note { margin: 0.25rem 0 0; }
+.opponent-back { margin: 0.65rem 0 1rem; }
+body.page-opponent .desk-xi { margin-top: 0.25rem; }
 .standings-hero { margin-bottom: 0.85rem; }
 .standings-panel { padding: 0.55rem; }
 .standings-name { display: grid; gap: 0.05rem; line-height: 1.2; }
@@ -5247,7 +5257,13 @@ body.page-fit .pitch-cap-hint {
     margin-bottom: 0.35rem;
     border-radius: 0.65rem;
   }
-  .gw-arrow { width: 1.55rem; height: 1.55rem; font-size: 0.9rem; }
+  .gw-arrow {
+    width: 2.6rem;
+    height: 2.6rem;
+    min-width: 2.6rem;
+    min-height: 2.6rem;
+    font-size: 1.45rem;
+  }
   .gw-title strong { font-size: 0.84rem; }
   .gw-deadline { font-size: 0.64rem; }
   .gw-status { margin-top: 0.2rem; font-size: 0.66rem; }
@@ -5863,15 +5879,33 @@ body.page-fit .pitch-cap-hint {
   .standings-hide-phone {
     display: none !important;
   }
-  /* H2H phone: keep Team + Pts + GW; hide quieter cols */
+  /* H2H phone: Team + Pts + GW */
   .standings-h2h th:nth-child(3),
   .standings-h2h td:nth-child(3),
+  .standings-h2h th:nth-child(4),
+  .standings-h2h td:nth-child(4),
   .standings-h2h th:nth-child(5),
   .standings-h2h td:nth-child(5),
   .standings-h2h th:nth-child(6),
   .standings-h2h td:nth-child(6) {
     display: none;
   }
+
+  /* Bigger GW arrow tap targets on phone */
+  .gw-arrow {
+    min-width: 2.6rem;
+    min-height: 2.6rem;
+    font-size: 1.55rem;
+    display: inline-grid;
+    place-items: center;
+  }
+}
+
+/* Tablet / narrow: same compact standings as phone */
+@media (max-width: 899px) {
+  .standings-classic .standings-form-col { display: none; }
+  .standings-classic .standings-form-inline { display: block; }
+  .standings-hide-phone { display: none !important; }
 }
 
 /* Extra-tight phones (SE / mini / zoomed) */

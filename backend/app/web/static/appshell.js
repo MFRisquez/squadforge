@@ -234,6 +234,13 @@
       document.title = doc.title || document.title;
       main.replaceWith(nextMain);
       updateNavActive(path.split("?")[0]);
+      // Keep header GW pill in sync when soft-navigating ?gw=
+      const nextPill = doc.querySelector(".gw-bar[data-view-gw]");
+      const topPill = document.querySelector("header.top .pill");
+      if (nextPill && topPill) {
+        const n = nextPill.getAttribute("data-view-gw");
+        if (n) topPill.textContent = `GW ${n}`;
+      }
       if (push) history.pushState({ ffShell: true }, "", path);
       await runScripts(nextMain);
       window.scrollTo(0, 0);
