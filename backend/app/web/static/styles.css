@@ -582,9 +582,43 @@ select {
   background: #B6DB00;
   color: #000000;
 }
+.role-badge.role-c.role-star {
+  background: #C0FF00;
+  color: #000;
+  font-size: 0.72rem;
+  box-shadow: 0 0 0 2px rgba(192, 255, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+}
 .role-badge.role-v {
   background: #fff;
   color: #000000;
+}
+.role-badge.role-s {
+  background: #111;
+  color: #C0FF00;
+  border-color: #C0FF00;
+  left: 0.05rem;
+  right: auto;
+  box-shadow: 0 0 0 2px rgba(192, 255, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+.shirt-card.is-tc-captain .xi-shirt {
+  outline: 2px solid #C0FF00;
+  outline-offset: 2px;
+  border-radius: 0.45rem;
+  box-shadow: 0 0 0 3px rgba(192, 255, 0, 0.22);
+}
+.shirt-card.is-super-sub .xi-shirt {
+  outline: 2px solid #C0FF00;
+  outline-offset: 2px;
+  border-radius: 0.45rem;
+}
+.xi-bench-wrap.bb-active .bench,
+.xi-bench-stack.bb-active,
+.bb-active.xi-bench-wrap .bench {
+  outline: 2px solid #C0FF00;
+  outline-offset: 2px;
+  border-radius: 0.65rem;
+  background: rgba(192, 255, 0, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(192, 255, 0, 0.35);
 }
 .shirt-card.is-captain .shirt,
 .shirt-card.is-vice .shirt {
@@ -1285,8 +1319,18 @@ select {
   display: block;
 }
 .chip-card-fpl.is-active {
-  border-color: #B6DB00;
-  box-shadow: 0 0 0 1px rgba(182, 219, 0, 0.35);
+  border-color: #C0FF00;
+  background: linear-gradient(135deg, #C0FF00 0%, #B6DB00 100%);
+  box-shadow: 0 0 0 1px rgba(192, 255, 0, 0.45);
+  color: #000;
+}
+.chip-card-fpl.is-active .chip-name,
+.chip-card-fpl.is-active .chip-info-btn {
+  color: #000;
+}
+.chip-card-fpl.is-active .chip-ico {
+  background: #000;
+  color: #C0FF00;
 }
 .chip-card-fpl.is-spent,
 .chip-card-fpl.is-unavailable {
@@ -1299,16 +1343,50 @@ select {
   pointer-events: none;
   opacity: 0.85;
 }
-.chip-strip-hint {
-  margin: 0.28rem 0 0;
-  text-align: center;
-}
 .chip-strip-error {
   margin: 0.28rem 0 0;
   text-align: center;
   color: var(--warn);
   font-size: 0.72rem;
   font-weight: 700;
+}
+.chip-card-fpl .chip-ss-form select {
+  color: #111;
+  background: #fff;
+}
+.chip-card-fpl .chip-ss-form select option {
+  color: #111;
+  background: #fff;
+}
+html[data-theme="dark"] .chip-card-fpl .chip-ss-form select {
+  color: #fff !important;
+  background: #111 !important;
+  border-color: rgba(255, 255, 255, 0.28);
+}
+html[data-theme="dark"] .chip-card-fpl .chip-ss-form select option {
+  color: #fff;
+  background: #1a1a1a;
+}
+html[data-theme="dark"] .chip-card-fpl.is-active .chip-ss-form select {
+  color: #000 !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+}
+html[data-theme="dark"] .picker-search input {
+  color: #fff !important;
+  background: #111 !important;
+  border-color: rgba(255, 255, 255, 0.22);
+}
+html[data-theme="dark"] .picker-search input::placeholder {
+  color: rgba(255, 255, 255, 0.55) !important;
+}
+html[data-theme="dark"] .picker-filters select {
+  color: #fff !important;
+  background: #111 !important;
+  border-color: rgba(255, 255, 255, 0.22);
+}
+html[data-theme="dark"] .picker-filters select option {
+  color: #fff;
+  background: #1a1a1a;
 }
 .chip-play-form { margin: 0; }
 .chip-strip-wrap.chip-strip-xi,
@@ -1463,7 +1541,14 @@ html[data-theme="dark"] .chip-card-fpl .chip-toggle.is-on {
 }
 .player-detail-title h2 {
   margin: 0;
+  font-size: 1.05rem;
   line-height: 1.15;
+}
+.player-detail-sub {
+  margin: 0.12rem 0 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
 }
 .player-detail-hero-meta {
   grid-template-columns: 1fr;
@@ -1980,12 +2065,20 @@ body.picker-open {
 .player-detail-sheet {
   grid-template-rows: auto auto 1fr;
   max-height: min(78vh, 36rem);
+  background: #fff;
 }
 .player-detail-body {
-  padding: 0.35rem 1.1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+  padding: 0.25rem 0.95rem calc(0.85rem + env(safe-area-inset-bottom, 0px));
   overflow: auto;
   display: grid;
-  gap: 0.85rem;
+  gap: 0.55rem;
+}
+.compact-meta .meta {
+  gap: 0.2rem;
+}
+.role-pill.is-ss {
+  background: #111;
+  color: #C0FF00;
 }
 .player-detail-sheet > .player-detail-actions {
   border-top: 0;
@@ -2088,6 +2181,9 @@ body.picker-open {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.4rem;
 }
+.kpi-grid-compact {
+  gap: 0.28rem;
+}
 .kpi-cell {
   background: #f3f6fd;
   border-radius: 0.7rem;
@@ -2097,6 +2193,11 @@ body.picker-open {
   min-height: 3rem;
   align-content: center;
 }
+.kpi-grid-compact .kpi-cell {
+  min-height: 0;
+  padding: 0.35rem 0.4rem;
+  border-radius: 0.45rem;
+}
 .kpi-cell span {
   font-size: 0.68rem;
   color: var(--muted);
@@ -2104,9 +2205,15 @@ body.picker-open {
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
+.kpi-grid-compact .kpi-cell span {
+  font-size: 0.58rem;
+}
 .kpi-cell strong {
   font-size: 0.98rem;
   font-weight: 900;
+}
+.kpi-grid-compact .kpi-cell strong {
+  font-size: 0.82rem;
 }
 @media (max-width: 360px) {
   .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -2116,6 +2223,9 @@ body.picker-open {
   justify-content: space-between;
   align-items: baseline;
   gap: 0.5rem;
+}
+.player-fdr-head strong {
+  font-size: 0.82rem;
 }
 .player-fdr-row {
   display: grid;
@@ -2141,6 +2251,50 @@ body.picker-open {
 .fdr-chip.fdr-3 { background: #ffe566; }
 .fdr-chip.fdr-4 { background: #ff1751; color: #fff; }
 .fdr-chip.fdr-4 .fdr-gw { opacity: 0.9; }
+/* Professional fixture difficulty chips */
+.fdr-chip.fdr-pro {
+  min-height: 2.55rem;
+  padding: 0.4rem 0.35rem;
+  border-radius: 0.4rem;
+  border: 1px solid transparent;
+  font-weight: 700;
+}
+.fdr-chip.fdr-pro .fdr-opp {
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+}
+.fdr-chip.fdr-pro .fdr-opp em {
+  font-style: normal;
+  opacity: 0.72;
+  font-weight: 600;
+}
+.fdr-chip.fdr-pro .fdr-gw {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+.fdr-chip.fdr-pro.fdr-1 {
+  background: rgba(46, 160, 90, 0.16);
+  border-color: rgba(46, 160, 90, 0.45);
+  color: #1d6b3a;
+}
+.fdr-chip.fdr-pro.fdr-2 {
+  background: rgba(90, 170, 110, 0.14);
+  border-color: rgba(90, 170, 110, 0.4);
+  color: #2f6b3f;
+}
+.fdr-chip.fdr-pro.fdr-3 {
+  background: rgba(196, 150, 40, 0.16);
+  border-color: rgba(196, 150, 40, 0.45);
+  color: #7a5a12;
+}
+.fdr-chip.fdr-pro.fdr-4 {
+  background: rgba(190, 55, 70, 0.16);
+  border-color: rgba(190, 55, 70, 0.5);
+  color: #8f2432;
+}
 
 .fixtures-board { margin: 0.35rem 0 1rem; }
 .fixtures-desk { display: block; }
@@ -2531,10 +2685,19 @@ body.picker-open {
   from { opacity: 1; transform: translateY(100%); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes sheetDown {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: translateY(100%); }
+}
 .drawer-sheet.sheet-in,
 .match-detail-sheet.sheet-in,
 .player-detail-sheet.sheet-in {
   animation: sheetUp 340ms var(--ease) both;
+}
+.drawer-sheet.sheet-out,
+.match-detail-sheet.sheet-out,
+.player-detail-sheet.sheet-out {
+  animation: sheetDown 280ms var(--ease) both;
 }
 .drawer {
   position: fixed;
@@ -5853,7 +6016,7 @@ body.page-auth .flash.error {
   line-height: 1.35;
 }
 
-/* Chip info tip (i) */
+/* Chip info tip (i) — fixed when open so strip scroll can’t clip it */
 .chip-info-wrap {
   position: relative;
   display: inline-flex;
@@ -5888,51 +6051,38 @@ body.page-auth .flash.error {
   left: auto;
   right: 0;
   top: calc(100% + 0.4rem);
-  bottom: auto;
-  transform: translateY(-0.12rem);
-  width: min(18rem, 78vw);
-  max-width: 18rem;
-  padding: 0.65rem 0.75rem;
-  border-radius: 0.55rem;
-  background: rgba(0, 0, 0, 0.88);
+  width: max-content;
+  max-width: 12.5rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.45rem;
+  background: #111;
   color: #FFFFFF;
-  font-size: 0.78rem;
+  font-size: 0.68rem;
   font-weight: 600;
-  line-height: 1.4;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  line-height: 1.35;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transition: opacity 140ms ease, transform 140ms ease, visibility 140ms ease;
-  z-index: 40;
+  transition: opacity 140ms ease, visibility 140ms ease;
+  z-index: 120;
   text-align: left;
   white-space: normal;
 }
-.chip-tip::after {
-  content: "";
-  position: absolute;
-  bottom: 100%;
-  top: auto;
-  left: auto;
-  right: 0.55rem;
-  margin-left: 0;
-  border: 6px solid transparent;
-  border-bottom-color: rgba(0, 0, 0, 0.88);
-  border-top-color: transparent;
-}
-@media (hover: hover) and (pointer: fine) {
-  .chip-info-wrap:hover .chip-tip,
-  .chip-info-wrap:focus-within .chip-tip {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-  }
+.chip-tip.is-fixed {
+  position: fixed;
+  z-index: 200;
 }
 .chip-info-wrap.is-open .chip-tip {
   opacity: 1;
   visibility: visible;
-  transform: translateY(0);
   pointer-events: auto;
+}
+@media (max-width: 640px) {
+  .chip-tip {
+    max-width: min(12rem, calc(100vw - 1.5rem));
+    font-size: 0.66rem;
+  }
 }
 
 /* Desktop: chips+stats | watchlist ; pitch | free agents */
@@ -6365,4 +6515,96 @@ html[data-theme="dark"] body.page-xi .xi-live-table tr.is-top td {
 html[data-theme="dark"] body.page-xi .xi-live-table .live-role {
   color: #000 !important;
   background: #C0FF00;
+}
+
+/* Player detail + picker — dark theme readability */
+html[data-theme="dark"] .player-detail-sheet,
+html[data-theme="dark"] .drawer .player-detail-sheet,
+html[data-theme="dark"] .drawer .match-detail-sheet,
+html[data-theme="dark"] .drawer .drawer-sheet {
+  background: #1a1a1a;
+  color: #fff;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.55);
+}
+html[data-theme="dark"] .player-detail-title h2,
+html[data-theme="dark"] .drawer-head h2,
+html[data-theme="dark"] .player-fdr-head strong,
+html[data-theme="dark"] .kpi-cell strong,
+html[data-theme="dark"] .match-pts {
+  color: #fff;
+}
+html[data-theme="dark"] .player-detail-sub,
+html[data-theme="dark"] .player-detail-body .muted,
+html[data-theme="dark"] .kpi-cell span,
+html[data-theme="dark"] .drawer .eyebrow {
+  color: #a8a8a8;
+}
+html[data-theme="dark"] .kpi-cell,
+html[data-theme="dark"] .player-detail-facts .fact {
+  background: #242424;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+html[data-theme="dark"] .player-detail-news {
+  background: rgba(255, 196, 80, 0.12);
+  border-color: rgba(255, 196, 80, 0.35);
+  color: #ffe0a8;
+}
+html[data-theme="dark"] .player-detail-news.is-out {
+  background: rgba(255, 100, 90, 0.12);
+  border-color: rgba(255, 100, 90, 0.35);
+  color: #ffb4ae;
+}
+html[data-theme="dark"] .icon-btn {
+  background: #2a2a2a;
+  color: #fff;
+}
+html[data-theme="dark"] .role-pill.is-bench {
+  background: #2a2a2a;
+  color: #ddd;
+}
+html[data-theme="dark"] .fdr-chip.fdr-pro.fdr-1 {
+  background: rgba(72, 180, 110, 0.18);
+  border-color: rgba(72, 180, 110, 0.5);
+  color: #9cf0b8;
+}
+html[data-theme="dark"] .fdr-chip.fdr-pro.fdr-2 {
+  background: rgba(100, 170, 120, 0.16);
+  border-color: rgba(100, 170, 120, 0.42);
+  color: #b5e6c2;
+}
+html[data-theme="dark"] .fdr-chip.fdr-pro.fdr-3 {
+  background: rgba(210, 170, 70, 0.16);
+  border-color: rgba(210, 170, 70, 0.45);
+  color: #f0d48a;
+}
+html[data-theme="dark"] .fdr-chip.fdr-pro.fdr-4 {
+  background: rgba(210, 80, 90, 0.18);
+  border-color: rgba(210, 80, 90, 0.5);
+  color: #ffb0b6;
+}
+html[data-theme="dark"] .picker-card {
+  background: #1a1a1a;
+  color: #fff;
+}
+html[data-theme="dark"] .picker-card-head h2,
+html[data-theme="dark"] .pick-name {
+  color: #fff;
+}
+html[data-theme="dark"] .pick-sub,
+html[data-theme="dark"] .picker-card .muted {
+  color: #a8a8a8;
+}
+html[data-theme="dark"] .pick-row {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+html[data-theme="dark"] .chip-card-fpl {
+  color: #fff;
+}
+html[data-theme="dark"] .chip-card-fpl .chip-name {
+  color: #fff;
+}
+html[data-theme="dark"] .chip-card-fpl.is-active,
+html[data-theme="dark"] .chip-card-fpl.is-active .chip-name {
+  color: #000;
 }

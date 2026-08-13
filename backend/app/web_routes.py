@@ -654,10 +654,19 @@ def _chip_state_payload(db: Session, manager_id: int, gw, *, cancelled_chip: str
     state = chips_svc.ensure_chip_state(db, manager_id)
     active = chips_svc.active_chip(db, manager_id, gw.id)
     unlimited = squad_svc.transfers_are_unlimited(db, manager_id, gw)
+    super_sub_player_id = None
+    if active and active.chip == "super_sub":
+        try:
+            meta = json.loads(active.meta_json or "{}")
+        except json.JSONDecodeError:
+            meta = {}
+        if meta.get("player_id") is not None:
+            super_sub_player_id = int(meta["player_id"])
     return {
         "ok": True,
         "active_chip": active.chip if active else None,
         "active_label": chips_svc.CHIP_LABELS.get(active.chip, active.chip) if active else None,
+        "super_sub_player_id": super_sub_player_id,
         "remaining": {
             "wildcard": int(state.wildcard_remaining or 0),
             "free_hit": int(state.free_hit_remaining or 0),
@@ -948,6 +957,14 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
         for p in picks
     }
     td_info = td_svc.td_view(db, manager.id, gw.number, gameweek_id=gw.id)
+    super_sub_player_id = None
+    if active_chip and active_chip.chip == "super_sub":
+        try:
+            ss_meta = json.loads(active_chip.meta_json or "{}")
+            if ss_meta.get("player_id") is not None:
+                super_sub_player_id = int(ss_meta["player_id"])
+        except (json.JSONDecodeError, TypeError, ValueError):
+            super_sub_player_id = None
 
     return templates.TemplateResponse(
         "lineup.html",
@@ -967,6 +984,8 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
                 "points": points_map,
                 "breakdowns": points_breakdown,
                 "gwTotal": gw_total,
+                "activeChip": active_chip.chip if active_chip else None,
+                "superSubPlayerId": super_sub_player_id,
             },
             spend=squad_svc.squad_spend(owned),
             gw_total=gw_total,

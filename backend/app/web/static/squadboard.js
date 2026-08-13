@@ -130,6 +130,7 @@
   }
   const detailEyebrow = document.getElementById("detailEyebrow");
   const detailName = document.getElementById("detailName");
+  const detailSub = document.getElementById("detailSub");
   const detailPhoto = document.getElementById("detailPhoto");
   const detailBody = document.getElementById("detailBody");
   const detailActions = document.getElementById("detailActions");
@@ -753,8 +754,15 @@
 
   function closeDetail() {
     if (!playerDetail) return;
-    playerDetail.hidden = true;
-    detailContext = null;
+    const finish = () => {
+      detailContext = null;
+    };
+    if (typeof window.__ffCloseDrawer === "function") {
+      window.__ffCloseDrawer(playerDetail).then(finish);
+    } else {
+      playerDetail.hidden = true;
+      finish();
+    }
   }
 
   function setDetailPhoto(p) {
@@ -791,47 +799,35 @@
       pos: opts.pos ?? p.position,
       index: opts.index ?? null,
     };
-    detailEyebrow.textContent = `Season · ${p.position}`;
+    const club = p.club || p.team || "";
+    const inSquad = (INITIAL.selected || []).includes(p.id);
+    detailEyebrow.textContent = inSquad
+      ? `Squad · ${p.position}`
+      : `Free agent · ${p.position}`;
     detailName.textContent = p.name;
+    if (detailSub) {
+      detailSub.textContent = [club, `£${Number(p.price).toFixed(1)}m`].filter(Boolean).join(" · ");
+    }
     setDetailPhoto(p);
-    const club = p.club || p.team;
-    const chance =
-      p.chance == null || p.chance === ""
-        ? "—"
-        : `${p.chance}%`;
     const news = (p.news || "").trim();
     const avail = p.availability || "ok";
-    const fdr = p.fdr;
-    const fixtureLine = fdr
-      ? `${fdr.opponent} (${fdr.venue === "H" ? "H" : "A"})`
-      : "TBD";
     detailBody.innerHTML = `
-      <div class="player-detail-hero player-detail-hero-meta">
+      <div class="player-detail-hero player-detail-hero-meta compact-meta">
         <div class="meta">
-          <strong>${club}</strong>
-          <span class="muted">${p.position} · vs ${fixtureLine}</span>
-          <span class="avail-text-${(p.availability || "ok") === "ok" ? "ok" : p.availability || "ok"}">${statusLabel(p)}</span>
+          <span class="avail-text-${avail === "ok" ? "ok" : avail}">${statusLabel(p)}</span>
         </div>
-      </div>
-      <div class="player-detail-facts">
-        <div class="fact fact-price"><span>Price</span><strong>£${Number(p.price).toFixed(1)}m</strong></div>
-        <div class="fact"><span>Club</span><strong>${club}</strong></div>
-        <div class="fact"><span>Status</span><strong>${statusLabel(p)}</strong></div>
-        <div class="fact"><span>Chance next</span><strong>${chance}</strong></div>
       </div>
       <div class="kpi-block">
         <div class="player-fdr-head">
           <strong>Season stats</strong>
-          <span class="muted tiny">${p.position}</span>
         </div>
-        <div class="kpi-grid" id="detailKpis">
+        <div class="kpi-grid kpi-grid-compact" id="detailKpis">
           <span class="muted tiny">Loading stats…</span>
         </div>
       </div>
       <div class="player-fdr" id="detailFdr">
         <div class="player-fdr-head">
-          <strong>Next 3</strong>
-          <span class="muted tiny">Fixture difficulty</span>
+          <strong>Next 3 fixtures</strong>
         </div>
         <div class="player-fdr-row" id="detailFdrRow">
           <span class="muted tiny">Loading fixtures…</span>
@@ -840,7 +836,7 @@
       ${
         news
           ? `<div class="player-detail-news ${avail === "out" ? "is-out" : ""}">${news}</div>`
-          : `<p class="muted tiny">No injury news right now.</p>`
+          : ""
       }
     `;
 
@@ -910,7 +906,9 @@
           setDetailPhoto(detailContext.player);
         }
         if (kpis) {
-          const items = data.kpis || [];
+          const items = (data.kpis || []).filter(
+            (k) => !/mins\s*\/\s*start/i.test(String(k.label || ""))
+          );
           kpis.innerHTML = items.length
             ? items
                 .map(
@@ -932,8 +930,8 @@
             row.innerHTML = items
               .map(
                 (fx) => `
-              <div class="fdr-chip fdr-${fx.difficulty}" title="${fx.opponent_name} (${fx.venue}) · FDR ${fx.difficulty}">
-                <span class="fdr-opp">${fx.opponent} (${fx.venue})</span>
+              <div class="fdr-chip fdr-pro fdr-${fx.difficulty}" title="${fx.opponent_name} (${fx.venue}) · FDR ${fx.difficulty}">
+                <span class="fdr-opp">${fx.opponent} <em>${fx.venue}</em></span>
                 <span class="fdr-gw">GW${fx.gw}</span>
               </div>`
               )

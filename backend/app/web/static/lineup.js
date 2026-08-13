@@ -18,6 +18,8 @@
   const CAPTAIN_EDITABLE = Boolean(INITIAL.captainEditable);
   const FIXTURE_STARTED = INITIAL.fixtureStarted || {};
   const CAPTAIN_ARMED = INITIAL.captainArmed || {};
+  let activeChip = INITIAL.activeChip || null;
+  let superSubPlayerId = INITIAL.superSubPlayerId || null;
   if (!viceId || viceId === captainId) {
     viceId = [...starterIds].find((id) => id !== captainId) || null;
   }
@@ -37,6 +39,7 @@
   const playerDetail = document.getElementById("playerDetail");
   const detailEyebrow = document.getElementById("detailEyebrow");
   const detailName = document.getElementById("detailName");
+  const detailSub = document.getElementById("detailSub");
   const detailPhoto = document.getElementById("detailPhoto");
   const detailBody = document.getElementById("detailBody");
   const detailActions = document.getElementById("detailActions");
@@ -263,9 +266,32 @@
 
   function closeDetail() {
     if (!playerDetail) return;
-    playerDetail.hidden = true;
-    detailPlayer = null;
+    const finish = () => {
+      detailPlayer = null;
+    };
+    if (typeof window.__ffCloseDrawer === "function") {
+      window.__ffCloseDrawer(playerDetail).then(finish);
+    } else {
+      playerDetail.hidden = true;
+      finish();
+    }
   }
+
+  function applyChipVisuals() {
+    document.body.classList.toggle("chip-bb-on", activeChip === "bench_boost");
+    document.body.classList.toggle("chip-tc-on", activeChip === "triple_captain");
+    document.body.classList.toggle("chip-ss-on", activeChip === "super_sub");
+    document.querySelectorAll(".xi-bench-wrap, .xi-bench-stack").forEach((el) => {
+      el.classList.toggle("bb-active", activeChip === "bench_boost");
+    });
+  }
+
+  document.addEventListener("ff:chip-change", (e) => {
+    activeChip = e.detail?.chip || null;
+    superSubPlayerId = e.detail?.superSubPlayerId ?? null;
+    applyChipVisuals();
+    render();
+  });
 
   function clearSwap() {
     swapPending = null;
@@ -358,12 +384,19 @@
     const isCap = player.id === captainId && !onBench;
     const isVice = player.id === viceId && !onBench;
     const partners = LOCKED ? [] : eligiblePartners(player);
-    const fdr = player.fdr;
-    const oppLine = fdr
-      ? `${fdr.opponent} (${fdr.venue === "H" ? "H" : "A"})`
-      : "Fixture TBD";
-    detailEyebrow.textContent = LOCKED ? `Match · GW${GW || ""}` : `XI · ${player.position}`;
+    const roleLabel = onBench ? "Bench" : "Starting XI";
+    detailEyebrow.textContent = LOCKED
+      ? `Match · GW${GW || ""} · ${player.position}`
+      : `${roleLabel} · ${player.position}`;
     detailName.textContent = player.name;
+    if (detailSub) {
+      const team = player.club || player.team || "";
+      const price =
+        player.price != null && player.price !== ""
+          ? `£${Number(player.price).toFixed(1)}m`
+          : "";
+      detailSub.textContent = [team, price].filter(Boolean).join(" · ");
+    }
     if (detailPhoto) {
       detailPhoto.onerror = null;
       const chain = [player.photo, player.photoFallback, player.photoFallback2].filter(Boolean);
@@ -386,23 +419,21 @@
         detailPhoto.alt = "";
       }
     }
+    const isSS = activeChip === "super_sub" && Number(superSubPlayerId) === Number(player.id);
     detailBody.innerHTML = `
-      <div class="player-detail-hero player-detail-hero-meta">
+      <div class="player-detail-hero player-detail-hero-meta compact-meta">
         <div class="meta">
-          <strong>${player.team}</strong>
-          <span class="muted">${player.position} · vs ${oppLine}</span>
-          <span class="role-pill ${onBench ? "is-bench" : "is-xi"}">${onBench ? "Bench" : "Starting XI"}</span>
-          ${isCap ? `<span class="role-pill is-c">Captain ×2</span>` : ""}
+          ${isCap ? `<span class="role-pill is-c">${activeChip === "triple_captain" ? "Triple captain ×3" : "Captain ×2"}</span>` : ""}
           ${isVice ? `<span class="role-pill is-v">Vice-captain</span>` : ""}
+          ${isSS ? `<span class="role-pill is-ss">Super Sub ×2</span>` : ""}
           ${LOCKED && pts != null ? `<strong class="match-pts">${Number(pts).toFixed(0)} pts</strong>` : ""}
         </div>
       </div>
       <div class="kpi-block">
         <div class="player-fdr-head">
           <strong>${LOCKED ? "This gameweek" : "Match stats"}</strong>
-          <span class="muted tiny">${LOCKED ? "After kickoff" : "Unlock after deadline"}</span>
         </div>
-        <div class="kpi-grid" id="detailKpis">
+        <div class="kpi-grid kpi-grid-compact" id="detailKpis">
           <span class="muted tiny">${LOCKED ? "Loading match stats…" : "Scores appear here once the GW is locked."}</span>
         </div>
       </div>
@@ -566,12 +597,21 @@
     } else {
       footHtml = `<span class="shirt-foot shirt-opp">TBD</span>`;
     }
-    const roleChip =
-      !onBench && player.id === captainId
-        ? `<span class="role-badge role-c" title="Captain">C</span>`
-        : !onBench && player.id === viceId
-          ? `<span class="role-badge role-v" title="Vice-captain">V</span>`
-          : "";
+    const isTC = activeChip === "triple_captain";
+    const isSS = activeChip === "super_sub" && Number(superSubPlayerId) === Number(player.id);
+    let roleChip = "";
+    if (!onBench && player.id === captainId) {
+      roleChip = isTC
+        ? `<span class="role-badge role-c role-star" title="Triple Captain">★</span>`
+        : `<span class="role-badge role-c" title="Captain">C</span>`;
+      if (isTC) wrap.classList.add("is-tc-captain");
+    } else if (!onBench && player.id === viceId) {
+      roleChip = `<span class="role-badge role-v" title="Vice-captain">V</span>`;
+    }
+    if (isSS) {
+      roleChip += `<span class="role-badge role-s" title="Super Sub">S</span>`;
+      wrap.classList.add("is-super-sub");
+    }
     main.innerHTML = `
       <span class="shirt-kit">
         <img class="jersey-img" src="${player.shirt || ""}" alt="${player.team} kit" width="66" height="87" loading="lazy" decoding="async" />
@@ -931,6 +971,7 @@
   ensureRoles();
   baselineSig = lineupSignature();
   saveVisual = "idle";
+  applyChipVisuals();
   render();
   const onResize = () => {
     paintBench();

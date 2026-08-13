@@ -36,16 +36,31 @@
 
   function updateFtDisplay(unlimited, ft) {
     const strong = document.querySelector(
-      '.stat-strip .stat:nth-child(2) strong, #ftValue'
+      ".stat-strip .stat:nth-child(2) strong, #ftValue"
     );
     const sub = document.querySelector(
-      '.stat-strip .stat:nth-child(2) .stat-sub, #ftSub'
+      ".stat-strip .stat:nth-child(2) .stat-sub, #ftSub"
     );
     if (strong) strong.textContent = unlimited ? "∞" : String(ft ?? strong.textContent);
     if (sub) sub.textContent = unlimited ? "unlimited" : "banked";
     if (window.__ffSquadState) {
       window.__ffSquadState.unlimited = !!unlimited;
     }
+  }
+
+  function broadcastChip(data) {
+    window.__ffActiveChip = {
+      chip: data.active_chip || null,
+      superSubPlayerId: data.super_sub_player_id ?? null,
+    };
+    document.dispatchEvent(
+      new CustomEvent("ff:chip-change", {
+        detail: {
+          chip: data.active_chip || null,
+          superSubPlayerId: data.super_sub_player_id ?? null,
+        },
+      })
+    );
   }
 
   function applyState(data) {
@@ -96,21 +111,13 @@
         }
         if (ssSelect) ssSelect.disabled = isActive;
       });
-
-      const hint = strip.querySelector("[data-chip-hint]");
-      const hintLabel = strip.querySelector("[data-chip-hint-label]");
-      if (hint) {
-        hint.hidden = !active;
-        if (hintLabel && data.active_label) hintLabel.textContent = data.active_label;
-        else if (hintLabel && active) {
-          hintLabel.textContent = active.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-        }
-      }
     });
 
     if (typeof data.unlimited_transfers === "boolean") {
       updateFtDisplay(data.unlimited_transfers);
     }
+
+    broadcastChip(data);
 
     if (data.reload_squad && typeof window.__ffNavigate === "function") {
       const path = window.location.pathname + window.location.search;
@@ -174,7 +181,6 @@
     } finally {
       busy = false;
       strip.classList.remove("is-busy");
-      // Re-enable from applyState; if error, unlock toggles
       strip.querySelectorAll("[data-chip-toggle]").forEach((b) => {
         b.disabled = false;
       });
@@ -211,6 +217,5 @@
 
   document.addEventListener("click", onClick);
 
-  // Soft-nav reuses this module; no teardown needed (delegation on document).
   window.__ffChipsApply = applyState;
 })();

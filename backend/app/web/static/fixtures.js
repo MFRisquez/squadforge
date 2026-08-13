@@ -409,10 +409,18 @@
   }
 
   bindRows(list);
-  if (closeMatch) closeMatch.addEventListener("click", () => (matchDetail.hidden = true));
+  function closeMatchDetail() {
+    if (!matchDetail) return;
+    if (typeof window.__ffCloseDrawer === "function") {
+      window.__ffCloseDrawer(matchDetail);
+    } else {
+      matchDetail.hidden = true;
+    }
+  }
+  if (closeMatch) closeMatch.addEventListener("click", closeMatchDetail);
   if (matchDetail) {
     matchDetail.addEventListener("click", (e) => {
-      if (e.target === matchDetail) matchDetail.hidden = true;
+      if (e.target === matchDetail) closeMatchDetail();
     });
   }
   const onMq = () => {

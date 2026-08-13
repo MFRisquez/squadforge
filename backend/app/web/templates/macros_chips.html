@@ -9,21 +9,21 @@
   {% elif key == 'free_hit' %}
   <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3" d="M8 16h28a4 4 0 014 4v8a4 4 0 01-4 4H8l4-8-4-8z"/><text x="24" y="28" text-anchor="middle" font-size="9" font-weight="800" fill="currentColor">FREE</text></svg>
   {% elif key == 'super_sub' %}
-  <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="currentColor" d="M14 30V18h4v5.2L26 14l8 9.2V18h4v12h-4v-5.2L26 34l-8-9.2V30h-4z"/></svg>
+  <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="14" fill="none" stroke="currentColor" stroke-width="3"/><text x="24" y="29" text-anchor="middle" font-size="16" font-weight="800" fill="currentColor">S</text></svg>
   {% endif %}
 {% endmacro %}
 
 {% macro chip_blurb(key) %}
   {% if key == 'wildcard' %}
-  Unlimited transfers until the next deadline. Second Wildcard unlocks from GW20. Available from GW2.
+  Unlimited transfers this deadline. 2nd unlocks GW20. From GW2.
   {% elif key == 'free_hit' %}
-  Change your whole squad for one GW only — it reverts after that gameweek. Available from GW2.
+  Temp squad for one GW, then reverts. From GW2.
   {% elif key == 'bench_boost' %}
-  Bench players’ points also count this GW.
+  Bench points count this GW.
   {% elif key == 'triple_captain' %}
-  Your captain scores ×3 instead of ×2 this GW.
+  Captain scores ×3 this GW.
   {% elif key == 'super_sub' %}
-  Pick one bench player; if they play, their points count at ×2. Consumed even if they don’t play.
+  One bench player scores ×2 if they play.
   {% endif %}
 {% endmacro %}
 
@@ -124,9 +124,6 @@
       </div>
     {% endfor %}
   </div>
-  <p class="chip-strip-hint muted tiny" data-chip-hint {% if not active_key %}hidden{% endif %}>
-    <span data-chip-hint-label>{{ active_chip.chip|replace('_',' ')|title if active_chip else '' }}</span> on — tap On again to turn off
-  </p>
 </section>
 {% endif %}
 {% endmacro %}
