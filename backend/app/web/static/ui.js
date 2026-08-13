@@ -121,33 +121,67 @@
     if (e.target.closest("#themeToggle, #themeToggleHome")) toggleTheme();
   });
 
-  // Chip info tip: fixed positioning so it isn’t clipped by chip strip scroll
+  // Chip info tip: park on document.body so page-fit/transform ancestors
+  // can't offset position:fixed far below the i icon.
+  function ensureTipId(wrap) {
+    if (!wrap.dataset.tipId) {
+      wrap.dataset.tipId = `chip-tip-${Math.random().toString(36).slice(2, 9)}`;
+    }
+    return wrap.dataset.tipId;
+  }
+
+  function restoreChipTip(tip) {
+    if (!tip) return;
+    const homeId = tip.dataset.tipFor;
+    const home = homeId ? document.querySelector(`.chip-info-wrap[data-tip-id="${homeId}"]`) : null;
+    tip.classList.remove("is-fixed", "is-above", "is-open-tip");
+    tip.style.cssText = "";
+    tip.removeAttribute("data-tip-for");
+    if (home && tip.parentElement !== home) home.appendChild(tip);
+  }
+
   function placeChipTip(wrap) {
-    const tip = wrap.querySelector(".chip-tip");
     const btn = wrap.querySelector(".chip-info-btn");
+    let tip = wrap.querySelector(".chip-tip");
     if (!tip || !btn) return;
-    tip.classList.add("is-fixed");
+    const tipId = ensureTipId(wrap);
+    tip.dataset.tipFor = tipId;
+    // Escape overflow/transform ancestors
+    if (tip.parentElement !== document.body) {
+      document.body.appendChild(tip);
+    }
+    tip.classList.add("is-fixed", "is-open-tip");
     const rect = btn.getBoundingClientRect();
-    // Narrow tip anchored beside / under the i icon
-    const tipWidth = Math.min(144, Math.max(112, Math.min(window.innerWidth - 20, 144)));
+    const tipWidth = Math.min(148, Math.max(108, Math.min(window.innerWidth - 16, 148)));
+    tip.style.position = "fixed";
     tip.style.width = `${tipWidth}px`;
     tip.style.maxWidth = `${tipWidth}px`;
-    // Align tip near the info button (prefer under, right-edge of tip near button)
-    let left = rect.left + rect.width / 2 - tipWidth / 2;
-    left = Math.max(8, Math.min(left, window.innerWidth - tipWidth - 8));
-    let top = rect.bottom + 6;
-    tip.style.left = `${left}px`;
-    tip.style.top = `${top}px`;
     tip.style.right = "auto";
     tip.style.bottom = "auto";
+    tip.style.margin = "0";
+    tip.style.zIndex = "4000";
+    // Center under the i button, tight gap
+    let left = rect.left + rect.width / 2 - tipWidth / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - tipWidth - 8));
+    let top = rect.bottom + 4;
+    tip.style.left = `${left}px`;
+    tip.style.top = `${top}px`;
+    // Measure after paint; flip above if needed, keep glued to the icon
     requestAnimationFrame(() => {
-      const h = tip.offsetHeight || 72;
-      if (top + h > window.innerHeight - 10) {
-        tip.style.top = `${Math.max(8, rect.top - h - 6)}px`;
+      const h = tip.offsetHeight || 64;
+      const spaceBelow = window.innerHeight - rect.bottom - 8;
+      if (h > spaceBelow && rect.top > h + 8) {
+        tip.style.top = `${Math.max(8, rect.top - h - 4)}px`;
         tip.classList.add("is-above");
       } else {
+        tip.style.top = `${rect.bottom + 4}px`;
         tip.classList.remove("is-above");
       }
+      // Re-clamp horizontally in case width changed with content
+      const w = tip.offsetWidth || tipWidth;
+      let nextLeft = rect.left + rect.width / 2 - w / 2;
+      nextLeft = Math.max(8, Math.min(nextLeft, window.innerWidth - w - 8));
+      tip.style.left = `${nextLeft}px`;
     });
   }
 
@@ -156,17 +190,21 @@
       if (except && wrap === except) return;
       wrap.classList.remove("is-open");
       const btn = wrap.querySelector(".chip-info-btn");
-      const tip = wrap.querySelector(".chip-tip");
       if (btn) btn.setAttribute("aria-expanded", "false");
-      if (tip) {
-        tip.classList.remove("is-fixed", "is-above");
-        tip.style.left = "";
-        tip.style.top = "";
-        tip.style.width = "";
-        tip.style.maxWidth = "";
-      }
+      const tip =
+        document.querySelector(`.chip-tip[data-tip-for="${wrap.dataset.tipId || ""}"]`) ||
+        wrap.querySelector(".chip-tip");
+      restoreChipTip(tip);
+    });
+    // Orphan tips left on body
+    document.querySelectorAll("body > .chip-tip.is-open-tip").forEach((tip) => {
+      const homeId = tip.dataset.tipFor;
+      const wrap = homeId ? document.querySelector(`.chip-info-wrap[data-tip-id="${homeId}"]`) : null;
+      if (except && wrap === except) return;
+      restoreChipTip(tip);
     });
   }
+
   document.addEventListener("click", (e) => {
     const btn = e.target.closest(".chip-info-btn");
     if (btn) {
@@ -178,6 +216,12 @@
       wrap.classList.toggle("is-open", willOpen);
       btn.setAttribute("aria-expanded", willOpen ? "true" : "false");
       if (willOpen) placeChipTip(wrap);
+      else {
+        const tip =
+          document.querySelector(`.chip-tip[data-tip-for="${wrap.dataset.tipId || ""}"]`) ||
+          wrap.querySelector(".chip-tip");
+        restoreChipTip(tip);
+      }
       return;
     }
     if (!e.target.closest(".chip-info-wrap") && !e.target.closest(".chip-tip")) {
@@ -187,7 +231,7 @@
   window.addEventListener("scroll", () => closeAllChipTips(), true);
   window.addEventListener("resize", () => closeAllChipTips());
 
-  // Desktop hover for chip tips (still uses fixed placement)
+  // Desktop hover for chip tips
   if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
     document.addEventListener("mouseover", (e) => {
       const wrap = e.target.closest(".chip-info-wrap");
@@ -200,11 +244,18 @@
     });
     document.addEventListener("mouseout", (e) => {
       const wrap = e.target.closest(".chip-info-wrap");
-      if (!wrap) return;
       const to = e.relatedTarget;
-      if (to && wrap.contains(to)) return;
       if (to && to.closest && to.closest(".chip-tip")) return;
-      closeAllChipTips();
+      if (wrap) {
+        if (to && wrap.contains(to)) return;
+        closeAllChipTips();
+        return;
+      }
+      // Leaving a body-parked tip
+      if (e.target.closest && e.target.closest(".chip-tip")) {
+        if (to && to.closest && to.closest(".chip-info-wrap")) return;
+        closeAllChipTips();
+      }
     });
   }
 })();

@@ -6263,9 +6263,10 @@ body.page-auth .flash.error {
 }
 .chip-tip {
   position: absolute;
-  left: auto;
-  right: 0;
-  top: calc(100% + 0.28rem);
+  left: 50%;
+  right: auto;
+  top: calc(100% + 0.25rem);
+  transform: translateX(-50%);
   width: max-content;
   max-width: 9rem;
   padding: 0.4rem 0.48rem;
@@ -6293,9 +6294,14 @@ html[data-theme="light"] .chip-tip {
   border-color: rgba(182, 219, 0, 0.55);
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
 }
-.chip-tip.is-fixed {
-  position: fixed;
-  z-index: 200;
+.chip-tip.is-fixed,
+body > .chip-tip.is-open-tip {
+  position: fixed !important;
+  transform: none !important;
+  z-index: 4000;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 .chip-info-wrap.is-open .chip-tip {
   opacity: 1;
