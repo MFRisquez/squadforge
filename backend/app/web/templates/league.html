@@ -6,10 +6,10 @@
 <p class="lede">Invite code: <strong>{{ league.invite_code }}</strong> — share in WhatsApp. Members: {{ member_count }}.</p>
 
 <section class="panel">
-  <h2>Managers</h2>
+  <h2>Teams</h2>
   <ul class="list">
     {% for m in members %}
-      <li>{{ m.manager.team_name or " " }}</li>
+      <li>{{ m.manager.team_name or "—" }}</li>
     {% endfor %}
   </ul>
   <div class="row">

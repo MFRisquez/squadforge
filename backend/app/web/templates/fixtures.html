@@ -29,10 +29,12 @@
       <li>
         <button type="button" class="fx-card status-{{ m.status }} {% if m.my_players and (m.my_players.home or m.my_players.away) %}has-mine{% endif %}" data-fixture-id="{{ m.id }}" data-home-badge="{{ m.home.badge or '' }}" data-away-badge="{{ m.away.badge or '' }}">
           <div class="fx-card-top">
-            {% if m.status == 'live' %}<em class="live-dot">LIVE</em>
-            {% elif m.status == 'finished' %}<span class="fx-status">Full time</span>
+            {% if m.status == 'live' %}
+              <span class="fx-status-row"><em class="live-dot">LIVE</em>{{ m.kickoff|kickoff_zones }}</span>
+            {% elif m.status == 'finished' %}
+              <span class="fx-status-row"><span class="fx-ft-label">Full time</span>{{ m.kickoff|kickoff_zones }}</span>
             {% elif m.kickoff %}
-              <span class="fx-status">{{ m.kickoff|kickoff_zones }}</span>
+              {{ m.kickoff|kickoff_zones }}
             {% else %}
               <span class="fx-status">TBC</span>
             {% endif %}

@@ -1,5 +1,5 @@
 /* FutFantasy phone app shell */
-const CACHE = "futfantasy-v85";
+const CACHE = "futfantasy-v86";
 const PRECACHE = [
   "/static/styles.css",
   "/static/ui.js",
@@ -44,7 +44,8 @@ self.addEventListener("fetch", (event) => {
     url.pathname === "/rules" ||
     url.pathname === "/leagues" ||
     url.pathname === "/onboard" ||
-    url.pathname.startsWith("/standings/");
+    url.pathname.startsWith("/standings/") ||
+    url.pathname.startsWith("/league");
 
   if (!isStatic && !isShell && !isCatalog) return;
 
@@ -52,7 +53,7 @@ self.addEventListener("fetch", (event) => {
     caches.match(req).then((cached) => {
       const fetched = fetch(req)
         .then((res) => {
-          if (res && res.ok) {
+          if (res && res.ok && (isStatic || isCatalog)) {
             const copy = res.clone();
             caches.open(CACHE).then((cache) => cache.put(req, copy));
           }
@@ -60,15 +61,12 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(() => cached);
 
-      // Static + player catalog: cache-first (catalog also has short HTTP max-age)
+      // Static + player catalog: cache-first
       if (isStatic || isCatalog) return cached || fetched;
 
-      // Shell HTML: stale-while-revalidate — paint cached page instantly
-      if (cached) {
-        event.waitUntil(fetched);
-        return cached;
-      }
-      return fetched;
+      // Shell HTML: always network-first so GW / standings / fixtures never paint stale.
+      // Do not put HTML into Cache Storage (query params like ?gw= must stay live).
+      return fetched.then((res) => res || cached);
     })
   );
 });

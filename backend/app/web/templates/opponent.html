@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ opponent.team_name or opponent.display_name }} · {{ app_name }}{% endblock %}
+{% block title %}{{ opponent.team_name or '—' }} · {{ app_name }}{% endblock %}
 {% block body_class %}page-fit page-xi page-opponent{% endblock %}
 {% block content %}
 {% from "macros_gw.html" import gw_bar %}
@@ -7,7 +7,7 @@
 
 <section class="hero-block compact opponent-hero">
   <p class="eyebrow">{{ league.name }}</p>
-  <h1>{{ opponent.team_name or opponent.display_name }}</h1>
+  <h1>{{ opponent.team_name or '—' }}</h1>
   <div class="opponent-meta">
     <span class="pill soft">GW {{ squad_gw.number }}</span>
     {% if any_fixture_started and score %}

@@ -28,8 +28,10 @@ templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "web
 
 def _format_kickoff_zones(iso: str | None) -> str:
     """Short date + Mexico / US (ET) / Venezuela local times for fixture cards."""
+    from markupsafe import Markup
+
     if not iso:
-        return "TBC"
+        return Markup('<span class="fx-status">TBC</span>')
     from datetime import datetime, timezone
     from zoneinfo import ZoneInfo
 
@@ -39,7 +41,7 @@ def _format_kickoff_zones(iso: str | None) -> str:
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
     except ValueError:
-        return str(iso)
+        return Markup(f'<span class="fx-status">{iso}</span>')
 
     local = dt.astimezone(ZoneInfo("America/Mexico_City"))
     date_part = f"{local.strftime('%a %b')} {local.day}"
@@ -50,7 +52,17 @@ def _format_kickoff_zones(iso: str | None) -> str:
     mx = _t("America/Mexico_City")
     us = _t("America/New_York")
     vz = _t("America/Caracas")
-    return f"{date_part}  Mx {mx} | US {us} | VZ {vz}"
+    return Markup(
+        '<span class="fx-status">'
+        f'<span class="fx-ko-date">{date_part}</span>'
+        '<span class="fx-ko-zones">'
+        f'<span class="fx-ko-z">Mx {mx}</span>'
+        '<span class="fx-ko-bar" aria-hidden="true">|</span>'
+        f'<span class="fx-ko-z">US {us}</span>'
+        '<span class="fx-ko-bar" aria-hidden="true">|</span>'
+        f'<span class="fx-ko-z">VZ {vz}</span>'
+        "</span></span>"
+    )
 
 
 templates.env.filters["kickoff_zones"] = _format_kickoff_zones

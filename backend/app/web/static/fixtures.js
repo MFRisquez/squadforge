@@ -60,11 +60,11 @@
   }
 
   /** Date + Mx / US (ET) / VZ local kickoff times for the group. */
-  function formatKickoff(iso) {
-    if (!iso) return "TBC";
+  function kickoffParts(iso) {
+    if (!iso) return null;
     const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return String(iso);
-    const datePart = new Intl.DateTimeFormat("en-US", {
+    if (Number.isNaN(d.getTime())) return null;
+    const date = new Intl.DateTimeFormat("en-US", {
       timeZone: "America/Mexico_City",
       weekday: "short",
       month: "short",
@@ -76,7 +76,32 @@
     const mx = new Intl.DateTimeFormat("en-GB", { timeZone: "America/Mexico_City", ...timeOpts }).format(d);
     const us = new Intl.DateTimeFormat("en-GB", { timeZone: "America/New_York", ...timeOpts }).format(d);
     const vz = new Intl.DateTimeFormat("en-GB", { timeZone: "America/Caracas", ...timeOpts }).format(d);
-    return `${datePart}  Mx ${mx} | US ${us} | VZ ${vz}`;
+    return { date, mx, us, vz, text: `${date}  Mx ${mx} | US ${us} | VZ ${vz}` };
+  }
+
+  function formatKickoff(iso) {
+    const p = kickoffParts(iso);
+    return p ? p.text : iso ? String(iso) : "TBC";
+  }
+
+  function formatKickoffHtml(iso) {
+    const p = kickoffParts(iso);
+    if (!p) return `<span class="fx-status">TBC</span>`;
+    return `<span class="fx-status">
+      <span class="fx-ko-date">${p.date}</span>
+      <span class="fx-ko-zones"><span class="fx-ko-z">Mx ${p.mx}</span><span class="fx-ko-bar" aria-hidden="true">|</span><span class="fx-ko-z">US ${p.us}</span><span class="fx-ko-bar" aria-hidden="true">|</span><span class="fx-ko-z">VZ ${p.vz}</span></span>
+    </span>`;
+  }
+
+  function fixtureTopHtml(m) {
+    const ko = formatKickoffHtml(m.kickoff);
+    if (m.status === "live") {
+      return `<span class="fx-status-row"><em class="live-dot">LIVE</em>${ko}</span>`;
+    }
+    if (m.status === "finished") {
+      return `<span class="fx-status-row"><span class="fx-ft-label">Full time</span>${ko}</span>`;
+    }
+    return ko;
   }
 
   function sideLines(rows, label) {
@@ -404,12 +429,7 @@
     list.innerHTML = rows
       .map((m) => {
         const scored = m.home.score != null && m.away.score != null;
-        const top =
-          m.status === "live"
-            ? `<em class="live-dot">LIVE</em>`
-            : m.status === "finished"
-              ? `<span class="fx-status">Full time</span>`
-              : `<span class="fx-status">${formatKickoff(m.kickoff)}</span>`;
+        const top = fixtureTopHtml(m);
         const scoreBlock = scored
           ? `<span class="fx-score-num">${m.home.score}</span><span class="fx-score-sep">–</span><span class="fx-score-num">${m.away.score}</span>`
           : `<span class="fx-vs">vs</span>`;

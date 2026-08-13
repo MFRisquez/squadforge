@@ -78,7 +78,7 @@ def _manager_row_base(db: Session, manager: Manager, gw) -> dict:
     ft_state = db.query(TransferState).filter(TransferState.manager_id == manager.id).one_or_none()
     return {
         "manager": manager,
-        "team_name": manager.team_name or manager.display_name,
+        "team_name": (manager.team_name or "").strip() or "—",
         "gw_points": gw_points,
         "total_points": total_points,
         "squad_value": spend,

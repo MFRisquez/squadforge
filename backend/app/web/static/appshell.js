@@ -178,20 +178,28 @@
   }
 
   async function fetchPageHtml(path) {
-    // Cache by full path including ?gw= so gameweek arrows change on first click.
+    // Never reuse in-memory HTML for ?gw= — first tap must show the new gameweek.
     const key = path;
-    const hit = pageCache.get(key);
-    if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
-      fetch(path, { credentials: "same-origin", headers: { Accept: "text/html" } })
-        .then(async (res) => {
-          if (!res.ok) return;
-          pageCache.set(key, { html: await res.text(), at: Date.now() });
+    const hasGw = /[?&]gw=/.test(path);
+    if (!hasGw) {
+      const hit = pageCache.get(key);
+      if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
+        fetch(path, {
+          credentials: "same-origin",
+          cache: "no-store",
+          headers: { Accept: "text/html" },
         })
-        .catch(() => {});
-      return hit.html;
+          .then(async (res) => {
+            if (!res.ok) return;
+            pageCache.set(key, { html: await res.text(), at: Date.now() });
+          })
+          .catch(() => {});
+        return hit.html;
+      }
     }
     const res = await fetch(path, {
       credentials: "same-origin",
+      cache: "no-store",
       headers: { Accept: "text/html", "X-Requested-With": "ff-shell" },
     });
     if (!res.ok) throw new Error("nav");
@@ -267,6 +275,8 @@
     if (!a) return;
     if (a.target && a.target !== "_self") return;
     if (a.hasAttribute("download")) return;
+    // GW arrows: full page load so one tap always changes gameweek (no soft-nav/SW stale HTML).
+    if (a.classList.contains("gw-arrow")) return;
     const path = sameOriginPath(a.getAttribute("href") || "");
     if (!path || !isShellPath(path)) return;
     // allow hash-only on same page

@@ -2600,17 +2600,54 @@ body.picker-open {
   display: flex;
   justify-content: center;
   margin-bottom: 0.22rem;
+  min-height: 1.55rem;
+}
+.fx-status-row {
+  display: grid;
+  justify-items: center;
+  gap: 0.12rem;
+  width: 100%;
 }
 .fx-status {
-  font-size: 0.62rem;
+  display: grid;
+  justify-items: center;
+  gap: 0.08rem;
+  font-size: 0.68rem;
   font-weight: 800;
   color: var(--muted);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   text-align: center;
-  line-height: 1.35;
+  line-height: 1.3;
   max-width: 100%;
   white-space: normal;
   font-variant-numeric: tabular-nums;
+}
+.fx-ko-date {
+  display: block;
+  color: var(--ink);
+  font-weight: 900;
+  font-size: 0.72rem;
+}
+.fx-ko-zones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.2rem 0.28rem;
+  font-size: 0.64rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+.fx-ko-bar {
+  opacity: 0.45;
+  font-style: normal;
+  font-weight: 700;
+}
+.fx-ft-label {
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: var(--muted);
 }
 .live-dot {
   color: #ff1751;
@@ -5161,9 +5198,23 @@ body.page-fit .pitch-cap-hint {
     min-width: 1.85rem;
     padding: 0.06rem 0.16rem;
   }
-  body.page-fixtures .fx-status,
-  body.page-fixtures .live-dot {
-    font-size: 0.5rem;
+  body.page-fixtures .fx-card-top {
+    min-height: 1.7rem;
+    margin-bottom: 0.1rem;
+  }
+  body.page-fixtures .fx-status {
+    font-size: 0.58rem;
+  }
+  body.page-fixtures .fx-ko-date {
+    font-size: 0.62rem;
+  }
+  body.page-fixtures .fx-ko-zones {
+    font-size: 0.56rem;
+    gap: 0.14rem 0.22rem;
+  }
+  body.page-fixtures .live-dot,
+  body.page-fixtures .fx-ft-label {
+    font-size: 0.54rem;
   }
   body.page-fixtures .fx-mine {
     margin-top: 0.1rem;
@@ -5699,7 +5750,9 @@ body.page-fit .pitch-cap-hint {
   .fx-club-name { display: none; }
   .fx-card { padding: 0.12rem 0.32rem 0.14rem; border-radius: 0.4rem; }
   .fx-club strong { font-size: 0.64rem; }
-  .fx-status { font-size: 0.5rem; }
+  .fx-status { font-size: 0.56rem; }
+  .fx-ko-date { font-size: 0.6rem; }
+  .fx-ko-zones { font-size: 0.54rem; }
   .fx-score-block { min-width: 1.85rem; padding: 0.06rem 0.16rem; }
   .fx-score-num { font-size: 0.78rem; }
   .fixture-list { gap: 0.12rem; }

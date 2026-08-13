@@ -88,8 +88,8 @@
   {% if fixtures %}
     <div class="h2h-cards">
       {% for fx in fixtures %}
-        {% set home_name = fx.home.team_name if fx.home and fx.home.team_name else (fx.home.display_name if fx.home else 'TBD') %}
-        {% set away_name = fx.away.team_name if fx.away and fx.away.team_name else (fx.away.display_name if fx.away else 'TBD') %}
+        {% set home_name = (fx.home.team_name if fx.home and fx.home.team_name else '') or ('TBD' if not fx.home else '—') %}
+        {% set away_name = (fx.away.team_name if fx.away and fx.away.team_name else '') or ('TBD' if not fx.away else '—') %}
         {% set home_win = fx.result == 'home' %}
         {% set away_win = fx.result == 'away' %}
         <article class="h2h-card {% if fx.result == 'pending' %}is-pending{% elif fx.result == 'draw' %}is-draw{% endif %}">
