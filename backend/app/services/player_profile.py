@@ -72,19 +72,54 @@ SEASON_KPI_TABLES: dict[str, list[tuple[str, str]]] = {
     ],
 }
 
-# Match metrics shown in Lineup once the GW is live/locked
-MATCH_METRIC_ROWS: list[tuple[str, str]] = [
-    ("Minutes", "minutes"),
-    ("Goals", "goals"),
-    ("Assists", "assists"),
-    ("Clean sheet", "clean_sheets"),
-    ("Goals conc.", "goals_conceded"),
-    ("Saves", "saves"),
-    ("Pen saves", "penalties_saved"),
-    ("Yellow", "yellow_cards"),
-    ("Red", "red_cards"),
-    ("Own goals", "own_goals"),
-]
+# Match metrics by position (Lineup gameweek sheet)
+MATCH_KPI_TABLES: dict[str, list[tuple[str, str]]] = {
+    "GK": [
+        ("Minutes", "minutes"),
+        ("Saves", "saves"),
+        ("Clean sheet", "clean_sheets"),
+        ("Goals conc.", "goals_conceded"),
+        ("Pen saves", "penalties_saved"),
+        ("Goals", "goals"),
+        ("Assists", "assists"),
+        ("Yellow", "yellow_cards"),
+        ("Red", "red_cards"),
+        ("Own goals", "own_goals"),
+    ],
+    "DEF": [
+        ("Minutes", "minutes"),
+        ("Goals", "goals"),
+        ("Assists", "assists"),
+        ("Clean sheet", "clean_sheets"),
+        ("Goals conc.", "goals_conceded"),
+        ("Yellow", "yellow_cards"),
+        ("Red", "red_cards"),
+        ("Own goals", "own_goals"),
+        ("Pen missed", "penalties_missed"),
+    ],
+    "MID": [
+        ("Minutes", "minutes"),
+        ("Goals", "goals"),
+        ("Assists", "assists"),
+        ("Clean sheet", "clean_sheets"),
+        ("Yellow", "yellow_cards"),
+        ("Red", "red_cards"),
+        ("Pen missed", "penalties_missed"),
+        ("Own goals", "own_goals"),
+    ],
+    "ATT": [
+        ("Minutes", "minutes"),
+        ("Goals", "goals"),
+        ("Assists", "assists"),
+        ("Pen missed", "penalties_missed"),
+        ("Yellow", "yellow_cards"),
+        ("Red", "red_cards"),
+        ("Own goals", "own_goals"),
+    ],
+}
+
+# Back-compat flat list
+MATCH_METRIC_ROWS: list[tuple[str, str]] = MATCH_KPI_TABLES["MID"]
 
 
 def _fmt(key: str, value: Any) -> str:
@@ -117,13 +152,14 @@ def build_season_kpi_rows(position: str, stats: dict[str, Any]) -> list[dict[str
     return [{"label": label, "value": _fmt(key, stats.get(key)), "key": key} for label, key in spec]
 
 
-def build_match_kpi_rows(metrics: dict[str, Any], breakdown: dict[str, Any]) -> list[dict[str, str]]:
+def build_match_kpi_rows(
+    metrics: dict[str, Any],
+    breakdown: dict[str, Any],
+    position: str | None = None,
+) -> list[dict[str, str]]:
+    spec = MATCH_KPI_TABLES.get(position or "") or MATCH_KPI_TABLES["MID"]
     rows: list[dict[str, str]] = []
-    for label, key in MATCH_METRIC_ROWS:
-        if key not in metrics and float(metrics.get(key) or 0) == 0 and key not in {"minutes", "goals", "assists"}:
-            # Still show core lines; skip empty rare lines to reduce noise
-            if key in {"penalties_saved", "own_goals", "red_cards"} and not metrics.get(key):
-                continue
+    for label, key in spec:
         rows.append({"label": label, "value": _fmt(key, metrics.get(key, 0)), "key": key})
     # Points contribution lines from formula breakdown
     for key, val in (breakdown or {}).items():
@@ -206,7 +242,7 @@ def player_profile(
             "gw_points": total,
             "metrics": metrics,
             "breakdown": breakdown,
-            "kpis": build_match_kpi_rows(metrics, breakdown),
+            "kpis": build_match_kpi_rows(metrics, breakdown, player.position),
             "fixtures": [],
             "events_count": db.query(MatchEvent)
             .filter(MatchEvent.player_id == player.id, MatchEvent.gameweek_id == (gw.id if gw else -1))

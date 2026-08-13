@@ -43,7 +43,46 @@
   const detailPhoto = document.getElementById("detailPhoto");
   const detailBody = document.getElementById("detailBody");
   const detailActions = document.getElementById("detailActions");
+  const detailHeadActions = document.getElementById("detailHeadActions");
   const closeDetailBtn = document.getElementById("closeDetail");
+
+  const MATCH_STATS_BY_POS = {
+    GK: ["Minutes", "Saves", "Clean sheet", "Goals conc.", "Pen saves", "Goals", "Assists", "Yellow", "Red"],
+    DEF: ["Minutes", "Goals", "Assists", "Clean sheet", "Goals conc.", "Yellow", "Red", "Own goals"],
+    MID: ["Minutes", "Goals", "Assists", "Clean sheet", "Yellow", "Red", "Pen missed"],
+    ATT: ["Minutes", "Goals", "Assists", "Pen missed", "Yellow", "Red"],
+  };
+
+  function matchStatsTableHtml(position, rows, emptyHint) {
+    const labels =
+      MATCH_STATS_BY_POS[position] || MATCH_STATS_BY_POS.MID;
+    const byLabel = Object.fromEntries((rows || []).map((r) => [r.label, r.value]));
+    const body = labels
+      .map(
+        (label) => `
+        <tr>
+          <th scope="row">${label}</th>
+          <td>${byLabel[label] != null ? byLabel[label] : "—"}</td>
+        </tr>`
+      )
+      .join("");
+    const extra = (rows || [])
+      .filter((r) => String(r.label || "").startsWith("Pts ·"))
+      .map(
+        (r) => `
+        <tr class="is-pts">
+          <th scope="row">${r.label}</th>
+          <td>${r.value}</td>
+        </tr>`
+      )
+      .join("");
+    return `
+      <table class="match-stat-table" aria-label="Gameweek stats">
+        <tbody>${body}${extra}</tbody>
+      </table>
+      ${emptyHint ? `<p class="muted tiny match-stat-hint">${emptyHint}</p>` : ""}
+    `;
+  }
   const swapBar = document.getElementById("swapBar");
   const swapHint = document.getElementById("swapHint");
   const cancelSwapBtn = document.getElementById("cancelSwap");
@@ -431,21 +470,30 @@
       </div>
       <div class="kpi-block">
         <div class="player-fdr-head">
-          <strong>${LOCKED ? "This gameweek" : "Match stats"}</strong>
+          <strong>Gameweek stats · ${player.position}</strong>
         </div>
-        <div class="kpi-grid kpi-grid-compact" id="detailKpis">
-          <span class="muted tiny">${LOCKED ? "Loading match stats…" : "Scores appear here once the GW is locked."}</span>
+        <div id="detailKpis">
+          ${
+            LOCKED
+              ? `<p class="muted tiny">Loading match stats…</p>`
+              : matchStatsTableHtml(
+                  player.position,
+                  [],
+                  "Values fill in after the deadline / kickoff."
+                )
+          }
         </div>
       </div>
     `;
     detailActions.innerHTML = "";
+    if (detailHeadActions) detailHeadActions.innerHTML = "";
     if (!LOCKED || CAPTAIN_EDITABLE) {
       if (!onBench && (!LOCKED || CAPTAIN_EDITABLE)) {
         const cvRow = document.createElement("div");
         cvRow.className = "cv-action-row";
         const cBtn = actionBtn(
           isCap ? "Captain ✓" : "Make captain",
-          `btn cv-btn is-c${isCap ? " is-active" : ""}`,
+          `btn ghost cv-btn is-c${isCap ? " is-active" : ""}`,
           () => setCaptain(player.id)
         );
         if (isCap || (CAPTAIN_EDITABLE && !canPickAsCaptain(player.id))) cBtn.disabled = true;
@@ -454,7 +502,7 @@
         }
         const vBtn = actionBtn(
           isVice ? "Vice ✓" : "Make vice",
-          `btn cv-btn is-v${isVice ? " is-active" : ""}`,
+          `btn ghost cv-btn is-v${isVice ? " is-active" : ""}`,
           () => setVice(player.id)
         );
         if (isVice || (CAPTAIN_EDITABLE && !canPickAsCaptain(player.id))) vBtn.disabled = true;
@@ -539,17 +587,12 @@
         }
         if (kpis) {
           const items = data.kpis || [];
-          kpis.innerHTML = items.length
-            ? items
-                .map(
-                  (k) => `
-              <div class="kpi-cell">
-                <span>${k.label}</span>
-                <strong>${k.value}</strong>
-              </div>`
-                )
-                .join("")
-            : `<span class="muted tiny">No live events yet — tap Refresh live scores.</span>`;
+          const pos = detailPlayer.position || data.position || "MID";
+          kpis.innerHTML = matchStatsTableHtml(
+            pos,
+            items,
+            items.length ? "" : "No live events yet — tap Refresh live scores."
+          );
         }
       })
       .catch(() => {

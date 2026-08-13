@@ -134,6 +134,7 @@
   const detailPhoto = document.getElementById("detailPhoto");
   const detailBody = document.getElementById("detailBody");
   const detailActions = document.getElementById("detailActions");
+  const detailHeadActions = document.getElementById("detailHeadActions");
   const closeDetailBtn = document.getElementById("closeDetail");
 
   let starterIds = new Set(); // unused on Squad — lineup lives on /lineup
@@ -841,6 +842,8 @@
     `;
 
     detailActions.innerHTML = "";
+    if (detailHeadActions) detailHeadActions.innerHTML = "";
+    if (detailActions) detailActions.classList.remove("is-ghost");
     if (!LOCKED) {
       if (opts.fromPicker) {
         const select = document.createElement("button");
@@ -860,25 +863,26 @@
       } else if (opts.pos != null && opts.index != null) {
         const transferBtn = document.createElement("button");
         transferBtn.type = "button";
-        transferBtn.className = "btn danger-btn transfer-out-btn";
-        transferBtn.textContent = freeEdit() ? "Transfer out" : "Transfer out";
-        transferBtn.addEventListener("click", () => removeFromSquad(opts.pos, opts.index));
-        detailActions.appendChild(transferBtn);
-
-        const hint = document.createElement("p");
-        hint.className = "muted tiny transfer-hint";
-        hint.textContent = freeEdit()
-          ? "Removes them, then opens the player search for this slot."
+        transferBtn.className = "btn danger-btn transfer-out-btn transfer-out-inline";
+        transferBtn.textContent = "Transfer out";
+        transferBtn.title = freeEdit()
+          ? "Remove and open search for this slot"
           : !UNLIMITED && FT_LEFT < 1
-            ? `Uses a hit (−${HIT_COST}) if you have no free transfers.`
-            : "Opens search to bring someone into this slot.";
-        detailActions.appendChild(hint);
+            ? `Hit (−${HIT_COST}) if no free transfers`
+            : "Open search to bring someone into this slot";
+        transferBtn.addEventListener("click", () => removeFromSquad(opts.pos, opts.index));
+        if (detailHeadActions) {
+          detailHeadActions.appendChild(transferBtn);
+        } else {
+          detailActions.appendChild(transferBtn);
+        }
 
         const toLineup = document.createElement("a");
         toLineup.className = "btn ghost";
         toLineup.href = "/lineup";
         toLineup.textContent = "Set XI";
         detailActions.appendChild(toLineup);
+        if (detailActions) detailActions.classList.add("is-ghost");
       }
     } else {
       const lockedNote = document.createElement("p");

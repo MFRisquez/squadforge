@@ -128,12 +128,13 @@
     if (!tip || !btn) return;
     tip.classList.add("is-fixed");
     const rect = btn.getBoundingClientRect();
-    const tipWidth = Math.min(220, Math.max(140, window.innerWidth - 24));
+    const tipWidth = Math.min(168, Math.max(128, Math.min(window.innerWidth - 24, 168)));
     tip.style.width = `${tipWidth}px`;
     tip.style.maxWidth = `${tipWidth}px`;
-    let left = rect.left + rect.width / 2 - tipWidth / 2;
+    // Prefer anchoring near the i button (slightly to its left on wide screens)
+    let left = rect.right - tipWidth;
     left = Math.max(12, Math.min(left, window.innerWidth - tipWidth - 12));
-    let top = rect.bottom + 8;
+    let top = rect.bottom + 6;
     tip.style.left = `${left}px`;
     tip.style.top = `${top}px`;
     tip.style.right = "auto";

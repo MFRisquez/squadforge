@@ -84,7 +84,8 @@
 
         card.classList.toggle("is-active", isActive);
         card.classList.toggle("is-spent", spent);
-        card.classList.toggle("is-dim", otherActive && canToggle);
+        card.classList.toggle("is-idle", otherActive && canToggle);
+        card.classList.toggle("is-dim", false);
         card.classList.toggle("is-unavailable", gwLocked || (spent && !isActive));
 
         const toggle = card.querySelector("[data-chip-toggle]");

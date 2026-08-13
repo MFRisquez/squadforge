@@ -107,6 +107,72 @@
     </div>`;
   }
 
+  function sumSide(rows) {
+    return (rows || []).reduce((n, r) => n + Number(r.value || 0), 0);
+  }
+
+  function teamTotals(data, side) {
+    return {
+      goals: sumSide(data.goals?.[side]),
+      assists: sumSide(data.assists?.[side]),
+      yellow: sumSide(data.yellow_cards?.[side]),
+      red: sumSide(data.red_cards?.[side]),
+      saves: sumSide(data.saves?.[side]),
+      penSaved: sumSide(data.penalties_saved?.[side]),
+      penMissed: sumSide(data.penalties_missed?.[side]),
+      ownGoals: sumSide(data.own_goals?.[side]),
+    };
+  }
+
+  function matchStatsCompareHtml(data, status) {
+    const home = teamTotals(data, "home");
+    const away = teamTotals(data, "away");
+    const homeName = data.home?.name || data.home?.code || "Home";
+    const awayName = data.away?.name || data.away?.code || "Away";
+    const rows = [
+      ["Goals", home.goals, away.goals],
+      ["Assists", home.assists, away.assists],
+      ["Yellow cards", home.yellow, away.yellow],
+      ["Red cards", home.red, away.red],
+      ["Saves", home.saves, away.saves],
+      ["Penalties saved", home.penSaved, away.penSaved],
+      ["Penalties missed", home.penMissed, away.penMissed],
+      ["Own goals", home.ownGoals, away.ownGoals],
+    ];
+    const upcoming = status === "upcoming";
+    const body = rows
+      .map(([label, h, a]) => {
+        const hv = upcoming ? "—" : h;
+        const av = upcoming ? "—" : a;
+        const hWin = !upcoming && Number(h) > Number(a);
+        const aWin = !upcoming && Number(a) > Number(h);
+        return `<tr>
+          <td class="fx-stat-home ${hWin ? "is-lead" : ""}">${hv}</td>
+          <th scope="row">${label}</th>
+          <td class="fx-stat-away ${aWin ? "is-lead" : ""}">${av}</td>
+        </tr>`;
+      })
+      .join("");
+    return `<section class="fx-detail-section fx-stats-section">
+      <h3>${upcoming ? "Match stats" : status === "live" ? "Live stats" : "Match stats"}</h3>
+      ${
+        upcoming
+          ? `<p class="muted tiny fx-stats-note">Preview — goals, assists, cards, saves and penalties fill in once the match is underway.</p>`
+          : ""
+      }
+      <table class="fx-stat-table">
+        <thead>
+          <tr>
+            <th class="fx-stat-home">${homeName}</th>
+            <th scope="col"></th>
+            <th class="fx-stat-away">${awayName}</th>
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>
+    </section>`;
+  }
+
   function detailHtml(data, score) {
     const homeCode = data.home?.code || "";
     const awayCode = data.away?.code || "";
@@ -149,18 +215,7 @@
           ? `<p class="fx-detail-status">Full time · kicked off ${kick} UTC · GW${data.gw}</p>`
           : `<p class="fx-detail-status">Upcoming · ${kick} UTC · GW${data.gw}</p>`;
 
-    const watchBlock =
-      status === "upcoming"
-        ? `<section class="fx-detail-section">
-            <h3>What you’ll see</h3>
-            <p class="muted tiny">When the match starts, this panel updates with goals, assists, cards, penalties and saves. Refresh live to pull the latest FPL feed.</p>
-          </section>`
-        : status === "live"
-          ? `<section class="fx-detail-section">
-            <h3>In play</h3>
-            <p class="muted tiny">Live feed: goals, assists, own goals, yellow/red cards, pens and saves. Tap Refresh live on the list if something looks stale.</p>
-          </section>`
-          : "";
+    const watchBlock = matchStatsCompareHtml(data, status);
 
     const squadBlock =
       homeMine.length || awayMine.length
