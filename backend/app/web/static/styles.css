@@ -1,10 +1,46 @@
-/* Body copy: Regular face for all non-header weights (phone + desktop). */
+/* Body: Regular face registered at common weights (static fonts; phone-safe). */
 @font-face {
   font-family: "Vielma Grotesk";
   src:
     url("/static/fonts/Vielma_Grotesk_Regular.woff2") format("woff2"),
     url("/static/fonts/Vielma_Grotesk_Regular.otf") format("opentype");
-  font-weight: 100 900;
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vielma Grotesk";
+  src:
+    url("/static/fonts/Vielma_Grotesk_Regular.woff2") format("woff2"),
+    url("/static/fonts/Vielma_Grotesk_Regular.otf") format("opentype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vielma Grotesk";
+  src:
+    url("/static/fonts/Vielma_Grotesk_Regular.woff2") format("woff2"),
+    url("/static/fonts/Vielma_Grotesk_Regular.otf") format("opentype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vielma Grotesk";
+  src:
+    url("/static/fonts/Vielma_Grotesk_Regular.woff2") format("woff2"),
+    url("/static/fonts/Vielma_Grotesk_Regular.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vielma Grotesk";
+  src:
+    url("/static/fonts/Vielma_Grotesk_Regular.woff2") format("woff2"),
+    url("/static/fonts/Vielma_Grotesk_Regular.otf") format("opentype");
+  font-weight: 800;
   font-style: normal;
   font-display: swap;
 }
@@ -15,6 +51,15 @@
     url("/static/fonts/Vielma_Grotesk_Bold.woff2") format("woff2"),
     url("/static/fonts/Vielma_Grotesk_Bold.otf") format("opentype");
   font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vielma Grotesk Header";
+  src:
+    url("/static/fonts/Vielma_Grotesk_Bold.woff2") format("woff2"),
+    url("/static/fonts/Vielma_Grotesk_Bold.otf") format("opentype");
+  font-weight: 800;
   font-style: normal;
   font-display: swap;
 }
