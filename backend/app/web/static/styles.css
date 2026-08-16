@@ -2600,12 +2600,54 @@ body.picker-open {
   display: flex;
   justify-content: center;
   margin-bottom: 0.22rem;
+  min-height: 1.55rem;
+}
+.fx-status-row {
+  display: grid;
+  justify-items: center;
+  gap: 0.12rem;
+  width: 100%;
 }
 .fx-status {
-  font-size: 0.62rem;
+  display: grid;
+  justify-items: center;
+  gap: 0.08rem;
+  font-size: 0.68rem;
   font-weight: 800;
   color: var(--muted);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
+  text-align: center;
+  line-height: 1.3;
+  max-width: 100%;
+  white-space: normal;
+  font-variant-numeric: tabular-nums;
+}
+.fx-ko-date {
+  display: block;
+  color: var(--ink);
+  font-weight: 900;
+  font-size: 0.72rem;
+}
+.fx-ko-zones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.2rem 0.28rem;
+  font-size: 0.64rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+.fx-ko-bar {
+  opacity: 0.45;
+  font-style: normal;
+  font-weight: 700;
+}
+.fx-ft-label {
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: var(--muted);
 }
 .live-dot {
   color: #ff1751;
@@ -3871,9 +3913,12 @@ body.picker-open {
   .fx-badge { width: 2.15rem; height: 2.15rem; }
   .fx-club strong { font-size: 0.68rem; }
   .fx-score-num { font-size: 0.82rem; }
-  .fx-card-top { margin-bottom: 0.1rem; }
-  .fx-status,
-  .live-dot { font-size: 0.56rem; }
+  .fx-card-top { margin-bottom: 0.1rem; min-height: 1.6rem; }
+  .fx-status { font-size: 0.6rem; }
+  .fx-ko-date { font-size: 0.66rem; }
+  .fx-ko-zones { font-size: 0.58rem; }
+  .live-dot,
+  .fx-ft-label { font-size: 0.56rem; }
   .fx-score-block {
     min-width: 2rem;
     padding: 0.1rem 0.22rem;
@@ -3951,6 +3996,8 @@ body.picker-open {
     font-size: 0.72rem;
     font-weight: 700;
     color: var(--muted);
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
   }
   .fx-detail-status.is-live {
     color: #000000;
@@ -4856,9 +4903,48 @@ body.picker-open {
 .shirt-card .shirt,
 .pitch .shirt { position: relative; }
 
+.opponent-hero { margin-bottom: 0.55rem; }
+.opponent-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.35rem 0 0.25rem;
+}
+.opponent-freeze-note { margin: 0.25rem 0 0; }
+.opponent-back { margin: 0.65rem 0 1rem; }
+body.page-opponent .desk-xi { margin-top: 0.25rem; }
 .standings-hero { margin-bottom: 0.85rem; }
 .standings-panel { padding: 0.55rem; }
 .standings-name { display: grid; gap: 0.05rem; line-height: 1.2; }
+.standings-team-link {
+  color: inherit;
+  font-weight: 800;
+  text-decoration: none;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.standings-team-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.standings-team-cell {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+  white-space: normal;
+}
+.standings-form-inline { display: none; }
+.standings-num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.standings-classic th:nth-child(3),
+.standings-classic th:nth-child(4),
+.standings-classic td.standings-num {
+  text-align: right;
+}
 .standings tr.is-me {
   background: rgba(182, 219, 0, 0.12);
 }
@@ -5115,9 +5201,23 @@ body.page-fit .pitch-cap-hint {
     min-width: 1.85rem;
     padding: 0.06rem 0.16rem;
   }
-  body.page-fixtures .fx-status,
-  body.page-fixtures .live-dot {
-    font-size: 0.5rem;
+  body.page-fixtures .fx-card-top {
+    min-height: 1.7rem;
+    margin-bottom: 0.1rem;
+  }
+  body.page-fixtures .fx-status {
+    font-size: 0.58rem;
+  }
+  body.page-fixtures .fx-ko-date {
+    font-size: 0.62rem;
+  }
+  body.page-fixtures .fx-ko-zones {
+    font-size: 0.56rem;
+    gap: 0.14rem 0.22rem;
+  }
+  body.page-fixtures .live-dot,
+  body.page-fixtures .fx-ft-label {
+    font-size: 0.54rem;
   }
   body.page-fixtures .fx-mine {
     margin-top: 0.1rem;
@@ -5218,7 +5318,13 @@ body.page-fit .pitch-cap-hint {
     margin-bottom: 0.35rem;
     border-radius: 0.65rem;
   }
-  .gw-arrow { width: 1.55rem; height: 1.55rem; font-size: 0.9rem; }
+  .gw-arrow {
+    width: 2.6rem;
+    height: 2.6rem;
+    min-width: 2.6rem;
+    min-height: 2.6rem;
+    font-size: 1.45rem;
+  }
   .gw-title strong { font-size: 0.84rem; }
   .gw-deadline { font-size: 0.64rem; }
   .gw-status { margin-top: 0.2rem; font-size: 0.66rem; }
@@ -5647,7 +5753,9 @@ body.page-fit .pitch-cap-hint {
   .fx-club-name { display: none; }
   .fx-card { padding: 0.12rem 0.32rem 0.14rem; border-radius: 0.4rem; }
   .fx-club strong { font-size: 0.64rem; }
-  .fx-status { font-size: 0.5rem; }
+  .fx-status { font-size: 0.56rem; }
+  .fx-ko-date { font-size: 0.6rem; }
+  .fx-ko-zones { font-size: 0.54rem; }
   .fx-score-block { min-width: 1.85rem; padding: 0.06rem 0.16rem; }
   .fx-score-num { font-size: 0.78rem; }
   .fixture-list { gap: 0.12rem; }
@@ -5813,12 +5921,54 @@ body.page-fit .pitch-cap-hint {
   .league-list li { padding: 0.45rem 0; }
   .empty-state { padding: 0.85rem 0.55rem; }
 
-  .standings th:nth-child(5),
-  .standings td:nth-child(5),
-  .standings th:nth-child(6),
-  .standings td:nth-child(6) {
+  /* Classic phone: # · Team · GW · Tot (Form under team name) */
+  .standings-classic {
+    font-size: 0.92rem;
+  }
+  .standings-classic th,
+  .standings-classic td {
+    padding: 0.55rem 0.35rem;
+  }
+  .standings-classic .standings-form-col {
     display: none;
   }
+  .standings-classic .standings-form-inline {
+    display: block;
+  }
+  .standings-classic th:nth-child(2),
+  .standings-classic td.standings-team-cell {
+    width: 46%;
+  }
+  .standings-hide-phone {
+    display: none !important;
+  }
+  /* H2H phone: Team + Pts + GW */
+  .standings-h2h th:nth-child(3),
+  .standings-h2h td:nth-child(3),
+  .standings-h2h th:nth-child(4),
+  .standings-h2h td:nth-child(4),
+  .standings-h2h th:nth-child(5),
+  .standings-h2h td:nth-child(5),
+  .standings-h2h th:nth-child(6),
+  .standings-h2h td:nth-child(6) {
+    display: none;
+  }
+
+  /* Bigger GW arrow tap targets on phone */
+  .gw-arrow {
+    min-width: 2.6rem;
+    min-height: 2.6rem;
+    font-size: 1.55rem;
+    display: inline-grid;
+    place-items: center;
+  }
+}
+
+/* Tablet / narrow: same compact standings as phone */
+@media (max-width: 899px) {
+  .standings-classic .standings-form-col { display: none; }
+  .standings-classic .standings-form-inline { display: block; }
+  .standings-hide-phone { display: none !important; }
 }
 
 /* Extra-tight phones (SE / mini / zoomed) */

@@ -469,7 +469,8 @@
           ${isCap ? `<span class="role-pill is-c">${activeChip === "triple_captain" ? "Triple captain ×3" : "Captain ×2"}</span>` : ""}
           ${isVice ? `<span class="role-pill is-v">Vice-captain</span>` : ""}
           ${isSS ? `<span class="role-pill is-ss">Super Sub ×2</span>` : ""}
-          ${LOCKED && pts != null ? `<strong class="match-pts">${Number(pts).toFixed(0)} pts</strong>` : ""}
+          ${LOCKED && matchStarted(player.id) && pts != null ? `<strong class="match-pts">${Number(pts).toFixed(0)} pts</strong>` : ""}
+          ${LOCKED && !matchStarted(player.id) && player.fdr ? `<span class="muted tiny">${player.fdr.opponent} (${player.fdr.venue === "H" ? "H" : "A"})</span>` : ""}
         </div>
       </div>
       <div class="kpi-block">
@@ -580,7 +581,7 @@
           };
           detailPhoto.src = chain[0];
         }
-        if (data.gw_points != null) {
+        if (data.gw_points != null && matchStarted(playerId)) {
           const meta = detailBody.querySelector(".meta");
           if (meta && !meta.querySelector(".match-pts")) {
             const s = document.createElement("strong");
@@ -634,7 +635,8 @@
     const pts = POINTS[String(player.id)];
     const fdr = player.fdr;
     let footHtml;
-    if (LOCKED && pts != null && pts !== "") {
+    // Only show live points once that player's club fixture has started.
+    if (LOCKED && matchStarted(player.id) && pts != null && pts !== "") {
       const n = Number(pts);
       const cls = n < 0 ? "is-neg" : n > 0 ? "is-pos" : "";
       footHtml = `<span class="shirt-foot shirt-opp shirt-pts-fx ${cls}">${n.toFixed(0)}</span>`;
@@ -701,7 +703,12 @@
     meta.className = "xi-bench-meta";
     const fdr = player.fdr;
     let fixtureHtml;
-    if (LOCKED && POINTS[String(player.id)] != null && POINTS[String(player.id)] !== "") {
+    if (
+      LOCKED &&
+      matchStarted(player.id) &&
+      POINTS[String(player.id)] != null &&
+      POINTS[String(player.id)] !== ""
+    ) {
       const n = Number(POINTS[String(player.id)]);
       const cls = n < 0 ? "is-neg" : n > 0 ? "is-pos" : "";
       fixtureHtml = `<span class="xi-bench-fixture shirt-pts-fx ${cls}">${n.toFixed(0)} pts</span>`;
@@ -803,10 +810,11 @@
     </tr>`;
 
     const ranked = squad.map((p) => {
-      const base = Number(POINTS[String(p.id)] || 0);
+      const started = matchStarted(p.id);
+      const base = started ? Number(POINTS[String(p.id)] || 0) : 0;
       const mult = p.id === captainId ? 2 : 1;
-      const total = base * mult;
-      return { p, base, mult, total, bd: BREAKDOWNS[String(p.id)] || {} };
+      const total = started ? base * mult : Number.NEGATIVE_INFINITY;
+      return { p, base, mult, total, bd: BREAKDOWNS[String(p.id)] || {}, started };
     });
     const byPts = (a, b) =>
       b.total - a.total || String(a.p.name).localeCompare(String(b.p.name));
@@ -818,10 +826,11 @@
       return;
     }
 
-    const topTotal = ranked.reduce((max, r) => Math.max(max, r.total), Number.NEGATIVE_INFINITY);
+    const startedRanked = ranked.filter((r) => r.started);
+    const topTotal = startedRanked.reduce((max, r) => Math.max(max, r.total), Number.NEGATIVE_INFINITY);
     const topRow =
-      Number.isFinite(topTotal) && ranked.some((r) => r.total === topTotal && Math.abs(topTotal) > 1e-9)
-        ? ranked.filter((r) => r.total === topTotal).sort(byPts)[0]
+      Number.isFinite(topTotal) && startedRanked.some((r) => r.total === topTotal && Math.abs(topTotal) > 1e-9)
+        ? startedRanked.filter((r) => r.total === topTotal).sort(byPts)[0]
         : null;
 
     function roleMark(id) {
@@ -841,15 +850,25 @@
     }
 
     function rowHtml({ p, base, mult, total, bd }, onBench) {
+      const started = matchStarted(p.id);
       const cells = cols
         .map(([key]) => {
+          if (!started) return `<td class="muted">–</td>`;
           const v = Number(bd[key] || 0);
           const cls = v < 0 ? ' class="is-neg"' : "";
           return `<td${cls}>${fmtPts(v)}</td>`;
         })
         .join("");
-      const ptsLabel = mult > 1 ? `${fmtPts(base)}×${mult}` : fmtPts(total);
-      const isTop = Boolean(topRow && p.id === topRow.p.id);
+      let ptsLabel;
+      if (!started) {
+        const fdr = p.fdr;
+        ptsLabel = fdr
+          ? `${fdr.opponent} (${fdr.venue === "H" ? "H" : "A"})`
+          : "TBD";
+      } else {
+        ptsLabel = mult > 1 ? `${fmtPts(base)}×${mult}` : fmtPts(total);
+      }
+      const isTop = Boolean(started && topRow && p.id === topRow.p.id);
       const classes = [isTop ? "is-top" : "", onBench ? "is-bench" : "is-xi"].filter(Boolean).join(" ");
       return `<tr class="${classes}">
         <td>${isTop ? "★ " : ""}${p.name}${roleMark(p.id)}</td>

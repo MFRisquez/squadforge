@@ -21,6 +21,8 @@ from app.services import td as td_svc
 
 
 def _manager_row_base(db: Session, manager: Manager, gw) -> dict:
+    from app.models import Gameweek
+
     owned = squad_svc.owned_players(db, manager.id)
     spend = squad_svc.squad_spend(owned)
     score = (
@@ -38,6 +40,27 @@ def _manager_row_base(db: Session, manager: Manager, gw) -> dict:
     )
     total_points = sum(s.total for s in totals)
     gw_points = score.total if score else 0.0
+    # Last 5 finished/current GW scores for a compact form string
+    recent_gws = (
+        db.query(Gameweek)
+        .filter(Gameweek.number <= gw.number)
+        .order_by(Gameweek.number.desc())
+        .limit(5)
+        .all()
+    )
+    recent_gws = list(reversed(recent_gws))
+    form_parts: list[str] = []
+    for rg in recent_gws:
+        rs = (
+            db.query(ManagerGameweekScore)
+            .filter(
+                ManagerGameweekScore.manager_id == manager.id,
+                ManagerGameweekScore.gameweek_id == rg.id,
+            )
+            .one_or_none()
+        )
+        form_parts.append(str(int(rs.total)) if rs else "–")
+    form = "·".join(form_parts) if form_parts else "—"
     transfers = (
         db.query(TransferLog)
         .filter(TransferLog.manager_id == manager.id, TransferLog.gameweek_id == gw.id)
@@ -55,7 +78,7 @@ def _manager_row_base(db: Session, manager: Manager, gw) -> dict:
     ft_state = db.query(TransferState).filter(TransferState.manager_id == manager.id).one_or_none()
     return {
         "manager": manager,
-        "team_name": manager.team_name or manager.display_name,
+        "team_name": (manager.team_name or "").strip() or "—",
         "gw_points": gw_points,
         "total_points": total_points,
         "squad_value": spend,
@@ -65,6 +88,7 @@ def _manager_row_base(db: Session, manager: Manager, gw) -> dict:
         "td_club": td.club_code if td else "—",
         "ft_left": ft_state.free_transfers if ft_state else 0,
         "players_owned": len(owned),
+        "form": form,
     }
 
 
