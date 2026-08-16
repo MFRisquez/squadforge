@@ -1600,16 +1600,21 @@ html[data-theme="dark"] .chip-card-fpl .chip-toggle.is-on {
   pointer-events: none;
 }
 .transfer-rail-row.is-owned {
-  background: rgba(192, 255, 0, 0.12) !important;
-  color: #fff !important;
-  border-bottom-color: rgba(192, 255, 0, 0.28);
+  /* Solid lime + black text — readable in light and dark (never white-on-pale). */
+  background: #c8f000 !important;
+  color: #111111 !important;
+  border-bottom-color: rgba(0, 0, 0, 0.12);
   cursor: pointer;
 }
+.transfer-rail-row.is-owned .tr-name strong,
 .transfer-rail-row.is-owned .tr-name span,
 .transfer-rail-row.is-owned .tr-price,
 .transfer-rail-row.is-owned .tr-form,
 .transfer-rail-row.is-owned .tr-pts {
-  color: rgba(255, 255, 255, 0.72) !important;
+  color: #111111 !important;
+}
+.transfer-rail-row.is-owned .tr-name span {
+  color: #333333 !important;
 }
 .transfer-rail-row.avail-doubt {
   background: #fff3bf !important;
@@ -2836,8 +2841,8 @@ body.picker-open {
 }
 .pick-row.is-blocked,
 .pick-row:disabled {
-  background: #404040 !important;
-  color: #d0d5e0 !important;
+  background: #e8e8e8 !important;
+  color: #222222 !important;
   opacity: 1;
   cursor: not-allowed;
   pointer-events: none;
@@ -2849,7 +2854,7 @@ body.picker-open {
 .pick-row:disabled .pick-name,
 .pick-row:disabled .pick-sub,
 .pick-row:disabled .pick-price {
-  color: #d0d5e0 !important;
+  color: #333333 !important;
 }
 .club-limit {
   display: inline-block;
@@ -2864,8 +2869,8 @@ body.picker-open {
 }
 .pick-row.is-blocked .club-limit,
 .pick-row:disabled .club-limit {
-  background: rgba(255, 255, 255, 0.14);
-  color: #f0f3fa;
+  background: #d8d8d8;
+  color: #333333;
 }
 .club-limit.is-budget {
   background: #fff3bf;
@@ -2873,6 +2878,26 @@ body.picker-open {
 }
 .pick-row.is-blocked .club-limit.is-budget,
 .pick-row:disabled .club-limit.is-budget {
+  background: #d8d8d8;
+  color: #333333;
+}
+html[data-theme="dark"] .pick-row.is-blocked,
+html[data-theme="dark"] .pick-row:disabled {
+  background: #404040 !important;
+  color: #d0d5e0 !important;
+}
+html[data-theme="dark"] .pick-row.is-blocked .pick-name,
+html[data-theme="dark"] .pick-row.is-blocked .pick-sub,
+html[data-theme="dark"] .pick-row.is-blocked .pick-price,
+html[data-theme="dark"] .pick-row:disabled .pick-name,
+html[data-theme="dark"] .pick-row:disabled .pick-sub,
+html[data-theme="dark"] .pick-row:disabled .pick-price {
+  color: #d0d5e0 !important;
+}
+html[data-theme="dark"] .pick-row.is-blocked .club-limit,
+html[data-theme="dark"] .pick-row:disabled .club-limit,
+html[data-theme="dark"] .pick-row.is-blocked .club-limit.is-budget,
+html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
   background: rgba(255, 255, 255, 0.14);
   color: #f0f3fa;
 }
@@ -6795,6 +6820,18 @@ html[data-theme="dark"] .transfer-rail-row.is-head .tr-price,
 html[data-theme="dark"] .transfer-rail-row.is-head .tr-form,
 html[data-theme="dark"] .transfer-rail-row.is-head .tr-pts {
   color: #a0a0a0;
+}
+/* Owned rows stay lime + black even when the dark rail paints other rows white */
+html[data-theme="dark"] .transfer-rail-row.is-owned,
+html[data-theme="dark"] .transfer-rail-row.is-owned .tr-name strong,
+html[data-theme="dark"] .transfer-rail-row.is-owned .tr-price,
+html[data-theme="dark"] .transfer-rail-row.is-owned .tr-form,
+html[data-theme="dark"] .transfer-rail-row.is-owned .tr-pts {
+  background: #c8f000 !important;
+  color: #111111 !important;
+}
+html[data-theme="dark"] .transfer-rail-row.is-owned .tr-name span {
+  color: #333333 !important;
 }
 
 /* Rules — readable on dark theme */

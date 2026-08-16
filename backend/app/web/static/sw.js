@@ -1,5 +1,5 @@
 /* FutFantasy phone app shell */
-const CACHE = "futfantasy-v87";
+const CACHE = "futfantasy-v89";
 const PRECACHE = [
   "/static/styles.css",
   "/static/ui.js",
