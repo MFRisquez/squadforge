@@ -1600,34 +1600,21 @@ html[data-theme="dark"] .chip-card-fpl .chip-toggle.is-on {
   pointer-events: none;
 }
 .transfer-rail-row.is-owned {
-  /* Soft lime tint — dark ink so names stay readable on light theme / white rail */
-  background: rgba(182, 219, 0, 0.34) !important;
+  /* Solid lime + black text — readable in light and dark (never white-on-pale). */
+  background: #c8f000 !important;
   color: #111111 !important;
-  border-bottom-color: rgba(0, 0, 0, 0.1);
+  border-bottom-color: rgba(0, 0, 0, 0.12);
   cursor: pointer;
 }
-.transfer-rail-row.is-owned .tr-name strong {
-  color: #111111 !important;
-}
+.transfer-rail-row.is-owned .tr-name strong,
 .transfer-rail-row.is-owned .tr-name span,
 .transfer-rail-row.is-owned .tr-price,
 .transfer-rail-row.is-owned .tr-form,
 .transfer-rail-row.is-owned .tr-pts {
-  color: #404040 !important;
+  color: #111111 !important;
 }
-html[data-theme="dark"] .transfer-rail-row.is-owned {
-  background: rgba(192, 255, 0, 0.16) !important;
-  color: #fff !important;
-  border-bottom-color: rgba(192, 255, 0, 0.28);
-}
-html[data-theme="dark"] .transfer-rail-row.is-owned .tr-name strong {
-  color: #fff !important;
-}
-html[data-theme="dark"] .transfer-rail-row.is-owned .tr-name span,
-html[data-theme="dark"] .transfer-rail-row.is-owned .tr-price,
-html[data-theme="dark"] .transfer-rail-row.is-owned .tr-form,
-html[data-theme="dark"] .transfer-rail-row.is-owned .tr-pts {
-  color: rgba(255, 255, 255, 0.78) !important;
+.transfer-rail-row.is-owned .tr-name span {
+  color: #333333 !important;
 }
 .transfer-rail-row.avail-doubt {
   background: #fff3bf !important;
@@ -6833,6 +6820,18 @@ html[data-theme="dark"] .transfer-rail-row.is-head .tr-price,
 html[data-theme="dark"] .transfer-rail-row.is-head .tr-form,
 html[data-theme="dark"] .transfer-rail-row.is-head .tr-pts {
   color: #a0a0a0;
+}
+/* Owned rows stay lime + black even when the dark rail paints other rows white */
+html[data-theme="dark"] .transfer-rail-row.is-owned,
+html[data-theme="dark"] .transfer-rail-row.is-owned .tr-name strong,
+html[data-theme="dark"] .transfer-rail-row.is-owned .tr-price,
+html[data-theme="dark"] .transfer-rail-row.is-owned .tr-form,
+html[data-theme="dark"] .transfer-rail-row.is-owned .tr-pts {
+  background: #c8f000 !important;
+  color: #111111 !important;
+}
+html[data-theme="dark"] .transfer-rail-row.is-owned .tr-name span {
+  color: #333333 !important;
 }
 
 /* Rules — readable on dark theme */
