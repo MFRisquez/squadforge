@@ -363,3 +363,21 @@ def h2h_standings(db: Session, league: League, gw) -> tuple[list[dict], list[dic
             }
         )
     return rows, fixtures
+
+
+def my_rank_in_league(
+    db: Session,
+    league: League,
+    manager_id: int,
+    gw,
+) -> tuple[int | None, int]:
+    """Return (rank, member_count) for one manager using the same standings path."""
+    if getattr(league, "league_type", "classic") == "h2h":
+        rows, _ = h2h_standings(db, league, gw)
+    else:
+        rows = classic_standings(db, league, gw)
+    n = len(rows)
+    for row in rows:
+        if row["manager"].id == manager_id:
+            return int(row["rank"]), n
+    return None, n
