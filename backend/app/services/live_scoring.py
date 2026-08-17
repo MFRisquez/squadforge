@@ -646,6 +646,14 @@ def run_gameweek_scoring(db: Session, *, prefer_live: bool = True, force_demo: b
         if ingest.get("live_empty") or ingest.get("players_updated", 0) == 0:
             ingest = {**ingest, **simulate_demo_metrics(db, gw), "fell_back_demo": True}
 
+    # Advanced defensive/create stats from API-Football (optional; never blocks scoring).
+    try:
+        from app.services import advanced_stats as adv_svc
+
+        ingest["api_football"] = adv_svc.ingest_advanced_stats(db, gw)
+    except Exception as exc:
+        ingest["api_football"] = {"error": str(exc)}
+
     n_players = score_players(db, gw)
     n_managers = score_managers(db, gw)
     n_h2h = resolve_h2h(db, gw)

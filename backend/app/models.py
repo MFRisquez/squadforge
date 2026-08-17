@@ -27,6 +27,8 @@ class Club(Base):
     kit_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     # FPL bootstrap teams[].id — fixtures API uses this
     fpl_team_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
+    # API-Football teams[].id for league 39 (advanced defensive/create stats)
+    api_football_team_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
 
 
 class Fixture(Base):

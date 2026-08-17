@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     secret_key: str = "squadforge-dev-change-me"
     # Local default: SQLite file. On Render, set DATABASE_URL to Supabase Postgres.
     database_url: str = f"sqlite:///{DATA_DIR / 'squadforge.db'}"
+    # Optional API-Football key (Render: API_FOOTBALL_KEY). Empty = skip advanced stats.
+    api_football_key: str = ""
+    api_football_season: int = 2025
     formula_version: str = "v0.2.1-cameo"
     budget: float = 100.0
     max_per_club: int = 3

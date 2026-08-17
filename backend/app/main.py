@@ -79,6 +79,9 @@ def _ensure_schema_patches() -> None:
         if "fpl_team_id" not in cols:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE clubs ADD COLUMN fpl_team_id INTEGER"))
+        if "api_football_team_id" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE clubs ADD COLUMN api_football_team_id INTEGER"))
     if "gameweeks" in tables:
         cols = {c["name"] for c in inspect(engine).get_columns("gameweeks")}
         if "deadline_at" not in cols:
