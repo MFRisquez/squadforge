@@ -23,12 +23,14 @@
   }
 
   function sideHtml(side, showScores) {
-    const top = side.top_player;
+    const top = showScores ? side.top_player : null;
     const chips = Array.isArray(side.chips_left) ? side.chips_left : [];
     const pts = showScores ? `${Math.round(Number(side.points) || 0)} pts` : "Preview";
-    const topLine = top
-      ? `<p class="h2h-sheet-top"><span class="muted">Top XI</span> <strong>${escapeHtml(top.name)}</strong> · ${Math.round(Number(top.points) || 0)} pts</p>`
-      : `<p class="h2h-sheet-top muted">Top XI · —</p>`;
+    const topLine = showScores
+      ? top
+        ? `<p class="h2h-sheet-top"><span class="muted">Top XI</span> <strong>${escapeHtml(top.name)}</strong> · ${Math.round(Number(top.points) || 0)} pts</p>`
+        : `<p class="h2h-sheet-top muted">Top XI · —</p>`
+      : `<p class="h2h-sheet-top muted">Top XI · reveals after deadline</p>`;
     const chipLine = chips.length
       ? `<p class="h2h-sheet-chips"><span class="muted">Chips left</span> ${chips.map(escapeHtml).join(" · ")}</p>`
       : `<p class="h2h-sheet-chips muted">Chips left · none</p>`;

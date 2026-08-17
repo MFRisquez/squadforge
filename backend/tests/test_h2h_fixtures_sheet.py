@@ -1,6 +1,7 @@
 """H2H fixtures on league page + match detail sheet."""
 
 import json
+from datetime import datetime, timedelta, timezone
 
 from fastapi.testclient import TestClient
 
@@ -55,6 +56,12 @@ def test_h2h_fixture_cards_and_league_page_sheet():
         else:
             gw.status = "live"
             gw.is_current = 1
+        # Past deadline required for scores / top XI to be public
+        gw.deadline_at = (
+            (datetime.now(timezone.utc) - timedelta(hours=2))
+            .isoformat()
+            .replace("+00:00", "Z")
+        )
         player = db.query(Player).first()
         assert player is not None
         breakdown = json.dumps(
@@ -108,6 +115,55 @@ def test_h2h_fixture_cards_and_league_page_sheet():
     assert "Foxes" in html and "Badgers" in html
     # Boot JSON includes top player payload
     assert pname.split()[0] in html or pname in html
+
+
+def test_h2h_fixture_cards_hide_top_player_before_deadline():
+    db = SessionLocal()
+    try:
+        a = league_svc.register_manager(
+            db,
+            display_name="PreDlA",
+            password="secret12",
+            email="predla@example.com",
+            team_name="Pre Deadline A",
+        )
+        b = league_svc.register_manager(
+            db,
+            display_name="PreDlB",
+            password="secret12",
+            email="predlb@example.com",
+            team_name="Pre Deadline B",
+        )
+        league = league_svc.create_league(db, "Pre Deadline Cup", a, league_type="h2h")
+        league_svc.join_league(db, league.invite_code, b)
+        gw = db.query(Gameweek).filter(Gameweek.number == 1).one()
+        gw.status = "live"
+        gw.is_current = 1
+        gw.deadline_at = (
+            (datetime.now(timezone.utc) + timedelta(days=2))
+            .isoformat()
+            .replace("+00:00", "Z")
+        )
+        player = db.query(Player).first()
+        assert player is not None
+        db.add(
+            ManagerGameweekScore(
+                manager_id=a.id,
+                gameweek_id=gw.id,
+                total=44,
+                breakdown_json=json.dumps(
+                    {"players": [{"player_id": player.id, "points": 12, "base": 12, "mult": 1}]}
+                ),
+            )
+        )
+        db.commit()
+        cards = standings_svc.h2h_fixture_cards(db, league, gw)
+        assert len(cards) == 1
+        assert cards[0]["show_scores"] is False
+        assert cards[0]["home"]["top_player"] is None
+        assert cards[0]["away"]["top_player"] is None
+    finally:
+        db.close()
 
 
 def test_h2h_preview_hides_scores_before_gw_starts():

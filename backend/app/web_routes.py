@@ -1701,6 +1701,7 @@ def h2h_opponent_peek(league_id: int, manager_id: int, request: Request, db: Ses
 
     Between gameweeks (before the next deadline), keep showing the last locked
     GW squad — transfer changes only appear once that next GW starts.
+    Before GW1’s deadline there is no prior locked squad, so nothing is shown.
     """
     from app.kits import kit_for
     from app.models import Fixture, Manager, ManagerGameweekScore, PlayerPoints
@@ -1729,7 +1730,9 @@ def h2h_opponent_peek(league_id: int, manager_id: int, request: Request, db: Ses
     requested_gw = view["gw"]
     squad_gw = requested_gw
     squad_frozen = False
-    # Pre-deadline on the viewed GW → freeze on previous locked GW squad
+    squad_unavailable = False
+    # Pre-deadline on the viewed GW → freeze on previous locked GW squad.
+    # GW1 has no previous GW: do not reveal live editable XIs.
     if not view["edits_locked"] and requested_gw.id == view["current_gw"].id:
         prev = (
             db.query(Gameweek)
@@ -1739,28 +1742,35 @@ def h2h_opponent_peek(league_id: int, manager_id: int, request: Request, db: Ses
         if prev:
             squad_gw = prev
             squad_frozen = True
+        else:
+            squad_unavailable = True
 
     opponent = db.query(Manager).filter(Manager.id == manager_id).one()
-    picks = (
-        db.query(SquadPick)
-        .filter(SquadPick.manager_id == opponent.id, SquadPick.gameweek_id == squad_gw.id)
-        .all()
-    )
     clubs = {c.code: c for c in db.query(Club).all()}
-    player_ids = [p.player_id for p in picks]
-    players = (
-        db.query(Player).filter(Player.id.in_(player_ids)).all() if player_ids else []
-    )
-    by_id = {p.id: p for p in players}
+    by_pos = {"GK": [], "DEF": [], "MID": [], "ATT": []}
+    bench: list[dict] = []
+    score = None
+    started_clubs: set[str] = set()
+    my_starters: list[dict] = []
+    their_starters: list[dict] = []
+    my_score = None
 
-    if not picks:
-        owned = squad_svc.owned_players(db, opponent.id)
-        by_id = {p.id: p for p in owned}
-        starter_ids, _, _, _ = squad_svc.default_lineup_from_owned(owned)
-        starter_ids = set(starter_ids)
-        bench_ids = [p.id for p in owned if p.id not in starter_ids]
-        picks_by_player: dict[int, SquadPick] = {}
-    else:
+    if not squad_unavailable:
+        picks = (
+            db.query(SquadPick)
+            .filter(
+                SquadPick.manager_id == opponent.id,
+                SquadPick.gameweek_id == squad_gw.id,
+            )
+            .all()
+        )
+        # Never fall back to live owned_players for another manager — that
+        # would leak mid-week transfers / uncommitted XIs before the deadline.
+        player_ids = [p.player_id for p in picks]
+        players = (
+            db.query(Player).filter(Player.id.in_(player_ids)).all() if player_ids else []
+        )
+        by_id = {p.id: p for p in players}
         starter_ids = {p.player_id for p in picks if p.is_starter}
         bench_ids = [
             p.player_id
@@ -1769,142 +1779,140 @@ def h2h_opponent_peek(league_id: int, manager_id: int, request: Request, db: Ses
         ]
         picks_by_player = {p.player_id: p for p in picks}
 
-    started_clubs: set[str] = set()
-    for fx in db.query(Fixture).filter(Fixture.gameweek_number == squad_gw.number).all():
-        if fx.started or fx.finished:
-            if fx.home_club_code:
-                started_clubs.add(fx.home_club_code)
-            if fx.away_club_code:
-                started_clubs.add(fx.away_club_code)
+        for fx in db.query(Fixture).filter(Fixture.gameweek_number == squad_gw.number).all():
+            if fx.started or fx.finished:
+                if fx.home_club_code:
+                    started_clubs.add(fx.home_club_code)
+                if fx.away_club_code:
+                    started_clubs.add(fx.away_club_code)
 
-    points_map: dict[int, float] = {}
-    for row in (
-        db.query(PlayerPoints)
-        .filter(
-            PlayerPoints.gameweek_id == squad_gw.id,
-            PlayerPoints.formula_version == settings.formula_version,
-        )
-        .all()
-    ):
-        points_map[row.player_id] = float(row.total or 0)
-
-    fdr_by_club: dict[str, dict] = {}
-    for match in fixtures_svc.fixtures_for_gameweek(db, gw_number=squad_gw.number):
-        fdr_by_club[match["home"]["code"]] = {
-            "opponent": match["away"]["code"],
-            "venue": "H",
-            "difficulty": match["home"]["difficulty"],
-        }
-        fdr_by_club[match["away"]["code"]] = {
-            "opponent": match["home"]["code"],
-            "venue": "A",
-            "difficulty": match["away"]["difficulty"],
-        }
-
-    def pack(player: Player, on_bench: bool) -> dict:
-        kit = kit_for(
-            player.team_code,
-            position=player.position,
-            kit_code=getattr(clubs.get(player.team_code), "kit_code", None),
-        )
-        pick = picks_by_player.get(player.id)
-        started = player.team_code in started_clubs
-        pts = points_map.get(player.id) if started else None
-        return {
-            "player": player,
-            "shirt": kit["shirt"],
-            "is_captain": bool(pick and pick.is_captain),
-            "is_vice": bool(pick and getattr(pick, "is_vice_captain", 0)),
-            "on_bench": on_bench,
-            "availability": availability_flag(
-                getattr(player, "status", "a") or "a",
-                getattr(player, "chance_of_playing", None),
-            ),
-            "fixture_started": started,
-            "points": pts,
-            "fdr": fdr_by_club.get(player.team_code),
-        }
-
-    by_pos = {"GK": [], "DEF": [], "MID": [], "ATT": []}
-    for pid in starter_ids:
-        p = by_id.get(pid)
-        if p:
-            by_pos[p.position].append(pack(p, False))
-    bench = [pack(by_id[pid], True) for pid in bench_ids if pid in by_id]
-    score = (
-        db.query(ManagerGameweekScore)
-        .filter(
-            ManagerGameweekScore.manager_id == opponent.id,
-            ManagerGameweekScore.gameweek_id == squad_gw.id,
-        )
-        .one_or_none()
-    )
-
-    # Viewer's locked XI for desktop compare rail
-    my_picks = (
-        db.query(SquadPick)
-        .filter(SquadPick.manager_id == me.id, SquadPick.gameweek_id == squad_gw.id)
-        .all()
-    )
-    my_player_ids = [p.player_id for p in my_picks]
-    my_players = (
-        db.query(Player).filter(Player.id.in_(my_player_ids)).all() if my_player_ids else []
-    )
-    my_by_id = {p.id: p for p in my_players}
-    my_starter_ids = {p.player_id for p in my_picks if p.is_starter}
-    my_picks_by_player = {p.player_id: p for p in my_picks}
-
-    def pack_mine(player: Player) -> dict:
-        kit = kit_for(
-            player.team_code,
-            position=player.position,
-            kit_code=getattr(clubs.get(player.team_code), "kit_code", None),
-        )
-        pick = my_picks_by_player.get(player.id)
-        started = player.team_code in started_clubs
-        pts = points_map.get(player.id) if started else None
-        return {
-            "name": player.name,
-            "team": player.team_code,
-            "pos": player.position,
-            "shirt": kit["shirt"],
-            "is_captain": bool(pick and pick.is_captain),
-            "is_vice": bool(pick and getattr(pick, "is_vice_captain", 0)),
-            "fixture_started": started,
-            "points": pts,
-        }
-
-    my_starters = []
-    for pid in my_starter_ids:
-        p = my_by_id.get(pid)
-        if p:
-            my_starters.append(pack_mine(p))
-    pos_order = {"GK": 0, "DEF": 1, "MID": 2, "ATT": 3}
-    my_starters.sort(key=lambda r: (pos_order.get(r["pos"], 9), r["name"]))
-
-    their_starters = []
-    for pos in ("GK", "DEF", "MID", "ATT"):
-        for row in by_pos[pos]:
-            their_starters.append(
-                {
-                    "name": row["player"].name,
-                    "team": row["player"].team_code,
-                    "pos": row["player"].position,
-                    "is_captain": row["is_captain"],
-                    "is_vice": row["is_vice"],
-                    "fixture_started": row["fixture_started"],
-                    "points": row["points"],
-                }
+        points_map: dict[int, float] = {}
+        for row in (
+            db.query(PlayerPoints)
+            .filter(
+                PlayerPoints.gameweek_id == squad_gw.id,
+                PlayerPoints.formula_version == settings.formula_version,
             )
+            .all()
+        ):
+            points_map[row.player_id] = float(row.total or 0)
 
-    my_score = (
-        db.query(ManagerGameweekScore)
-        .filter(
-            ManagerGameweekScore.manager_id == me.id,
-            ManagerGameweekScore.gameweek_id == squad_gw.id,
+        fdr_by_club: dict[str, dict] = {}
+        for match in fixtures_svc.fixtures_for_gameweek(db, gw_number=squad_gw.number):
+            fdr_by_club[match["home"]["code"]] = {
+                "opponent": match["away"]["code"],
+                "venue": "H",
+                "difficulty": match["home"]["difficulty"],
+            }
+            fdr_by_club[match["away"]["code"]] = {
+                "opponent": match["home"]["code"],
+                "venue": "A",
+                "difficulty": match["away"]["difficulty"],
+            }
+
+        def pack(player: Player, on_bench: bool) -> dict:
+            kit = kit_for(
+                player.team_code,
+                position=player.position,
+                kit_code=getattr(clubs.get(player.team_code), "kit_code", None),
+            )
+            pick = picks_by_player.get(player.id)
+            started = player.team_code in started_clubs
+            pts = points_map.get(player.id) if started else None
+            return {
+                "player": player,
+                "shirt": kit["shirt"],
+                "is_captain": bool(pick and pick.is_captain),
+                "is_vice": bool(pick and getattr(pick, "is_vice_captain", 0)),
+                "on_bench": on_bench,
+                "availability": availability_flag(
+                    getattr(player, "status", "a") or "a",
+                    getattr(player, "chance_of_playing", None),
+                ),
+                "fixture_started": started,
+                "points": pts,
+                "fdr": fdr_by_club.get(player.team_code),
+            }
+
+        for pid in starter_ids:
+            p = by_id.get(pid)
+            if p:
+                by_pos[p.position].append(pack(p, False))
+        bench = [pack(by_id[pid], True) for pid in bench_ids if pid in by_id]
+        score = (
+            db.query(ManagerGameweekScore)
+            .filter(
+                ManagerGameweekScore.manager_id == opponent.id,
+                ManagerGameweekScore.gameweek_id == squad_gw.id,
+            )
+            .one_or_none()
         )
-        .one_or_none()
-    )
+
+        # Viewer's locked XI for desktop compare rail
+        my_picks = (
+            db.query(SquadPick)
+            .filter(SquadPick.manager_id == me.id, SquadPick.gameweek_id == squad_gw.id)
+            .all()
+        )
+        my_player_ids = [p.player_id for p in my_picks]
+        my_players = (
+            db.query(Player).filter(Player.id.in_(my_player_ids)).all()
+            if my_player_ids
+            else []
+        )
+        my_by_id = {p.id: p for p in my_players}
+        my_starter_ids = {p.player_id for p in my_picks if p.is_starter}
+        my_picks_by_player = {p.player_id: p for p in my_picks}
+
+        def pack_mine(player: Player) -> dict:
+            kit = kit_for(
+                player.team_code,
+                position=player.position,
+                kit_code=getattr(clubs.get(player.team_code), "kit_code", None),
+            )
+            pick = my_picks_by_player.get(player.id)
+            started = player.team_code in started_clubs
+            pts = points_map.get(player.id) if started else None
+            return {
+                "name": player.name,
+                "team": player.team_code,
+                "pos": player.position,
+                "shirt": kit["shirt"],
+                "is_captain": bool(pick and pick.is_captain),
+                "is_vice": bool(pick and getattr(pick, "is_vice_captain", 0)),
+                "fixture_started": started,
+                "points": pts,
+            }
+
+        for pid in my_starter_ids:
+            p = my_by_id.get(pid)
+            if p:
+                my_starters.append(pack_mine(p))
+        pos_order = {"GK": 0, "DEF": 1, "MID": 2, "ATT": 3}
+        my_starters.sort(key=lambda r: (pos_order.get(r["pos"], 9), r["name"]))
+
+        for pos in ("GK", "DEF", "MID", "ATT"):
+            for row in by_pos[pos]:
+                their_starters.append(
+                    {
+                        "name": row["player"].name,
+                        "team": row["player"].team_code,
+                        "pos": row["player"].position,
+                        "is_captain": row["is_captain"],
+                        "is_vice": row["is_vice"],
+                        "fixture_started": row["fixture_started"],
+                        "points": row["points"],
+                    }
+                )
+
+        my_score = (
+            db.query(ManagerGameweekScore)
+            .filter(
+                ManagerGameweekScore.manager_id == me.id,
+                ManagerGameweekScore.gameweek_id == squad_gw.id,
+            )
+            .one_or_none()
+        )
 
     return templates.TemplateResponse(
         "opponent.html",
@@ -1918,6 +1926,7 @@ def h2h_opponent_peek(league_id: int, manager_id: int, request: Request, db: Ses
             score=score,
             squad_gw=squad_gw,
             squad_frozen=squad_frozen,
+            squad_unavailable=squad_unavailable,
             any_fixture_started=bool(started_clubs),
             my_team_name=(me.team_name or "").strip() or "You",
             my_starters=my_starters,
