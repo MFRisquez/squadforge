@@ -124,10 +124,67 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS that still showed the rail
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v99"' in sw
+    assert 'CACHE = "futfantasy-v100"' in sw
     assert "/static/styles.css" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=99" in base
+    assert "sw.js?v=100" in base
+
+
+def test_desktop_pitch_rail_uses_flex_leftover_height():
+    """Desktop (≥900) squad/XI: leftover viewport via flex; rail list scrolls, page does not.
+
+    Content pages (standings/league/fixtures/home) keep normal document scroll.
+    No --fit-chrome rem guess, no max-height: none on the rail list.
+    """
+    css = (STATIC / "styles.css").read_text(encoding="utf-8")
+    assert "--fit-chrome" not in css
+    assert "calc(100vh - 8.5rem)" not in css
+    assert "min-height: min(68vh, 40rem)" not in css
+    assert "min-height: min(72vh, 40rem)" not in css
+
+    marker = "Desktop pitch pages (≥900px): leftover viewport via flex"
+    start = css.find(marker)
+    assert start >= 0
+    end = css.find("Bigger pitch shirts", start)
+    assert end > start
+    chunk = css[start:end]
+
+    # Viewport lock is pitch pages only — not all page-fit
+    assert "html:has(body.page-squad.page-fit)" in chunk
+    assert "html:has(body.page-xi.page-fit)" in chunk
+    assert "html:has(body.page-fit)" not in chunk
+    assert "body.page-standings" not in chunk
+    assert "body.page-fixtures" not in chunk
+    assert "body.page-league" not in chunk
+    assert "body.page-home" not in chunk
+
+    assert "flex-direction: column" in chunk
+    assert "flex: 0 0 auto" in chunk
+    assert "flex: 1 1 auto" in chunk
+    assert "min-height: 0" in chunk
+    assert "align-self: stretch" in chunk
+    assert "align-items: stretch" in chunk
+
+    assert "body.page-fit .transfer-rail-list" in chunk
+    assert "max-height: 100%" in chunk
+    assert "height: 100%" in chunk
+    assert "overflow: auto" in chunk
+    assert "max-height: none" not in chunk
+    assert "--fit-chrome" not in chunk
+    assert "fit-chrome" not in chunk
+    assert "calc(100vh" not in chunk
+    assert "8.5rem" not in chunk
+    assert "68vh" not in chunk
+    assert "40rem" not in chunk
+
+    # Desktop rail list override (same 900px board block): bounded, not none
+    rail = css.find(".transfer-rail-list {", css.find("Align with stat strip"))
+    assert rail >= 0
+    rail_chunk = css[rail : rail + 280]
+    assert "max-height: none" not in rail_chunk
+    assert "max-height: 100%" in rail_chunk
+    assert "overflow: auto" in rail_chunk
+    assert "min-height: 0" in rail_chunk
 
 
 def test_owned_checkmark_is_side_absolute():

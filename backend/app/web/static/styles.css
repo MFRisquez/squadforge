@@ -3517,7 +3517,11 @@ html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
     display: grid;
     grid-template-columns: minmax(0, 1.65fr) minmax(16.5rem, 1fr);
     gap: 0.55rem;
-    align-items: start;
+    align-items: stretch;
+    min-height: 0;
+  }
+  .desk-xi {
+    grid-template-rows: minmax(0, 1fr);
   }
   /* Content pages stay single-column (override the pitch/rail grid) */
   .desk-board.desk-page {
@@ -3547,14 +3551,20 @@ html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
   .desk-xi > .desk-main {
     grid-column: 1;
     min-width: 0;
+    min-height: 0;
     max-width: 100%;
+    align-self: stretch;
+    overflow: hidden;
   }
   .desk-squad > .transfer-rail,
   .desk-squad > .desk-rail,
   .desk-xi > .desk-rail {
     grid-column: 2;
     min-width: 0;
+    min-height: 0;
     max-width: 100%;
+    align-self: stretch;
+    overflow: hidden;
   }
   .desk-main {
     min-width: 0;
@@ -3595,7 +3605,7 @@ html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
     width: auto;
     max-width: none;
     min-width: 0;
-    align-self: start;
+    align-self: stretch;
     padding: 0.55rem 0.5rem 0.6rem;
     border-radius: 0.65rem;
     background: rgba(255, 255, 255, 0.92);
@@ -3627,7 +3637,8 @@ html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
   .transfer-rail-list {
     flex: 1 1 auto;
     min-height: 0;
-    max-height: none;
+    height: 100%;
+    max-height: 100%;
     overflow: auto;
     scrollbar-gutter: stable;
   }
@@ -3654,10 +3665,10 @@ html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
   }
   .xi-bench-panel {
     flex: 0 0 auto;
-    max-height: none;
   }
   .xi-live-panel {
     flex: 1 1 auto;
+    min-height: 0;
   }
   .xi-bench-panel .desk-rail-head,
   .xi-live-panel .desk-rail-head {
@@ -3674,7 +3685,6 @@ html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
     gap: 0.16rem;
     padding: 0.22rem 0.35rem 0.28rem;
     overflow: hidden;
-    max-height: none;
   }
   .xi-bench-stack .xi-card,
   .xi-bench-stack .xi-bench-row {
@@ -3847,7 +3857,7 @@ html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
   }
   .xi-pitch,
   .squad-pitch {
-    min-height: min(72vh, 40rem);
+    min-height: 0;
     height: 100%;
     padding: 0.6rem 0.5rem 1.7rem;
     gap: 1.15rem;
@@ -4091,8 +4101,8 @@ html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18);
   }
 
-  /* page-fit on desktop: normal page flow (no fixed viewport lock).
-     Pitch pages get a min-height so the field still fills the first screen. */
+  /* page-fit on desktop: content pages keep normal document scroll.
+     Pitch pages (squad/XI) fill leftover viewport via flex — see block below. */
   body.page-fit .shell {
     width: min(72rem, 100%);
     padding: 0.45rem 1rem 0.5rem;
@@ -4277,11 +4287,6 @@ html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
     flex: 1 1 auto;
     min-height: 0;
   }
-  body.page-fit .desk-squad,
-  body.page-fit .desk-xi {
-    align-items: stretch;
-    min-height: calc(100vh - 8.5rem);
-  }
   body.page-fit .desk-main {
     min-height: 0;
     display: flex;
@@ -4293,18 +4298,76 @@ html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
     display: flex;
     flex-direction: column;
   }
+
+  /* Desktop pitch pages (≥900px): leftover viewport via flex — no rem/vh height guess.
+     .top/.nav/GW/chips keep natural height; pitch|rail grid takes the rest.
+     Content pages (standings/league/fixtures/home) are NOT locked here. */
+  html:has(body.page-squad.page-fit),
+  html:has(body.page-xi.page-fit) {
+    height: 100%;
+    overflow: hidden;
+  }
+  body.page-squad.page-fit,
+  body.page-xi.page-fit {
+    height: 100%;
+    height: 100dvh;
+    height: -webkit-fill-available;
+    max-height: 100dvh;
+    max-height: -webkit-fill-available;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  body.page-squad.page-fit > .top,
+  body.page-squad.page-fit > .nav,
+  body.page-xi.page-fit > .top,
+  body.page-xi.page-fit > .nav {
+    flex: 0 0 auto;
+    position: relative;
+    top: auto;
+  }
+  body.page-squad.page-fit > .shell,
+  body.page-xi.page-fit > .shell {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+  body.page-squad.page-fit .desk-board.desk-squad,
+  body.page-xi.page-fit .desk-board.desk-xi {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    align-items: stretch;
+  }
+  body.page-squad.page-fit .desk-main-top,
+  body.page-xi.page-fit .chip-strip-wrap,
+  body.page-xi.page-fit .live-hub {
+    flex: 0 0 auto;
+  }
+  body.page-squad.page-fit .desk-squad > .desk-main,
+  body.page-squad.page-fit .desk-squad > .transfer-rail,
+  body.page-squad.page-fit .desk-squad > .desk-rail,
+  body.page-xi.page-fit .desk-xi > .desk-main,
+  body.page-xi.page-fit .desk-xi > .desk-rail {
+    align-self: stretch;
+    min-height: 0;
+    overflow: hidden;
+  }
   body.page-fit .squad-pitch-wrap,
   body.page-fit .xi-pitch-wrap {
     flex: 1 1 auto;
-    min-height: min(68vh, 40rem);
+    min-height: 0;
+    height: 100%;
     display: flex;
     flex-direction: column;
   }
   body.page-fit .squad-pitch,
   body.page-fit .xi-pitch {
     flex: 1 1 auto;
-    min-height: min(68vh, 40rem);
-    max-height: none;
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
     padding: 0.45rem 0.4rem 1.35rem;
     padding-top: 2.1rem;
     gap: clamp(0.7rem, 2.4vh, 2.4rem);
@@ -4314,15 +4377,24 @@ html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
   body.page-fit .pitch-cap-hint { display: none; }
   body.page-fit .desk-rail {
     align-self: stretch;
-    min-height: min(68vh, 40rem);
-    max-height: none;
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
   }
   body.page-fit .transfer-rail {
-    min-height: min(68vh, 40rem);
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
   body.page-fit .transfer-rail-list {
     flex: 1 1 auto;
     min-height: 0;
+    height: 100%;
+    max-height: 100%;
     overflow: auto;
   }
 
@@ -6927,6 +6999,14 @@ body > .chip-tip.is-open-tip {
     grid-template-rows: auto minmax(0, 1fr);
     gap: 0.45rem;
     align-items: stretch;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .desk-xi {
+    min-height: 0;
+    overflow: hidden;
+    align-items: stretch;
+    grid-template-rows: minmax(0, 1fr);
   }
   .desk-main-top {
     grid-column: 1;
@@ -6954,7 +7034,7 @@ body > .chip-tip.is-open-tip {
     grid-row: 1;
     min-width: 0;
     height: 100%;
-    max-height: none;
+    max-height: 100%;
     padding: 0.45rem 0.5rem;
     border-radius: 0.65rem;
     background: rgba(0, 0, 0, 0.92);
@@ -7026,8 +7106,10 @@ body > .chip-tip.is-open-tip {
     grid-column: 1;
     grid-row: 2;
     min-width: 0;
+    min-height: 0;
     max-width: 100%;
     overflow: hidden;
+    align-self: stretch;
   }
   .desk-squad > .transfer-rail {
     grid-column: 2;
@@ -7039,6 +7121,7 @@ body > .chip-tip.is-open-tip {
     max-height: 100%;
     overflow: hidden;
     display: flex;
+    flex-direction: column;
     align-self: stretch;
   }
 }
