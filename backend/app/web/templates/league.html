@@ -37,4 +37,25 @@
     <button class="btn ghost" type="submit">Save format</button>
   </form>
 </section>
+
+<section class="panel">
+  <h2>Manage</h2>
+  {% if manager and manager.id == league.owner_id %}
+  <form
+    method="post"
+    action="/league/{{ league.id }}/delete"
+    onsubmit="return confirm('This deletes the league for everyone. This can\'t be undone.');"
+  >
+    <button class="btn danger-btn" type="submit">Delete league</button>
+  </form>
+  {% else %}
+  <form
+    method="post"
+    action="/league/{{ league.id }}/leave"
+    onsubmit="return confirm('Leave {{ league.name }}?');"
+  >
+    <button class="btn ghost" type="submit">Leave league</button>
+  </form>
+  {% endif %}
+</section>
 {% endblock %}

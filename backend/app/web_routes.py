@@ -523,7 +523,13 @@ def leagues_hub(request: Request, db: Session = Depends(get_db)):
     leagues = league_svc.manager_leagues(db, manager.id)
     return templates.TemplateResponse(
         "leagues.html",
-        _ctx(request, db, leagues=leagues),
+        _ctx(
+            request,
+            db,
+            leagues=leagues,
+            notice=request.query_params.get("notice"),
+            error=request.query_params.get("error"),
+        ),
     )
 
 
@@ -552,6 +558,8 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
             chips=chips,
             even_members=even,
             member_count=len(members),
+            notice=request.query_params.get("notice"),
+            error=request.query_params.get("error"),
         ),
     )
 
@@ -591,6 +599,60 @@ def league_set_type(
             status_code=400,
         )
     return RedirectResponse(f"/standings/{league_id}", status_code=303)
+
+
+@router.post("/league/{league_id}/delete")
+def league_delete(league_id: int, request: Request, db: Session = Depends(get_db)):
+    manager = current_manager(request, db)
+    if not manager:
+        return RedirectResponse("/login", status_code=303)
+    membership = (
+        db.query(Membership)
+        .filter(Membership.league_id == league_id, Membership.manager_id == manager.id)
+        .one_or_none()
+    )
+    if not membership:
+        return RedirectResponse("/leagues", status_code=303)
+    league = membership.league
+    name = league.name
+    try:
+        league_svc.delete_league(db, league, manager.id)
+    except league_svc.LeagueError as exc:
+        return RedirectResponse(
+            f"/league/{league_id}?error={quote(str(exc))}",
+            status_code=303,
+        )
+    return RedirectResponse(
+        f"/leagues?notice={quote(f'Deleted {name}.')}",
+        status_code=303,
+    )
+
+
+@router.post("/league/{league_id}/leave")
+def league_leave(league_id: int, request: Request, db: Session = Depends(get_db)):
+    manager = current_manager(request, db)
+    if not manager:
+        return RedirectResponse("/login", status_code=303)
+    membership = (
+        db.query(Membership)
+        .filter(Membership.league_id == league_id, Membership.manager_id == manager.id)
+        .one_or_none()
+    )
+    if not membership:
+        return RedirectResponse("/leagues", status_code=303)
+    league = membership.league
+    name = league.name
+    try:
+        league_svc.leave_league(db, league, manager.id)
+    except league_svc.LeagueError as exc:
+        return RedirectResponse(
+            f"/league/{league_id}?error={quote(str(exc))}",
+            status_code=303,
+        )
+    return RedirectResponse(
+        f"/leagues?notice={quote(f'Left {name}.')}",
+        status_code=303,
+    )
 
 
 @router.get("/team", response_class=HTMLResponse)

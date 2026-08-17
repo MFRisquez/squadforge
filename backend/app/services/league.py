@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from app.models import ChipState, League, Manager, Membership, PasswordResetToken
+from app.models import ChipState, H2HMatch, League, Manager, Membership, PasswordResetToken
 from app.services import passwords as pw
 from app.services.seed import invite_code
 
@@ -215,3 +215,28 @@ def manager_leagues(db: Session, manager_id: int) -> list[League]:
         .all()
     )
     return rows
+
+
+def delete_league(db: Session, league: League, requesting_manager_id: int) -> None:
+    """Remove a league and its league-scoped rows (memberships + H2H fixtures)."""
+    if league.owner_id != requesting_manager_id:
+        raise LeagueError("Only the league creator can delete it")
+    db.query(H2HMatch).filter(H2HMatch.league_id == league.id).delete(synchronize_session=False)
+    db.query(Membership).filter(Membership.league_id == league.id).delete(synchronize_session=False)
+    db.delete(league)
+    db.commit()
+
+
+def leave_league(db: Session, league: League, manager_id: int) -> None:
+    """Drop one manager's membership. Owners must delete the league instead."""
+    if manager_id == league.owner_id:
+        raise LeagueError("The league creator can't leave — delete the league instead")
+    row = (
+        db.query(Membership)
+        .filter(Membership.league_id == league.id, Membership.manager_id == manager_id)
+        .one_or_none()
+    )
+    if not row:
+        raise LeagueError("You're not in this league.")
+    db.delete(row)
+    db.commit()
