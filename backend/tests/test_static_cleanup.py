@@ -123,7 +123,23 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS that still showed the rail
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v96"' in sw
+    assert 'CACHE = "futfantasy-v97"' in sw
     assert "/static/styles.css" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=96" in base
+    assert "sw.js?v=97" in base
+
+
+def test_owned_checkmark_is_side_absolute():
+    """Owned ✓ sits on the right of the rail row, not above the name (no extra height)."""
+    css = (STATIC / "styles.css").read_text(encoding="utf-8")
+    start = css.find(".transfer-rail-row.is-owned .tr-owned-mark")
+    assert start >= 0
+    chunk = css[start : start + 450]
+    assert "position: absolute" in chunk
+    assert "right: -0.3rem" in chunk
+    assert "top: 50%" in chunk
+    assert "translateY(-50%)" in chunk
+    assert "margin-right: 0.28rem" not in chunk
+    squad = (STATIC / "squadboard.js").read_text(encoding="utf-8")
+    assert 'tr-owned-mark' in squad
+    assert "✓" in squad
