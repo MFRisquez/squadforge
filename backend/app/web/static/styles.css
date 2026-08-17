@@ -5256,6 +5256,12 @@ html[data-theme="light"] .standings-row.is-me {
     min-height: 0;
     height: 100%;
     max-height: none;
+    /* Tall XIs (e.g. 3-4-3) can exceed the slot above Bench — scroll inside
+       the pitch instead of clipping ATT nameplates under the bench. */
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
   body.page-fit .xi-bench-phone {
     flex: 0 0 auto;

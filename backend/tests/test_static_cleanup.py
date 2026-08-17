@@ -48,3 +48,16 @@ def test_mobile_pwa_and_input_zoom_guards():
 
     manifest = (STATIC / "manifest.webmanifest").read_text(encoding="utf-8")
     assert '"background_color": "#121212"' in manifest
+
+
+def test_mobile_pitch_scrolls_inside_page_fit():
+    """Tall formations (3-4-3) must scroll inside the pitch on phone, not clip under Bench."""
+    css = (STATIC / "styles.css").read_text(encoding="utf-8")
+    # Find the phone page-fit media block and require overflow-y on pitches there.
+    start = css.find("No page scroll / fixed viewport — phone only")
+    assert start >= 0
+    chunk = css[start : start + 3500]
+    assert "body.page-fit .squad-pitch" in chunk
+    assert "body.page-fit .xi-pitch" in chunk
+    assert "overflow-y: auto" in chunk
+    assert "-webkit-overflow-scrolling: touch" in chunk
