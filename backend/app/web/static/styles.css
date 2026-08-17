@@ -1810,12 +1810,15 @@ html[data-theme="dark"] .chip-card-fpl .chip-toggle.is-on {
 }
 .transfer-rail-row.is-owned {
   /* Keep ink readable; differentiate with accent bar + check (not faded text). */
+  position: relative;
   background: var(--panel) !important;
   color: var(--ink) !important;
   -webkit-text-fill-color: var(--ink) !important;
   border-bottom-color: var(--line) !important;
   box-shadow: inset 4px 0 0 var(--accent);
   cursor: pointer;
+  /* Room for the side check so it never steals row height */
+  padding-right: 1.35rem;
 }
 .transfer-rail-row.is-owned .tr-name strong,
 .transfer-rail-row.is-owned .tr-price,
@@ -1829,22 +1832,27 @@ html[data-theme="dark"] .chip-card-fpl .chip-toggle.is-on {
   -webkit-text-fill-color: var(--muted) !important;
 }
 .transfer-rail-row.is-owned .tr-owned-mark {
-  display: inline-grid;
+  position: absolute;
+  right: -0.3rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
   place-items: center;
   width: 1.05rem;
   height: 1.05rem;
-  margin-right: 0.28rem;
+  margin: 0;
   border-radius: 999px;
   background: var(--accent);
   color: #000;
   font-size: 0.62rem;
   font-weight: 900;
   line-height: 1;
-  flex-shrink: 0;
+  z-index: 1;
+  pointer-events: none;
 }
 .transfer-rail-row .tr-name {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0;
   min-width: 0;
 }
@@ -3296,6 +3304,8 @@ html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
   display: grid;
   gap: 0.05rem;
   min-width: 0;
+  /* Owned ✓ is position:absolute on the row — keep name cell free of extra height */
+  position: static;
 }
 .transfer-rail-row .tr-name strong {
   font-size: 0.92rem;
@@ -5564,12 +5574,9 @@ html.is-standalone body::after {
   body.page-xi .chip-strip-cards {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
-  body.page-xi .chip-card-fpl.chip-card-ss {
-    grid-column: 1 / -1;
-  }
+  /* Super Sub layout lives in the ≤899 consolidated block below */
   .chip-card-fpl,
-  .chip-card-fpl.chip-card-wide,
-  .chip-card-fpl.chip-card-ss {
+  .chip-card-fpl.chip-card-wide {
     width: 100%;
     max-width: none;
     min-width: 0;
@@ -5621,29 +5628,6 @@ html.is-standalone body::after {
     padding: 0.14rem 0.55rem;
   }
   .chip-card-fpl .chip-status { font-size: 0.62rem; min-height: 0; }
-  body.page-squad body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form {
-    display: contents;
-  }
-  body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form .chip-toggle {
-    grid-row: 1;
-    grid-column: 3;
-    justify-self: start;
-  }
-  body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form select {
-    grid-row: 1;
-    grid-column: 4;
-    min-width: 0;
-    width: 100%;
-    max-width: 7.2rem;
-    min-height: 1.85rem;
-    font-size: 0.72rem;
-    padding: 0.22rem 0.35rem;
-  }
-  body.page-xi .chip-card-fpl.chip-card-ss .chip-status {
-    grid-row: 1;
-    grid-column: 3 / 5;
-    justify-self: start;
-  }
   .stat-strip {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.16rem;
@@ -5718,11 +5702,14 @@ html.is-standalone body::after {
     padding-right: 0.22rem;
     align-content: space-evenly;
   }
-  /* Transfers phone: full pitch + DT visible without scrolling; shirts stay same size */
+  /* Transfers phone: pitch fills space (height from body flex — see ≤899 block). */
   body.page-squad.page-fit .shell {
     padding-bottom: calc(0.2rem + env(safe-area-inset-bottom, 0px));
     gap: 0.16rem;
     overflow: hidden;
+    height: auto;
+    max-height: none;
+    --fit-chrome: 0;
   }
   body.page-squad.page-fit .gw-bar {
     margin-bottom: 0.12rem;
@@ -5845,10 +5832,15 @@ html.is-standalone body::after {
     min-width: 1.05rem;
     font-size: 0.54rem;
   }
-  /* XI phone: pitch fills space, bench flush to screen bottom */
+  /* XI phone: pitch fills space, bench flush to screen bottom.
+     Height comes from body flex (see “XI phone only: fill the viewport”);
+     do not reintroduce calc(100dvh - --fit-chrome) here. */
   body.page-xi.page-fit .shell {
     padding-bottom: 0;
     gap: 0.18rem;
+    height: auto;
+    max-height: none;
+    --fit-chrome: 0;
   }
   body.page-xi .desk-board.desk-xi {
     display: flex;
@@ -6336,6 +6328,143 @@ html.is-standalone body::after {
     height: clamp(0.85rem, 18cqh, 1.05rem);
     min-width: 0;
     font-size: clamp(0.42rem, 10cqh, 0.54rem);
+  }
+}
+
+/* XI + Transfers phone: fill the viewport with flex — no --fit-chrome guess.
+   .top / .nav keep natural height; .shell takes the remainder exactly.
+   Also harden: hide the Free Agents rail on all phone widths (≤899px).
+   (Base .desk-rail{display:none} already does this; desktop ≥900 shows the rail.
+    Explicit !important here guards against stale overrides / cache races.) */
+@media (max-width: 899px) {
+  body.page-xi.page-fit,
+  body.page-squad.page-fit {
+    display: flex;
+    flex-direction: column;
+  }
+  body.page-xi.page-fit > .top,
+  body.page-xi.page-fit > .nav,
+  body.page-squad.page-fit > .top,
+  body.page-squad.page-fit > .nav {
+    flex: 0 0 auto;
+    position: relative;
+    top: auto;
+  }
+  body.page-xi.page-fit > .shell,
+  body.page-squad.page-fit > .shell {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+    max-height: none;
+    --fit-chrome: 0;
+  }
+  @supports (height: -webkit-fill-available) {
+    body.page-xi.page-fit > .shell,
+    body.page-squad.page-fit > .shell {
+      height: auto;
+      max-height: none;
+    }
+  }
+  body.page-xi.page-fit .desk-board.desk-xi,
+  body.page-squad.page-fit .desk-board.desk-squad {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  /* Free Agents rail is desktop-only — never lengthen the mobile pitch */
+  body.page-squad.page-fit .transfer-rail,
+  body.page-squad.page-fit .desk-rail.transfer-rail,
+  body.page-squad.page-fit .squad-alerts {
+    display: none !important;
+  }
+}
+
+/* Super Sub phone/tablet (≤899): one layout — ico | name | info | select | Off/On.
+   Fixes dead `body.page-squad body.page-xi … display:contents` (never matched),
+   which left the bench select on grid-row 2 far below the title.
+   Desktop ≥900 one-line rules are unchanged. */
+@media (max-width: 899px) {
+  body.page-xi .chip-card-fpl.chip-card-ss {
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1.35fr) auto;
+    grid-template-rows: auto;
+    align-items: center;
+    column-gap: 0.35rem;
+    row-gap: 0.2rem;
+    padding: 0.32rem 0.45rem;
+    min-height: 2.55rem;
+    border-radius: 0.5rem;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form {
+    display: contents;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-ico {
+    grid-row: 1;
+    grid-column: 1;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-name {
+    grid-row: 1;
+    grid-column: 2;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-info-wrap {
+    grid-row: 1;
+    grid-column: 3;
+    justify-self: start;
+    align-self: center;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form select {
+    grid-row: 1;
+    grid-column: 4;
+    min-width: 0;
+    width: 100%;
+    max-width: 7.5rem;
+    min-height: 1.85rem;
+    font-size: 0.72rem;
+    padding: 0.22rem 0.35rem;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form .chip-toggle {
+    grid-row: 1;
+    grid-column: 5;
+    justify-self: end;
+    margin: 0;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-status {
+    grid-row: 1;
+    grid-column: 4 / 6;
+    justify-self: end;
+    margin: 0;
+  }
+}
+
+/* Narrow phones: keep Off/On on the title row; bench select wraps tight underneath */
+@media (max-width: 390px) {
+  body.page-xi .chip-card-fpl.chip-card-ss {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-rows: auto auto;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-info-wrap {
+    grid-column: 3;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form .chip-toggle {
+    grid-column: 4;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form select {
+    grid-row: 2;
+    grid-column: 2 / 5;
+    max-width: none;
+    width: 100%;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-status {
+    grid-row: 1;
+    grid-column: 4;
   }
 }
 
@@ -7687,6 +7816,12 @@ body.page-squad .stat-strip {
   opacity: 0.72;
 }
 .rank-line.is-me {
+  opacity: 1;
+}
+.rank-dot {
+  cursor: help;
+}
+.rank-dot.is-me {
   opacity: 1;
 }
 .rank-timeline-legend {

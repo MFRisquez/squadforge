@@ -72,3 +72,102 @@ def test_mobile_pitch_scales_rows_inside_page_fit():
     assert "overflow: hidden" in phone_rules
     assert "overflow-y: auto" not in phone_rules
     assert "flex-direction: column" in phone_rules
+
+
+def test_xi_phone_shell_uses_flex_not_fit_chrome():
+    """XI + Transfers mobile fill leftover viewport via flex; no --fit-chrome height."""
+    css = (STATIC / "styles.css").read_text(encoding="utf-8")
+    start = css.find("XI + Transfers phone: fill the viewport with flex")
+    assert start >= 0
+    chunk = css[start : start + 2200]
+    assert "body.page-xi.page-fit" in chunk
+    assert "body.page-squad.page-fit" in chunk
+    assert "display: flex" in chunk
+    assert "flex-direction: column" in chunk
+    assert "body.page-xi.page-fit > .top" in chunk
+    assert "body.page-squad.page-fit > .nav" in chunk
+    assert "flex: 0 0 auto" in chunk
+    assert "body.page-xi.page-fit > .shell" in chunk
+    assert "body.page-squad.page-fit > .shell" in chunk
+    assert "flex: 1 1 auto" in chunk
+    assert "min-height: 0" in chunk
+    assert "height: auto" in chunk
+    assert "max-height: none" in chunk
+    assert "calc(100dvh - var(--fit-chrome))" not in chunk
+    # Free Agents rail must stay hidden on phone page-fit
+    assert "body.page-squad.page-fit .transfer-rail" in chunk
+    assert "display: none !important" in chunk
+
+
+def test_transfer_rail_hidden_on_phone_page_fit():
+    """team.html uses page-fit+page-squad; phone CSS must hide .transfer-rail."""
+    team = (TEMPLATES / "team.html").read_text(encoding="utf-8")
+    assert "page-fit" in team and "page-squad" in team
+    assert 'class="desk-rail transfer-rail"' in team or "desk-rail transfer-rail" in team
+
+    css = (STATIC / "styles.css").read_text(encoding="utf-8")
+    # Hardened hide lives in the ≤899px flex block (not only ≤640)
+    start = css.find("Free Agents rail is desktop-only")
+    assert start >= 0
+    chunk = css[start : start + 500]
+    block = css[css.rfind("@media (max-width: 899px)", 0, start) : start + 500]
+    assert "@media (max-width: 899px)" in block
+    assert "display: none !important" in chunk
+    assert "body.page-squad.page-fit .transfer-rail" in chunk
+
+    # JS must not strip page-fit / page-squad (would un-hide the rail)
+    squad = (STATIC / "squadboard.js").read_text(encoding="utf-8")
+    assert 'classList.remove("page-fit")' not in squad
+    assert 'classList.remove("page-squad")' not in squad
+    assert 'classList.remove("page-fit")' not in (STATIC / "appshell.js").read_text(encoding="utf-8")
+
+    # SW cache bump so phones drop stale CSS that still showed the rail
+    sw = (STATIC / "sw.js").read_text(encoding="utf-8")
+    assert 'CACHE = "futfantasy-v98"' in sw
+    assert "/static/styles.css" in sw
+    base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
+    assert "sw.js?v=98" in base
+
+
+def test_owned_checkmark_is_side_absolute():
+    """Owned ✓ sits on the right of the rail row, not above the name (no extra height)."""
+    css = (STATIC / "styles.css").read_text(encoding="utf-8")
+    start = css.find(".transfer-rail-row.is-owned .tr-owned-mark")
+    assert start >= 0
+    chunk = css[start : start + 450]
+    assert "position: absolute" in chunk
+    assert "right: -0.3rem" in chunk
+    assert "top: 50%" in chunk
+    assert "translateY(-50%)" in chunk
+    assert "margin-right: 0.28rem" not in chunk
+    squad = (STATIC / "squadboard.js").read_text(encoding="utf-8")
+    assert 'tr-owned-mark' in squad
+    assert "✓" in squad
+
+
+def test_super_sub_mobile_layout_consolidated():
+    """Phone Super Sub: one ≤899 block with display:contents; dead dual-body selector gone."""
+    css = (STATIC / "styles.css").read_text(encoding="utf-8")
+    marker = "Super Sub phone/tablet (≤899): one layout"
+    start = css.find(marker)
+    assert start >= 0
+    chunk = css[start : start + 2400]
+    assert "@media (max-width: 899px)" in chunk
+    assert "display: contents" in chunk
+    assert "grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1.35fr) auto" in chunk
+    assert "body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form" in chunk
+    # Dead selector never matches (two body classes as descendant)
+    assert "body.page-squad body.page-xi .chip-card-fpl.chip-card-ss" not in css
+    # Narrow wrap keeps toggle on row 1, select under title
+    wrap = css.find("Narrow phones: keep Off/On on the title row")
+    assert wrap >= 0
+    wrap_chunk = css[wrap : wrap + 900]
+    assert "@media (max-width: 390px)" in wrap_chunk
+    assert "grid-row: 2" in wrap_chunk
+    assert "grid-column: 2 / 5" in wrap_chunk
+    # Desktop one-line Super Sub must remain
+    desk = css.find("Super Sub: icon · title · info · Off · bench select")
+    assert desk >= 0
+    desk_chunk = css[desk : desk + 800]
+    assert "display: contents" in desk_chunk
+    assert "minmax(0, 1.2fr)" in desk_chunk

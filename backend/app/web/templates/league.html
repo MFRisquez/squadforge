@@ -116,7 +116,22 @@
               stroke-linecap="round"
               stroke-linejoin="round"
               points="{{ s.polyline }}"
-            />
+            >
+              <title>{{ s.team_name }}</title>
+            </polyline>
+            {% for p in s.points %}
+            <circle
+              class="rank-dot {% if s.is_me %}is-me{% endif %}"
+              cx="{{ p.x }}"
+              cy="{{ p.y }}"
+              r="{% if s.is_me %}3.2{% else %}2.4{% endif %}"
+              fill="{{ s.color }}"
+              stroke="#fff"
+              stroke-width="0.8"
+            >
+              <title>{{ p.title }}</title>
+            </circle>
+            {% endfor %}
             {% endif %}
           {% endfor %}
         </svg>
@@ -157,7 +172,7 @@
     {% elif mode == 'classic' %}
     <section class="rank-timeline is-empty">
       <h2>Position timeline</h2>
-      <p class="muted">Needs at least two scored gameweeks to plot ranks.</p>
+      <p class="muted">El gráfico aparece después de la GW2</p>
     </section>
     {% endif %}
 
