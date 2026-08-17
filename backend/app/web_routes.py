@@ -1189,7 +1189,10 @@ def transfers_make(
     manager = current_manager(request, db)
     if not manager:
         return RedirectResponse("/login", status_code=303)
-    gw = squad_svc.current_gameweek(db)
+    try:
+        gw = squad_svc.current_gameweek(db)
+    except squad_svc.SquadError as exc:
+        return RedirectResponse(f"/?error={quote(str(exc))}", status_code=303)
     if not deadline_svc.can_edit(gw):
         return RedirectResponse("/team?error=Deadline+passed+—+transfers+locked", status_code=303)
     try:
@@ -1203,10 +1206,8 @@ def transfers_make(
         )
         after_hits = squad_svc.hit_transfers_this_gw(db, manager.id, gw.id)
     except squad_svc.SquadError as exc:
-        return RedirectResponse(f"/team?error={exc}", status_code=303)
+        return RedirectResponse(f"/team?error={quote(str(exc))}", status_code=303)
     if after_hits > before_hits:
-        from urllib.parse import quote
-
         notice = quote(f"Transfer done (−{squad_svc.HIT_COST} hit).")
         return RedirectResponse(f"/team?ok=1&notice={notice}", status_code=303)
     return RedirectResponse("/team?ok=1", status_code=303)
