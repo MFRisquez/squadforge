@@ -517,16 +517,30 @@ def join_league(
 
 @router.get("/leagues", response_class=HTMLResponse)
 def leagues_hub(request: Request, db: Session = Depends(get_db)):
+    from app.services import standings as standings_svc
+
     manager = current_manager(request, db)
     if not manager:
         return RedirectResponse("/login", status_code=303)
     leagues = league_svc.manager_leagues(db, manager.id)
+    gw = squad_svc.current_gameweek(db)
+    league_cards = []
+    for league in leagues:
+        rank, size = standings_svc.my_rank_in_league(db, league, manager.id, gw)
+        league_cards.append(
+            {
+                "league": league,
+                "my_rank": rank,
+                "member_count": size,
+            }
+        )
     return templates.TemplateResponse(
         "leagues.html",
         _ctx(
             request,
             db,
             leagues=leagues,
+            league_cards=league_cards,
             notice=request.query_params.get("notice"),
             error=request.query_params.get("error"),
         ),
@@ -535,6 +549,8 @@ def leagues_hub(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/league/{league_id}", response_class=HTMLResponse)
 def league_home(league_id: int, request: Request, db: Session = Depends(get_db)):
+    from app.services import standings as standings_svc
+
     manager = current_manager(request, db)
     if not manager:
         return RedirectResponse("/login", status_code=303)
@@ -545,19 +561,28 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
     )
     if not membership:
         return RedirectResponse("/", status_code=303)
-    members = db.query(Membership).filter(Membership.league_id == league_id).all()
+    league = membership.league
+    gw = squad_svc.current_gameweek(db)
+    if getattr(league, "league_type", "classic") == "h2h":
+        rows, _ = standings_svc.h2h_standings(db, league, gw)
+        mode = "h2h"
+    else:
+        rows = standings_svc.classic_standings(db, league, gw)
+        mode = "classic"
     chips = db.query(ChipState).filter(ChipState.manager_id == manager.id).one_or_none()
-    even = len(members) % 2 == 0 and len(members) >= 2
+    even = len(rows) % 2 == 0 and len(rows) >= 2
     return templates.TemplateResponse(
         "league.html",
         _ctx(
             request,
             db,
-            league=membership.league,
-            members=members,
+            league=league,
+            rows=rows,
+            mode=mode,
+            me=manager,
             chips=chips,
             even_members=even,
-            member_count=len(members),
+            member_count=len(rows),
             notice=request.query_params.get("notice"),
             error=request.query_params.get("error"),
         ),
@@ -584,17 +609,28 @@ def league_set_type(
     try:
         league_svc.set_league_type(db, membership.league, league_type)
     except league_svc.LeagueError as exc:
-        members = db.query(Membership).filter(Membership.league_id == league_id).all()
+        from app.services import standings as standings_svc
+
+        league = membership.league
+        gw = squad_svc.current_gameweek(db)
+        if getattr(league, "league_type", "classic") == "h2h":
+            rows, _ = standings_svc.h2h_standings(db, league, gw)
+            mode = "h2h"
+        else:
+            rows = standings_svc.classic_standings(db, league, gw)
+            mode = "classic"
         return templates.TemplateResponse(
             "league.html",
             _ctx(
                 request,
                 db,
-                league=membership.league,
-                members=members,
+                league=league,
+                rows=rows,
+                mode=mode,
+                me=manager,
                 error=str(exc),
-                even_members=len(members) % 2 == 0 and len(members) >= 2,
-                member_count=len(members),
+                even_members=len(rows) % 2 == 0 and len(rows) >= 2,
+                member_count=len(rows),
             ),
             status_code=400,
         )

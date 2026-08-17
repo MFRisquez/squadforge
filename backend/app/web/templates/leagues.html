@@ -8,15 +8,17 @@
   Head to Head = weekly fixtures (W/D/L) — switch format on the league page when you have an even number of managers.
 </p>
 
-{% if leagues %}
+{% if league_cards %}
 <section class="panel">
   <ul class="league-list">
-    {% for league in leagues %}
+    {% for card in league_cards %}
+      {% set league = card.league %}
       <li>
         <div>
           <a class="league-name" href="/league/{{ league.id }}">{{ league.name }}</a>
           <span class="muted">
-            {% if league.league_type == 'h2h' %}H2H{% else %}Classic{% endif %}
+            {% if card.my_rank %}#{{ card.my_rank }} of {{ card.member_count }}{% else %}— of {{ card.member_count }}{% endif %}
+            · {% if league.league_type == 'h2h' %}H2H{% else %}Classic{% endif %}
             · code {{ league.invite_code }}
           </span>
         </div>

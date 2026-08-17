@@ -7,9 +7,21 @@
 
 <section class="panel">
   <h2>Teams</h2>
-  <ul class="list">
-    {% for m in members %}
-      <li>{{ m.manager.team_name or "—" }}</li>
+  <ul class="list league-teams">
+    {% for row in rows %}
+      <li class="{% if row.rank <= 3 %}rank-{{ row.rank }}{% endif %} {% if me and row.manager.id == me.id %}is-me{% endif %}">
+        <span class="rank-cell">#{{ row.rank }}</span>
+        <span class="league-team-name">{{ row.team_name }}</span>
+        <span class="muted league-team-pts">
+          {% if mode == 'h2h' %}
+            {{ row.wins }}-{{ row.draws }}-{{ row.losses }} · {{ row.h2h_points }} pts
+          {% else %}
+            {{ '%.0f'|format(row.total_points) }} pts
+          {% endif %}
+        </span>
+      </li>
+    {% else %}
+      <li class="muted">No teams yet.</li>
     {% endfor %}
   </ul>
   <div class="row">

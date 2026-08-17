@@ -5260,9 +5260,26 @@ body.page-opponent .desk-xi { margin-top: 0.25rem; }
 .standings tr.is-me {
   background: rgba(182, 219, 0, 0.12);
 }
-.standings tr.rank-1 .rank-cell { color: #b8860b; font-weight: 900; }
-.standings tr.rank-2 .rank-cell { color: #708090; font-weight: 900; }
-.standings tr.rank-3 .rank-cell { color: #a0522d; font-weight: 900; }
+.standings tr.rank-1 .rank-cell,
+.rank-1 .rank-cell { color: #b8860b; font-weight: 900; }
+.standings tr.rank-2 .rank-cell,
+.rank-2 .rank-cell { color: #708090; font-weight: 900; }
+.standings tr.rank-3 .rank-cell,
+.rank-3 .rank-cell { color: #a0522d; font-weight: 900; }
+
+.league-teams li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+.league-teams .rank-cell {
+  min-width: 1.6rem;
+  font-variant-numeric: tabular-nums;
+}
+.league-teams .league-team-name { font-weight: 700; flex: 1 1 auto; }
+.league-teams .league-team-pts { margin-left: auto; }
+.league-teams li.is-me .league-team-name { text-decoration: underline; }
 
 /* Classic league board — FPL-style, brand palette */
 .standings-hero {
