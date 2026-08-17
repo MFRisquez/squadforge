@@ -1,68 +1,73 @@
 {% extends "base.html" %}
 {% block title %}Fut Fantasy{% endblock %}
+{% block body_class %}page-fit page-home{% endblock %}
 {% block content %}
-<section class="home-hero-mini">
-  <div>
-    <h1 class="home-hello">Hello</h1>
-    <p class="muted home-sub">Ready for the next gameweek?</p>
-  </div>
-  <div class="home-hero-actions">
-    <button type="button" class="theme-toggle ghost-chip" id="themeToggleHome" aria-label="Toggle theme">Theme</button>
-    <form method="post" action="/logout"><button type="submit" class="btn ghost mini-btn">Log out</button></form>
-  </div>
-</section>
+<div class="desk-board desk-page">
+  <div class="desk-main">
+    <section class="home-hero-mini">
+      <div>
+        <h1 class="home-hello">Hello</h1>
+        <p class="muted home-sub">Ready for the next gameweek?</p>
+      </div>
+      <div class="home-hero-actions">
+        <button type="button" class="theme-toggle ghost-chip" id="themeToggleHome" aria-label="Toggle theme">Theme</button>
+        <form method="post" action="/logout"><button type="submit" class="btn ghost mini-btn">Log out</button></form>
+      </div>
+    </section>
 
-{% if gw %}
-<section class="home-card jornada-card">
-  <div class="jornada-top">
-    <strong>GW {{ gw.number }}</strong>
-    <span class="jornada-status">{% if gw.status == 'live' or gw.status == 'current' %}Live{% else %}{{ gw.status|replace('_',' ')|title }}{% endif %}</span>
+    {% if gw %}
+    <section class="home-card jornada-card">
+      <div class="jornada-top">
+        <strong>GW {{ gw.number }}</strong>
+        <span class="jornada-status">{% if gw.status == 'live' or gw.status == 'current' %}Live{% else %}{{ gw.status|replace('_',' ')|title }}{% endif %}</span>
+      </div>
+      <p class="muted tiny">Build XI · manage transfers · check fixtures</p>
+    </section>
+    {% endif %}
+
+    <section class="home-card home-leagues-card" id="leagues">
+      <header class="home-card-head">
+        <h2>Your leagues</h2>
+      </header>
+      {% if leagues %}
+        <ul class="league-list compact-list">
+          {% for league in leagues %}
+            <li>
+              <div>
+                <a class="league-name" href="/league/{{ league.id }}">{{ league.name }}</a>
+                <span class="muted">{% if league.league_type == 'h2h' %}H2H{% else %}Classic{% endif %} · {{ league.invite_code }}</span>
+              </div>
+              <a class="text-link" href="/standings/{{ league.id }}">{% if league.league_type == 'h2h' %}H2H{% else %}League{% endif %}</a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted tiny">Join a friend’s code or create a league.</p>
+      {% endif %}
+
+      <div class="home-mini-forms">
+        <form class="home-inline-form" method="post" action="/league/join">
+          <input name="invite_code" placeholder="Invite code" required />
+          <button class="btn mini-btn" type="submit">Join</button>
+        </form>
+        <form class="home-inline-form" method="post" action="/league/create">
+          <input name="league_name" placeholder="New league name" />
+          <select name="league_type" aria-label="Format">
+            <option value="classic">Classic</option>
+            <option value="h2h">H2H</option>
+          </select>
+          <button class="btn ghost mini-btn" type="submit">Create</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="home-card home-admin-card">
+      <form method="post" action="/sync/players" class="home-inline-form" id="syncPlayersForm">
+        <button class="btn ghost mini-btn" type="submit" id="syncPlayersBtn">Refresh FPL data</button>
+      </form>
+    </section>
   </div>
-  <p class="muted tiny">Build XI · manage transfers · check fixtures</p>
-</section>
-{% endif %}
-
-<section class="home-card home-leagues-card" id="leagues">
-  <header class="home-card-head">
-    <h2>Your leagues</h2>
-  </header>
-  {% if leagues %}
-    <ul class="league-list compact-list">
-      {% for league in leagues %}
-        <li>
-          <div>
-            <a class="league-name" href="/league/{{ league.id }}">{{ league.name }}</a>
-            <span class="muted">{% if league.league_type == 'h2h' %}H2H{% else %}Classic{% endif %} · {{ league.invite_code }}</span>
-          </div>
-          <a class="text-link" href="/standings/{{ league.id }}">{% if league.league_type == 'h2h' %}H2H{% else %}League{% endif %}</a>
-        </li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p class="muted tiny">Join a friend’s code or create a league.</p>
-  {% endif %}
-
-  <div class="home-mini-forms">
-    <form class="home-inline-form" method="post" action="/league/join">
-      <input name="invite_code" placeholder="Invite code" required />
-      <button class="btn mini-btn" type="submit">Join</button>
-    </form>
-    <form class="home-inline-form" method="post" action="/league/create">
-      <input name="league_name" placeholder="New league name" />
-      <select name="league_type" aria-label="Format">
-        <option value="classic">Classic</option>
-        <option value="h2h">H2H</option>
-      </select>
-      <button class="btn ghost mini-btn" type="submit">Create</button>
-    </form>
-  </div>
-</section>
-
-<section class="home-card home-admin-card">
-  <form method="post" action="/sync/players" class="home-inline-form" id="syncPlayersForm">
-    <button class="btn ghost mini-btn" type="submit" id="syncPlayersBtn">Refresh FPL data</button>
-  </form>
-</section>
+</div>
 <script>
 (function () {
   var form = document.getElementById("syncPlayersForm");

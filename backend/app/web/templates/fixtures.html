@@ -5,118 +5,122 @@
 {% from "macros_gw.html" import gw_bar %}
 {{ gw_bar(gw, deadline_label, edits_locked, prev_gw, next_gw, '/fixtures', all_gws, current_gw_number) }}
 
-<section class="hero-block compact">
-  <p class="eyebrow">Premier League</p>
-  <h1>Fixtures</h1>
-  <p class="lede tight">
-    GW{{ gw.number }} · your players highlighted · tap a match for goals &amp; assists.
-  </p>
-</section>
+<div class="desk-board desk-page">
+  <div class="desk-main">
+    <section class="hero-block compact">
+      <p class="eyebrow">Premier League</p>
+      <h1>Fixtures</h1>
+      <p class="lede tight">
+        GW{{ gw.number }} · your players highlighted · tap a match for goals &amp; assists.
+      </p>
+    </section>
 
-<div class="action-row">
-  <form method="post" action="/fixtures/refresh">
-    <input type="hidden" name="gw" value="{{ gw.number }}" />
-    <button class="btn" type="submit" id="refreshFixtures">Refresh live</button>
-  </form>
-  <span class="muted tiny" id="fixturesMeta">{{ match_count }} matches</span>
-</div>
+    <div class="action-row">
+      <form method="post" action="/fixtures/refresh">
+        <input type="hidden" name="gw" value="{{ gw.number }}" />
+        <button class="btn" type="submit" id="refreshFixtures">Refresh live</button>
+      </form>
+      <span class="muted tiny" id="fixturesMeta">{{ match_count }} matches</span>
+    </div>
 
-<section class="fixtures-board" aria-label="Gameweek fixtures">
-  {% if matches %}
-  <div class="fixtures-desk">
-    <ul class="fixture-list fixture-list-wide" id="fixtureList">
-      {% for m in matches %}
-      <li>
-        <button type="button" class="fx-card status-{{ m.status }} {% if m.my_players and (m.my_players.home or m.my_players.away) %}has-mine{% endif %}" data-fixture-id="{{ m.id }}" data-home-badge="{{ m.home.badge or '' }}" data-away-badge="{{ m.away.badge or '' }}">
-          <div class="fx-card-top">
-            {% if m.status == 'live' %}
-              <span class="fx-status-row"><em class="live-dot">LIVE</em>{{ m.kickoff|kickoff_zones }}</span>
-            {% elif m.status == 'finished' %}
-              <span class="fx-status-row"><span class="fx-ft-label">Full time</span>{{ m.kickoff|kickoff_zones }}</span>
-            {% elif m.kickoff %}
-              {{ m.kickoff|kickoff_zones }}
-            {% else %}
-              <span class="fx-status">TBC</span>
-            {% endif %}
-          </div>
-          <div class="fx-card-match">
-            <div class="fx-club">
-              {% if m.home.badge %}
-              <img class="fx-badge" src="{{ m.home.badge }}" alt="{{ m.home.name }}" width="40" height="40" loading="lazy" />
+    <section class="fixtures-board" aria-label="Gameweek fixtures">
+      {% if matches %}
+      <div class="fixtures-desk">
+        <ul class="fixture-list fixture-list-wide" id="fixtureList">
+          {% for m in matches %}
+          <li>
+            <button type="button" class="fx-card status-{{ m.status }} {% if m.my_players and (m.my_players.home or m.my_players.away) %}has-mine{% endif %}" data-fixture-id="{{ m.id }}" data-home-badge="{{ m.home.badge or '' }}" data-away-badge="{{ m.away.badge or '' }}">
+              <div class="fx-card-top">
+                {% if m.status == 'live' %}
+                  <span class="fx-status-row"><em class="live-dot">LIVE</em>{{ m.kickoff|kickoff_zones }}</span>
+                {% elif m.status == 'finished' %}
+                  <span class="fx-status-row"><span class="fx-ft-label">Full time</span>{{ m.kickoff|kickoff_zones }}</span>
+                {% elif m.kickoff %}
+                  {{ m.kickoff|kickoff_zones }}
+                {% else %}
+                  <span class="fx-status">TBC</span>
+                {% endif %}
+              </div>
+              <div class="fx-card-match">
+                <div class="fx-club">
+                  {% if m.home.badge %}
+                  <img class="fx-badge" src="{{ m.home.badge }}" alt="{{ m.home.name }}" width="40" height="40" loading="lazy" />
+                  {% endif %}
+                  <strong>{{ m.home.code }}</strong>
+                  <span class="fx-club-name">{{ m.home.name }}</span>
+                </div>
+                <div class="fx-score-block">
+                  {% if m.home.score is not none and m.away.score is not none %}
+                    <span class="fx-score-num">{{ m.home.score }}</span>
+                    <span class="fx-score-sep">–</span>
+                    <span class="fx-score-num">{{ m.away.score }}</span>
+                  {% else %}
+                    <span class="fx-vs">vs</span>
+                  {% endif %}
+                </div>
+                <div class="fx-club away">
+                  {% if m.away.badge %}
+                  <img class="fx-badge" src="{{ m.away.badge }}" alt="{{ m.away.name }}" width="40" height="40" loading="lazy" />
+                  {% endif %}
+                  <strong>{{ m.away.code }}</strong>
+                  <span class="fx-club-name">{{ m.away.name }}</span>
+                </div>
+              </div>
+              {% set home_mine = m.my_players.home if m.my_players else [] %}
+              {% set away_mine = m.my_players.away if m.my_players else [] %}
+              {% if home_mine or away_mine %}
+              <div class="fx-mine">
+                {% if home_mine %}
+                <p class="fx-mine-side">
+                  {% for p in home_mine %}
+                  <span class="fx-mine-chip avail-{{ p.availability }}">{{ p.name }}</span>
+                  {% endfor %}
+                </p>
+                {% endif %}
+                {% if away_mine %}
+                <p class="fx-mine-side away">
+                  {% for p in away_mine %}
+                  <span class="fx-mine-chip avail-{{ p.availability }}">{{ p.name }}</span>
+                  {% endfor %}
+                </p>
+                {% endif %}
+              </div>
               {% endif %}
-              <strong>{{ m.home.code }}</strong>
-              <span class="fx-club-name">{{ m.home.name }}</span>
-            </div>
-            <div class="fx-score-block">
-              {% if m.home.score is not none and m.away.score is not none %}
-                <span class="fx-score-num">{{ m.home.score }}</span>
-                <span class="fx-score-sep">–</span>
-                <span class="fx-score-num">{{ m.away.score }}</span>
-              {% else %}
-                <span class="fx-vs">vs</span>
+              {% if m.news %}
+              <ul class="fx-news">
+                {% for line in m.news %}
+                <li>{{ line }}</li>
+                {% endfor %}
+              </ul>
               {% endif %}
+            </button>
+          </li>
+          {% endfor %}
+        </ul>
+        <aside class="fixture-detail-panel" id="fixtureDetailPanel" aria-label="Match detail">
+          <header class="drawer-head">
+            <div>
+              <p class="eyebrow" id="deskMatchEyebrow">Match</p>
+              <h2 id="deskMatchTitle">Select a match</h2>
             </div>
-            <div class="fx-club away">
-              {% if m.away.badge %}
-              <img class="fx-badge" src="{{ m.away.badge }}" alt="{{ m.away.name }}" width="40" height="40" loading="lazy" />
-              {% endif %}
-              <strong>{{ m.away.code }}</strong>
-              <span class="fx-club-name">{{ m.away.name }}</span>
-            </div>
+          </header>
+          <div class="match-detail-body" id="deskMatchBody">
+            <p class="muted">Pick a fixture for badges, your players’ news, and live match action.</p>
           </div>
-          {% set home_mine = m.my_players.home if m.my_players else [] %}
-          {% set away_mine = m.my_players.away if m.my_players else [] %}
-          {% if home_mine or away_mine %}
-          <div class="fx-mine">
-            {% if home_mine %}
-            <p class="fx-mine-side">
-              {% for p in home_mine %}
-              <span class="fx-mine-chip avail-{{ p.availability }}">{{ p.name }}</span>
-              {% endfor %}
-            </p>
-            {% endif %}
-            {% if away_mine %}
-            <p class="fx-mine-side away">
-              {% for p in away_mine %}
-              <span class="fx-mine-chip avail-{{ p.availability }}">{{ p.name }}</span>
-              {% endfor %}
-            </p>
-            {% endif %}
-          </div>
-          {% endif %}
-          {% if m.news %}
-          <ul class="fx-news">
-            {% for line in m.news %}
-            <li>{{ line }}</li>
-            {% endfor %}
-          </ul>
-          {% endif %}
-        </button>
-      </li>
-      {% endfor %}
-    </ul>
-    <aside class="fixture-detail-panel" id="fixtureDetailPanel" aria-label="Match detail">
-      <header class="drawer-head">
-        <div>
-          <p class="eyebrow" id="deskMatchEyebrow">Match</p>
-          <h2 id="deskMatchTitle">Select a match</h2>
-        </div>
-      </header>
-      <div class="match-detail-body" id="deskMatchBody">
-        <p class="muted">Pick a fixture for badges, your players’ news, and live match action.</p>
+        </aside>
       </div>
-    </aside>
+      {% else %}
+      <div class="empty-state panel">
+        <h2>No fixtures for GW{{ gw.number }}</h2>
+        <p class="muted">Refresh from FPL, or sync players on Home first.</p>
+        <form method="post" action="/fixtures/refresh">
+          <button class="btn" type="submit">Refresh fixtures</button>
+        </form>
+      </div>
+      {% endif %}
+    </section>
   </div>
-  {% else %}
-  <div class="empty-state panel">
-    <h2>No fixtures for GW{{ gw.number }}</h2>
-    <p class="muted">Refresh from FPL, or sync players on Home first.</p>
-    <form method="post" action="/fixtures/refresh">
-      <button class="btn" type="submit">Refresh fixtures</button>
-    </form>
-  </div>
-  {% endif %}
-</section>
+</div>
 
 <div class="drawer" id="matchDetail" hidden>
   <div class="drawer-sheet match-detail-sheet">

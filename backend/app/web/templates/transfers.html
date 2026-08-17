@@ -1,65 +1,70 @@
 {% extends "base.html" %}
 {% block title %}Transfers · {{ app_name }}{% endblock %}
+{% block body_class %}page-fit page-transfers{% endblock %}
 {% block content %}
-<div class="pick-header">
-  <div>
-    <p class="eyebrow">Transfers · GW {{ gw.number if gw else '' }}</p>
-    <h1>Swap players</h1>
-  </div>
-  <div class="budget-card">
-    <span class="budget-label">{% if unlimited %}Free transfers{% else %}FT left{% endif %}</span>
-    <strong>{% if unlimited %}∞{% else %}{{ ft }}{% endif %}</strong>
-    <span class="budget-sub">Bank +1 each GW (max 5)</span>
+<div class="desk-board desk-page">
+  <div class="desk-main">
+    <div class="pick-header">
+      <div>
+        <p class="eyebrow">Transfers · GW {{ gw.number if gw else '' }}</p>
+        <h1>Swap players</h1>
+      </div>
+      <div class="budget-card">
+        <span class="budget-label">{% if unlimited %}Free transfers{% else %}FT left{% endif %}</span>
+        <strong>{% if unlimited %}∞{% else %}{{ ft }}{% endif %}</strong>
+        <span class="budget-sub">Bank +1 each GW (max 5)</span>
+      </div>
+    </div>
+
+    <p class="lede tight">
+      Pick <strong>Out</strong> from your squad, pick <strong>In</strong> from the market, then confirm.
+      {% if not unlimited %}Uses 1 free transfer (or hits your bank).{% endif %}
+      Stay within £{{ '%.1f'|format(budget) }}m and max {{ max_per_club }} per club.
+    </p>
+
+    <section class="panel swap-board">
+      <h2>This swap</h2>
+      <div class="swap-slots">
+        <button type="button" class="swap-slot" id="slotOut" aria-label="Choose player out">
+          <span class="swap-label">Out</span>
+          <span class="swap-body" id="slotOutBody">
+            <span class="swap-empty">Tap to choose</span>
+          </span>
+        </button>
+        <span class="swap-arrow" aria-hidden="true">→</span>
+        <button type="button" class="swap-slot" id="slotIn" aria-label="Choose player in">
+          <span class="swap-label">In</span>
+          <span class="swap-body" id="slotInBody">
+            <span class="swap-empty">Tap to choose</span>
+          </span>
+        </button>
+      </div>
+      <p id="swapHint" class="muted tight">Choose who leaves first.</p>
+      <form method="post" action="/transfers/make" id="transferForm" class="swap-actions">
+        <input type="hidden" name="player_out_id" id="outId" />
+        <input type="hidden" name="player_in_id" id="inId" />
+        <button class="btn" type="submit" id="confirmSwap" disabled>Confirm swap</button>
+        <button class="btn ghost" type="button" id="clearSwap">Clear</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Your squad · £{{ '%.1f'|format(spend) }}m</h2>
+      <p class="muted tight">Tap a player here to set them as Out.</p>
+      <ul class="list" id="ownedList">
+        {% for p in owned|sort(attribute='position') %}
+          <li class="avail-row squad-pick-row" data-owned="{{ p.id }}" role="button" tabindex="0">
+            <span class="pos">{{ p.position }}</span>
+            <span class="{% if p.status in ['i','s','u'] or p.chance_of_playing == 0 %}avail-text-out{% elif p.status == 'd' or (p.chance_of_playing is not none and p.chance_of_playing <= 75) %}avail-text-doubt{% endif %}">
+              {{ p.name }}
+            </span>
+            <span class="muted">{{ p.team_code }} · £{{ '%.1f'|format(p.price) }}m</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
   </div>
 </div>
-
-<p class="lede tight">
-  Pick <strong>Out</strong> from your squad, pick <strong>In</strong> from the market, then confirm.
-  {% if not unlimited %}Uses 1 free transfer (or hits your bank).{% endif %}
-  Stay within £{{ '%.1f'|format(budget) }}m and max {{ max_per_club }} per club.
-</p>
-
-<section class="panel swap-board">
-  <h2>This swap</h2>
-  <div class="swap-slots">
-    <button type="button" class="swap-slot" id="slotOut" aria-label="Choose player out">
-      <span class="swap-label">Out</span>
-      <span class="swap-body" id="slotOutBody">
-        <span class="swap-empty">Tap to choose</span>
-      </span>
-    </button>
-    <span class="swap-arrow" aria-hidden="true">→</span>
-    <button type="button" class="swap-slot" id="slotIn" aria-label="Choose player in">
-      <span class="swap-label">In</span>
-      <span class="swap-body" id="slotInBody">
-        <span class="swap-empty">Tap to choose</span>
-      </span>
-    </button>
-  </div>
-  <p id="swapHint" class="muted tight">Choose who leaves first.</p>
-  <form method="post" action="/transfers/make" id="transferForm" class="swap-actions">
-    <input type="hidden" name="player_out_id" id="outId" />
-    <input type="hidden" name="player_in_id" id="inId" />
-    <button class="btn" type="submit" id="confirmSwap" disabled>Confirm swap</button>
-    <button class="btn ghost" type="button" id="clearSwap">Clear</button>
-  </form>
-</section>
-
-<section class="panel">
-  <h2>Your squad · £{{ '%.1f'|format(spend) }}m</h2>
-  <p class="muted tight">Tap a player here to set them as Out.</p>
-  <ul class="list" id="ownedList">
-    {% for p in owned|sort(attribute='position') %}
-      <li class="avail-row squad-pick-row" data-owned="{{ p.id }}" role="button" tabindex="0">
-        <span class="pos">{{ p.position }}</span>
-        <span class="{% if p.status in ['i','s','u'] or p.chance_of_playing == 0 %}avail-text-out{% elif p.status == 'd' or (p.chance_of_playing is not none and p.chance_of_playing <= 75) %}avail-text-doubt{% endif %}">
-          {{ p.name }}
-        </span>
-        <span class="muted">{{ p.team_code }} · £{{ '%.1f'|format(p.price) }}m</span>
-      </li>
-    {% endfor %}
-  </ul>
-</section>
 
 <div class="drawer" id="picker" hidden>
   <div class="drawer-sheet">
