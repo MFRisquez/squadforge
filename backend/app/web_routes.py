@@ -648,6 +648,11 @@ def league_set_type(
     )
     if not membership:
         return RedirectResponse("/", status_code=303)
+    if membership.league.owner_id != manager.id:
+        return RedirectResponse(
+            f"/league/{league_id}?error={quote('Only the league creator can change the format.')}",
+            status_code=303,
+        )
     try:
         league_svc.set_league_type(db, membership.league, league_type)
     except league_svc.LeagueError as exc:

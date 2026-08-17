@@ -117,11 +117,12 @@
     </section>
     {% endif %}
 
-    <section class="panel">
+    {% if manager and manager.id == league.owner_id %}
+    <section class="panel league-format">
       <h2>League format</h2>
       <p class="muted">
-        Classic = FPL total-points table.
-        Head-to-Head = weekly pairs + H2H table (needs even members).
+        Classic ranks by total points all season.
+        H2H pairs everyone weekly and ranks by wins.
       </p>
       <form method="post" action="/league/{{ league.id }}/type" class="stack">
         <label>Type
@@ -135,6 +136,7 @@
         <button class="btn ghost" type="submit">Save format</button>
       </form>
     </section>
+    {% endif %}
 
     <section class="panel">
       <h2>Manage</h2>
