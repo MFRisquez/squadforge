@@ -7754,6 +7754,12 @@ body.page-squad .stat-strip {
 .rank-line.is-me {
   opacity: 1;
 }
+.rank-dot {
+  cursor: help;
+}
+.rank-dot.is-me {
+  opacity: 1;
+}
 .rank-timeline-legend {
   list-style: none;
   margin: 0 0 0.75rem;
