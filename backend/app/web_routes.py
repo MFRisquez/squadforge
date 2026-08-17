@@ -1014,6 +1014,15 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
         except (json.JSONDecodeError, TypeError, ValueError):
             super_sub_player_id = None
 
+    owned_by_id = {p.id: p for p in owned}
+    captain_name = owned_by_id[captain].name if captain and captain in owned_by_id else None
+    left_to_play = sum(
+        1
+        for pid in starters
+        if pid in owned_by_id and owned_by_id[pid].team_code not in started_clubs
+    )
+    played_count = max(0, len(starters) - left_to_play)
+
     return templates.TemplateResponse(
         "lineup.html",
         _ctx(
@@ -1038,6 +1047,9 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
             spend=squad_svc.squad_spend(owned),
             gw_total=gw_total,
             any_fixture_started=any_fixture_started,
+            captain_name=captain_name,
+            left_to_play=left_to_play,
+            played_count=played_count,
             chips=chips,
             active_chip=active_chip,
             bench_options=bench_options,
@@ -1571,6 +1583,73 @@ def h2h_opponent_peek(league_id: int, manager_id: int, request: Request, db: Ses
         )
         .one_or_none()
     )
+
+    # Viewer's locked XI for desktop compare rail
+    my_picks = (
+        db.query(SquadPick)
+        .filter(SquadPick.manager_id == me.id, SquadPick.gameweek_id == squad_gw.id)
+        .all()
+    )
+    my_player_ids = [p.player_id for p in my_picks]
+    my_players = (
+        db.query(Player).filter(Player.id.in_(my_player_ids)).all() if my_player_ids else []
+    )
+    my_by_id = {p.id: p for p in my_players}
+    my_starter_ids = {p.player_id for p in my_picks if p.is_starter}
+    my_picks_by_player = {p.player_id: p for p in my_picks}
+
+    def pack_mine(player: Player) -> dict:
+        kit = kit_for(
+            player.team_code,
+            position=player.position,
+            kit_code=getattr(clubs.get(player.team_code), "kit_code", None),
+        )
+        pick = my_picks_by_player.get(player.id)
+        started = player.team_code in started_clubs
+        pts = points_map.get(player.id) if started else None
+        return {
+            "name": player.name,
+            "team": player.team_code,
+            "pos": player.position,
+            "shirt": kit["shirt"],
+            "is_captain": bool(pick and pick.is_captain),
+            "is_vice": bool(pick and getattr(pick, "is_vice_captain", 0)),
+            "fixture_started": started,
+            "points": pts,
+        }
+
+    my_starters = []
+    for pid in my_starter_ids:
+        p = my_by_id.get(pid)
+        if p:
+            my_starters.append(pack_mine(p))
+    pos_order = {"GK": 0, "DEF": 1, "MID": 2, "ATT": 3}
+    my_starters.sort(key=lambda r: (pos_order.get(r["pos"], 9), r["name"]))
+
+    their_starters = []
+    for pos in ("GK", "DEF", "MID", "ATT"):
+        for row in by_pos[pos]:
+            their_starters.append(
+                {
+                    "name": row["player"].name,
+                    "team": row["player"].team_code,
+                    "pos": row["player"].position,
+                    "is_captain": row["is_captain"],
+                    "is_vice": row["is_vice"],
+                    "fixture_started": row["fixture_started"],
+                    "points": row["points"],
+                }
+            )
+
+    my_score = (
+        db.query(ManagerGameweekScore)
+        .filter(
+            ManagerGameweekScore.manager_id == me.id,
+            ManagerGameweekScore.gameweek_id == squad_gw.id,
+        )
+        .one_or_none()
+    )
+
     return templates.TemplateResponse(
         "opponent.html",
         _ctx(
@@ -1584,6 +1663,10 @@ def h2h_opponent_peek(league_id: int, manager_id: int, request: Request, db: Ses
             squad_gw=squad_gw,
             squad_frozen=squad_frozen,
             any_fixture_started=bool(started_clubs),
+            my_team_name=(me.team_name or "").strip() or "You",
+            my_starters=my_starters,
+            their_starters=their_starters,
+            my_score=my_score,
             **view,
         ),
     )

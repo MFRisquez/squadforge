@@ -277,9 +277,11 @@
         const base = sel.getAttribute("data-base-path") || window.location.pathname;
         const n = sel.value;
         if (!n) return;
-        // Full navigation — one pick always loads the chosen GW (no soft-nav cache).
         const url = `${base}${base.includes("?") ? "&" : "?"}gw=${encodeURIComponent(n)}`;
-        window.location.assign(url);
+        const path = sameOriginPath(url) || url;
+        // Soft-nav only — never full reload/splash when switching gameweeks.
+        if (path === window.location.pathname + window.location.search) return;
+        softNavigate(path, { push: true });
       });
     });
   }

@@ -625,6 +625,22 @@
         <span class="tr-form">${formScore(p).toFixed(1)}</span>
         <span class="tr-pts">${pointsScore(p)}</span>
       `;
+      // Inline !important so owned rows stay readable even if CSS cache is stale.
+      if (p.inSquad) {
+        btn.style.setProperty("background", "#111111", "important");
+        btn.style.setProperty("color", "#ffffff", "important");
+        btn.style.setProperty("-webkit-text-fill-color", "#ffffff", "important");
+        btn.style.setProperty("box-shadow", "inset 4px 0 0 #C0FF00", "important");
+        btn.querySelectorAll(".tr-name strong, .tr-price, .tr-form, .tr-pts").forEach((el) => {
+          el.style.setProperty("color", "#ffffff", "important");
+          el.style.setProperty("-webkit-text-fill-color", "#ffffff", "important");
+        });
+        const sub = btn.querySelector(".tr-name span");
+        if (sub) {
+          sub.style.setProperty("color", "#C0FF00", "important");
+          sub.style.setProperty("-webkit-text-fill-color", "#C0FF00", "important");
+        }
+      }
       if (!p.locked) {
         btn.addEventListener("click", () => {
           if (p.inSquad) deselectFromRail(p);
