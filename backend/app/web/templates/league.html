@@ -86,11 +86,17 @@
       <a class="btn ghost" href="/league/{{ league.id }}/awards">Season awards</a>
     </div>
 
-    {% if mode == 'classic' and rank_history and rank_history.gw_numbers|length >= 2 %}
+    {% if rank_history and rank_history.gw_numbers|length >= 2 %}
     <section class="rank-timeline" aria-label="Position timeline">
       <header class="rank-timeline-head">
         <h2>Position timeline</h2>
-        <p class="muted tight">Rank after each gameweek · #1 at the top</p>
+        <p class="muted tight">
+          {% if mode == 'h2h' %}
+          H2H table rank after each gameweek · #1 at the top
+          {% else %}
+          Rank after each gameweek · #1 at the top
+          {% endif %}
+        </p>
       </header>
       <div class="rank-timeline-chart-wrap">
         <svg
@@ -169,7 +175,7 @@
         </table>
       </div>
     </section>
-    {% elif mode == 'classic' %}
+    {% else %}
     <section class="rank-timeline is-empty">
       <h2>Position timeline</h2>
       <p class="muted">El gráfico aparece después de la GW2</p>

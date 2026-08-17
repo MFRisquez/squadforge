@@ -137,6 +137,79 @@ def test_league_page_shows_table_and_timeline():
     assert "Page Beta" in html
 
 
+def test_h2h_rank_history_and_league_page_timeline():
+    """H2H leagues get the same Position timeline (table rank after settled GWs)."""
+    from app.models import H2HMatch
+
+    db = SessionLocal()
+    try:
+        a = league_svc.register_manager(
+            db,
+            display_name="H2HHistA",
+            password="secret12",
+            email="h2hhista@example.com",
+            team_name="H2H Alpha",
+        )
+        b = league_svc.register_manager(
+            db,
+            display_name="H2HHistB",
+            password="secret12",
+            email="h2hhistb@example.com",
+            team_name="H2H Beta",
+        )
+        league = league_svc.create_league(db, "H2H Timeline", a, league_type="h2h")
+        league_svc.join_league(db, league.invite_code, b)
+        gws = []
+        for n in (1, 2):
+            gw = db.query(Gameweek).filter(Gameweek.number == n).one_or_none()
+            if not gw:
+                gw = Gameweek(number=n, status="finished", name=f"GW{n}", is_current=0)
+                db.add(gw)
+                db.flush()
+            gws.append(gw)
+        db.add(
+            H2HMatch(
+                league_id=league.id,
+                gameweek_id=gws[0].id,
+                home_manager_id=a.id,
+                away_manager_id=b.id,
+                home_points=40,
+                away_points=60,
+                result="away",
+            )
+        )
+        db.add(
+            H2HMatch(
+                league_id=league.id,
+                gameweek_id=gws[1].id,
+                home_manager_id=a.id,
+                away_manager_id=b.id,
+                home_points=70,
+                away_points=20,
+                result="home",
+            )
+        )
+        db.commit()
+        hist = standings_svc.league_rank_history(db, league, gws[1], me_id=a.id)
+        assert hist["gw_numbers"] == [1, 2]
+        by_id = {s["manager_id"]: s for s in hist["series"]}
+        assert by_id[b.id]["ranks"][0] == 1
+        assert by_id[a.id]["ranks"][0] == 2
+        # After GW2 both have 3 H2H pts; A has higher PF (40+70=110 vs 60+20=80) → A #1
+        assert by_id[a.id]["ranks"][1] == 1
+        assert by_id[b.id]["ranks"][1] == 2
+        lid = league.id
+    finally:
+        db.close()
+
+    client = _client()
+    client.post("/login", data={"login": "H2HHistA", "password": "secret12"}, follow_redirects=False)
+    html = client.get(f"/league/{lid}").text
+    assert "Position timeline" in html
+    assert "rank-timeline-chart" in html
+    assert "H2H table rank" in html
+
+
 def test_fixtures_desktop_css_has_breathing_room():
     from pathlib import Path
 

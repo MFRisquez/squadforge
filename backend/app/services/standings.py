@@ -499,31 +499,29 @@ def rank_history(db: Session, league: League, through_gw) -> dict:
     }
 
 
-def classic_rank_history(
-    db: Session,
-    league: League,
-    through_gw,
+def _empty_rank_chart(*, max_rank: int = 0) -> dict:
+    return {
+        "gw_numbers": [],
+        "series": [],
+        "max_rank": max_rank,
+        "gw_labels": [],
+        "grid": [],
+        "chart_width": 360,
+        "chart_height": 140,
+    }
+
+
+def _chart_from_rank_history(
+    raw: dict,
     *,
     me_id: int | None = None,
 ) -> dict:
-    """GW-by-GW classic ranks + SVG geometry for the league timeline chart.
-
-    Built on ``rank_history`` (batch score query). Rank 1 is drawn at the top.
-    """
-    raw = rank_history(db, league, through_gw)
+    """Turn ``rank_history`` / ``h2h_rank_history`` raw payload into SVG chart data."""
     gameweeks = raw["gameweeks"]
     managers_raw = raw["managers"]
     max_rank = len(managers_raw)
     if not gameweeks or not managers_raw:
-        return {
-            "gw_numbers": [],
-            "series": [],
-            "max_rank": max_rank,
-            "gw_labels": [],
-            "grid": [],
-            "chart_width": 360,
-            "chart_height": 140,
-        }
+        return _empty_rank_chart(max_rank=max_rank)
 
     chart_width = 360.0
     chart_height = 140.0
@@ -539,7 +537,6 @@ def classic_rank_history(
         x = pad if n_gw == 1 else pad + (chart_width - 2 * pad) * (i / (n_gw - 1))
         gw_labels.append({"number": n, "x": round(x, 1)})
 
-    # Viewer first for stroke emphasis, then keep rank_history order
     ordered = sorted(
         managers_raw,
         key=lambda m: (
@@ -590,3 +587,108 @@ def classic_rank_history(
         "chart_width": int(chart_width),
         "chart_height": int(chart_height),
     }
+
+
+def classic_rank_history(
+    db: Session,
+    league: League,
+    through_gw,
+    *,
+    me_id: int | None = None,
+) -> dict:
+    """GW-by-GW classic ranks + SVG geometry for the league timeline chart.
+
+    Built on ``rank_history`` (batch score query). Rank 1 is drawn at the top.
+    """
+    return _chart_from_rank_history(rank_history(db, league, through_gw), me_id=me_id)
+
+
+def h2h_rank_history(db: Session, league: League, through_gw) -> dict:
+    """Cumulative H2H table ranks after each gameweek with settled fixtures.
+
+    Same shape as ``rank_history`` so the SVG timeline can be shared with Classic.
+    """
+    members = [m.manager for m in db.query(Membership).filter(Membership.league_id == league.id).all()]
+    empty = {"gameweeks": [], "managers": []}
+    if not members or through_gw is None:
+        return empty
+
+    through_n = int(getattr(through_gw, "number", through_gw))
+    rows = (
+        db.query(H2HMatch, Gameweek)
+        .join(Gameweek, Gameweek.id == H2HMatch.gameweek_id)
+        .filter(H2HMatch.league_id == league.id, Gameweek.number <= through_n)
+        .all()
+    )
+    # Only GWs that already have a settled result contribute to the timeline.
+    settled_by_gw: dict[int, list[H2HMatch]] = defaultdict(list)
+    for match, gweek in rows:
+        if match.result == "pending":
+            continue
+        settled_by_gw[int(gweek.number)].append(match)
+    gameweeks = sorted(settled_by_gw)
+    if not gameweeks:
+        return empty
+
+    ranks_by_mgr: dict[int, list[int]] = {m.id: [] for m in members}
+    running: dict[int, dict] = {
+        m.id: {"h2h_points": 0, "pf": 0.0, "name": (m.team_name or "").strip() or m.display_name}
+        for m in members
+    }
+    for n in gameweeks:
+        for match in settled_by_gw[n]:
+            home = running.get(match.home_manager_id)
+            away = running.get(match.away_manager_id)
+            if not home or not away:
+                continue
+            home["pf"] += float(match.home_points or 0)
+            away["pf"] += float(match.away_points or 0)
+            if match.result == "home":
+                home["h2h_points"] += 3
+            elif match.result == "away":
+                away["h2h_points"] += 3
+            else:
+                home["h2h_points"] += 1
+                away["h2h_points"] += 1
+        ordered = sorted(
+            members,
+            key=lambda m: (
+                -running[m.id]["h2h_points"],
+                -running[m.id]["pf"],
+                running[m.id]["name"].lower(),
+            ),
+        )
+        for i, manager in enumerate(ordered, start=1):
+            ranks_by_mgr[manager.id].append(i)
+
+    current_rank = {mid: ranks[-1] for mid, ranks in ranks_by_mgr.items() if ranks}
+    ordered_mgrs = sorted(
+        members,
+        key=lambda m: (current_rank.get(m.id, 999), running[m.id]["name"].lower()),
+    )
+    return {
+        "gameweeks": gameweeks,
+        "managers": [
+            {
+                "manager_id": m.id,
+                "name": running[m.id]["name"],
+                "ranks": ranks_by_mgr[m.id],
+            }
+            for m in ordered_mgrs
+        ],
+    }
+
+
+def league_rank_history(
+    db: Session,
+    league: League,
+    through_gw,
+    *,
+    me_id: int | None = None,
+) -> dict:
+    """Position timeline for Classic (total points) or H2H (table after each GW)."""
+    if getattr(league, "league_type", "classic") == "h2h":
+        raw = h2h_rank_history(db, league, through_gw)
+    else:
+        raw = rank_history(db, league, through_gw)
+    return _chart_from_rank_history(raw, me_id=me_id)
