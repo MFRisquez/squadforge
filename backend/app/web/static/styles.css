@@ -4094,7 +4094,6 @@ html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
   /* page-fit on desktop: normal page flow (no fixed viewport lock).
      Pitch pages get a min-height so the field still fills the first screen. */
   body.page-fit .shell {
-    --fit-chrome: 6.55rem;
     width: min(72rem, 100%);
     padding: 0.45rem 1rem 0.5rem;
     display: flex;
@@ -5174,7 +5173,9 @@ html[data-theme="light"] .standings-row.is-me {
 }
 
 /* No page scroll / fixed viewport — phone only (≤899px).
-   Desktop keeps normal document height + browser scroll. */
+   Desktop keeps normal document height + browser scroll.
+   Height model: body is a flex column; .top/.nav keep natural height;
+   .shell fills the leftover with flex:1 — never calc(100dvh − fixed rem). */
 @media (max-width: 899px) {
   html:has(body.page-fit) {
     height: 100%;
@@ -5195,22 +5196,25 @@ html[data-theme="light"] .standings-row.is-me {
     width: 100%;
     /* Solid fill so PWA home-indicator / letterbox never flashes white */
     background-color: var(--bg);
+    display: flex;
+    flex-direction: column;
   }
-  body.page-fit .shell {
-    --fit-chrome: 7.35rem;
-    height: calc(100dvh - var(--fit-chrome));
-    max-height: calc(100dvh - var(--fit-chrome));
+  body.page-fit > .top,
+  body.page-fit > .nav {
+    flex: 0 0 auto;
+    position: relative;
+    top: auto;
+  }
+  body.page-fit > .shell {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+    max-height: none;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
     gap: 0.28rem;
-  }
-  @supports (height: -webkit-fill-available) {
-    body.page-fit .shell {
-      height: calc(-webkit-fill-available - var(--fit-chrome));
-      max-height: calc(-webkit-fill-available - var(--fit-chrome));
-    }
   }
   body.page-fit .flash,
   body.page-fit .gw-bar,
@@ -5286,6 +5290,17 @@ html[data-theme="light"] .standings-row.is-me {
   body.page-fit .pitch-cap-hint {
     display: none !important;
   }
+  /* Pitch pages: no internal board scroll; Free Agents rail is desktop-only */
+  body.page-xi.page-fit .desk-board.desk-xi,
+  body.page-squad.page-fit .desk-board.desk-squad {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  body.page-squad.page-fit .transfer-rail,
+  body.page-squad.page-fit .desk-rail.transfer-rail,
+  body.page-squad.page-fit .squad-alerts {
+    display: none !important;
+  }
 }
 
 /* Installed PWA: paint past the bottom safe area so no white strip shows */
@@ -5329,15 +5344,9 @@ html.is-standalone body::after {
     --shadow: 0 6px 16px rgba(0, 0, 0, 0.07);
   }
 
-  body.page-fit {
-    --fit-chrome: 6.85rem;
-  }
   body.page-fit .shell {
-    --fit-chrome: 6.85rem;
     width: 100%;
     padding: 0.35rem 0.45rem calc(0.4rem + env(safe-area-inset-bottom, 0px));
-    height: calc(100dvh - var(--fit-chrome));
-    max-height: calc(100dvh - var(--fit-chrome));
   }
   body.page-fit .hero-block.compact .lede { display: none; }
   body.page-fit .hero-block.compact {
@@ -5702,14 +5711,11 @@ html.is-standalone body::after {
     padding-right: 0.22rem;
     align-content: space-evenly;
   }
-  /* Transfers phone: pitch fills space (height from body flex — see ≤899 block). */
+  /* Transfers phone: pitch fills leftover space via body → shell flex. */
   body.page-squad.page-fit .shell {
     padding-bottom: calc(0.2rem + env(safe-area-inset-bottom, 0px));
     gap: 0.16rem;
     overflow: hidden;
-    height: auto;
-    max-height: none;
-    --fit-chrome: 0;
   }
   body.page-squad.page-fit .gw-bar {
     margin-bottom: 0.12rem;
@@ -5833,14 +5839,10 @@ html.is-standalone body::after {
     font-size: 0.54rem;
   }
   /* XI phone: pitch fills space, bench flush to screen bottom.
-     Height comes from body flex (see “XI phone only: fill the viewport”);
-     do not reintroduce calc(100dvh - --fit-chrome) here. */
+     Height comes from body → shell flex (≤899); never calc(100dvh − rem). */
   body.page-xi.page-fit .shell {
     padding-bottom: 0;
     gap: 0.18rem;
-    height: auto;
-    max-height: none;
-    --fit-chrome: 0;
   }
   body.page-xi .desk-board.desk-xi {
     display: flex;
@@ -6328,53 +6330,6 @@ html.is-standalone body::after {
     height: clamp(0.85rem, 18cqh, 1.05rem);
     min-width: 0;
     font-size: clamp(0.42rem, 10cqh, 0.54rem);
-  }
-}
-
-/* XI + Transfers phone: fill the viewport with flex — no --fit-chrome guess.
-   .top / .nav keep natural height; .shell takes the remainder exactly.
-   Also harden: hide the Free Agents rail on all phone widths (≤899px).
-   (Base .desk-rail{display:none} already does this; desktop ≥900 shows the rail.
-    Explicit !important here guards against stale overrides / cache races.) */
-@media (max-width: 899px) {
-  body.page-xi.page-fit,
-  body.page-squad.page-fit {
-    display: flex;
-    flex-direction: column;
-  }
-  body.page-xi.page-fit > .top,
-  body.page-xi.page-fit > .nav,
-  body.page-squad.page-fit > .top,
-  body.page-squad.page-fit > .nav {
-    flex: 0 0 auto;
-    position: relative;
-    top: auto;
-  }
-  body.page-xi.page-fit > .shell,
-  body.page-squad.page-fit > .shell {
-    flex: 1 1 auto;
-    min-height: 0;
-    height: auto;
-    max-height: none;
-    --fit-chrome: 0;
-  }
-  @supports (height: -webkit-fill-available) {
-    body.page-xi.page-fit > .shell,
-    body.page-squad.page-fit > .shell {
-      height: auto;
-      max-height: none;
-    }
-  }
-  body.page-xi.page-fit .desk-board.desk-xi,
-  body.page-squad.page-fit .desk-board.desk-squad {
-    overflow: hidden;
-    overscroll-behavior: none;
-  }
-  /* Free Agents rail is desktop-only — never lengthen the mobile pitch */
-  body.page-squad.page-fit .transfer-rail,
-  body.page-squad.page-fit .desk-rail.transfer-rail,
-  body.page-squad.page-fit .squad-alerts {
-    display: none !important;
   }
 }
 

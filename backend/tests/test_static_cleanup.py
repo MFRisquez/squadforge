@@ -75,25 +75,26 @@ def test_mobile_pitch_scales_rows_inside_page_fit():
 
 
 def test_xi_phone_shell_uses_flex_not_fit_chrome():
-    """XI + Transfers mobile fill leftover viewport via flex; no --fit-chrome height."""
+    """page-fit phone: body flex column fills viewport; --fit-chrome must not exist."""
     css = (STATIC / "styles.css").read_text(encoding="utf-8")
-    start = css.find("XI + Transfers phone: fill the viewport with flex")
+    assert "--fit-chrome" not in css
+    assert "fit-chrome" not in css
+    assert "calc(100dvh - var(" not in css
+    start = css.find("Height model: body is a flex column")
     assert start >= 0
-    chunk = css[start : start + 2200]
-    assert "body.page-xi.page-fit" in chunk
-    assert "body.page-squad.page-fit" in chunk
+    chunk = css[start : start + 4500]
+    assert "@media (max-width: 899px)" in chunk
+    assert "body.page-fit" in chunk
     assert "display: flex" in chunk
     assert "flex-direction: column" in chunk
-    assert "body.page-xi.page-fit > .top" in chunk
-    assert "body.page-squad.page-fit > .nav" in chunk
+    assert "body.page-fit > .top" in chunk
+    assert "body.page-fit > .nav" in chunk
     assert "flex: 0 0 auto" in chunk
-    assert "body.page-xi.page-fit > .shell" in chunk
-    assert "body.page-squad.page-fit > .shell" in chunk
+    assert "body.page-fit > .shell" in chunk
     assert "flex: 1 1 auto" in chunk
     assert "min-height: 0" in chunk
     assert "height: auto" in chunk
     assert "max-height: none" in chunk
-    assert "calc(100dvh - var(--fit-chrome))" not in chunk
     # Free Agents rail must stay hidden on phone page-fit
     assert "body.page-squad.page-fit .transfer-rail" in chunk
     assert "display: none !important" in chunk
@@ -106,7 +107,7 @@ def test_transfer_rail_hidden_on_phone_page_fit():
     assert 'class="desk-rail transfer-rail"' in team or "desk-rail transfer-rail" in team
 
     css = (STATIC / "styles.css").read_text(encoding="utf-8")
-    # Hardened hide lives in the ≤899px flex block (not only ≤640)
+    # Hardened hide lives in the ≤899px page-fit flex block
     start = css.find("Free Agents rail is desktop-only")
     assert start >= 0
     chunk = css[start : start + 500]
@@ -123,10 +124,10 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS that still showed the rail
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v98"' in sw
+    assert 'CACHE = "futfantasy-v99"' in sw
     assert "/static/styles.css" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=98" in base
+    assert "sw.js?v=99" in base
 
 
 def test_owned_checkmark_is_side_absolute():
