@@ -52,8 +52,8 @@ def demo_metrics_for_positions() -> dict[str, dict[str, Any]]:
             "minutes": 90,
             "goals": 1,
             "assists": 0,
-            "shots": 7,
-            "shots_on_target": 3,
+            "xg": 0.3,
+            "threat": 35,
         },
     }
 
