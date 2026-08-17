@@ -58,6 +58,10 @@ def _season_stats_from_element(el: dict[str, Any]) -> dict[str, Any]:
         "bonus": float(el.get("bonus") or 0),
         "bps": float(el.get("bps") or 0),
         "ict_index": float(el.get("ict_index") or 0),
+        "creativity": float(el.get("creativity") or 0),
+        "threat": float(el.get("threat") or 0),
+        # Season CBI when FPL exposes it on bootstrap; else 0 until live/advanced ingest.
+        "cbi": float(el.get("clearances_blocks_interceptions") or 0),
         "expected_goals": float(el.get("expected_goals") or 0),
         "expected_assists": float(el.get("expected_assists") or 0),
     }

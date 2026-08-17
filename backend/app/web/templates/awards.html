@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Awards · {{ league.name }} · {{ app_name }}{% endblock %}
+{% block body_class %}page-fit page-awards{% endblock %}
+{% block content %}
+<div class="desk-board desk-page">
+  <div class="desk-main">
+    <p class="eyebrow">{{ league.name }}</p>
+    <h1>Season awards</h1>
+    <p class="lede">
+      From completed gameweeks
+      {% if awards.gameweeks_counted %}· {{ awards.gameweeks_counted }} GW{% if awards.gameweeks_counted != 1 %}s{% endif %} counted{% endif %}.
+      Ties favour the first manager by score.
+    </p>
+
+    <section class="awards-board" aria-label="League awards">
+      {% for cat in awards.categories %}
+      <article class="award-card {% if cat.empty %}is-empty{% elif me and cat.manager_id == me.id %}is-me{% endif %}">
+        <p class="award-kicker">{{ cat.title }}</p>
+        {% if cat.empty %}
+          <h2 class="award-winner muted">Not enough data yet</h2>
+          <p class="award-value muted">—</p>
+        {% else %}
+          <h2 class="award-winner">{{ cat.team_name }}</h2>
+          <p class="award-value">{{ cat.value_label }}</p>
+          {% if cat.detail %}
+          <p class="award-detail muted">{{ cat.detail }}</p>
+          {% endif %}
+        {% endif %}
+        <p class="award-blurb muted">{{ cat.blurb }}</p>
+      </article>
+      {% endfor %}
+    </section>
+
+    <div class="row">
+      <a class="btn ghost" href="/league/{{ league.id }}">Back to league</a>
+      <a class="btn" href="/standings/{{ league.id }}">Standings</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

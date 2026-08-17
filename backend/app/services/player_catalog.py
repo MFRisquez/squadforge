@@ -14,6 +14,13 @@ _CACHE: tuple[float, str, list[dict[str, Any]]] | None = None
 _CACHE_TTL = 60.0
 
 
+def _safe_float(stats: dict[str, Any], key: str, default: float = 0.0) -> float:
+    try:
+        return float(stats.get(key) or default)
+    except (TypeError, ValueError):
+        return default
+
+
 def _season_kpis(player: Player) -> dict[str, Any]:
     try:
         stats = json.loads(getattr(player, "season_stats_json", None) or "{}")
@@ -21,15 +28,19 @@ def _season_kpis(player: Player) -> dict[str, Any]:
         stats = {}
     if not isinstance(stats, dict):
         stats = {}
+    form = _safe_float(stats, "form")
     try:
-        form = float(stats.get("form") or 0)
-    except (TypeError, ValueError):
-        form = 0.0
-    try:
-        total_points = int(float(stats.get("total_points") or 0))
+        total_points = int(_safe_float(stats, "total_points"))
     except (TypeError, ValueError):
         total_points = 0
-    return {"form": form, "total_points": total_points}
+    return {
+        "form": form,
+        "total_points": total_points,
+        # ICT / defensive axes for transfer In-picker mini-radar
+        "threat": _safe_float(stats, "threat"),
+        "creativity": _safe_float(stats, "creativity"),
+        "cbi": _safe_float(stats, "cbi"),
+    }
 
 
 def catalog_version(db: Session) -> str:

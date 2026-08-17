@@ -1,6 +1,6 @@
 (async () => {
-  const CATALOG_KEY = "ff_players_catalog_v1";
-  const CATALOG_META = "ff_players_catalog_meta_v1";
+  const CATALOG_KEY = "ff_players_catalog_v2";
+  const CATALOG_META = "ff_players_catalog_meta_v2";
 
   function paintRailSkeleton(count = 6) {
     const list = document.getElementById("transferRailList");
@@ -89,6 +89,56 @@
     if (hint) hint.textContent = "Could not load players — refresh and try again.";
     console.error(err);
     PLAYERS = [];
+  }
+
+  /** Max threat / creativity / cbi per position — built once, reused while filtering. */
+  const RADAR_AXES = ["threat", "creativity", "cbi"];
+  const RADAR_MAX = Object.create(null);
+  function rebuildRadarMaxima(list) {
+    for (const pos of ["GK", "DEF", "MID", "ATT"]) {
+      RADAR_MAX[pos] = { threat: 1, creativity: 1, cbi: 1 };
+    }
+    (list || []).forEach((p) => {
+      const pos = p && p.position;
+      if (!pos || !RADAR_MAX[pos]) return;
+      for (const axis of RADAR_AXES) {
+        const v = Number(p[axis]) || 0;
+        if (v > RADAR_MAX[pos][axis]) RADAR_MAX[pos][axis] = v;
+      }
+    });
+  }
+  rebuildRadarMaxima(PLAYERS);
+
+  function miniRadarSvg(p) {
+    const pos = (p && p.position) || "MID";
+    const maxes = RADAR_MAX[pos] || { threat: 1, creativity: 1, cbi: 1 };
+    const vals = RADAR_AXES.map((axis) => {
+      const m = maxes[axis] || 1;
+      return Math.max(0, Math.min(1, (Number(p[axis]) || 0) / m));
+    });
+    const cx = 18;
+    const cy = 18;
+    const r = 14;
+    const pts = vals.map((v, i) => {
+      const ang = -Math.PI / 2 + (i * 2 * Math.PI) / 3;
+      return [cx + Math.cos(ang) * r * v, cy + Math.sin(ang) * r * v];
+    });
+    const poly = pts.map((xy) => xy.join(",")).join(" ");
+    const ring = RADAR_AXES.map((_, i) => {
+      const ang = -Math.PI / 2 + (i * 2 * Math.PI) / 3;
+      return [cx + Math.cos(ang) * r, cy + Math.sin(ang) * r].join(",");
+    }).join(" ");
+    const spokes = RADAR_AXES.map((_, i) => {
+      const ang = -Math.PI / 2 + (i * 2 * Math.PI) / 3;
+      const x = cx + Math.cos(ang) * r;
+      const y = cy + Math.sin(ang) * r;
+      return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" />`;
+    }).join("");
+    return `<svg class="mini-radar" viewBox="0 0 36 36" width="36" height="36" aria-hidden="true" focusable="false">
+      <polygon class="mini-radar-ring" points="${ring}" />
+      ${spokes}
+      <polygon class="mini-radar-fill" points="${poly}" />
+    </svg>`;
   }
 
   const INITIAL = JSON.parse(document.getElementById("initialSquad").textContent);
@@ -1200,6 +1250,7 @@
             <span class="pick-name">${p.name}</span>
             <span class="pick-sub">${p.team}${flag ? ` · ${flag}` : ""}${limitNote}</span>
           </span>
+          <span class="pick-radar" title="Threat · Creativity · CBI vs ${p.position} max">${miniRadarSvg(p)}</span>
           <span class="pick-price">£${p.price.toFixed(1)}</span>
         </button>
         <button type="button" class="pick-info-btn" aria-label="Player info">ⓘ</button>

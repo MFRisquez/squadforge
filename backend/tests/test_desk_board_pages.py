@@ -13,6 +13,7 @@ PAGES = (
     "league.html",
     "leagues.html",
     "team_edit.html",
+    "awards.html",
 )
 
 

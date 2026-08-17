@@ -589,6 +589,36 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
     )
 
 
+@router.get("/league/{league_id}/awards", response_class=HTMLResponse)
+def league_awards_page(league_id: int, request: Request, db: Session = Depends(get_db)):
+    from app.services import awards as awards_svc
+
+    manager = current_manager(request, db)
+    if not manager:
+        return RedirectResponse("/login", status_code=303)
+    membership = (
+        db.query(Membership)
+        .filter(Membership.league_id == league_id, Membership.manager_id == manager.id)
+        .one_or_none()
+    )
+    if not membership:
+        return RedirectResponse("/", status_code=303)
+    league = membership.league
+    payload = awards_svc.league_awards(db, league.id)
+    return templates.TemplateResponse(
+        "awards.html",
+        _ctx(
+            request,
+            db,
+            league=league,
+            me=manager,
+            awards=payload,
+            notice=request.query_params.get("notice"),
+            error=request.query_params.get("error"),
+        ),
+    )
+
+
 @router.post("/league/{league_id}/type")
 def league_set_type(
     league_id: int,
@@ -734,10 +764,12 @@ def _squad_board_response(
     from app.models import TransferLog
     from app.services import chips as chips_svc
     from app.services import td as td_svc
+    from app.services.captain_success import captain_success_for_manager
     from app.services.fpl_sync import availability_flag
 
     view = _resolve_gw(request, db)
     gw = view["gw"]
+    captain_success = captain_success_for_manager(db, manager.id)
     ft_state = squad_svc.bank_free_transfers(db, manager.id, view["current_gw"].number)
     chips_svc.restore_free_hits_if_needed(db, manager_id=manager.id, current_gw=view["current_gw"])
     owned = squad_svc.owned_players(db, manager.id)
@@ -829,6 +861,7 @@ def _squad_board_response(
             hits_gw=hits_gw,
             hit_cost=squad_svc.HIT_COST,
             players_json=[],  # loaded client-side from /api/players/catalog
+            captain_success=captain_success,
             squad_alerts=squad_alerts,
             initial_squad={
                 "selected": [p.id for p in owned],
