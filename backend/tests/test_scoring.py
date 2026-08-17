@@ -65,6 +65,28 @@ def test_mid_thresholds_clinical_and_cap():
     assert no_clinical.breakdown.get("clinical_bonus", 0) == 0.0
 
 
+def test_att_threat_clinical_and_cap():
+    metrics = {
+        "minutes": 90,
+        "goals": 1,
+        "xg": 0.4,  # goals - xg = 0.6 ≥ 0.5 → clinical
+        "threat": 33,
+    }
+    result = score_player("ATT", metrics)
+    # Base: appearance 2 + goal 4 = 6; extras: threat 2 + clinical 1 = 3 (at cap)
+    assert result.breakdown.get("threat_threshold", 0) == 2.0
+    assert result.breakdown.get("clinical_bonus", 0) == 1.0
+    extras = (
+        result.breakdown.get("threat_threshold", 0)
+        + result.breakdown.get("clinical_bonus", 0)
+    )
+    assert extras <= 3.0 + 1e-6
+    assert abs(result.total - (6 + extras)) < 1e-6
+
+    no_clinical = score_player("ATT", {**metrics, "xg": 0.6})
+    assert no_clinical.breakdown.get("clinical_bonus", 0) == 0.0
+
+
 def test_threshold_helper():
     assert threshold_hit(5, 5, 2) == 2
     assert threshold_hit(4, 5, 2) == 0
@@ -89,9 +111,11 @@ def test_gk_saves_progressive_and_5plus_bonus():
 
 def test_cameo_with_goal_gets_full_appearance():
     blank_sub = score_player("ATT", {"minutes": 20, "goals": 0, "assists": 0})
-    hero_sub = score_player("ATT", {"minutes": 20, "goals": 1, "assists": 0})
+    # xg=1 so clinical_bonus does not fire; this test isolates appearance only
+    hero_sub = score_player("ATT", {"minutes": 20, "goals": 1, "assists": 0, "xg": 1.0})
     assert blank_sub.breakdown["appearance"] == 1
     assert hero_sub.breakdown["appearance"] == 2
+    assert hero_sub.breakdown.get("clinical_bonus", 0) == 0.0
     # Goal points are separate; cameo only upgrades appearance 1 → 2
     assert hero_sub.total == blank_sub.total - 1 + 2 + 4
 
@@ -156,7 +180,7 @@ def test_scouting_cs_only_for_back_line():
 def test_score_player_includes_scouting_when_ownership_passed():
     result = score_player(
         "ATT",
-        {"minutes": 90, "goals": 1, "shots": 2, "shots_on_target": 1},
+        {"minutes": 90, "goals": 1, "threat": 10},
         owners_count=1,
         league_size=7,
     )
