@@ -1398,6 +1398,183 @@ body.chip-bb-on .xi-bench-panel .desk-rail-head h2 {
 .chip-strip-live .xi-score-pill {
   min-width: 8.5rem;
 }
+
+/* Live GW Hub — locked XI */
+.live-hub {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.75rem 1rem;
+  align-items: center;
+  margin: 0 0 0.65rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 1rem;
+  background: linear-gradient(120deg, #0a0a0a 0%, #1a1a1a 55%, #152000 100%);
+  color: #fff;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+}
+.live-hub-score {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  align-items: baseline;
+  gap: 0.28rem;
+}
+.live-hub-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.65);
+}
+.live-hub-pts {
+  font-size: clamp(1.7rem, 5vw, 2.15rem);
+  font-weight: 900;
+  line-height: 1;
+  color: #C0FF00;
+}
+.live-hub-unit {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.7);
+}
+.live-hub-meta {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+.live-hub-line {
+  margin: 0;
+  display: flex;
+  gap: 0.45rem;
+  align-items: baseline;
+  font-size: 0.78rem;
+  min-width: 0;
+}
+.live-hub-line span {
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 700;
+  min-width: 3.4rem;
+}
+.live-hub-line strong {
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.live-hub-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+.live-hub-btn {
+  min-width: 0;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.78rem;
+}
+.live-hub-btn.ghost {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.28);
+}
+@media (max-width: 640px) {
+  .live-hub {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+    padding: 0.65rem 0.75rem;
+  }
+  .live-hub-actions { justify-content: flex-start; }
+}
+
+/* Opponent compare */
+.opp-compare-bar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 0.55rem;
+  align-items: center;
+  margin: 0 0 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.9rem;
+  background: #111;
+  color: #fff;
+}
+.opp-compare-side {
+  display: grid;
+  gap: 0.12rem;
+}
+.opp-compare-side.is-you { text-align: left; }
+.opp-compare-side.is-them { text-align: right; }
+.opp-compare-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.65);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.opp-compare-pts {
+  font-size: 1.45rem;
+  font-weight: 900;
+  color: #C0FF00;
+  line-height: 1;
+}
+.opp-compare-vs {
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+.opp-compare-rail {
+  display: none;
+}
+@media (min-width: 900px) {
+  .opp-compare-rail {
+    display: block;
+  }
+  .desk-opponent .opp-compare-rail {
+    padding: 0.65rem 0.7rem;
+  }
+}
+.opp-compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+.opp-compare-col-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.opp-compare-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.22rem;
+}
+.opp-compare-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2rem;
+  gap: 0.25rem;
+  align-items: baseline;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.opp-compare-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.opp-compare-row-pts {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+}
+
 .chip-card-fpl .chip-name {
   grid-column: 2;
   grid-row: 1;
