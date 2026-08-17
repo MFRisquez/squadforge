@@ -189,6 +189,13 @@ def _ctx(request: Request, db: Session, **extra):
         pass
     leagues = league_svc.manager_leagues(db, manager.id) if manager else []
     has_squad = bool(manager and manager_has_complete_squad(db, manager.id))
+    demo_data_active = False
+    try:
+        from app.services import live_scoring as live_svc
+
+        demo_data_active = live_svc.is_demo_scoring_active(db, gw)
+    except Exception:
+        demo_data_active = False
     data = {
         "request": request,
         "app_name": settings.app_name,
@@ -197,6 +204,8 @@ def _ctx(request: Request, db: Session, **extra):
         "budget": settings.budget,
         "nav_leagues": leagues,
         "has_complete_squad": has_squad,
+        "demo_data_active": demo_data_active,
+        "debug": settings.debug,
         "error": None,
         "notice": None,
     }
@@ -1326,7 +1335,8 @@ async def lineup_save(request: Request, db: Session = Depends(get_db)):
         from app.services.live_scoring import run_gameweek_scoring
 
         try:
-            run_gameweek_scoring(db, gw, mode="auto")
+            # Live ingest only — never invent demo points from a captain save.
+            run_gameweek_scoring(db, prefer_live=True, force_demo=False)
         except Exception:
             pass
         if wants_json:
@@ -1540,17 +1550,23 @@ def score_run(
     db: Session = Depends(get_db),
     mode: str = Form("auto"),
 ):
-    """Ingest FPL live (or demo if empty) and recompute manager/H2H points."""
+    """Ingest FPL live and recompute manager/H2H points. Demo only when mode=demo + debug."""
     from app.services import live_scoring as live_svc
 
     manager = current_manager(request, db)
     if not manager:
         return RedirectResponse("/login", status_code=303)
+    want_demo = (mode or "").strip().lower() == "demo"
+    if want_demo and not settings.debug:
+        return RedirectResponse(
+            f"/lineup?error={quote('Demo scoring is disabled outside debug.')}",
+            status_code=303,
+        )
     try:
         summary = live_svc.run_gameweek_scoring(
             db,
-            prefer_live=mode != "demo",
-            force_demo=mode == "demo",
+            prefer_live=not want_demo,
+            force_demo=want_demo,
         )
     except Exception as exc:
         return RedirectResponse(f"/lineup?error={exc}", status_code=303)
@@ -1559,40 +1575,51 @@ def score_run(
         f"GW{summary['gameweek']} scored · {summary['managers_scored']} managers · "
         f"{summary['players_scored']} players · {src}"
     )
-    from urllib.parse import quote
-
+    if want_demo:
+        notice = "⚠️ DEMO · " + notice
+    elif summary.get("ingest", {}).get("demo_skipped"):
+        notice = (
+            f"GW{summary['gameweek']} · no live FPL data yet — scores left at real zeros "
+            f"(demo fallback is off)."
+        )
     return RedirectResponse(f"/lineup?gw={summary['gameweek']}&notice={quote(notice)}", status_code=303)
 
 
 @router.post("/demo/live-start")
 def demo_live_start(request: Request, db: Session = Depends(get_db)):
     """Phone-test helper: lock current GW as live with fixtures + demo points."""
-    from urllib.parse import quote
-
     from app.services import demo_live as demo_svc
 
     manager = current_manager(request, db)
     if not manager:
         return RedirectResponse("/login", status_code=303)
+    if not settings.debug:
+        return RedirectResponse(
+            f"/?error={quote('Live demo is disabled outside debug.')}",
+            status_code=303,
+        )
     try:
         summary = demo_svc.start_live_demo(db, manager)
     except Exception as exc:
         return RedirectResponse(f"/?error={quote(str(exc))}", status_code=303)
     gw = summary.get("gameweek")
-    notice = f"Live GW{gw} demo ready — open XI / Fixtures on your phone."
+    notice = f"⚠️ DEMO · Live GW{gw} ready — not real results."
     return RedirectResponse(f"/lineup?gw={gw}&notice={quote(notice)}", status_code=303)
 
 
 @router.post("/demo/live-stop")
 def demo_live_stop(request: Request, db: Session = Depends(get_db)):
     """Restore deadline + fixtures after a live GW demo session."""
-    from urllib.parse import quote
-
     from app.services import demo_live as demo_svc
 
     manager = current_manager(request, db)
     if not manager:
         return RedirectResponse("/login", status_code=303)
+    if not settings.debug:
+        return RedirectResponse(
+            f"/?error={quote('Live demo is disabled outside debug.')}",
+            status_code=303,
+        )
     try:
         summary = demo_svc.stop_live_demo(db)
     except Exception as exc:

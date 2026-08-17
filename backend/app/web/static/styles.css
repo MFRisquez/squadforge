@@ -348,6 +348,22 @@ select {
 }
 .flash.error { background: #ffe8e6; color: var(--warn); }
 .flash.notice { background: #F4FFCC; color: #404040; }
+.demo-data-banner {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.55rem 0.85rem;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #1a1200;
+  background: #ffcc33;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+html[data-theme="dark"] .demo-data-banner {
+  color: #1a1200;
+  background: #ffcc33;
+}
 
 .pick-header {
   display: flex;
@@ -5377,7 +5393,8 @@ button.h2h-card-btn:focus-visible {
     flex-direction: column;
   }
   body.page-fit > .top,
-  body.page-fit > .nav {
+  body.page-fit > .nav,
+  body.page-fit > .demo-data-banner {
     flex: 0 0 auto;
     position: relative;
     top: auto;
