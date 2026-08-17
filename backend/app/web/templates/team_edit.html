@@ -1,35 +1,40 @@
 {% extends "base.html" %}
 {% block title %}Select squad · {{ app_name }}{% endblock %}
+{% block body_class %}page-fit page-team-edit{% endblock %}
 {% block content %}
-<div class="pick-header">
-  <div>
-    <p class="eyebrow">Step 1 · Your 15</p>
-    <h1>Edit squad</h1>
-  </div>
-  <div class="budget-card">
-    <span class="budget-label">Remaining</span>
-    <strong id="budgetValue">£{{ '%.1f'|format(budget) }}m</strong>
-    <span class="budget-sub">{{ player_count }} players in DB</span>
+<div class="desk-board desk-page">
+  <div class="desk-main">
+    <div class="pick-header">
+      <div>
+        <p class="eyebrow">Step 1 · Your 15</p>
+        <h1>Edit squad</h1>
+      </div>
+      <div class="budget-card">
+        <span class="budget-label">Remaining</span>
+        <strong id="budgetValue">£{{ '%.1f'|format(budget) }}m</strong>
+        <span class="budget-sub">{{ player_count }} players in DB</span>
+      </div>
+    </div>
+    <p class="lede tight">
+      Tap a <strong>blue rectangle</strong> to add a player. Search + filters open softly from the bottom.
+      Fill <strong>2 GK · 5 DEF · 5 MID · 3 ATT</strong>.
+    </p>
+    <p class="legend">
+      <span class="lg-ok">Available</span>
+      <span class="lg-doubt">Doubtful</span>
+      <span class="lg-out">Won’t play</span>
+    </p>
+
+    <form method="post" action="/team/save" id="squadForm">
+      <div id="hiddenFields"></div>
+      <section class="slot-board" id="slotBoard"></section>
+      <div class="pick-actions">
+        <button class="btn" type="submit">Save 15 &amp; choose lineup</button>
+        <a class="btn ghost" href="/team">Cancel</a>
+      </div>
+    </form>
   </div>
 </div>
-<p class="lede tight">
-  Tap a <strong>blue rectangle</strong> to add a player. Search + filters open softly from the bottom.
-  Fill <strong>2 GK · 5 DEF · 5 MID · 3 ATT</strong>.
-</p>
-<p class="legend">
-  <span class="lg-ok">Available</span>
-  <span class="lg-doubt">Doubtful</span>
-  <span class="lg-out">Won’t play</span>
-</p>
-
-<form method="post" action="/team/save" id="squadForm">
-  <div id="hiddenFields"></div>
-  <section class="slot-board" id="slotBoard"></section>
-  <div class="pick-actions">
-    <button class="btn" type="submit">Save 15 &amp; choose lineup</button>
-    <a class="btn ghost" href="/team">Cancel</a>
-  </div>
-</form>
 
 <div class="drawer" id="picker" hidden>
   <div class="drawer-sheet">

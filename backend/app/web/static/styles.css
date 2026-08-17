@@ -3429,6 +3429,16 @@ html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
 .desk-board {
   display: block;
 }
+/* Content pages (standings, home, leagues…): same page-fit shell, no pitch/rail grid */
+.desk-board.desk-page {
+  display: block;
+}
+.desk-board.desk-page > .desk-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+}
 .desk-rail { display: none; }
 .desk-rail-head { margin: 0 0 0.55rem; }
 .desk-rail-head h2 {
@@ -3831,6 +3841,24 @@ html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
     grid-template-columns: minmax(0, 1.7fr) minmax(15.5rem, 1fr);
     gap: 0.3rem;
     align-items: start;
+  }
+  /* Content pages stay single-column (override the pitch/rail grid) */
+  .desk-board.desk-page {
+    display: block;
+    width: 100%;
+  }
+  body.page-fit .desk-board.desk-page {
+    display: flex;
+    flex-direction: column;
+  }
+  .desk-board.desk-page > .desk-main {
+    width: 100%;
+    max-width: min(56rem, 100%);
+    margin-inline: auto;
+  }
+  body.page-standings .desk-board.desk-page > .desk-main,
+  body.page-fixtures .desk-board.desk-page > .desk-main {
+    max-width: none;
   }
   .desk-squad > .desk-main-top,
   .desk-xi > .desk-main-top {
@@ -5546,6 +5574,23 @@ body.page-fit .desk-board {
   overflow: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+}
+body.page-fit .desk-board.desk-page {
+  display: flex;
+  flex-direction: column;
+}
+body.page-fit .desk-board.desk-page > .desk-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+body.page-fixtures.page-fit .desk-board.desk-page > .desk-main {
+  display: flex;
+  flex-direction: column;
+}
+body.page-fixtures.page-fit .desk-board.desk-page .fixtures-board {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 body.page-fit .desk-main,
 body.page-fit .desk-main > form,
