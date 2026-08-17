@@ -2,7 +2,7 @@
 {% block title %}{{ league.name }} · {{ app_name }}{% endblock %}
 {% block body_class %}page-fit page-league{% endblock %}
 {% block content %}
-{% from "macros_standings.html" import trend_spark, rank_move %}
+{% from "macros_standings.html" import league_table %}
 
 <div class="desk-board desk-page">
   <div class="desk-main">
@@ -12,72 +12,7 @@
       <p class="lede tight">Invite <strong>{{ league.invite_code }}</strong> · {{ member_count }} teams</p>
     </header>
 
-    {% if mode == 'classic' %}
-    <section class="standings-board league-table" aria-label="League table">
-      <div class="standings-cols" aria-hidden="true">
-        <span>Pos</span>
-        <span>Team</span>
-        <span>Form</span>
-        <span>GW{% if gw %}{{ gw.number }}{% endif %}</span>
-        <span>Total</span>
-      </div>
-      <ul class="standings-list">
-        {% for row in rows %}
-        <li class="standings-row {% if me and row.manager.id == me.id %}is-me{% endif %} {% if row.rank <= 3 %}is-top-{{ row.rank }}{% endif %}">
-          <div class="standings-pos">
-            <span class="standings-rank">{{ row.rank }}</span>
-            {{ rank_move(row) }}
-          </div>
-          <a class="standings-team" href="/league/{{ league.id }}/opponent/{{ row.manager.id }}{% if gw %}?gw={{ gw.number }}{% endif %}">
-            <strong>{{ row.team_name }}</strong>
-          </a>
-          <span class="standings-trend" title="Last {{ row.trend|length }} GW points">{{ trend_spark(row) }}</span>
-          <span class="standings-gw">{{ '%.0f'|format(row.gw_points) }}</span>
-          <span class="standings-tot">{{ '%.0f'|format(row.total_points) }}</span>
-        </li>
-        {% else %}
-        <li class="standings-row muted">No teams yet.</li>
-        {% endfor %}
-      </ul>
-    </section>
-    {% else %}
-    <section class="panel table-wrap standings-panel league-table" aria-label="H2H table">
-      <table class="standings standings-h2h">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Team</th>
-            <th>Form</th>
-            <th>W</th>
-            <th>D</th>
-            <th>L</th>
-            <th>Pts</th>
-            <th>GW</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in rows %}
-          <tr class="{% if me and row.manager.id == me.id %}is-me{% endif %} {% if row.rank <= 3 %}rank-{{ row.rank }}{% endif %}">
-            <td class="rank-cell">{{ row.rank }}</td>
-            <td>
-              <a class="standings-team-link" href="/league/{{ league.id }}/opponent/{{ row.manager.id }}{% if gw %}?gw={{ gw.number }}{% endif %}">
-                {{ row.team_name }}
-              </a>
-            </td>
-            <td class="standings-trend-cell">{{ trend_spark(row) }}</td>
-            <td>{{ row.wins }}</td>
-            <td>{{ row.draws }}</td>
-            <td>{{ row.losses }}</td>
-            <td><strong>{{ row.h2h_points }}</strong></td>
-            <td>{{ '%.0f'|format(row.gw_points) }}</td>
-          </tr>
-          {% else %}
-          <tr><td colspan="8" class="muted">No teams yet.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </section>
-    {% endif %}
+    {{ league_table(rows, mode, league, me, gw, label='League table') }}
 
     <div class="row league-actions">
       <a class="btn" href="/standings/{{ league.id }}">

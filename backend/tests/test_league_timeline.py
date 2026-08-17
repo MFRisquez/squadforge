@@ -129,12 +129,45 @@ def test_league_page_shows_table_and_timeline():
     client.post("/login", data={"login": "PageA", "password": "secret12"}, follow_redirects=False)
     html = client.get(f"/league/{lid}").text
     assert "standings-board" in html or "League table" in html
+    assert "standings-list" in html
     assert "Position timeline" in html
     assert "rank-timeline-chart" in html
     assert "rank-dot" in html
     assert "<title>" in html
     assert "Page Alpha" in html
     assert "Page Beta" in html
+
+
+def test_unified_league_table_macro_for_h2h():
+    """H2H uses the same standings-board list with W/D/L/Pts columns (no separate table)."""
+    from pathlib import Path
+
+    macro = (
+        Path(__file__).resolve().parents[1]
+        / "app"
+        / "web"
+        / "templates"
+        / "macros_standings.html"
+    ).read_text()
+    assert "macro league_table" in macro
+    assert "standings-row-h2h" in macro
+    assert "row.wins" in macro
+    assert "row.h2h_points" in macro
+
+    league_tpl = (
+        Path(__file__).resolve().parents[1] / "app" / "web" / "templates" / "league.html"
+    ).read_text()
+    standings_tpl = (
+        Path(__file__).resolve().parents[1]
+        / "app"
+        / "web"
+        / "templates"
+        / "standings.html"
+    ).read_text()
+    assert "league_table(" in league_tpl
+    assert "league_table(" in standings_tpl
+    assert "standings-h2h" not in league_tpl
+    assert "<table class=\"standings standings-h2h\">" not in standings_tpl
 
 
 def test_h2h_rank_history_and_league_page_timeline():
