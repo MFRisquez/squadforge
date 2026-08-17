@@ -532,8 +532,13 @@ def leagues_hub(request: Request, db: Session = Depends(get_db)):
                 "league": league,
                 "my_rank": rank,
                 "member_count": size,
+                "is_owner": league.owner_id == manager.id,
             }
         )
+    # Leagues you admin first, then name
+    league_cards.sort(
+        key=lambda c: (0 if c["is_owner"] else 1, (c["league"].name or "").lower())
+    )
     return templates.TemplateResponse(
         "leagues.html",
         _ctx(
