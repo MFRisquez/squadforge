@@ -351,10 +351,17 @@ def register_submit(
     request: Request,
     display_name: str = Form(...),
     password: str = Form(...),
+    password_confirm: str = Form(...),
     email: str = Form(...),
-    team_name: str = Form(...),
+    team_name: str = Form(""),
     db: Session = Depends(get_db),
 ):
+    if password != password_confirm:
+        return templates.TemplateResponse(
+            "register.html",
+            _ctx(request, db, error="Passwords don't match"),
+            status_code=400,
+        )
     try:
         manager = league_svc.register_manager(
             db,

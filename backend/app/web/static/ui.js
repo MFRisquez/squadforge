@@ -286,4 +286,19 @@
 
   tickCountdowns();
   window.setInterval(tickCountdowns, 1000);
+
+  // Show / hide password fields on auth screens
+  document.querySelectorAll(".auth-password-toggle").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const wrap = btn.closest(".auth-password-wrap");
+      const input = wrap && wrap.querySelector("input");
+      if (!input) return;
+      const show = input.type === "password";
+      input.type = show ? "text" : "password";
+      btn.setAttribute("aria-pressed", show ? "true" : "false");
+      btn.setAttribute("aria-label", show ? "Hide password" : "Show password");
+      btn.setAttribute("title", show ? "Hide password" : "Show password");
+      btn.textContent = show ? "🙈" : "👁";
+    });
+  });
 })();

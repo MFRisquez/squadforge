@@ -79,6 +79,7 @@ def test_home_login_squad_lineup_transfer():
         data={
             "display_name": "Manuel",
             "password": "secret12",
+            "password_confirm": "secret12",
             "email": "manuel@example.com",
             "team_name": "Forge FC",
         },

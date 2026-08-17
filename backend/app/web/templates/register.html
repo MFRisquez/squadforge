@@ -16,13 +16,22 @@
       <input name="display_name" required maxlength="80" placeholder="" autocomplete="username" />
     </label>
     <label class="auth-field">Password
-      <input name="password" type="password" required minlength="6" maxlength="128" autocomplete="new-password" />
+      <span class="auth-password-wrap">
+        <input name="password" type="password" required minlength="6" maxlength="128" autocomplete="new-password" />
+        <button type="button" class="icon-btn auth-password-toggle" aria-label="Show password" aria-pressed="false" title="Show password">👁</button>
+      </span>
+    </label>
+    <label class="auth-field">Confirm password
+      <span class="auth-password-wrap">
+        <input name="password_confirm" type="password" required minlength="6" maxlength="128" autocomplete="new-password" />
+        <button type="button" class="icon-btn auth-password-toggle" aria-label="Show password" aria-pressed="false" title="Show password">👁</button>
+      </span>
     </label>
     <label class="auth-field">Email
       <input name="email" type="email" required maxlength="120" placeholder="you@email.com" autocomplete="email" />
     </label>
     <label class="auth-field">Team’s name
-      <input name="team_name" required maxlength="80" placeholder="" autocomplete="organization" />
+      <input name="team_name" maxlength="80" placeholder="Optional — you can set this later" autocomplete="organization" />
     </label>
     <button class="btn auth-primary" type="submit">Create account</button>
     <a class="auth-text-link auth-secondary-link" href="/">Back to sign in</a>

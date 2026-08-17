@@ -34,18 +34,18 @@ def register_manager(
     mail = _norm_email(email)
     team = (team_name or "").strip()
     if len(name) < 2:
-        raise LeagueError("User name too short")
+        raise LeagueError("Pick a user name with at least 2 characters.")
     if len(password) < 6:
-        raise LeagueError("Password must be at least 6 characters")
+        raise LeagueError("Password needs at least 6 characters.")
     if not EMAIL_RE.match(mail):
-        raise LeagueError("Enter a valid email")
+        raise LeagueError("That email doesn't look right — try again.")
     if len(team) < 2:
-        raise LeagueError("Team name is required")
+        team = f"{name}'s XI"
 
     if db.query(Manager).filter(Manager.display_name == name).one_or_none():
-        raise LeagueError("That user name is already taken")
+        raise LeagueError("That user name is taken — try another.")
     if db.query(Manager).filter(Manager.email == mail).one_or_none():
-        raise LeagueError("That email is already registered")
+        raise LeagueError("That email already has an account — sign in instead.")
 
     manager = Manager(
         display_name=name,
@@ -65,17 +65,17 @@ def register_manager(
 def authenticate_manager(db: Session, *, login: str, password: str) -> Manager:
     key = (login or "").strip()
     if not key or not password:
-        raise LeagueError("Enter your user name (or email) and password")
+        raise LeagueError("Enter your user name or email, and your password.")
 
     manager = db.query(Manager).filter(Manager.display_name == key).one_or_none()
     if not manager and "@" in key:
         manager = db.query(Manager).filter(Manager.email == key.lower()).one_or_none()
     if not manager:
-        raise LeagueError("Unknown account — register first")
+        raise LeagueError("No account with that name or email — create one to play.")
 
     if manager.password_hash:
         if not pw.verify_password(password, manager.password_hash):
-            raise LeagueError("Wrong password")
+            raise LeagueError("That password isn't right — try again.")
         return manager
 
     # Legacy PIN accounts: accept PIN once, then upgrade to hashed password
@@ -86,14 +86,14 @@ def authenticate_manager(db: Session, *, login: str, password: str) -> Manager:
         db.refresh(manager)
         return manager
 
-    raise LeagueError("Wrong password")
+    raise LeagueError("That password isn't right — try again.")
 
 
 def request_password_reset(db: Session, email: str) -> tuple[Manager | None, str | None]:
     """Create a reset token when the email exists. Unknown emails return (None, None)."""
     mail = _norm_email(email)
     if not EMAIL_RE.match(mail):
-        raise LeagueError("Enter a valid email")
+        raise LeagueError("That email doesn't look right — try again.")
     manager = db.query(Manager).filter(Manager.email == mail).one_or_none()
     if not manager:
         return None, None
@@ -111,7 +111,7 @@ def request_password_reset(db: Session, email: str) -> tuple[Manager | None, str
 
 def reset_password_with_token(db: Session, *, token: str, new_password: str) -> Manager:
     if len(new_password) < 6:
-        raise LeagueError("Password must be at least 6 characters")
+        raise LeagueError("Password needs at least 6 characters.")
     token_hash = pw.hash_token(token)
     row = (
         db.query(PasswordResetToken)
@@ -119,15 +119,15 @@ def reset_password_with_token(db: Session, *, token: str, new_password: str) -> 
         .one_or_none()
     )
     if not row:
-        raise LeagueError("Reset link is invalid or already used")
+        raise LeagueError("That reset link isn't valid anymore — request a new one.")
     expires = row.expires_at
     if expires.tzinfo is None:
         expires = expires.replace(tzinfo=timezone.utc)
     if datetime.now(timezone.utc) > expires:
-        raise LeagueError("Reset link has expired — request a new one")
+        raise LeagueError("That reset link expired — request a fresh one.")
     manager = db.query(Manager).filter(Manager.id == row.manager_id).one_or_none()
     if not manager:
-        raise LeagueError("Account not found")
+        raise LeagueError("We couldn't find that account.")
     manager.password_hash = pw.hash_password(new_password)
     manager.pin = ""
     row.used_at = datetime.utcnow()
@@ -161,7 +161,7 @@ def create_league(
 ) -> League:
     lt = (league_type or "classic").strip().lower()
     if lt not in {"classic", "h2h"}:
-        raise LeagueError("League type must be classic or h2h")
+        raise LeagueError("Choose Classic or Head-to-Head.")
     league = League(
         name=name.strip() or "Private League",
         invite_code=invite_code(),
@@ -179,10 +179,10 @@ def create_league(
 def set_league_type(db: Session, league: League, league_type: str) -> League:
     lt = league_type.strip().lower()
     if lt not in {"classic", "h2h"}:
-        raise LeagueError("League type must be classic or h2h")
+        raise LeagueError("Choose Classic or Head-to-Head.")
     members = db.query(Membership).filter(Membership.league_id == league.id).count()
     if lt == "h2h" and members % 2 != 0:
-        raise LeagueError("Head-to-Head needs an even number of managers (2, 4, 6…)")
+        raise LeagueError("Head-to-Head needs an even number of managers (2, 4, 6…).")
     league.league_type = lt
     db.commit()
     db.refresh(league)
@@ -192,7 +192,7 @@ def set_league_type(db: Session, league: League, league_type: str) -> League:
 def join_league(db: Session, code: str, manager: Manager) -> League:
     league = db.query(League).filter(League.invite_code == code.strip().upper()).one_or_none()
     if not league:
-        raise LeagueError("Invite code not found")
+        raise LeagueError("That invite code didn't match any league.")
     already = (
         db.query(Membership)
         .filter(Membership.league_id == league.id, Membership.manager_id == manager.id)
@@ -201,7 +201,7 @@ def join_league(db: Session, code: str, manager: Manager) -> League:
     if not already:
         members = db.query(Membership).filter(Membership.league_id == league.id).count()
         if members >= 12:
-            raise LeagueError("League is full (max 12 for now)")
+            raise LeagueError("This league is full (12 managers max for now).")
         db.add(Membership(league_id=league.id, manager_id=manager.id))
         db.commit()
     return league

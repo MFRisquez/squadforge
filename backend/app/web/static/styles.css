@@ -6855,6 +6855,25 @@ body.page-auth .flash.error {
   font-size: 0.86rem;
   font-weight: 700;
 }
+.auth-password-wrap {
+  position: relative;
+  display: block;
+  margin-top: 0.28rem;
+}
+.auth-password-wrap input {
+  margin-top: 0;
+  width: 100%;
+  padding-right: 2.75rem;
+}
+.auth-password-wrap .auth-password-toggle {
+  position: absolute;
+  right: 0.4rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #F2F2F2;
+  color: #111;
+  line-height: 1;
+}
 .auth-field input {
   margin-top: 0.28rem;
   background: #FFFFFF;
