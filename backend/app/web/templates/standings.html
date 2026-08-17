@@ -2,6 +2,16 @@
 {% block title %}{{ league.name }} · {{ app_name }}{% endblock %}
 {% block body_class %}page-standings{% endblock %}
 {% block content %}
+{% macro trend_spark(row) -%}
+{%- if row.trend_polyline -%}
+<svg class="trend-spark {% if row.trend_rising %}is-up{% else %}is-flat{% endif %}" width="60" height="20" viewBox="0 0 60 20" aria-hidden="true" focusable="false">
+  <polyline fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" points="{{ row.trend_polyline }}" />
+</svg>
+{%- else -%}
+<span class="trend-spark is-empty" aria-hidden="true">—</span>
+{%- endif -%}
+{%- endmacro %}
+
 <section class="standings-hero">
   <p class="eyebrow">{% if mode == 'h2h' %}Head to Head{% else %}Classic{% endif %} · GW{{ gw.number if gw else '' }}</p>
   <h1>{{ league.name }}</h1>
@@ -15,6 +25,7 @@
   <div class="standings-cols" aria-hidden="true">
     <span>Pos</span>
     <span>Team</span>
+    <span>Form</span>
     <span>GW{{ gw.number }}</span>
     <span>Total</span>
   </div>
@@ -36,6 +47,7 @@
       <a class="standings-team" href="/league/{{ league.id }}/opponent/{{ row.manager.id }}?gw={{ gw.number }}">
         <strong>{{ row.team_name }}</strong>
       </a>
+      <span class="standings-trend" title="Last {{ row.trend|length }} GW points">{{ trend_spark(row) }}</span>
       <span class="standings-gw">{{ '%.0f'|format(row.gw_points) }}</span>
       <span class="standings-tot">{{ '%.0f'|format(row.total_points) }}</span>
     </li>
@@ -50,6 +62,7 @@
       <tr>
         <th>#</th>
         <th>Team</th>
+        <th>Form</th>
         <th>P</th>
         <th>W</th>
         <th>D</th>
@@ -68,6 +81,7 @@
             {{ row.team_name }}
           </a>
         </td>
+        <td class="standings-trend-cell">{{ trend_spark(row) }}</td>
         <td>{{ row.played }}</td>
         <td>{{ row.wins }}</td>
         <td>{{ row.draws }}</td>

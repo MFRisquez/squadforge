@@ -2,6 +2,38 @@
   const CATALOG_KEY = "ff_players_catalog_v1";
   const CATALOG_META = "ff_players_catalog_meta_v1";
 
+  function paintRailSkeleton(count = 6) {
+    const list = document.getElementById("transferRailList");
+    if (!list) return;
+    const head = list.querySelector(".transfer-rail-head");
+    list.innerHTML = "";
+    if (head) list.appendChild(head);
+    else {
+      list.insertAdjacentHTML(
+        "beforeend",
+        `<li class="transfer-rail-head" aria-hidden="true">
+          <div class="transfer-rail-row is-head">
+            <span class="tr-name">Player</span>
+            <span class="tr-price">Price</span>
+            <span class="tr-form">Form</span>
+            <span class="tr-pts">Pts</span>
+          </div>
+        </li>`
+      );
+    }
+    for (let i = 0; i < count; i++) {
+      const li = document.createElement("li");
+      li.className = "skeleton-row";
+      li.setAttribute("aria-hidden", "true");
+      li.innerHTML =
+        '<span class="skeleton wide"></span><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span>';
+      list.appendChild(li);
+    }
+  }
+
+  // Show shimmer while catalog loads (embedded JSON is empty; fetch/cache is async).
+  paintRailSkeleton();
+
   async function loadPlayersCatalog() {
     const el = document.getElementById("playersData");
     let embedded = [];
@@ -618,29 +650,16 @@
       if (tip) btn.title = tip;
       btn.innerHTML = `
         <span class="tr-name">
-          <strong>${p.name}</strong>
-          <span>${p.team} · ${p.position}${p.lockReason ? ` · ${p.lockReason}` : ""}</span>
+          ${p.inSquad ? '<span class="tr-owned-mark" aria-hidden="true">✓</span>' : ""}
+          <span class="tr-name-text">
+            <strong>${p.name}</strong>
+            <span>${p.team} · ${p.position}${p.lockReason ? ` · ${p.lockReason}` : ""}</span>
+          </span>
         </span>
         <span class="tr-price">£${Number(p.price).toFixed(1)}</span>
         <span class="tr-form">${formScore(p).toFixed(1)}</span>
         <span class="tr-pts">${pointsScore(p)}</span>
       `;
-      // Inline !important so owned rows stay readable even if CSS cache is stale.
-      if (p.inSquad) {
-        btn.style.setProperty("background", "#111111", "important");
-        btn.style.setProperty("color", "#ffffff", "important");
-        btn.style.setProperty("-webkit-text-fill-color", "#ffffff", "important");
-        btn.style.setProperty("box-shadow", "inset 4px 0 0 #C0FF00", "important");
-        btn.querySelectorAll(".tr-name strong, .tr-price, .tr-form, .tr-pts").forEach((el) => {
-          el.style.setProperty("color", "#ffffff", "important");
-          el.style.setProperty("-webkit-text-fill-color", "#ffffff", "important");
-        });
-        const sub = btn.querySelector(".tr-name span");
-        if (sub) {
-          sub.style.setProperty("color", "#C0FF00", "important");
-          sub.style.setProperty("-webkit-text-fill-color", "#C0FF00", "important");
-        }
-      }
       if (!p.locked) {
         btn.addEventListener("click", () => {
           if (p.inSquad) deselectFromRail(p);
