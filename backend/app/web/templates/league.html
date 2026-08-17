@@ -61,11 +61,11 @@
     <button class="btn danger-btn" type="submit">Delete league</button>
   </form>
   {% else %}
+  <script type="application/json" id="leaveLeagueName">{{ league.name | tojson }}</script>
   <form
     method="post"
     action="/league/{{ league.id }}/leave"
     class="js-leave-league"
-    data-league-name={{ league.name | tojson }}
   >
     <button class="btn ghost" type="submit">Leave league</button>
   </form>

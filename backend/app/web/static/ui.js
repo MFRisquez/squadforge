@@ -302,17 +302,15 @@
     });
   });
 
-  // Leave-league confirm — name comes from data-league-name={{ name|tojson }}
-  // (tojson supplies the attribute quotes; do not wrap again in the template).
+  // Leave-league confirm — name from <script type="application/json" id="leaveLeagueName">
   document.querySelectorAll("form.js-leave-league").forEach((form) => {
     form.addEventListener("submit", (e) => {
-      const raw = form.getAttribute("data-league-name") || "";
-      let name = raw;
+      const nameEl = document.getElementById("leaveLeagueName");
+      let name = "";
       try {
-        // Attribute value is the JSON string body (unicode-escaped by tojson).
-        name = JSON.parse(`"${raw}"`);
+        name = JSON.parse(nameEl.textContent);
       } catch (_) {
-        /* keep raw */
+        name = "this league";
       }
       if (!window.confirm(`Leave ${name}?`)) {
         e.preventDefault();

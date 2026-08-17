@@ -159,7 +159,7 @@ def test_league_page_shows_delete_or_leave(db):
 
 
 def test_leave_confirm_safe_with_apostrophe_league_name(db):
-    """Apostrophe in league name must not break JS/HTML (use tojson data attr)."""
+    """Apostrophe in league name must not break JS/HTML (JSON script tag)."""
     import json
     import re
 
@@ -171,17 +171,68 @@ def test_leave_confirm_safe_with_apostrophe_league_name(db):
     client.post("/login", data={"login": "Guest", "password": "secret12"}, follow_redirects=False)
     html = client.get(f"/league/{league.id}").text
 
-    # Must not use the broken inline confirm('Leave Manu's Cup?') pattern
     assert "confirm('Leave " not in html
+    assert "data-league-name" not in html
     assert 'class="js-leave-league"' in html or "class='js-leave-league'" in html
+    m = re.search(
+        r'<script type="application/json" id="leaveLeagueName">(.*?)</script>',
+        html,
+        re.DOTALL,
+    )
+    assert m
+    assert json.loads(m.group(1)) == "Manu's Cup"
 
-    m = re.search(r'data-league-name=(".*?"|\'.*?\')', html)
-    assert m, "expected data-league-name attribute on leave form"
-    attr = m.group(1)
-    # Attribute is well-formed JSON from |tojson (quotes are the delimiters)
-    if attr.startswith('"'):
-        body = attr[1:-1]
-        name = json.loads(f'"{body}"')
-    else:
-        name = json.loads(attr[1:-1] if attr[0] in "'\"" else attr)
-    assert name == "Manu's Cup"
+
+def test_leave_form_valid_with_double_quote_league_name(db):
+    """Literal double quotes in the name must not split HTML attributes on the form."""
+    import json
+    from html.parser import HTMLParser
+
+    class _LeaveFormParser(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.forms: list[dict] = []
+            self._json_chunks: list[str] = []
+            self._in_leave_json = False
+
+        def handle_starttag(self, tag, attrs):
+            attrs_d = dict(attrs)
+            if tag == "form" and "js-leave-league" in (attrs_d.get("class") or ""):
+                self.forms.append(attrs_d)
+            if tag == "script" and attrs_d.get("id") == "leaveLeagueName":
+                self._in_leave_json = True
+                self._json_chunks = []
+
+        def handle_data(self, data):
+            if self._in_leave_json:
+                self._json_chunks.append(data)
+
+        def handle_endtag(self, tag):
+            if tag == "script" and self._in_leave_json:
+                self._in_leave_json = False
+
+        @property
+        def leave_name_json(self) -> str:
+            return "".join(self._json_chunks)
+
+    owner, guest = _two_managers(db)
+    league_name = 'El "Mejor" Equipo'
+    league = league_svc.create_league(db, league_name, owner)
+    league_svc.join_league(db, league.invite_code, guest)
+    client = _client()
+
+    client.post("/login", data={"login": "Guest", "password": "secret12"}, follow_redirects=False)
+    html = client.get(f"/league/{league.id}").text
+
+    parser = _LeaveFormParser()
+    parser.feed(html)
+
+    assert len(parser.forms) == 1, "expected exactly one leave form"
+    form_attrs = parser.forms[0]
+    # Well-formed single form: method + action + class only (no broken name attrs)
+    assert set(form_attrs.keys()) == {"method", "action", "class"}
+    assert form_attrs["method"].lower() == "post"
+    assert form_attrs["action"] == f"/league/{league.id}/leave"
+    assert "js-leave-league" in form_attrs["class"]
+    assert "data-league-name" not in form_attrs
+    assert json.loads(parser.leave_name_json) == league_name
