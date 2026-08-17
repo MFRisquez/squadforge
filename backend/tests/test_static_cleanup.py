@@ -32,3 +32,19 @@ def test_dead_prototype_css_selectors_removed():
     # live classes must remain
     for live in (".chip-card-fpl", ".desk-board", ".fx-rail-empty", ".transfer-rail-row"):
         assert live in css, live
+
+
+def test_mobile_pwa_and_input_zoom_guards():
+    css = (STATIC / "styles.css").read_text(encoding="utf-8")
+    assert "background-color: var(--bg)" in css
+    assert "-webkit-fill-available" in css
+    assert "display-mode: standalone" in css
+    assert "html.is-standalone" in css
+    assert "font-size: 16px !important" in css
+    assert "phone-friendly table" in css
+
+    ui = (STATIC / "ui.js").read_text(encoding="utf-8")
+    assert 'classList.add("is-standalone")' in ui
+
+    manifest = (STATIC / "manifest.webmanifest").read_text(encoding="utf-8")
+    assert '"background_color": "#121212"' in manifest

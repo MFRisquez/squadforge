@@ -94,6 +94,9 @@
   const isStandalone =
     window.matchMedia("(display-mode: standalone)").matches ||
     window.navigator.standalone === true;
+  if (isStandalone) {
+    document.documentElement.classList.add("is-standalone");
+  }
   const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent || "");
   if (isIos && !isStandalone && banner && localStorage.getItem(dismissedKey) !== "1") {
     banner.hidden = false;
