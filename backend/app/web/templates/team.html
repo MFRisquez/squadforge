@@ -5,7 +5,7 @@
 {% from "macros_gw.html" import gw_bar %}
 {% from "macros_chips.html" import chip_strip %}
 
-{{ gw_bar(gw, deadline_label, edits_locked, prev_gw, next_gw, '/team') }}
+{{ gw_bar(gw, deadline_label, edits_locked, prev_gw, next_gw, '/team', all_gws, current_gw_number) }}
 
 <p class="sr-only" id="modeHint">
   {% if edits_locked %}Gameweek locked.{% else %}Edit your squad and transfers.{% endif %}

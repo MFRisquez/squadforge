@@ -251,6 +251,7 @@
       }
       if (push) history.pushState({ ffShell: true }, "", path);
       await runScripts(nextMain);
+      bindGwPicker(nextMain);
       window.scrollTo(0, 0);
       requestAnimationFrame(() => {
         nextMain.classList.remove("shell-pending");
@@ -267,6 +268,22 @@
     }
   }
 
+  function bindGwPicker(root) {
+    const scope = root || document;
+    scope.querySelectorAll(".gw-picker").forEach((sel) => {
+      if (sel.dataset.gwBound === "1") return;
+      sel.dataset.gwBound = "1";
+      sel.addEventListener("change", () => {
+        const base = sel.getAttribute("data-base-path") || window.location.pathname;
+        const n = sel.value;
+        if (!n) return;
+        // Full navigation — one pick always loads the chosen GW (no soft-nav cache).
+        const url = `${base}${base.includes("?") ? "&" : "?"}gw=${encodeURIComponent(n)}`;
+        window.location.assign(url);
+      });
+    });
+  }
+
   function onDocumentClick(e) {
     if (e.defaultPrevented) return;
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -275,7 +292,7 @@
     if (!a) return;
     if (a.target && a.target !== "_self") return;
     if (a.hasAttribute("download")) return;
-    // GW arrows: full page load so one tap always changes gameweek (no soft-nav/SW stale HTML).
+    // Legacy GW arrows (if any remain): full page load.
     if (a.classList.contains("gw-arrow")) return;
     const path = sameOriginPath(a.getAttribute("href") || "");
     if (!path || !isShellPath(path)) return;
@@ -290,6 +307,11 @@
   });
 
   document.addEventListener("click", onDocumentClick);
+  document.addEventListener("change", (e) => {
+    if (e.target && e.target.classList && e.target.classList.contains("gw-picker")) {
+      // bound via bindGwPicker; no-op safety
+    }
+  });
 
   // Expose for other modules (e.g. after save redirect)
   window.__ffNavigate = (url) => {
@@ -299,8 +321,12 @@
   };
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", runColdStartSplash);
+    document.addEventListener("DOMContentLoaded", () => {
+      bindGwPicker(document);
+      runColdStartSplash();
+    });
   } else {
+    bindGwPicker(document);
     runColdStartSplash();
   }
 })();

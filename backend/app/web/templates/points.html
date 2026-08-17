@@ -2,7 +2,7 @@
 {% block title %}My Points · {{ app_name }}{% endblock %}
 {% block content %}
 {% from "macros_gw.html" import gw_bar %}
-{{ gw_bar(gw, deadline_label, edits_locked, prev_gw, next_gw, '/points') }}
+{{ gw_bar(gw, deadline_label, edits_locked, prev_gw, next_gw, '/points', all_gws, current_gw_number) }}
 
 <section class="hero-block compact">
   <p class="eyebrow">My Points</p>
