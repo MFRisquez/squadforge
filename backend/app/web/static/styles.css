@@ -407,6 +407,8 @@ select {
   padding: 0.75rem 0.85rem;
   margin: 0 0 0.85rem;
   box-shadow: 0 10px 28px rgba(8, 40, 20, 0.28);
+  width: 100%;
+  box-sizing: border-box;
 }
 .gw-bar.is-locked { background: #404040; }
 .gw-nav {
@@ -414,9 +416,11 @@ select {
   grid-template-columns: auto 1fr auto;
   gap: 0.55rem;
   align-items: center;
+  width: 100%;
 }
 .gw-nav-picker {
   grid-template-columns: 1fr;
+  width: 100%;
 }
 .gw-arrow {
   width: 2.2rem;
@@ -434,31 +438,32 @@ select {
 .gw-title {
   text-align: center;
   display: grid;
-  gap: 0.1rem;
+  gap: 0.2rem;
   width: 100%;
+  justify-items: stretch;
 }
 .gw-title strong { font-size: 1.05rem; }
 .gw-picker-wrap {
-  display: grid;
-  justify-items: stretch;
+  display: block;
   margin: 0;
   width: 100%;
 }
 .gw-picker {
   appearance: none;
   -webkit-appearance: none;
+  display: block;
   font: inherit;
   font-weight: 900;
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   color: #fff;
   background:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23C0FF00' d='M1 1l5 5 5-5'/%3E%3C/svg%3E")
-    right 0.85rem center / 0.75rem no-repeat,
-    rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 0.85rem;
-  padding: 0.45rem 2.2rem 0.45rem 0.9rem;
-  min-height: 2.55rem;
+    right 1rem center / 0.8rem no-repeat,
+    rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 0.75rem;
+  padding: 0.55rem 2.4rem 0.55rem 1rem;
+  min-height: 2.75rem;
   width: 100%;
   max-width: none;
   text-align: center;
@@ -468,10 +473,17 @@ select {
   box-sizing: border-box;
 }
 @media (min-width: 900px) {
+  .gw-bar {
+    padding: 0.95rem 1.1rem;
+  }
   .gw-picker {
-    font-size: 1.2rem;
-    min-height: 2.85rem;
-    padding: 0.55rem 2.4rem 0.55rem 1rem;
+    font-size: 1.4rem;
+    min-height: 3.4rem;
+    padding: 0.7rem 2.8rem 0.7rem 1.2rem;
+    border-radius: 0.85rem;
+  }
+  .gw-deadline {
+    font-size: 0.88rem;
   }
 }
 .gw-picker:focus {
@@ -1832,21 +1844,24 @@ html[data-theme="dark"] .chip-card-fpl .chip-toggle.is-on {
   pointer-events: none;
 }
 .transfer-rail-row.is-owned {
-  /* Solid lime + black text — readable in light and dark (never white-on-pale). */
-  background: #c8f000 !important;
-  color: #111111 !important;
-  border-bottom-color: rgba(0, 0, 0, 0.12);
+  /* Dark row so white rail text stays readable (light + dark themes). */
+  background: #111111 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border-bottom-color: rgba(192, 255, 0, 0.35) !important;
+  box-shadow: inset 4px 0 0 #C0FF00;
   cursor: pointer;
 }
 .transfer-rail-row.is-owned .tr-name strong,
-.transfer-rail-row.is-owned .tr-name span,
 .transfer-rail-row.is-owned .tr-price,
 .transfer-rail-row.is-owned .tr-form,
 .transfer-rail-row.is-owned .tr-pts {
-  color: #111111 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
 .transfer-rail-row.is-owned .tr-name span {
-  color: #333333 !important;
+  color: #C0FF00 !important;
+  -webkit-text-fill-color: #C0FF00 !important;
 }
 .transfer-rail-row.avail-doubt {
   background: #fff3bf !important;
@@ -7176,17 +7191,32 @@ html[data-theme="dark"] .transfer-rail-row.is-head .tr-form,
 html[data-theme="dark"] .transfer-rail-row.is-head .tr-pts {
   color: #a0a0a0;
 }
-/* Owned rows stay lime + black even when the dark rail paints other rows white */
+/* Owned rows: dark + lime accent (readable with white text in both themes) */
 html[data-theme="dark"] .transfer-rail-row.is-owned,
+html[data-theme="light"] .transfer-rail-row.is-owned,
+button.transfer-rail-row.is-owned {
+  background: #111111 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: inset 4px 0 0 #C0FF00;
+}
 html[data-theme="dark"] .transfer-rail-row.is-owned .tr-name strong,
 html[data-theme="dark"] .transfer-rail-row.is-owned .tr-price,
 html[data-theme="dark"] .transfer-rail-row.is-owned .tr-form,
-html[data-theme="dark"] .transfer-rail-row.is-owned .tr-pts {
-  background: #c8f000 !important;
-  color: #111111 !important;
+html[data-theme="dark"] .transfer-rail-row.is-owned .tr-pts,
+html[data-theme="light"] .transfer-rail-row.is-owned .tr-name strong,
+html[data-theme="light"] .transfer-rail-row.is-owned .tr-price,
+html[data-theme="light"] .transfer-rail-row.is-owned .tr-form,
+html[data-theme="light"] .transfer-rail-row.is-owned .tr-pts {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: transparent !important;
 }
-html[data-theme="dark"] .transfer-rail-row.is-owned .tr-name span {
-  color: #333333 !important;
+html[data-theme="dark"] .transfer-rail-row.is-owned .tr-name span,
+html[data-theme="light"] .transfer-rail-row.is-owned .tr-name span {
+  color: #C0FF00 !important;
+  -webkit-text-fill-color: #C0FF00 !important;
+  background: transparent !important;
 }
 
 /* Rules — readable on dark theme */
@@ -7543,44 +7573,39 @@ html[data-theme="dark"] .player-detail-actions.is-ghost {
   border-top: 0;
 }
 
-/* Owned Free Agents — always black on lime (light + dark). Beat any rail white text. */
+/* Owned Free Agents — dark row + white/lime text (beats pale bg + white text). */
 .transfer-rail-row.is-owned,
-button.transfer-rail-row.is-owned {
-  background: #c8f000 !important;
-  color: #111111 !important;
-  -webkit-text-fill-color: #111111 !important;
+button.transfer-rail-row.is-owned,
+html[data-theme="light"] .transfer-rail-row.is-owned,
+html[data-theme="dark"] .transfer-rail-row.is-owned {
+  background: #111111 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: inset 4px 0 0 #C0FF00 !important;
 }
 .transfer-rail-row.is-owned .tr-name,
 .transfer-rail-row.is-owned .tr-name strong,
-.transfer-rail-row.is-owned .tr-name span,
 .transfer-rail-row.is-owned .tr-price,
 .transfer-rail-row.is-owned .tr-form,
 .transfer-rail-row.is-owned .tr-pts,
-html[data-theme="light"] .transfer-rail-row.is-owned,
 html[data-theme="light"] .transfer-rail-row.is-owned .tr-name,
 html[data-theme="light"] .transfer-rail-row.is-owned .tr-name strong,
-html[data-theme="light"] .transfer-rail-row.is-owned .tr-name span,
 html[data-theme="light"] .transfer-rail-row.is-owned .tr-price,
 html[data-theme="light"] .transfer-rail-row.is-owned .tr-form,
 html[data-theme="light"] .transfer-rail-row.is-owned .tr-pts,
-html[data-theme="dark"] .transfer-rail-row.is-owned,
 html[data-theme="dark"] .transfer-rail-row.is-owned .tr-name,
 html[data-theme="dark"] .transfer-rail-row.is-owned .tr-name strong,
-html[data-theme="dark"] .transfer-rail-row.is-owned .tr-name span,
 html[data-theme="dark"] .transfer-rail-row.is-owned .tr-price,
 html[data-theme="dark"] .transfer-rail-row.is-owned .tr-form,
 html[data-theme="dark"] .transfer-rail-row.is-owned .tr-pts {
-  color: #111111 !important;
-  -webkit-text-fill-color: #111111 !important;
-}
-html[data-theme="light"] .transfer-rail-row.is-owned,
-html[data-theme="dark"] .transfer-rail-row.is-owned,
-button.transfer-rail-row.is-owned {
-  background: #c8f000 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: transparent !important;
 }
 .transfer-rail-row.is-owned .tr-name span,
 html[data-theme="light"] .transfer-rail-row.is-owned .tr-name span,
 html[data-theme="dark"] .transfer-rail-row.is-owned .tr-name span {
-  color: #222222 !important;
-  -webkit-text-fill-color: #222222 !important;
+  color: #C0FF00 !important;
+  -webkit-text-fill-color: #C0FF00 !important;
+  background: transparent !important;
 }
