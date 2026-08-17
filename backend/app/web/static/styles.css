@@ -5718,11 +5718,14 @@ html.is-standalone body::after {
     padding-right: 0.22rem;
     align-content: space-evenly;
   }
-  /* Transfers phone: full pitch + DT visible without scrolling; shirts stay same size */
+  /* Transfers phone: pitch fills space (height from body flex — see ≤899 block). */
   body.page-squad.page-fit .shell {
     padding-bottom: calc(0.2rem + env(safe-area-inset-bottom, 0px));
     gap: 0.16rem;
     overflow: hidden;
+    height: auto;
+    max-height: none;
+    --fit-chrome: 0;
   }
   body.page-squad.page-fit .gw-bar {
     margin-bottom: 0.12rem;
@@ -6344,21 +6347,27 @@ html.is-standalone body::after {
   }
 }
 
-/* XI phone only: fill the viewport with flex — no --fit-chrome guess.
+/* XI + Transfers phone: fill the viewport with flex — no --fit-chrome guess.
    .top / .nav keep natural height; .shell takes the remainder exactly.
-   Transfers (page-squad) still uses --fit-chrome until that page is migrated. */
+   Also harden: hide the Free Agents rail on all phone widths (≤899px).
+   (Base .desk-rail{display:none} already does this; desktop ≥900 shows the rail.
+    Explicit !important here guards against stale overrides / cache races.) */
 @media (max-width: 899px) {
-  body.page-xi.page-fit {
+  body.page-xi.page-fit,
+  body.page-squad.page-fit {
     display: flex;
     flex-direction: column;
   }
   body.page-xi.page-fit > .top,
-  body.page-xi.page-fit > .nav {
+  body.page-xi.page-fit > .nav,
+  body.page-squad.page-fit > .top,
+  body.page-squad.page-fit > .nav {
     flex: 0 0 auto;
     position: relative;
     top: auto;
   }
-  body.page-xi.page-fit > .shell {
+  body.page-xi.page-fit > .shell,
+  body.page-squad.page-fit > .shell {
     flex: 1 1 auto;
     min-height: 0;
     height: auto;
@@ -6366,14 +6375,22 @@ html.is-standalone body::after {
     --fit-chrome: 0;
   }
   @supports (height: -webkit-fill-available) {
-    body.page-xi.page-fit > .shell {
+    body.page-xi.page-fit > .shell,
+    body.page-squad.page-fit > .shell {
       height: auto;
       max-height: none;
     }
   }
-  body.page-xi.page-fit .desk-board.desk-xi {
+  body.page-xi.page-fit .desk-board.desk-xi,
+  body.page-squad.page-fit .desk-board.desk-squad {
     overflow: hidden;
     overscroll-behavior: none;
+  }
+  /* Free Agents rail is desktop-only — never lengthen the mobile pitch */
+  body.page-squad.page-fit .transfer-rail,
+  body.page-squad.page-fit .desk-rail.transfer-rail,
+  body.page-squad.page-fit .squad-alerts {
+    display: none !important;
   }
 }
 

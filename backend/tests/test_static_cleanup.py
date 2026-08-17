@@ -75,24 +75,55 @@ def test_mobile_pitch_scales_rows_inside_page_fit():
 
 
 def test_xi_phone_shell_uses_flex_not_fit_chrome():
-    """XI mobile fills leftover viewport via flex; no magic --fit-chrome height."""
+    """XI + Transfers mobile fill leftover viewport via flex; no --fit-chrome height."""
     css = (STATIC / "styles.css").read_text(encoding="utf-8")
-    start = css.find("XI phone only: fill the viewport with flex")
+    start = css.find("XI + Transfers phone: fill the viewport with flex")
     assert start >= 0
-    chunk = css[start : start + 1200]
+    chunk = css[start : start + 2200]
     assert "body.page-xi.page-fit" in chunk
+    assert "body.page-squad.page-fit" in chunk
     assert "display: flex" in chunk
     assert "flex-direction: column" in chunk
     assert "body.page-xi.page-fit > .top" in chunk
-    assert "body.page-xi.page-fit > .nav" in chunk
+    assert "body.page-squad.page-fit > .nav" in chunk
     assert "flex: 0 0 auto" in chunk
     assert "body.page-xi.page-fit > .shell" in chunk
+    assert "body.page-squad.page-fit > .shell" in chunk
     assert "flex: 1 1 auto" in chunk
     assert "min-height: 0" in chunk
     assert "height: auto" in chunk
     assert "max-height: none" in chunk
-    # Must not calc shell height from --fit-chrome in this XI block
     assert "calc(100dvh - var(--fit-chrome))" not in chunk
-    # Selectors in this block must stay XI-only (do not migrate Transfers here)
-    assert "body.page-squad" not in chunk
-    assert "body.page-xi.page-fit > .shell" in chunk
+    # Free Agents rail must stay hidden on phone page-fit
+    assert "body.page-squad.page-fit .transfer-rail" in chunk
+    assert "display: none !important" in chunk
+
+
+def test_transfer_rail_hidden_on_phone_page_fit():
+    """team.html uses page-fit+page-squad; phone CSS must hide .transfer-rail."""
+    team = (TEMPLATES / "team.html").read_text(encoding="utf-8")
+    assert "page-fit" in team and "page-squad" in team
+    assert 'class="desk-rail transfer-rail"' in team or "desk-rail transfer-rail" in team
+
+    css = (STATIC / "styles.css").read_text(encoding="utf-8")
+    # Hardened hide lives in the ≤899px flex block (not only ≤640)
+    start = css.find("Free Agents rail is desktop-only")
+    assert start >= 0
+    chunk = css[start : start + 500]
+    block = css[css.rfind("@media (max-width: 899px)", 0, start) : start + 500]
+    assert "@media (max-width: 899px)" in block
+    assert "display: none !important" in chunk
+    assert "body.page-squad.page-fit .transfer-rail" in chunk
+
+    # JS must not strip page-fit / page-squad (would un-hide the rail)
+    squad = (STATIC / "squadboard.js").read_text(encoding="utf-8")
+    assert 'classList.remove("page-fit")' not in squad
+    assert 'classList.remove("page-squad")' not in squad
+    assert 'classList.remove("page-fit")' not in (STATIC / "appshell.js").read_text(encoding="utf-8")
+
+    # SW cache bump so phones drop stale CSS that still showed the rail
+    sw = (STATIC / "sw.js").read_text(encoding="utf-8")
+    assert 'CACHE = "futfantasy-v96"' in sw
+    assert "/static/styles.css" in sw
+    base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
+    assert "sw.js?v=96" in base
