@@ -5845,10 +5845,15 @@ html.is-standalone body::after {
     min-width: 1.05rem;
     font-size: 0.54rem;
   }
-  /* XI phone: pitch fills space, bench flush to screen bottom */
+  /* XI phone: pitch fills space, bench flush to screen bottom.
+     Height comes from body flex (see “XI phone only: fill the viewport”);
+     do not reintroduce calc(100dvh - --fit-chrome) here. */
   body.page-xi.page-fit .shell {
     padding-bottom: 0;
     gap: 0.18rem;
+    height: auto;
+    max-height: none;
+    --fit-chrome: 0;
   }
   body.page-xi .desk-board.desk-xi {
     display: flex;
@@ -6336,6 +6341,39 @@ html.is-standalone body::after {
     height: clamp(0.85rem, 18cqh, 1.05rem);
     min-width: 0;
     font-size: clamp(0.42rem, 10cqh, 0.54rem);
+  }
+}
+
+/* XI phone only: fill the viewport with flex — no --fit-chrome guess.
+   .top / .nav keep natural height; .shell takes the remainder exactly.
+   Transfers (page-squad) still uses --fit-chrome until that page is migrated. */
+@media (max-width: 899px) {
+  body.page-xi.page-fit {
+    display: flex;
+    flex-direction: column;
+  }
+  body.page-xi.page-fit > .top,
+  body.page-xi.page-fit > .nav {
+    flex: 0 0 auto;
+    position: relative;
+    top: auto;
+  }
+  body.page-xi.page-fit > .shell {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+    max-height: none;
+    --fit-chrome: 0;
+  }
+  @supports (height: -webkit-fill-available) {
+    body.page-xi.page-fit > .shell {
+      height: auto;
+      max-height: none;
+    }
+  }
+  body.page-xi.page-fit .desk-board.desk-xi {
+    overflow: hidden;
+    overscroll-behavior: none;
   }
 }
 

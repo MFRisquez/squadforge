@@ -72,3 +72,27 @@ def test_mobile_pitch_scales_rows_inside_page_fit():
     assert "overflow: hidden" in phone_rules
     assert "overflow-y: auto" not in phone_rules
     assert "flex-direction: column" in phone_rules
+
+
+def test_xi_phone_shell_uses_flex_not_fit_chrome():
+    """XI mobile fills leftover viewport via flex; no magic --fit-chrome height."""
+    css = (STATIC / "styles.css").read_text(encoding="utf-8")
+    start = css.find("XI phone only: fill the viewport with flex")
+    assert start >= 0
+    chunk = css[start : start + 1200]
+    assert "body.page-xi.page-fit" in chunk
+    assert "display: flex" in chunk
+    assert "flex-direction: column" in chunk
+    assert "body.page-xi.page-fit > .top" in chunk
+    assert "body.page-xi.page-fit > .nav" in chunk
+    assert "flex: 0 0 auto" in chunk
+    assert "body.page-xi.page-fit > .shell" in chunk
+    assert "flex: 1 1 auto" in chunk
+    assert "min-height: 0" in chunk
+    assert "height: auto" in chunk
+    assert "max-height: none" in chunk
+    # Must not calc shell height from --fit-chrome in this XI block
+    assert "calc(100dvh - var(--fit-chrome))" not in chunk
+    # Selectors in this block must stay XI-only (do not migrate Transfers here)
+    assert "body.page-squad" not in chunk
+    assert "body.page-xi.page-fit > .shell" in chunk
