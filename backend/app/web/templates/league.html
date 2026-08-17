@@ -29,7 +29,10 @@
               aria-label="Open {{ fx.home.team_name }} vs {{ fx.away.team_name }}"
             >
               <div class="h2h-side {% if home_win %}is-winner{% endif %}">
-                <strong>{{ fx.home.team_name }}</strong>
+                <div class="h2h-team">
+                  <span class="h2h-avatar" aria-hidden="true">{{ fx.home.initials }}</span>
+                  <strong class="h2h-team-name">{{ fx.home.team_name }}{% if home_win %}<span class="h2h-win-mark" aria-hidden="true">✓</span>{% endif %}</strong>
+                </div>
                 {% if fx.show_scores %}
                 <span class="h2h-pts">{{ '%.0f'|format(fx.home.points) }}</span>
                 {% else %}
@@ -40,15 +43,21 @@
                 {% if not fx.show_scores %}
                   <span class="pill soft">Preview</span>
                 {% elif fx.result == 'pending' %}
-                  <span class="pill soft">LIVE</span>
+                  <span class="fx-status-row h2h-live"><em class="live-dot">LIVE</em></span>
                 {% elif fx.result == 'draw' %}
                   <span class="pill soft">DRAW</span>
                 {% else %}
                   <span class="pill soft">FT</span>
                 {% endif %}
+                {% if fx.season_record %}
+                <span class="h2h-season muted">{{ fx.season_record.label }}</span>
+                {% endif %}
               </div>
               <div class="h2h-side {% if away_win %}is-winner{% endif %}">
-                <strong>{{ fx.away.team_name }}</strong>
+                <div class="h2h-team">
+                  <span class="h2h-avatar" aria-hidden="true">{{ fx.away.initials }}</span>
+                  <strong class="h2h-team-name">{{ fx.away.team_name }}{% if away_win %}<span class="h2h-win-mark" aria-hidden="true">✓</span>{% endif %}</strong>
+                </div>
                 {% if fx.show_scores %}
                 <span class="h2h-pts">{{ '%.0f'|format(fx.away.points) }}</span>
                 {% else %}
