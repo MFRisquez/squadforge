@@ -392,17 +392,29 @@ def _rank_polyline(
     pad: float = 10,
 ) -> str:
     """SVG polyline for rank-over-time. Rank 1 sits at the top of the chart."""
+    pts = _rank_points(ranks, max_rank=max_rank, width=width, height=height, pad=pad)
+    return " ".join(f"{p['x']:.1f},{p['y']:.1f}" for p in pts)
+
+
+def _rank_points(
+    ranks: list[int],
+    *,
+    max_rank: int,
+    width: float = 360,
+    height: float = 140,
+    pad: float = 10,
+) -> list[dict]:
+    """SVG point coords for rank-over-time. Rank 1 sits at the top of the chart."""
     if len(ranks) < 2 or max_rank < 1:
-        return ""
+        return []
     n = len(ranks)
     span = float(max(1, max_rank - 1))
-    pts: list[str] = []
+    pts: list[dict] = []
     for i, rank in enumerate(ranks):
         x = pad + (width - 2 * pad) * (i / (n - 1))
-        # Invert: rank 1 → top (pad), worst rank → bottom
         y = pad + (height - 2 * pad) * ((float(rank) - 1.0) / span)
-        pts.append(f"{x:.1f},{y:.1f}")
-    return " ".join(pts)
+        pts.append({"x": round(x, 1), "y": round(y, 1), "rank": int(rank)})
+    return pts
 
 
 # Distinct strokes for timeline lines (avoid purple/indigo cluster).
@@ -418,32 +430,31 @@ _TIMELINE_COLORS = (
 )
 
 
-def classic_rank_history(
-    db: Session,
-    league: League,
-    through_gw,
-    *,
-    me_id: int | None = None,
-) -> dict:
-    """GW-by-GW classic ranks from cumulative totals (no new tables).
+def rank_history(db: Session, league: League, through_gw) -> dict:
+    """Cumulative classic ranks for each scored GW up to ``through_gw``.
 
-    Returns:
-      gw_numbers: [1, 2, …]
-      series: [{manager_id, team_name, is_me, color, ranks, polyline}, …]
-      max_rank: member count (Y-axis floor)
+    One batch ``ManagerGameweekScore`` query (same idea as ``classic_standings``).
+
+    Returns::
+      {
+        "gameweeks": [1, 2, 3, ...],
+        "managers": [{"name": "...", "ranks": [3, 2, 2, 1, ...], "manager_id": ...}, ...]
+      }
     """
     members = db.query(Membership).filter(Membership.league_id == league.id).all()
     managers = [m.manager for m in members]
+    empty = {"gameweeks": [], "managers": []}
     if not managers or through_gw is None:
-        return {"gw_numbers": [], "series": [], "max_rank": 0}
+        return empty
 
+    through_n = int(getattr(through_gw, "number", through_gw))
     manager_ids = [m.id for m in managers]
     score_rows = (
         db.query(ManagerGameweekScore, Gameweek)
         .join(Gameweek, Gameweek.id == ManagerGameweekScore.gameweek_id)
         .filter(
             ManagerGameweekScore.manager_id.in_(manager_ids),
-            Gameweek.number <= through_gw.number,
+            Gameweek.number <= through_n,
         )
         .all()
     )
@@ -453,14 +464,12 @@ def classic_rank_history(
         by_mgr_number[score.manager_id][gweek.number] = float(score.total or 0)
         gw_numbers_set.add(gweek.number)
 
-    # Include only GWs where at least one manager scored.
-    gw_numbers = sorted(gw_numbers_set)
-    if not gw_numbers:
-        return {"gw_numbers": [], "series": [], "max_rank": len(managers)}
+    gameweeks = sorted(gw_numbers_set)
+    if not gameweeks:
+        return empty
 
-    # ranks_by_mgr[mid] = list aligned with gw_numbers
     ranks_by_mgr: dict[int, list[int]] = {m.id: [] for m in managers}
-    for n in gw_numbers:
+    for n in gameweeks:
         entries = []
         for manager in managers:
             by_n = by_mgr_number.get(manager.id, {})
@@ -471,7 +480,51 @@ def classic_rank_history(
         for mid in ranks_by_mgr:
             ranks_by_mgr[mid].append(int(ranks[mid]))
 
-    max_rank = len(managers)
+    # Current rank ascending, then name — stable chart legend order
+    current_rank = {mid: ranks[-1] for mid, ranks in ranks_by_mgr.items() if ranks}
+    ordered = sorted(
+        managers,
+        key=lambda m: (current_rank.get(m.id, 999), m.display_name.lower()),
+    )
+    return {
+        "gameweeks": gameweeks,
+        "managers": [
+            {
+                "manager_id": m.id,
+                "name": (m.team_name or "").strip() or m.display_name,
+                "ranks": ranks_by_mgr[m.id],
+            }
+            for m in ordered
+        ],
+    }
+
+
+def classic_rank_history(
+    db: Session,
+    league: League,
+    through_gw,
+    *,
+    me_id: int | None = None,
+) -> dict:
+    """GW-by-GW classic ranks + SVG geometry for the league timeline chart.
+
+    Built on ``rank_history`` (batch score query). Rank 1 is drawn at the top.
+    """
+    raw = rank_history(db, league, through_gw)
+    gameweeks = raw["gameweeks"]
+    managers_raw = raw["managers"]
+    max_rank = len(managers_raw)
+    if not gameweeks or not managers_raw:
+        return {
+            "gw_numbers": [],
+            "series": [],
+            "max_rank": max_rank,
+            "gw_labels": [],
+            "grid": [],
+            "chart_width": 360,
+            "chart_height": 140,
+        }
+
     chart_width = 360.0
     chart_height = 140.0
     pad = 10.0
@@ -481,42 +534,55 @@ def classic_rank_history(
         y = pad + (chart_height - 2 * pad) * ((float(tick) - 1.0) / span)
         grid.append({"rank": tick, "y": round(y, 1)})
     gw_labels = []
-    n_gw = len(gw_numbers)
-    for i, n in enumerate(gw_numbers):
+    n_gw = len(gameweeks)
+    for i, n in enumerate(gameweeks):
         x = pad if n_gw == 1 else pad + (chart_width - 2 * pad) * (i / (n_gw - 1))
         gw_labels.append({"number": n, "x": round(x, 1)})
 
-    # Sort series: viewer first, then by current rank
-    current_rank = {mid: ranks[-1] for mid, ranks in ranks_by_mgr.items() if ranks}
-    ordered_managers = sorted(
-        managers,
+    # Viewer first for stroke emphasis, then keep rank_history order
+    ordered = sorted(
+        managers_raw,
         key=lambda m: (
-            0 if me_id is not None and m.id == me_id else 1,
-            current_rank.get(m.id, 999),
-            m.display_name.lower(),
+            0 if me_id is not None and m["manager_id"] == me_id else 1,
+            m["ranks"][-1] if m["ranks"] else 999,
+            m["name"].lower(),
         ),
     )
 
     series = []
-    for i, manager in enumerate(ordered_managers):
-        ranks = ranks_by_mgr[manager.id]
+    for i, manager in enumerate(ordered):
+        ranks = manager["ranks"]
         color = _TIMELINE_COLORS[i % len(_TIMELINE_COLORS)]
-        if me_id is not None and manager.id == me_id:
+        if me_id is not None and manager["manager_id"] == me_id:
             color = "#111111"
+        pts = _rank_points(
+            ranks, max_rank=max_rank, width=chart_width, height=chart_height, pad=pad
+        )
+        points = []
+        for j, pt in enumerate(pts):
+            gw_n = gameweeks[j]
+            points.append(
+                {
+                    **pt,
+                    "gw": gw_n,
+                    "title": f"{manager['name']} · GW{gw_n} · #{pt['rank']}",
+                }
+            )
         series.append(
             {
-                "manager_id": manager.id,
-                "team_name": (manager.team_name or "").strip() or manager.display_name,
-                "is_me": me_id is not None and manager.id == me_id,
+                "manager_id": manager["manager_id"],
+                "team_name": manager["name"],
+                "is_me": me_id is not None and manager["manager_id"] == me_id,
                 "color": color,
                 "ranks": ranks,
                 "polyline": _rank_polyline(
                     ranks, max_rank=max_rank, width=chart_width, height=chart_height, pad=pad
                 ),
+                "points": points,
             }
         )
     return {
-        "gw_numbers": gw_numbers,
+        "gw_numbers": gameweeks,
         "gw_labels": gw_labels,
         "grid": grid,
         "series": series,

@@ -75,7 +75,16 @@ def test_classic_rank_history_tracks_swaps():
         assert by_id[b.id]["ranks"] == [1, 2, 2]
         assert by_id[a.id]["is_me"] is True
         assert by_id[a.id]["polyline"]
+        assert by_id[a.id]["points"]
+        assert by_id[a.id]["points"][0]["title"].startswith("Alpha Rise")
+        assert "#2" in by_id[a.id]["points"][0]["title"]
         assert hist["grid"]
+
+        raw = standings_svc.rank_history(db, league, gws[2])
+        assert raw["gameweeks"] == [1, 2, 3]
+        by_name = {m["name"]: m["ranks"] for m in raw["managers"]}
+        assert by_name["Alpha Rise"] == [2, 1, 1]
+        assert by_name["Beta Lead"] == [1, 2, 2]
     finally:
         db.close()
 
@@ -122,6 +131,8 @@ def test_league_page_shows_table_and_timeline():
     assert "standings-board" in html or "League table" in html
     assert "Position timeline" in html
     assert "rank-timeline-chart" in html
+    assert "rank-dot" in html
+    assert "<title>" in html
     assert "Page Alpha" in html
     assert "Page Beta" in html
 
