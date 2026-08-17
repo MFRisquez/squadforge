@@ -37,6 +37,35 @@ def test_def_thresholds_and_cap():
     assert abs(result.total - (6 + extras)) < 1e-6
 
 
+def test_mid_thresholds_clinical_and_cap():
+    metrics = {
+        "minutes": 90,
+        "goals": 1,
+        "xg": 0.4,  # goals - xg = 0.6 ≥ 0.5 → clinical
+        "creativity": 26,
+        "tackles": 2,
+        "cbi": 3,
+    }
+    result = score_player("MID", metrics)
+    # Base: appearance 2 + goal 5 = 7; extras raw 2+1+1+1=5 → capped to 3
+    assert result.breakdown.get("creativity_threshold", 0) == 2.0
+    assert result.breakdown.get("clinical_bonus", 0) == 1.0
+    extras = (
+        result.breakdown.get("creativity_threshold", 0)
+        + result.breakdown.get("clinical_bonus", 0)
+        + result.breakdown.get("tackles_threshold", 0)
+        + result.breakdown.get("cbi_threshold", 0)
+    )
+    assert extras <= 3.0 + 1e-6
+    assert abs(result.total - (7 + extras)) < 1e-6
+
+    no_clinical = score_player(
+        "MID",
+        {**metrics, "xg": 0.6},  # goals - xg = 0.4 < 0.5
+    )
+    assert no_clinical.breakdown.get("clinical_bonus", 0) == 0.0
+
+
 def test_threshold_helper():
     assert threshold_hit(5, 5, 2) == 2
     assert threshold_hit(4, 5, 2) == 0
