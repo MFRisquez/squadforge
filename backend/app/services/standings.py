@@ -436,6 +436,35 @@ def _chips_remaining_labels(db: Session, manager_id: int) -> list[str]:
     return labels
 
 
+def _team_initials(name: str) -> str:
+    text = (name or "").strip()
+    if not text:
+        return "?"
+    parts = [p for p in text.replace("-", " ").split() if p]
+    if len(parts) >= 2:
+        return (parts[0][0] + parts[1][0]).upper()
+    return text[:2].upper()
+
+
+def _h2h_season_records(db: Session, league_id: int) -> dict[frozenset[int], dict[int, int]]:
+    """Wins per manager for each settled pair in the league (result != pending)."""
+    rows = (
+        db.query(H2HMatch)
+        .filter(H2HMatch.league_id == league_id, H2HMatch.result != "pending")
+        .all()
+    )
+    out: dict[frozenset[int], dict[int, int]] = defaultdict(lambda: defaultdict(int))
+    for m in rows:
+        a, b = m.home_manager_id, m.away_manager_id
+        key = frozenset((a, b))
+        if m.result == "home":
+            out[key][a] += 1
+        elif m.result == "away":
+            out[key][b] += 1
+        # draws do not affect the W–W "2-1" tally
+    return out
+
+
 def h2h_fixture_cards(db: Session, league: League, gw) -> list[dict]:
     """This-week H2H fixtures enriched for league page cards + match sheet."""
     if gw is None:
@@ -446,37 +475,56 @@ def h2h_fixture_cards(db: Session, league: League, gw) -> list[dict]:
     status = (getattr(gw, "status", "") or "").lower()
     # Scores / top XI only after the deadline — never leak live picks pre-lock.
     show_scores = deadline_svc.deadline_passed(gw) and status not in {"upcoming", ""}
+    season = _h2h_season_records(db, league.id)
     cards = []
     for fx in fixtures:
         home = fx.get("home")
         away = fx.get("away")
         home_id = fx.get("home_manager_id") or (home.id if home else None)
         away_id = fx.get("away_manager_id") or (away.id if away else None)
+        home_name = ((home.team_name if home else "") or "").strip() or (
+            home.display_name if home else "TBD"
+        )
+        away_name = ((away.team_name if away else "") or "").strip() or (
+            away.display_name if away else "TBD"
+        )
         home_top = (
             _top_xi_player(db, home_id, gw) if show_scores and home_id else None
         )
         away_top = (
             _top_xi_player(db, away_id, gw) if show_scores and away_id else None
         )
+        season_record = None
+        if home_id and away_id:
+            wins = season.get(frozenset((home_id, away_id))) or {}
+            hw = int(wins.get(home_id, 0))
+            aw = int(wins.get(away_id, 0))
+            if hw or aw:
+                season_record = {
+                    "home_wins": hw,
+                    "away_wins": aw,
+                    "label": f"{hw}-{aw} this season",
+                }
         cards.append(
             {
                 "id": fx.get("id"),
                 "result": fx.get("result") or "pending",
                 "show_scores": show_scores,
+                "season_record": season_record,
                 "home": {
                     "manager_id": home_id,
-                    "team_name": ((home.team_name if home else "") or "").strip()
-                    or (home.display_name if home else "TBD"),
+                    "team_name": home_name,
                     "display_name": home.display_name if home else "TBD",
+                    "initials": _team_initials(home_name),
                     "points": float(fx.get("home_points") or 0),
                     "top_player": home_top,
                     "chips_left": _chips_remaining_labels(db, home_id) if home_id else [],
                 },
                 "away": {
                     "manager_id": away_id,
-                    "team_name": ((away.team_name if away else "") or "").strip()
-                    or (away.display_name if away else "TBD"),
+                    "team_name": away_name,
                     "display_name": away.display_name if away else "TBD",
+                    "initials": _team_initials(away_name),
                     "points": float(fx.get("away_points") or 0),
                     "top_player": away_top,
                     "chips_left": _chips_remaining_labels(db, away_id) if away_id else [],

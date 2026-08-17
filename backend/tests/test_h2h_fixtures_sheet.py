@@ -166,6 +166,113 @@ def test_h2h_fixture_cards_hide_top_player_before_deadline():
         db.close()
 
 
+def test_h2h_fixture_cards_include_season_record():
+    db = SessionLocal()
+    try:
+        a = league_svc.register_manager(
+            db,
+            display_name="RecA",
+            password="secret12",
+            email="reca@example.com",
+            team_name="Alpha FC",
+        )
+        b = league_svc.register_manager(
+            db,
+            display_name="RecB",
+            password="secret12",
+            email="recb@example.com",
+            team_name="Beta United",
+        )
+        league = league_svc.create_league(db, "Record Cup", a, league_type="h2h")
+        league_svc.join_league(db, league.invite_code, b)
+        gw1 = db.query(Gameweek).filter(Gameweek.number == 1).one()
+        gw2 = db.query(Gameweek).filter(Gameweek.number == 2).one()
+        gw2.status = "live"
+        gw2.is_current = 1
+        gw1.is_current = 0
+        gw2.deadline_at = (
+            (datetime.now(timezone.utc) - timedelta(hours=1))
+            .isoformat()
+            .replace("+00:00", "Z")
+        )
+        # Prior settled meetings: A beat B twice, B beat A once (orientation flips)
+        db.add(
+            H2HMatch(
+                league_id=league.id,
+                gameweek_id=gw1.id,
+                home_manager_id=a.id,
+                away_manager_id=b.id,
+                home_points=50,
+                away_points=40,
+                result="home",
+            )
+        )
+        # Create a finished GW3 slot for the second prior meeting
+        gw_prior = Gameweek(number=98, status="finished", name="GW98", is_current=0)
+        db.add(gw_prior)
+        db.flush()
+        db.add(
+            H2HMatch(
+                league_id=league.id,
+                gameweek_id=gw_prior.id,
+                home_manager_id=b.id,
+                away_manager_id=a.id,
+                home_points=30,
+                away_points=10,
+                result="home",
+            )
+        )
+        db.add(
+            H2HMatch(
+                league_id=league.id,
+                gameweek_id=gw2.id,
+                home_manager_id=a.id,
+                away_manager_id=b.id,
+                home_points=12,
+                away_points=8,
+                result="pending",
+            )
+        )
+        # Another settled match where A wins as away
+        gw_prior2 = Gameweek(number=97, status="finished", name="GW97", is_current=0)
+        db.add(gw_prior2)
+        db.flush()
+        db.add(
+            H2HMatch(
+                league_id=league.id,
+                gameweek_id=gw_prior2.id,
+                home_manager_id=b.id,
+                away_manager_id=a.id,
+                home_points=5,
+                away_points=22,
+                result="away",
+            )
+        )
+        db.commit()
+
+        cards = standings_svc.h2h_fixture_cards(db, league, gw2)
+        assert len(cards) == 1
+        card = cards[0]
+        assert card["home"]["initials"] == "AF"
+        assert card["away"]["initials"] == "BU"
+        assert card["season_record"] is not None
+        # From home(A) perspective: A won gw1 + gw97, B won gw98 → 2-1
+        assert card["season_record"]["home_wins"] == 2
+        assert card["season_record"]["away_wins"] == 1
+        assert card["season_record"]["label"] == "2-1 this season"
+        lid = league.id
+    finally:
+        db.close()
+
+    client = _client()
+    client.post("/login", data={"login": "RecA", "password": "secret12"}, follow_redirects=False)
+    # Force GW2 view via ensuring current is gw2 already in DB
+    html = client.get(f"/league/{lid}").text
+    assert "2-1 this season" in html
+    assert "h2h-avatar" in html
+    assert "live-dot" in html
+
+
 def test_h2h_preview_hides_scores_before_gw_starts():
     db = SessionLocal()
     try:

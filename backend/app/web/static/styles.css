@@ -2879,6 +2879,22 @@ body.picker-open {
   letter-spacing: 0.06em;
   font-size: 0.62rem;
   font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+.live-dot::before {
+  content: "";
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 0 0 rgba(255, 23, 81, 0.55);
+  animation: live-pulse 1.35s ease-out infinite;
+}
+@keyframes live-pulse {
+  70% { box-shadow: 0 0 0 0.42rem rgba(255, 23, 81, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 23, 81, 0); }
 }
 .fx-card-match {
   display: grid;
@@ -5266,9 +5282,50 @@ html[data-theme="light"] .standings-row.is-me {
   display: grid;
   gap: 0.2rem;
   justify-items: start;
+  min-width: 0;
 }
 .h2h-side:last-child { justify-items: end; text-align: right; }
-.h2h-side strong { font-size: 0.92rem; line-height: 1.2; }
+.h2h-team {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  max-width: 100%;
+}
+.h2h-side:last-child .h2h-team { flex-direction: row-reverse; }
+.h2h-avatar {
+  flex: 0 0 auto;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #111;
+  background: #e8eadf;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+.h2h-team-name {
+  font-size: 0.92rem;
+  line-height: 1.2;
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.h2h-win-mark {
+  margin-left: 0.28rem;
+  color: #B6DB00;
+  font-weight: 900;
+}
+.h2h-side.is-winner .h2h-team-name { font-weight: 900; }
+.h2h-side.is-winner .h2h-avatar {
+  background: rgba(182, 219, 0, 0.28);
+  border-color: rgba(182, 219, 0, 0.55);
+}
 .h2h-pts {
   font-size: 1.55rem;
   font-weight: 700;
@@ -5277,7 +5334,20 @@ html[data-theme="light"] .standings-row.is-me {
   color: var(--ink);
 }
 .h2h-side.is-winner .h2h-pts { color: #B6DB00; }
-.h2h-vs { text-align: center; }
+.h2h-vs {
+  text-align: center;
+  display: grid;
+  gap: 0.22rem;
+  justify-items: center;
+}
+.h2h-live { justify-content: center; }
+.h2h-season {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  white-space: nowrap;
+}
 .h2h-card.is-pending { border-color: rgba(182, 219, 0, 0.45); }
 button.h2h-card-btn {
   width: 100%;
