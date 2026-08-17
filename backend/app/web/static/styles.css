@@ -415,6 +415,9 @@ select {
   gap: 0.55rem;
   align-items: center;
 }
+.gw-nav-picker {
+  grid-template-columns: 1fr;
+}
 .gw-arrow {
   width: 2.2rem;
   height: 2.2rem;
@@ -430,6 +433,42 @@ select {
 .gw-arrow.is-disabled { opacity: 0.3; pointer-events: none; }
 .gw-title { text-align: center; display: grid; gap: 0.1rem; }
 .gw-title strong { font-size: 1.05rem; }
+.gw-picker-wrap {
+  display: grid;
+  justify-items: center;
+  margin: 0;
+}
+.gw-picker {
+  appearance: none;
+  -webkit-appearance: none;
+  font: inherit;
+  font-weight: 900;
+  font-size: 1.05rem;
+  color: #fff;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23C0FF00' d='M1 1l5 5 5-5'/%3E%3C/svg%3E")
+    right 0.65rem center / 0.7rem no-repeat,
+    rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  padding: 0.35rem 2rem 0.35rem 0.9rem;
+  min-height: 2.35rem;
+  min-width: min(16rem, 92vw);
+  max-width: 100%;
+  text-align: center;
+  text-align-last: center;
+  cursor: pointer;
+  outline: none;
+}
+.gw-picker:focus {
+  border-color: #C0FF00;
+  box-shadow: 0 0 0 3px rgba(192, 255, 0, 0.25);
+}
+.gw-picker option {
+  color: #111;
+  background: #fff;
+  font-weight: 700;
+}
 .gw-deadline { font-size: 0.78rem; opacity: 0.85; }
 .gw-lock-note {
   margin: 0.55rem 0 0;
@@ -5342,6 +5381,12 @@ body.page-fit .pitch-cap-hint {
     padding: 0.35rem 0.45rem;
     margin-bottom: 0.35rem;
     border-radius: 0.65rem;
+  }
+  .gw-picker {
+    font-size: 0.88rem;
+    min-height: 2.15rem;
+    min-width: min(14.5rem, 88vw);
+    padding: 0.28rem 1.7rem 0.28rem 0.75rem;
   }
   .gw-arrow {
     width: 2.6rem;

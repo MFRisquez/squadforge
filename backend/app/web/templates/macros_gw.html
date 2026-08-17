@@ -1,14 +1,25 @@
-{# Sticky FPL-style gameweek bar. Expects: gw, deadline_label, edits_locked, view_gw optional siblings #}
-{% macro gw_bar(gw, deadline_label, edits_locked, prev_gw=None, next_gw=None, base_path='/team') %}
+{# Sticky FPL-style gameweek bar with one-tap GW picker (replaces fragile arrows). #}
+{% macro gw_bar(gw, deadline_label, edits_locked, prev_gw=None, next_gw=None, base_path='/team', all_gws=None, current_gw_number=None) %}
+{% set gw_list = all_gws if all_gws else [gw.number] %}
+{% set cur_n = current_gw_number if current_gw_number is not none else gw.number %}
+{% set prev_n = (cur_n - 1) if cur_n and cur_n > 1 else none %}
 <div class="gw-bar {% if edits_locked %}is-locked{% endif %}" data-view-gw="{{ gw.number }}">
-  <div class="gw-nav">
-    {% if prev_gw %}
-      <a class="gw-arrow" href="{{ base_path }}?gw={{ prev_gw }}" aria-label="Previous gameweek">‹</a>
-    {% else %}
-      <span class="gw-arrow is-disabled" aria-hidden="true">‹</span>
-    {% endif %}
+  <div class="gw-nav gw-nav-picker">
     <div class="gw-title">
-      <strong>Gameweek {{ gw.number }}</strong>
+      <label class="gw-picker-wrap">
+        <span class="sr-only">Choose gameweek</span>
+        <select
+          class="gw-picker"
+          data-base-path="{{ base_path }}"
+          aria-label="Gameweek"
+        >
+          {% for n in gw_list %}
+            <option value="{{ n }}" {% if n == gw.number %}selected{% endif %}>
+              Gameweek {{ n }}{% if n == cur_n %} · Current{% elif prev_n and n == prev_n %} · Previous{% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </label>
       <span class="gw-deadline">
         {% if edits_locked %}
           Locked · {{ deadline_label }}
@@ -17,11 +28,6 @@
         {% endif %}
       </span>
     </div>
-    {% if next_gw %}
-      <a class="gw-arrow" href="{{ base_path }}?gw={{ next_gw }}" aria-label="Next gameweek">›</a>
-    {% else %}
-      <span class="gw-arrow is-disabled" aria-hidden="true">›</span>
-    {% endif %}
   </div>
   {% if edits_locked %}
     <p class="gw-lock-note">Transfers &amp; lineup changes are locked for this GW.</p>

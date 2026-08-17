@@ -3,7 +3,7 @@
 {% block body_class %}page-fit page-xi page-opponent{% endblock %}
 {% block content %}
 {% from "macros_gw.html" import gw_bar %}
-{{ gw_bar(gw, deadline_label, True, prev_gw, next_gw, '/league/' ~ league.id ~ '/opponent/' ~ opponent.id) }}
+{{ gw_bar(gw, deadline_label, True, prev_gw, next_gw, '/league/' ~ league.id ~ '/opponent/' ~ opponent.id, all_gws, current_gw_number) }}
 
 <section class="hero-block compact opponent-hero">
   <p class="eyebrow">{{ league.name }}</p>

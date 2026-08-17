@@ -134,6 +134,8 @@ def _resolve_gw(request: Request, db: Session):
         "deadline_label": deadline_svc.deadline_label(gw),
         "prev_gw": prev_gw,
         "next_gw": next_gw,
+        "all_gws": numbers,
+        "current_gw_number": current.number,
     }
 
 
