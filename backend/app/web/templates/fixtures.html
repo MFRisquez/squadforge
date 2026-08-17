@@ -7,15 +7,15 @@
 
 <div class="desk-board desk-page">
   <div class="desk-main">
-    <section class="hero-block compact">
-      <p class="eyebrow">Premier League</p>
+    <section class="hero-block compact fixtures-hero">
+      <p class="eyebrow">Premier League · GW{{ gw.number }}</p>
       <h1>Fixtures</h1>
-      <p class="lede tight">
-        GW{{ gw.number }} · your players highlighted · tap a match for goals &amp; assists.
+      <p class="lede tight desk-hide">
+        Your players highlighted · tap a match for goals &amp; assists.
       </p>
     </section>
 
-    <div class="action-row">
+    <div class="action-row fixtures-toolbar">
       <form method="post" action="/fixtures/refresh">
         <input type="hidden" name="gw" value="{{ gw.number }}" />
         <button class="btn" type="submit" id="refreshFixtures">Refresh live</button>

@@ -2,15 +2,7 @@
 {% block title %}{{ league.name }} · {{ app_name }}{% endblock %}
 {% block body_class %}page-fit page-standings{% endblock %}
 {% block content %}
-{% macro trend_spark(row) -%}
-{%- if row.trend_polyline -%}
-<svg class="trend-spark {% if row.trend_rising %}is-up{% else %}is-flat{% endif %}" width="60" height="20" viewBox="0 0 60 20" aria-hidden="true" focusable="false">
-  <polyline fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" points="{{ row.trend_polyline }}" />
-</svg>
-{%- else -%}
-<span class="trend-spark is-empty" aria-hidden="true">—</span>
-{%- endif -%}
-{%- endmacro %}
+{% from "macros_standings.html" import trend_spark, rank_move %}
 
 <div class="desk-board desk-page">
   <div class="desk-main">
@@ -36,15 +28,7 @@
         <li class="standings-row {% if me and row.manager.id == me.id %}is-me{% endif %} {% if row.rank <= 3 %}is-top-{{ row.rank }}{% endif %}">
           <div class="standings-pos">
             <span class="standings-rank">{{ row.rank }}</span>
-            {% if row.rank_delta is none %}
-              <span class="rank-move is-same" title="No previous GW">–</span>
-            {% elif row.rank_delta > 0 %}
-              <span class="rank-move is-up" title="Up {{ row.rank_delta }}">↑</span>
-            {% elif row.rank_delta < 0 %}
-              <span class="rank-move is-down" title="Down {{ -row.rank_delta }}">↓</span>
-            {% else %}
-              <span class="rank-move is-same" title="No change">–</span>
-            {% endif %}
+            {{ rank_move(row) }}
           </div>
           <a class="standings-team" href="/league/{{ league.id }}/opponent/{{ row.manager.id }}?gw={{ gw.number }}">
             <strong>{{ row.team_name }}</strong>

@@ -3497,8 +3497,8 @@ html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
   .desk-squad,
   .desk-xi {
     display: grid;
-    grid-template-columns: minmax(0, 1.7fr) minmax(15.5rem, 1fr);
-    gap: 0.3rem;
+    grid-template-columns: minmax(0, 1.65fr) minmax(16.5rem, 1fr);
+    gap: 0.55rem;
     align-items: start;
   }
   /* Content pages stay single-column (override the pitch/rail grid) */
@@ -3598,8 +3598,8 @@ html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
     padding-right: 0.45rem;
   }
   .transfer-rail-row {
-    padding-top: 0.48rem;
-    padding-bottom: 0.48rem;
+    padding-top: 0.58rem;
+    padding-bottom: 0.58rem;
   }
   .transfer-rail-row .tr-name strong { font-size: 0.9rem; }
   .transfer-rail-row .tr-name span { font-size: 0.68rem; }
@@ -4645,7 +4645,19 @@ html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
     background: rgba(232, 238, 255, 0.35);
   }
 
-  /* Fixtures: board fills remaining viewport */
+  /* Fixtures: board fills remaining viewport — give cards room to breathe */
+  body.page-fixtures .fixtures-hero {
+    margin: 0 0 0.15rem;
+  }
+  body.page-fixtures .fixtures-hero h1 {
+    font-size: 1.35rem;
+    margin: 0;
+  }
+  body.page-fixtures .fixtures-toolbar {
+    margin: 0 0 0.45rem;
+    gap: 0.65rem;
+    align-items: center;
+  }
   body.page-fixtures .fixtures-board {
     min-height: 0;
     margin: 0;
@@ -4656,21 +4668,36 @@ html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
     flex: 1 1 auto;
     min-height: 0;
     height: 100%;
-    grid-template-columns: minmax(0, 1fr) minmax(13rem, 0.8fr);
-    gap: 0.55rem;
+    grid-template-columns: minmax(0, 1.15fr) minmax(14rem, 0.85fr);
+    gap: 0.75rem;
   }
   body.page-fixtures .fixtures-desk .fixture-list {
     min-height: 0;
     max-height: 100%;
     overflow: auto;
-    gap: 0.12rem;
+    gap: 0.4rem;
+    padding-right: 0.15rem;
   }
   body.page-fixtures .fixtures-desk .fx-card {
-    padding: 0.12rem 0.3rem 0.14rem;
+    padding: 0.55rem 0.7rem 0.6rem;
+    border-radius: 0.65rem;
+  }
+  body.page-fixtures .fixtures-desk .fx-card-top {
+    margin-bottom: 0.28rem;
+    min-height: 1.35rem;
+  }
+  body.page-fixtures .fixtures-desk .fx-card-match {
+    gap: 0.45rem;
   }
   body.page-fixtures .fixtures-desk .fx-badge {
-    width: 2.45rem;
-    height: 2.45rem;
+    width: 2.85rem;
+    height: 2.85rem;
+  }
+  body.page-fixtures .fixtures-desk .fx-club strong {
+    font-size: 0.78rem;
+  }
+  body.page-fixtures .fixtures-desk .fx-score-num {
+    font-size: 1.05rem;
   }
   body.page-fixtures .fixture-detail-panel {
     position: static;
@@ -4684,13 +4711,14 @@ html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
     min-height: 0;
     max-height: none;
     overflow: auto;
-    padding: 0.55rem 0.7rem 0.75rem;
+    padding: 0.7rem 0.85rem 0.9rem;
   }
   body.page-fixtures .fixture-detail-panel .match-scoreline .fx-badge,
   body.page-fixtures .fixture-detail-panel .match-scoreline .fx-badge-detail {
     width: 5.25rem;
     height: 5.25rem;
   }
+  .desk-hide { display: none !important; }
 }
 .soft-form {
   background: #F7F7F7;
@@ -7412,6 +7440,150 @@ body.page-squad .stat-strip {
   }
   body.page-squad .stat-label {
     font-size: 0.4rem;
+  }
+}
+
+/* League home: hero + position timeline */
+.league-hero {
+  margin: 0 0 0.55rem;
+}
+.league-hero h1 {
+  margin: 0.1rem 0 0.25rem;
+}
+.league-actions {
+  margin: 0.35rem 0 1rem;
+}
+.league-table.standings-board {
+  margin-bottom: 0.35rem;
+}
+.rank-timeline {
+  margin: 0 0 1.15rem;
+  padding: 0.85rem 0 0.25rem;
+  border-top: 1px solid var(--line);
+}
+.rank-timeline.is-empty {
+  padding-top: 0.65rem;
+}
+.rank-timeline-head h2 {
+  margin: 0 0 0.15rem;
+  font-size: 1.05rem;
+}
+.rank-timeline-chart-wrap {
+  margin: 0.55rem 0 0.65rem;
+  overflow-x: auto;
+}
+.rank-timeline-chart {
+  width: 100%;
+  max-width: 42rem;
+  height: auto;
+  display: block;
+}
+.rank-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+  opacity: 0.7;
+}
+.rank-axis {
+  fill: var(--muted);
+  font-size: 8px;
+  font-weight: 700;
+}
+.rank-axis.gw {
+  text-anchor: middle;
+}
+.rank-line {
+  opacity: 0.72;
+}
+.rank-line.is-me {
+  opacity: 1;
+}
+.rank-timeline-legend {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.85rem;
+}
+.rank-timeline-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+}
+.rank-timeline-legend li.is-me .rank-legend-name {
+  font-weight: 800;
+  text-decoration: underline;
+}
+.rank-swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+.rank-legend-now {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+}
+.rank-timeline-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+}
+.rank-timeline-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+.rank-timeline-table th,
+.rank-timeline-table td {
+  padding: 0.45rem 0.55rem;
+  text-align: center;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.rank-timeline-table th:first-child,
+.rank-timeline-table td:first-child,
+.rank-timeline-table th[scope="row"] {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  background: var(--panel, #fff);
+  font-weight: 700;
+}
+.rank-timeline-table thead th {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.rank-timeline-table tbody tr:last-child th,
+.rank-timeline-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.rank-timeline-table tr.is-me th,
+.rank-timeline-table tr.is-me td {
+  background: rgba(182, 219, 0, 0.12);
+}
+.rank-timeline-table td.is-up {
+  color: #1faa59;
+  font-weight: 800;
+}
+.rank-timeline-table td.is-down {
+  color: #e53935;
+  font-weight: 800;
+}
+@media (min-width: 900px) {
+  body.page-league .desk-board.desk-page > .desk-main {
+    max-width: min(52rem, 100%);
+  }
+  .rank-timeline-chart {
+    max-width: none;
+  }
+  .desk-squad .transfer-rail-list .transfer-rail-row:not(.is-head) {
+    padding-block: 0.55rem;
   }
 }
 

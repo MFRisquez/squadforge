@@ -63,12 +63,12 @@ def test_my_rank_and_league_pages_show_positions():
     client.post("/login", data={"login": "RankB", "password": "secret12"}, follow_redirects=False)
 
     league_html = client.get(f"/league/{league.id}").text
-    assert "#1" in league_html
-    assert "#2" in league_html
+    assert "standings-board" in league_html
+    assert "standings-rank" in league_html
     assert "Beta FC" in league_html
     assert "Alpha FC" in league_html
-    assert "rank-1" in league_html
-    assert "55 pts" in league_html or "55.0 pts" in league_html
+    assert "is-top-1" in league_html
+    assert ">55<" in league_html or "55</span>" in league_html
 
     leagues_html = client.get("/leagues").text
     assert "#1 of 2" in leagues_html

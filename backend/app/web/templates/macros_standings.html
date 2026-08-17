@@ -1,0 +1,21 @@
+{% macro trend_spark(row) -%}
+{%- if row.trend_polyline -%}
+<svg class="trend-spark {% if row.trend_rising %}is-up{% else %}is-flat{% endif %}" width="60" height="20" viewBox="0 0 60 20" aria-hidden="true" focusable="false">
+  <polyline fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" points="{{ row.trend_polyline }}" />
+</svg>
+{%- else -%}
+<span class="trend-spark is-empty" aria-hidden="true">—</span>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro rank_move(row) -%}
+{%- if row.rank_delta is none -%}
+  <span class="rank-move is-same" title="No previous GW">–</span>
+{%- elif row.rank_delta > 0 -%}
+  <span class="rank-move is-up" title="Up {{ row.rank_delta }}">↑</span>
+{%- elif row.rank_delta < 0 -%}
+  <span class="rank-move is-down" title="Down {{ -row.rank_delta }}">↓</span>
+{%- else -%}
+  <span class="rank-move is-same" title="No change">–</span>
+{%- endif -%}
+{%- endmacro %}

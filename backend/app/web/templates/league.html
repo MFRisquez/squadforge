@@ -2,44 +2,170 @@
 {% block title %}{{ league.name }} · {{ app_name }}{% endblock %}
 {% block body_class %}page-fit page-league{% endblock %}
 {% block content %}
+{% from "macros_standings.html" import trend_spark, rank_move %}
+
 <div class="desk-board desk-page">
   <div class="desk-main">
-    <p class="eyebrow">{{ league.league_type|default('classic')|upper }} league</p>
-    <h1>{{ league.name }}</h1>
-    <p class="lede">Invite code: <strong>{{ league.invite_code }}</strong> — share in WhatsApp. Members: {{ member_count }}.</p>
+    <header class="league-hero">
+      <p class="eyebrow">{{ league.league_type|default('classic')|upper }} league{% if gw %} · GW{{ gw.number }}{% endif %}</p>
+      <h1>{{ league.name }}</h1>
+      <p class="lede tight">Invite <strong>{{ league.invite_code }}</strong> · {{ member_count }} teams</p>
+    </header>
 
-    <section class="panel">
-      <h2>Teams</h2>
-      <ul class="list league-teams">
+    {% if mode == 'classic' %}
+    <section class="standings-board league-table" aria-label="League table">
+      <div class="standings-cols" aria-hidden="true">
+        <span>Pos</span>
+        <span>Team</span>
+        <span>Form</span>
+        <span>GW{% if gw %}{{ gw.number }}{% endif %}</span>
+        <span>Total</span>
+      </div>
+      <ul class="standings-list">
         {% for row in rows %}
-          <li class="{% if row.rank <= 3 %}rank-{{ row.rank }}{% endif %} {% if me and row.manager.id == me.id %}is-me{% endif %}">
-            <span class="rank-cell">#{{ row.rank }}</span>
-            <span class="league-team-name">{{ row.team_name }}</span>
-            <span class="muted league-team-pts">
-              {% if mode == 'h2h' %}
-                {{ row.wins }}-{{ row.draws }}-{{ row.losses }} · {{ row.h2h_points }} pts
-              {% else %}
-                {{ '%.0f'|format(row.total_points) }} pts
-              {% endif %}
-            </span>
-          </li>
+        <li class="standings-row {% if me and row.manager.id == me.id %}is-me{% endif %} {% if row.rank <= 3 %}is-top-{{ row.rank }}{% endif %}">
+          <div class="standings-pos">
+            <span class="standings-rank">{{ row.rank }}</span>
+            {{ rank_move(row) }}
+          </div>
+          <a class="standings-team" href="/league/{{ league.id }}/opponent/{{ row.manager.id }}{% if gw %}?gw={{ gw.number }}{% endif %}">
+            <strong>{{ row.team_name }}</strong>
+          </a>
+          <span class="standings-trend" title="Last {{ row.trend|length }} GW points">{{ trend_spark(row) }}</span>
+          <span class="standings-gw">{{ '%.0f'|format(row.gw_points) }}</span>
+          <span class="standings-tot">{{ '%.0f'|format(row.total_points) }}</span>
+        </li>
         {% else %}
-          <li class="muted">No teams yet.</li>
+        <li class="standings-row muted">No teams yet.</li>
         {% endfor %}
       </ul>
-      <div class="row">
-        <a class="btn" href="/standings/{{ league.id }}">
-          {% if league.league_type == 'h2h' %}H2H standings{% else %}Standings{% endif %}
-        </a>
-        <a class="btn ghost" href="/league/{{ league.id }}/awards">Season awards</a>
+    </section>
+    {% else %}
+    <section class="panel table-wrap standings-panel league-table" aria-label="H2H table">
+      <table class="standings standings-h2h">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Team</th>
+            <th>Form</th>
+            <th>W</th>
+            <th>D</th>
+            <th>L</th>
+            <th>Pts</th>
+            <th>GW</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr class="{% if me and row.manager.id == me.id %}is-me{% endif %} {% if row.rank <= 3 %}rank-{{ row.rank }}{% endif %}">
+            <td class="rank-cell">{{ row.rank }}</td>
+            <td>
+              <a class="standings-team-link" href="/league/{{ league.id }}/opponent/{{ row.manager.id }}{% if gw %}?gw={{ gw.number }}{% endif %}">
+                {{ row.team_name }}
+              </a>
+            </td>
+            <td class="standings-trend-cell">{{ trend_spark(row) }}</td>
+            <td>{{ row.wins }}</td>
+            <td>{{ row.draws }}</td>
+            <td>{{ row.losses }}</td>
+            <td><strong>{{ row.h2h_points }}</strong></td>
+            <td>{{ '%.0f'|format(row.gw_points) }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="muted">No teams yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% endif %}
+
+    <div class="row league-actions">
+      <a class="btn" href="/standings/{{ league.id }}">
+        {% if league.league_type == 'h2h' %}H2H standings{% else %}Full standings{% endif %}
+      </a>
+      <a class="btn ghost" href="/league/{{ league.id }}/awards">Season awards</a>
+    </div>
+
+    {% if mode == 'classic' and rank_history and rank_history.gw_numbers|length >= 2 %}
+    <section class="rank-timeline" aria-label="Position timeline">
+      <header class="rank-timeline-head">
+        <h2>Position timeline</h2>
+        <p class="muted tight">Rank after each gameweek · #1 at the top</p>
+      </header>
+      <div class="rank-timeline-chart-wrap">
+        <svg
+          class="rank-timeline-chart"
+          viewBox="0 0 {{ rank_history.chart_width }} {{ rank_history.chart_height }}"
+          role="img"
+          aria-label="League position by gameweek"
+        >
+          {% for g in rank_history.grid %}
+            <line class="rank-grid" x1="10" y1="{{ g.y }}" x2="{{ rank_history.chart_width - 10 }}" y2="{{ g.y }}" />
+            <text class="rank-axis" x="2" y="{{ g.y + 3 }}">{{ g.rank }}</text>
+          {% endfor %}
+          {% for g in rank_history.gw_labels %}
+            <text class="rank-axis gw" x="{{ g.x }}" y="{{ rank_history.chart_height - 1 }}">{{ g.number }}</text>
+          {% endfor %}
+          {% for s in rank_history.series %}
+            {% if s.polyline %}
+            <polyline
+              class="rank-line {% if s.is_me %}is-me{% endif %}"
+              fill="none"
+              stroke="{{ s.color }}"
+              stroke-width="{% if s.is_me %}2.6{% else %}1.5{% endif %}"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              points="{{ s.polyline }}"
+            />
+            {% endif %}
+          {% endfor %}
+        </svg>
+      </div>
+      <ul class="rank-timeline-legend">
+        {% for s in rank_history.series %}
+        <li class="{% if s.is_me %}is-me{% endif %}">
+          <span class="rank-swatch" style="background: {{ s.color }}"></span>
+          <span class="rank-legend-name">{{ s.team_name }}</span>
+          <span class="rank-legend-now muted">#{{ s.ranks[-1] }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      <div class="rank-timeline-table-wrap" tabindex="0">
+        <table class="rank-timeline-table">
+          <thead>
+            <tr>
+              <th>Team</th>
+              {% for n in rank_history.gw_numbers %}
+              <th>GW{{ n }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in rank_history.series %}
+            <tr class="{% if s.is_me %}is-me{% endif %}">
+              <th scope="row">{{ s.team_name }}</th>
+              {% for r in s.ranks %}
+              {% set prev = s.ranks[loop.index0 - 1] if loop.index0 > 0 else none %}
+              <td class="{% if prev is not none and r < prev %}is-up{% elif prev is not none and r > prev %}is-down{% endif %}">{{ r }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </section>
+    {% elif mode == 'classic' %}
+    <section class="rank-timeline is-empty">
+      <h2>Position timeline</h2>
+      <p class="muted">Needs at least two scored gameweeks to plot ranks.</p>
+    </section>
+    {% endif %}
 
     <section class="panel">
       <h2>League format</h2>
       <p class="muted">
-        Classic = FPL total-points table (Standings).
-        Head-to-Head = weekly pairs + H2H table (needs even members). After you switch to H2H, open Standings to see fixtures.
+        Classic = FPL total-points table.
+        Head-to-Head = weekly pairs + H2H table (needs even members).
       </p>
       <form method="post" action="/league/{{ league.id }}/type" class="stack">
         <label>Type
