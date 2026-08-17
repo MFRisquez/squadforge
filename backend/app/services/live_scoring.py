@@ -64,11 +64,7 @@ def fpl_id_from_external(external_id: str) -> int | None:
 
 
 def map_fpl_stats(stats: dict[str, Any]) -> dict[str, float]:
-    """Map FPL live element stats → our formula metric names.
-
-    Advanced extras (tackles/shots/key passes) are not in FPL live — stay 0 until
-    a richer feed is wired. Base FPL-like scoring still works fully.
-    """
+    """Map FPL live/bootstrap element stats → our formula metric names."""
     return {
         "minutes": float(stats.get("minutes") or 0),
         "goals": float(stats.get("goals_scored") or 0),
@@ -81,15 +77,14 @@ def map_fpl_stats(stats: dict[str, Any]) -> dict[str, float]:
         "yellow_cards": float(stats.get("yellow_cards") or 0),
         "red_cards": float(stats.get("red_cards") or 0),
         "saves": float(stats.get("saves") or 0),
-        # Custom extras — filled when we have Opta/API-Football
-        "tackles": 0.0,
-        "interceptions": 0.0,
-        "blocks": 0.0,
-        "clearances": 0.0,
+        # Advanced FPL fields (live + bootstrap)
+        "tackles": float(stats.get("tackles") or 0),
+        "cbi": float(stats.get("clearances_blocks_interceptions") or 0),
+        "creativity": float(stats.get("creativity") or 0),
+        "threat": float(stats.get("threat") or 0),
+        "xg": float(stats.get("expected_goals") or 0),
+        # No free feed exposes goal-line clearances; kept for a future source.
         "goal_line_clearances": 0.0,
-        "key_passes": 0.0,
-        "shots": 0.0,
-        "shots_on_target": 0.0,
     }
 
 
