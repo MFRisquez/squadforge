@@ -10,7 +10,9 @@
   <h1>{{ opponent.team_name or '—' }}</h1>
   <div class="opponent-meta">
     <span class="pill soft">GW {{ squad_gw.number }}</span>
-    {% if any_fixture_started and score %}
+    {% if squad_unavailable %}
+      <span class="pill soft opponent-frozen">Not revealed yet</span>
+    {% elif any_fixture_started and score %}
       <span class="pill soft">{{ '%.0f'|format(score.total) }} pts</span>
     {% else %}
       <span class="pill soft">pts pending</span>
@@ -19,11 +21,19 @@
       <span class="pill soft opponent-frozen">Locked squad</span>
     {% endif %}
   </div>
-  {% if squad_frozen %}
+  {% if squad_unavailable %}
+  <p class="muted tiny opponent-freeze-note">Squads reveal once the GW{{ squad_gw.number }} deadline passes.</p>
+  {% elif squad_frozen %}
   <p class="muted tiny opponent-freeze-note">Showing the last locked gameweek until the next GW starts. Mid-week transfers stay hidden.</p>
   {% endif %}
 </section>
 
+{% if squad_unavailable %}
+<section class="panel opponent-locked" aria-label="Squad locked">
+  <h2>Squad not available yet</h2>
+  <p class="muted">Squads reveal once the GW{{ squad_gw.number }} deadline passes. Until then, nobody’s XI or bench is shown.</p>
+</section>
+{% else %}
 {# Desktop: side-by-side score compare #}
 <section class="opp-compare-bar" aria-label="Score compare">
   <div class="opp-compare-side is-you">
@@ -124,12 +134,15 @@
             <span class="opp-compare-name">{% if row.is_captain %}(C) {% elif row.is_vice %}(V) {% endif %}{{ row.name }}</span>
             <span class="opp-compare-row-pts">{% if row.fixture_started and row.points is not none %}{{ '%.0f'|format(row.points) }}{% else %}—{% endif %}</span>
           </li>
+          {% else %}
+          <li class="muted tiny">No locked XI yet</li>
           {% endfor %}
         </ul>
       </div>
     </div>
   </aside>
 </div>
+{% endif %}
 
 <a class="btn ghost opponent-back" href="/standings/{{ league.id }}">Back to standings</a>
 {% endblock %}

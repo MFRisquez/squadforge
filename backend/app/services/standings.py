@@ -440,17 +440,24 @@ def h2h_fixture_cards(db: Session, league: League, gw) -> list[dict]:
     """This-week H2H fixtures enriched for league page cards + match sheet."""
     if gw is None:
         return []
+    from app.services import deadline as deadline_svc
+
     _, fixtures = h2h_standings(db, league, gw)
     status = (getattr(gw, "status", "") or "").lower()
-    show_scores = status not in {"upcoming", ""}
+    # Scores / top XI only after the deadline — never leak live picks pre-lock.
+    show_scores = deadline_svc.deadline_passed(gw) and status not in {"upcoming", ""}
     cards = []
     for fx in fixtures:
         home = fx.get("home")
         away = fx.get("away")
         home_id = fx.get("home_manager_id") or (home.id if home else None)
         away_id = fx.get("away_manager_id") or (away.id if away else None)
-        home_top = _top_xi_player(db, home_id, gw) if home_id else None
-        away_top = _top_xi_player(db, away_id, gw) if away_id else None
+        home_top = (
+            _top_xi_player(db, home_id, gw) if show_scores and home_id else None
+        )
+        away_top = (
+            _top_xi_player(db, away_id, gw) if show_scores and away_id else None
+        )
         cards.append(
             {
                 "id": fx.get("id"),
