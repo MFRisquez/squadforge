@@ -74,3 +74,42 @@ def test_my_rank_and_league_pages_show_positions():
     assert "#1 of 2" in leagues_html
     assert "Classic" in leagues_html
     assert "Rank League" in leagues_html
+    assert 'class="league-card-link"' in leagues_html or "league-card-link" in leagues_html
+    assert 'href="/league/' in leagues_html
+
+
+def test_leagues_hub_sorts_owned_first_and_full_card_link():
+    db = SessionLocal()
+    try:
+        a = league_svc.register_manager(
+            db,
+            display_name="HubOwner",
+            password="secret12",
+            email="hubowner@example.com",
+            team_name="Owner XI",
+        )
+        b = league_svc.register_manager(
+            db,
+            display_name="HubGuest",
+            password="secret12",
+            email="hubguest@example.com",
+            team_name="Guest XI",
+        )
+        owned = league_svc.create_league(db, "Zebra Owned", a)
+        guest_league = league_svc.create_league(db, "Alpha Guest", b)
+        league_svc.join_league(db, guest_league.invite_code, a)
+        owned_id = owned.id
+        guest_id = guest_league.id
+    finally:
+        db.close()
+
+    client = _client()
+    client.post("/login", data={"login": "HubOwner", "password": "secret12"}, follow_redirects=False)
+    html = client.get("/leagues").text
+    assert "league-card-link" in html
+    assert "Admin" in html
+    # Owned league card appears before guest league (Zebra before Alpha alphabetically would reverse without owner sort)
+    pos_owned = html.find(f'href="/league/{owned_id}"')
+    pos_guest = html.find(f'href="/league/{guest_id}"')
+    assert pos_owned >= 0 and pos_guest >= 0
+    assert pos_owned < pos_guest

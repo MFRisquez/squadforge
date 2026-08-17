@@ -2,7 +2,7 @@
 {% block title %}{{ league.name }} · {{ app_name }}{% endblock %}
 {% block body_class %}page-fit page-standings{% endblock %}
 {% block content %}
-{% from "macros_standings.html" import trend_spark, rank_move %}
+{% from "macros_standings.html" import league_table %}
 
 <div class="desk-board desk-page">
   <div class="desk-main">
@@ -14,73 +14,16 @@
       {% endif %}
     </section>
 
-    {% if mode == 'classic' %}
-    <section class="standings-board" aria-label="Classic standings">
-      <div class="standings-cols" aria-hidden="true">
-        <span>Pos</span>
-        <span>Team</span>
-        <span>Form</span>
-        <span>GW{{ gw.number }}</span>
-        <span>Total</span>
-      </div>
-      <ul class="standings-list">
-        {% for row in rows %}
-        <li class="standings-row {% if me and row.manager.id == me.id %}is-me{% endif %} {% if row.rank <= 3 %}is-top-{{ row.rank }}{% endif %}">
-          <div class="standings-pos">
-            <span class="standings-rank">{{ row.rank }}</span>
-            {{ rank_move(row) }}
-          </div>
-          <a class="standings-team" href="/league/{{ league.id }}/opponent/{{ row.manager.id }}?gw={{ gw.number }}">
-            <strong>{{ row.team_name }}</strong>
-          </a>
-          <span class="standings-trend" title="Last {{ row.trend|length }} GW points">{{ trend_spark(row) }}</span>
-          <span class="standings-gw">{{ '%.0f'|format(row.gw_points) }}</span>
-          <span class="standings-tot">{{ '%.0f'|format(row.total_points) }}</span>
-        </li>
-        {% endfor %}
-      </ul>
-    </section>
-    {% else %}
-    <section class="panel table-wrap standings-panel">
-      <h2 class="section-title tight">H2H table</h2>
-      <table class="standings standings-h2h">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Team</th>
-            <th>Form</th>
-            <th>P</th>
-            <th>W</th>
-            <th>D</th>
-            <th>L</th>
-            <th>Pts</th>
-            <th class="standings-hide-phone">PF</th>
-            <th>GW</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in rows %}
-          <tr class="{% if me and row.manager.id == me.id %}is-me{% endif %} {% if row.rank <= 3 %}rank-{{ row.rank }}{% endif %}">
-            <td class="rank-cell">{{ row.rank }}</td>
-            <td>
-              <a class="standings-team-link" href="/league/{{ league.id }}/opponent/{{ row.manager.id }}?gw={{ gw.number }}">
-                {{ row.team_name }}
-              </a>
-            </td>
-            <td class="standings-trend-cell">{{ trend_spark(row) }}</td>
-            <td>{{ row.played }}</td>
-            <td>{{ row.wins }}</td>
-            <td>{{ row.draws }}</td>
-            <td>{{ row.losses }}</td>
-            <td><strong>{{ row.h2h_points }}</strong></td>
-            <td class="standings-hide-phone">{{ '%.0f'|format(row.pf) }}</td>
-            <td>{{ '%.0f'|format(row.gw_points) }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </section>
+    {{ league_table(
+      rows,
+      mode,
+      league,
+      me,
+      gw,
+      label=('H2H table' if mode == 'h2h' else 'Classic standings')
+    ) }}
 
+    {% if mode == 'h2h' %}
     <section class="panel h2h-digest">
       <h2 class="section-title tight">This week</h2>
       {% if fixtures %}

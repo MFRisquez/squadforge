@@ -124,6 +124,11 @@ def on_startup() -> None:
     db = SessionLocal()
     try:
         seed_if_empty(db, force_fpl_sync=False)
+        from app.services import league as league_svc
+
+        n = league_svc.backfill_null_league_owners(db)
+        if n:
+            logger.info("backfilled owner_id on %s legacy league(s)", n)
     finally:
         db.close()
     from app.services.auto_score import start_auto_scorer

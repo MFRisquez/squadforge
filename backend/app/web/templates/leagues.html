@@ -12,21 +12,21 @@
     </p>
 
     {% if league_cards %}
-    <section class="panel">
+    <section class="panel league-hub" aria-label="Your leagues">
       <ul class="league-list">
         {% for card in league_cards %}
           {% set league = card.league %}
-          <li>
-            <div>
-              <a class="league-name" href="/league/{{ league.id }}">{{ league.name }}</a>
-              <span class="muted">
+          <li class="league-card {% if card.is_owner %}is-owned{% endif %}">
+            <a class="league-card-link" href="/league/{{ league.id }}">
+              <span class="league-card-main">
+                <strong class="league-name">{{ league.name }}</strong>
+                {% if card.is_owner %}<span class="league-admin-pill">Admin</span>{% endif %}
+              </span>
+              <span class="league-card-meta muted">
                 {% if card.my_rank %}#{{ card.my_rank }} of {{ card.member_count }}{% else %}— of {{ card.member_count }}{% endif %}
                 · {% if league.league_type == 'h2h' %}H2H{% else %}Classic{% endif %}
                 · code {{ league.invite_code }}
               </span>
-            </div>
-            <a class="btn mini-btn" href="/standings/{{ league.id }}">
-              {% if league.league_type == 'h2h' %}H2H table{% else %}Standings{% endif %}
             </a>
           </li>
         {% endfor %}

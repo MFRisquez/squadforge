@@ -19,3 +19,54 @@
   <span class="rank-move is-same" title="No change">–</span>
 {%- endif -%}
 {%- endmacro %}
+
+{# Shared Classic + H2H standings list. mode: 'classic' | 'h2h'. #}
+{% macro league_table(rows, mode, league, me, gw, label='League table') -%}
+{% set is_h2h = mode == 'h2h' %}
+<section
+  class="standings-board league-table {% if is_h2h %}is-h2h{% endif %}"
+  aria-label="{{ label }}"
+>
+  <div class="standings-cols {% if is_h2h %}standings-cols-h2h{% endif %}" aria-hidden="true">
+    <span>Pos</span>
+    <span>Team</span>
+    <span>Form</span>
+    {% if is_h2h %}
+    <span>W</span>
+    <span>D</span>
+    <span>L</span>
+    <span>Pts</span>
+    {% endif %}
+    <span>GW{% if gw %}{{ gw.number }}{% endif %}</span>
+    {% if not is_h2h %}
+    <span>Total</span>
+    {% endif %}
+  </div>
+  <ul class="standings-list">
+    {% for row in rows %}
+    <li class="standings-row {% if is_h2h %}standings-row-h2h{% endif %} {% if me and row.manager.id == me.id %}is-me{% endif %} {% if row.rank <= 3 %}is-top-{{ row.rank }}{% endif %}">
+      <div class="standings-pos">
+        <span class="standings-rank">{{ row.rank }}</span>
+        {{ rank_move(row) }}
+      </div>
+      <a class="standings-team" href="/league/{{ league.id }}/opponent/{{ row.manager.id }}{% if gw %}?gw={{ gw.number }}{% endif %}">
+        <strong>{{ row.team_name }}</strong>
+      </a>
+      <span class="standings-trend" title="Last {{ row.trend|length }} GW points">{{ trend_spark(row) }}</span>
+      {% if is_h2h %}
+      <span class="standings-w">{{ row.wins }}</span>
+      <span class="standings-d">{{ row.draws }}</span>
+      <span class="standings-l">{{ row.losses }}</span>
+      <span class="standings-h2h-pts"><strong>{{ row.h2h_points }}</strong></span>
+      <span class="standings-gw">{{ '%.0f'|format(row.gw_points) }}</span>
+      {% else %}
+      <span class="standings-gw">{{ '%.0f'|format(row.gw_points) }}</span>
+      <span class="standings-tot">{{ '%.0f'|format(row.total_points) }}</span>
+      {% endif %}
+    </li>
+    {% else %}
+    <li class="standings-row muted">No teams yet.</li>
+    {% endfor %}
+  </ul>
+</section>
+{%- endmacro %}

@@ -355,14 +355,128 @@ def h2h_standings(db: Session, league: League, gw) -> tuple[list[dict], list[dic
         away = by_id.get(match.away_manager_id)
         fixtures.append(
             {
+                "id": match.id,
                 "home": home,
                 "away": away,
+                "home_manager_id": match.home_manager_id,
+                "away_manager_id": match.away_manager_id,
                 "home_points": match.home_points,
                 "away_points": match.away_points,
                 "result": match.result,
             }
         )
     return rows, fixtures
+
+
+def _parse_breakdown(raw: str | None) -> dict:
+    import json
+
+    try:
+        data = json.loads(raw or "{}")
+    except json.JSONDecodeError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _top_xi_player(db: Session, manager_id: int, gw) -> dict | None:
+    """Highest-scoring player line from ManagerGameweekScore.breakdown_json (XI)."""
+    if gw is None:
+        return None
+    row = (
+        db.query(ManagerGameweekScore)
+        .filter(
+            ManagerGameweekScore.manager_id == manager_id,
+            ManagerGameweekScore.gameweek_id == gw.id,
+        )
+        .one_or_none()
+    )
+    if not row:
+        return None
+    players = _parse_breakdown(row.breakdown_json).get("players") or []
+    best_pid = None
+    best_pts = -1.0
+    for line in players:
+        if not isinstance(line, dict):
+            continue
+        # XI contribution only — skip pure bench-boost padding lines without autosub/super_sub
+        if line.get("bench_boost") and not line.get("autosub") and not line.get("super_sub"):
+            # still counts when BB is active; include them
+            pass
+        pid = line.get("player_id")
+        if pid is None:
+            continue
+        pts = float(line.get("points") or 0)
+        if pts > best_pts:
+            best_pts = pts
+            best_pid = int(pid)
+    if best_pid is None:
+        return None
+    pl = db.query(Player).filter(Player.id == best_pid).one_or_none()
+    name = (pl.name if pl else "") or f"Player {best_pid}"
+    return {"player_id": best_pid, "name": name, "points": best_pts}
+
+
+def _chips_remaining_labels(db: Session, manager_id: int) -> list[str]:
+    from app.models import ChipState
+
+    state = db.query(ChipState).filter(ChipState.manager_id == manager_id).one_or_none()
+    if not state:
+        return []
+    labels = []
+    mapping = (
+        ("wildcard_remaining", "Wildcard"),
+        ("free_hit_remaining", "Free Hit"),
+        ("bench_boost_remaining", "Bench Boost"),
+        ("triple_captain_remaining", "Triple Captain"),
+        ("super_sub_remaining", "Super Sub"),
+    )
+    for attr, label in mapping:
+        if int(getattr(state, attr, 0) or 0) > 0:
+            labels.append(label)
+    return labels
+
+
+def h2h_fixture_cards(db: Session, league: League, gw) -> list[dict]:
+    """This-week H2H fixtures enriched for league page cards + match sheet."""
+    if gw is None:
+        return []
+    _, fixtures = h2h_standings(db, league, gw)
+    status = (getattr(gw, "status", "") or "").lower()
+    show_scores = status not in {"upcoming", ""}
+    cards = []
+    for fx in fixtures:
+        home = fx.get("home")
+        away = fx.get("away")
+        home_id = fx.get("home_manager_id") or (home.id if home else None)
+        away_id = fx.get("away_manager_id") or (away.id if away else None)
+        home_top = _top_xi_player(db, home_id, gw) if home_id else None
+        away_top = _top_xi_player(db, away_id, gw) if away_id else None
+        cards.append(
+            {
+                "id": fx.get("id"),
+                "result": fx.get("result") or "pending",
+                "show_scores": show_scores,
+                "home": {
+                    "manager_id": home_id,
+                    "team_name": ((home.team_name if home else "") or "").strip()
+                    or (home.display_name if home else "TBD"),
+                    "display_name": home.display_name if home else "TBD",
+                    "points": float(fx.get("home_points") or 0),
+                    "top_player": home_top,
+                    "chips_left": _chips_remaining_labels(db, home_id) if home_id else [],
+                },
+                "away": {
+                    "manager_id": away_id,
+                    "team_name": ((away.team_name if away else "") or "").strip()
+                    or (away.display_name if away else "TBD"),
+                    "display_name": away.display_name if away else "TBD",
+                    "points": float(fx.get("away_points") or 0),
+                    "top_player": away_top,
+                    "chips_left": _chips_remaining_labels(db, away_id) if away_id else [],
+                },
+            }
+        )
+    return cards
 
 
 def my_rank_in_league(
@@ -499,31 +613,29 @@ def rank_history(db: Session, league: League, through_gw) -> dict:
     }
 
 
-def classic_rank_history(
-    db: Session,
-    league: League,
-    through_gw,
+def _empty_rank_chart(*, max_rank: int = 0) -> dict:
+    return {
+        "gw_numbers": [],
+        "series": [],
+        "max_rank": max_rank,
+        "gw_labels": [],
+        "grid": [],
+        "chart_width": 360,
+        "chart_height": 140,
+    }
+
+
+def _chart_from_rank_history(
+    raw: dict,
     *,
     me_id: int | None = None,
 ) -> dict:
-    """GW-by-GW classic ranks + SVG geometry for the league timeline chart.
-
-    Built on ``rank_history`` (batch score query). Rank 1 is drawn at the top.
-    """
-    raw = rank_history(db, league, through_gw)
+    """Turn ``rank_history`` / ``h2h_rank_history`` raw payload into SVG chart data."""
     gameweeks = raw["gameweeks"]
     managers_raw = raw["managers"]
     max_rank = len(managers_raw)
     if not gameweeks or not managers_raw:
-        return {
-            "gw_numbers": [],
-            "series": [],
-            "max_rank": max_rank,
-            "gw_labels": [],
-            "grid": [],
-            "chart_width": 360,
-            "chart_height": 140,
-        }
+        return _empty_rank_chart(max_rank=max_rank)
 
     chart_width = 360.0
     chart_height = 140.0
@@ -539,7 +651,6 @@ def classic_rank_history(
         x = pad if n_gw == 1 else pad + (chart_width - 2 * pad) * (i / (n_gw - 1))
         gw_labels.append({"number": n, "x": round(x, 1)})
 
-    # Viewer first for stroke emphasis, then keep rank_history order
     ordered = sorted(
         managers_raw,
         key=lambda m: (
@@ -590,3 +701,108 @@ def classic_rank_history(
         "chart_width": int(chart_width),
         "chart_height": int(chart_height),
     }
+
+
+def classic_rank_history(
+    db: Session,
+    league: League,
+    through_gw,
+    *,
+    me_id: int | None = None,
+) -> dict:
+    """GW-by-GW classic ranks + SVG geometry for the league timeline chart.
+
+    Built on ``rank_history`` (batch score query). Rank 1 is drawn at the top.
+    """
+    return _chart_from_rank_history(rank_history(db, league, through_gw), me_id=me_id)
+
+
+def h2h_rank_history(db: Session, league: League, through_gw) -> dict:
+    """Cumulative H2H table ranks after each gameweek with settled fixtures.
+
+    Same shape as ``rank_history`` so the SVG timeline can be shared with Classic.
+    """
+    members = [m.manager for m in db.query(Membership).filter(Membership.league_id == league.id).all()]
+    empty = {"gameweeks": [], "managers": []}
+    if not members or through_gw is None:
+        return empty
+
+    through_n = int(getattr(through_gw, "number", through_gw))
+    rows = (
+        db.query(H2HMatch, Gameweek)
+        .join(Gameweek, Gameweek.id == H2HMatch.gameweek_id)
+        .filter(H2HMatch.league_id == league.id, Gameweek.number <= through_n)
+        .all()
+    )
+    # Only GWs that already have a settled result contribute to the timeline.
+    settled_by_gw: dict[int, list[H2HMatch]] = defaultdict(list)
+    for match, gweek in rows:
+        if match.result == "pending":
+            continue
+        settled_by_gw[int(gweek.number)].append(match)
+    gameweeks = sorted(settled_by_gw)
+    if not gameweeks:
+        return empty
+
+    ranks_by_mgr: dict[int, list[int]] = {m.id: [] for m in members}
+    running: dict[int, dict] = {
+        m.id: {"h2h_points": 0, "pf": 0.0, "name": (m.team_name or "").strip() or m.display_name}
+        for m in members
+    }
+    for n in gameweeks:
+        for match in settled_by_gw[n]:
+            home = running.get(match.home_manager_id)
+            away = running.get(match.away_manager_id)
+            if not home or not away:
+                continue
+            home["pf"] += float(match.home_points or 0)
+            away["pf"] += float(match.away_points or 0)
+            if match.result == "home":
+                home["h2h_points"] += 3
+            elif match.result == "away":
+                away["h2h_points"] += 3
+            else:
+                home["h2h_points"] += 1
+                away["h2h_points"] += 1
+        ordered = sorted(
+            members,
+            key=lambda m: (
+                -running[m.id]["h2h_points"],
+                -running[m.id]["pf"],
+                running[m.id]["name"].lower(),
+            ),
+        )
+        for i, manager in enumerate(ordered, start=1):
+            ranks_by_mgr[manager.id].append(i)
+
+    current_rank = {mid: ranks[-1] for mid, ranks in ranks_by_mgr.items() if ranks}
+    ordered_mgrs = sorted(
+        members,
+        key=lambda m: (current_rank.get(m.id, 999), running[m.id]["name"].lower()),
+    )
+    return {
+        "gameweeks": gameweeks,
+        "managers": [
+            {
+                "manager_id": m.id,
+                "name": running[m.id]["name"],
+                "ranks": ranks_by_mgr[m.id],
+            }
+            for m in ordered_mgrs
+        ],
+    }
+
+
+def league_rank_history(
+    db: Session,
+    league: League,
+    through_gw,
+    *,
+    me_id: int | None = None,
+) -> dict:
+    """Position timeline for Classic (total points) or H2H (table after each GW)."""
+    if getattr(league, "league_type", "classic") == "h2h":
+        raw = h2h_rank_history(db, league, through_gw)
+    else:
+        raw = rank_history(db, league, through_gw)
+    return _chart_from_rank_history(raw, me_id=me_id)

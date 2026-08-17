@@ -532,8 +532,13 @@ def leagues_hub(request: Request, db: Session = Depends(get_db)):
                 "league": league,
                 "my_rank": rank,
                 "member_count": size,
+                "is_owner": league.owner_id == manager.id,
             }
         )
+    # Leagues you admin first, then name
+    league_cards.sort(
+        key=lambda c: (0 if c["is_owner"] else 1, (c["league"].name or "").lower())
+    )
     return templates.TemplateResponse(
         "leagues.html",
         _ctx(
@@ -563,16 +568,18 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
         return RedirectResponse("/", status_code=303)
     league = membership.league
     gw = squad_svc.current_gameweek(db)
-    rank_history = {"gw_numbers": [], "series": [], "max_rank": 0}
+    fixtures: list = []
+    h2h_cards: list = []
     if getattr(league, "league_type", "classic") == "h2h":
-        rows, _ = standings_svc.h2h_standings(db, league, gw)
+        rows, fixtures = standings_svc.h2h_standings(db, league, gw)
         mode = "h2h"
+        h2h_cards = standings_svc.h2h_fixture_cards(db, league, gw)
     else:
         rows = standings_svc.classic_standings(db, league, gw)
         mode = "classic"
-        rank_history = standings_svc.classic_rank_history(
-            db, league, gw, me_id=manager.id
-        )
+    rank_history = standings_svc.league_rank_history(
+        db, league, gw, me_id=manager.id
+    )
     chips = db.query(ChipState).filter(ChipState.manager_id == manager.id).one_or_none()
     even = len(rows) % 2 == 0 and len(rows) >= 2
     return templates.TemplateResponse(
@@ -589,6 +596,8 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
             member_count=len(rows),
             gw=gw,
             rank_history=rank_history,
+            fixtures=fixtures,
+            h2h_cards=h2h_cards,
             notice=request.query_params.get("notice"),
             error=request.query_params.get("error"),
         ),
@@ -642,6 +651,11 @@ def league_set_type(
     )
     if not membership:
         return RedirectResponse("/", status_code=303)
+    if membership.league.owner_id != manager.id:
+        return RedirectResponse(
+            f"/league/{league_id}?error={quote('Only the league creator can change the format.')}",
+            status_code=303,
+        )
     try:
         league_svc.set_league_type(db, membership.league, league_type)
     except league_svc.LeagueError as exc:
@@ -649,16 +663,16 @@ def league_set_type(
 
         league = membership.league
         gw = squad_svc.current_gameweek(db)
-        rank_history = {"gw_numbers": [], "series": [], "max_rank": 0}
+        fixtures: list = []
         if getattr(league, "league_type", "classic") == "h2h":
-            rows, _ = standings_svc.h2h_standings(db, league, gw)
+            rows, fixtures = standings_svc.h2h_standings(db, league, gw)
             mode = "h2h"
         else:
             rows = standings_svc.classic_standings(db, league, gw)
             mode = "classic"
-            rank_history = standings_svc.classic_rank_history(
-                db, league, gw, me_id=manager.id
-            )
+        rank_history = standings_svc.league_rank_history(
+            db, league, gw, me_id=manager.id
+        )
         return templates.TemplateResponse(
             "league.html",
             _ctx(
@@ -673,6 +687,7 @@ def league_set_type(
                 member_count=len(rows),
                 gw=gw,
                 rank_history=rank_history,
+                fixtures=fixtures,
             ),
             status_code=400,
         )
