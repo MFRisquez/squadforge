@@ -5694,7 +5694,8 @@ body.page-fit .pitch-cap-hint {
   .gw-picker {
     font-size: 0.88rem;
     min-height: 2.15rem;
-    min-width: min(14.5rem, 88vw);
+    width: 100%;
+    min-width: 0;
     padding: 0.28rem 1.7rem 0.28rem 0.75rem;
   }
   .gw-arrow {
@@ -7540,4 +7541,46 @@ html[data-theme="dark"] .player-detail-actions,
 html[data-theme="dark"] .player-detail-actions.is-ghost {
   background: transparent;
   border-top: 0;
+}
+
+/* Owned Free Agents — always black on lime (light + dark). Beat any rail white text. */
+.transfer-rail-row.is-owned,
+button.transfer-rail-row.is-owned {
+  background: #c8f000 !important;
+  color: #111111 !important;
+  -webkit-text-fill-color: #111111 !important;
+}
+.transfer-rail-row.is-owned .tr-name,
+.transfer-rail-row.is-owned .tr-name strong,
+.transfer-rail-row.is-owned .tr-name span,
+.transfer-rail-row.is-owned .tr-price,
+.transfer-rail-row.is-owned .tr-form,
+.transfer-rail-row.is-owned .tr-pts,
+html[data-theme="light"] .transfer-rail-row.is-owned,
+html[data-theme="light"] .transfer-rail-row.is-owned .tr-name,
+html[data-theme="light"] .transfer-rail-row.is-owned .tr-name strong,
+html[data-theme="light"] .transfer-rail-row.is-owned .tr-name span,
+html[data-theme="light"] .transfer-rail-row.is-owned .tr-price,
+html[data-theme="light"] .transfer-rail-row.is-owned .tr-form,
+html[data-theme="light"] .transfer-rail-row.is-owned .tr-pts,
+html[data-theme="dark"] .transfer-rail-row.is-owned,
+html[data-theme="dark"] .transfer-rail-row.is-owned .tr-name,
+html[data-theme="dark"] .transfer-rail-row.is-owned .tr-name strong,
+html[data-theme="dark"] .transfer-rail-row.is-owned .tr-name span,
+html[data-theme="dark"] .transfer-rail-row.is-owned .tr-price,
+html[data-theme="dark"] .transfer-rail-row.is-owned .tr-form,
+html[data-theme="dark"] .transfer-rail-row.is-owned .tr-pts {
+  color: #111111 !important;
+  -webkit-text-fill-color: #111111 !important;
+}
+html[data-theme="light"] .transfer-rail-row.is-owned,
+html[data-theme="dark"] .transfer-rail-row.is-owned,
+button.transfer-rail-row.is-owned {
+  background: #c8f000 !important;
+}
+.transfer-rail-row.is-owned .tr-name span,
+html[data-theme="light"] .transfer-rail-row.is-owned .tr-name span,
+html[data-theme="dark"] .transfer-rail-row.is-owned .tr-name span {
+  color: #222222 !important;
+  -webkit-text-fill-color: #222222 !important;
 }
