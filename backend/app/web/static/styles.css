@@ -5263,6 +5263,60 @@ html[data-theme="light"] .standings-row.is-me {
 .h2h-side.is-winner .h2h-pts { color: #B6DB00; }
 .h2h-vs { text-align: center; }
 .h2h-card.is-pending { border-color: rgba(182, 219, 0, 0.45); }
+button.h2h-card-btn {
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  appearance: none;
+}
+button.h2h-card-btn:hover,
+button.h2h-card-btn:focus-visible {
+  border-color: rgba(0, 0, 0, 0.35);
+  background:
+    linear-gradient(135deg, rgba(182, 219, 0, 0.12), transparent 55%),
+    #fff;
+}
+.h2h-match-sheet .h2h-sheet-scoreline {
+  display: grid;
+  gap: 0.85rem;
+}
+.h2h-sheet-side {
+  padding: 0.85rem 0.9rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.03);
+}
+.h2h-sheet-side-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.65rem;
+  align-items: flex-start;
+  margin-bottom: 0.55rem;
+}
+.h2h-sheet-team {
+  display: block;
+  font-size: 1.02rem;
+}
+.h2h-sheet-pts {
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.h2h-sheet-top,
+.h2h-sheet-chips {
+  margin: 0.2rem 0 0;
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+.h2h-sheet-vs {
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 .standings-actions {
   display: flex;
   flex-wrap: wrap;

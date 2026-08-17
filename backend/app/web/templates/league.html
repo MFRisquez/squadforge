@@ -14,6 +14,56 @@
 
     {{ league_table(rows, mode, league, me, gw, label='League table') }}
 
+    {% if mode == 'h2h' %}
+    <section class="panel h2h-digest league-h2h-fixtures" aria-label="This week's fixtures">
+      <h2 class="section-title tight">This week's fixtures</h2>
+      {% if h2h_cards %}
+        <div class="h2h-cards" id="h2hCards">
+          {% for fx in h2h_cards %}
+            {% set home_win = fx.result == 'home' %}
+            {% set away_win = fx.result == 'away' %}
+            <button
+              type="button"
+              class="h2h-card h2h-card-btn {% if fx.result == 'pending' %}is-pending{% elif fx.result == 'draw' %}is-draw{% endif %}"
+              data-h2h-match="{{ fx.id }}"
+              aria-label="Open {{ fx.home.team_name }} vs {{ fx.away.team_name }}"
+            >
+              <div class="h2h-side {% if home_win %}is-winner{% endif %}">
+                <strong>{{ fx.home.team_name }}</strong>
+                {% if fx.show_scores %}
+                <span class="h2h-pts">{{ '%.0f'|format(fx.home.points) }}</span>
+                {% else %}
+                <span class="h2h-pts is-preview muted">—</span>
+                {% endif %}
+              </div>
+              <div class="h2h-vs">
+                {% if not fx.show_scores %}
+                  <span class="pill soft">Preview</span>
+                {% elif fx.result == 'pending' %}
+                  <span class="pill soft">LIVE</span>
+                {% elif fx.result == 'draw' %}
+                  <span class="pill soft">DRAW</span>
+                {% else %}
+                  <span class="pill soft">FT</span>
+                {% endif %}
+              </div>
+              <div class="h2h-side {% if away_win %}is-winner{% endif %}">
+                <strong>{{ fx.away.team_name }}</strong>
+                {% if fx.show_scores %}
+                <span class="h2h-pts">{{ '%.0f'|format(fx.away.points) }}</span>
+                {% else %}
+                <span class="h2h-pts is-preview muted">—</span>
+                {% endif %}
+              </div>
+            </button>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted">Need an even number of managers to draw H2H fixtures (2, 4, 6…).</p>
+      {% endif %}
+    </section>
+    {% endif %}
+
     <div class="row league-actions">
       <a class="btn" href="/standings/{{ league.id }}">
         {% if league.league_type == 'h2h' %}H2H standings{% else %}Full standings{% endif %}
@@ -161,4 +211,21 @@
     </section>
   </div>
 </div>
+
+{% if mode == 'h2h' %}
+<div class="drawer" id="h2hMatchDetail" hidden>
+  <div class="drawer-sheet match-detail-sheet h2h-match-sheet">
+    <header class="drawer-head">
+      <div>
+        <p class="eyebrow" id="h2hMatchEyebrow">H2H · GW{{ gw.number if gw else '' }}</p>
+        <h2 id="h2hMatchTitle">Match</h2>
+      </div>
+      <button type="button" class="icon-btn" id="closeH2hMatch" aria-label="Close">✕</button>
+    </header>
+    <div class="match-detail-body" id="h2hMatchBody"></div>
+  </div>
+</div>
+<script id="h2hFixturesBoot" type="application/json">{{ h2h_cards | tojson }}</script>
+<script src="/static/league_h2h.js"></script>
+{% endif %}
 {% endblock %}

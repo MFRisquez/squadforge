@@ -355,14 +355,128 @@ def h2h_standings(db: Session, league: League, gw) -> tuple[list[dict], list[dic
         away = by_id.get(match.away_manager_id)
         fixtures.append(
             {
+                "id": match.id,
                 "home": home,
                 "away": away,
+                "home_manager_id": match.home_manager_id,
+                "away_manager_id": match.away_manager_id,
                 "home_points": match.home_points,
                 "away_points": match.away_points,
                 "result": match.result,
             }
         )
     return rows, fixtures
+
+
+def _parse_breakdown(raw: str | None) -> dict:
+    import json
+
+    try:
+        data = json.loads(raw or "{}")
+    except json.JSONDecodeError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _top_xi_player(db: Session, manager_id: int, gw) -> dict | None:
+    """Highest-scoring player line from ManagerGameweekScore.breakdown_json (XI)."""
+    if gw is None:
+        return None
+    row = (
+        db.query(ManagerGameweekScore)
+        .filter(
+            ManagerGameweekScore.manager_id == manager_id,
+            ManagerGameweekScore.gameweek_id == gw.id,
+        )
+        .one_or_none()
+    )
+    if not row:
+        return None
+    players = _parse_breakdown(row.breakdown_json).get("players") or []
+    best_pid = None
+    best_pts = -1.0
+    for line in players:
+        if not isinstance(line, dict):
+            continue
+        # XI contribution only — skip pure bench-boost padding lines without autosub/super_sub
+        if line.get("bench_boost") and not line.get("autosub") and not line.get("super_sub"):
+            # still counts when BB is active; include them
+            pass
+        pid = line.get("player_id")
+        if pid is None:
+            continue
+        pts = float(line.get("points") or 0)
+        if pts > best_pts:
+            best_pts = pts
+            best_pid = int(pid)
+    if best_pid is None:
+        return None
+    pl = db.query(Player).filter(Player.id == best_pid).one_or_none()
+    name = (pl.name if pl else "") or f"Player {best_pid}"
+    return {"player_id": best_pid, "name": name, "points": best_pts}
+
+
+def _chips_remaining_labels(db: Session, manager_id: int) -> list[str]:
+    from app.models import ChipState
+
+    state = db.query(ChipState).filter(ChipState.manager_id == manager_id).one_or_none()
+    if not state:
+        return []
+    labels = []
+    mapping = (
+        ("wildcard_remaining", "Wildcard"),
+        ("free_hit_remaining", "Free Hit"),
+        ("bench_boost_remaining", "Bench Boost"),
+        ("triple_captain_remaining", "Triple Captain"),
+        ("super_sub_remaining", "Super Sub"),
+    )
+    for attr, label in mapping:
+        if int(getattr(state, attr, 0) or 0) > 0:
+            labels.append(label)
+    return labels
+
+
+def h2h_fixture_cards(db: Session, league: League, gw) -> list[dict]:
+    """This-week H2H fixtures enriched for league page cards + match sheet."""
+    if gw is None:
+        return []
+    _, fixtures = h2h_standings(db, league, gw)
+    status = (getattr(gw, "status", "") or "").lower()
+    show_scores = status not in {"upcoming", ""}
+    cards = []
+    for fx in fixtures:
+        home = fx.get("home")
+        away = fx.get("away")
+        home_id = fx.get("home_manager_id") or (home.id if home else None)
+        away_id = fx.get("away_manager_id") or (away.id if away else None)
+        home_top = _top_xi_player(db, home_id, gw) if home_id else None
+        away_top = _top_xi_player(db, away_id, gw) if away_id else None
+        cards.append(
+            {
+                "id": fx.get("id"),
+                "result": fx.get("result") or "pending",
+                "show_scores": show_scores,
+                "home": {
+                    "manager_id": home_id,
+                    "team_name": ((home.team_name if home else "") or "").strip()
+                    or (home.display_name if home else "TBD"),
+                    "display_name": home.display_name if home else "TBD",
+                    "points": float(fx.get("home_points") or 0),
+                    "top_player": home_top,
+                    "chips_left": _chips_remaining_labels(db, home_id) if home_id else [],
+                },
+                "away": {
+                    "manager_id": away_id,
+                    "team_name": ((away.team_name if away else "") or "").strip()
+                    or (away.display_name if away else "TBD"),
+                    "display_name": away.display_name if away else "TBD",
+                    "points": float(fx.get("away_points") or 0),
+                    "top_player": away_top,
+                    "chips_left": _chips_remaining_labels(db, away_id) if away_id else [],
+                },
+            }
+        )
+    return cards
 
 
 def my_rank_in_league(

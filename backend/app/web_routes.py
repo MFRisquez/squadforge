@@ -569,9 +569,11 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
     league = membership.league
     gw = squad_svc.current_gameweek(db)
     fixtures: list = []
+    h2h_cards: list = []
     if getattr(league, "league_type", "classic") == "h2h":
         rows, fixtures = standings_svc.h2h_standings(db, league, gw)
         mode = "h2h"
+        h2h_cards = standings_svc.h2h_fixture_cards(db, league, gw)
     else:
         rows = standings_svc.classic_standings(db, league, gw)
         mode = "classic"
@@ -595,6 +597,7 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
             gw=gw,
             rank_history=rank_history,
             fixtures=fixtures,
+            h2h_cards=h2h_cards,
             notice=request.query_params.get("notice"),
             error=request.query_params.get("error"),
         ),
