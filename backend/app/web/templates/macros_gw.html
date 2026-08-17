@@ -20,11 +20,11 @@
           {% endfor %}
         </select>
       </label>
-      <span class="gw-deadline">
+      <span class="gw-deadline" {% if not edits_locked and gw.deadline_at %}data-deadline="{{ gw.deadline_at }}"{% endif %}>
         {% if edits_locked %}
           Locked · {{ deadline_label }}
         {% else %}
-          Deadline · {{ deadline_label }}
+          Deadline · <span class="gw-countdown" data-deadline="{{ gw.deadline_at or '' }}">{{ deadline_label }}</span>
         {% endif %}
       </span>
     </div>

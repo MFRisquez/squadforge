@@ -1612,6 +1612,9 @@ def standings(league_id: int, request: Request, db: Session = Depends(get_db)):
     else:
         rows = standings_svc.classic_standings(db, league, gw)
         mode = "classic"
+    from datetime import datetime, timezone
+
+    updated_label = datetime.now(timezone.utc).strftime("%A %d %b · %H:%M UTC")
     return templates.TemplateResponse(
         "standings.html",
         _ctx(
@@ -1623,5 +1626,6 @@ def standings(league_id: int, request: Request, db: Session = Depends(get_db)):
             mode=mode,
             me=manager,
             member_count=db.query(Membership).filter(Membership.league_id == league.id).count(),
+            updated_label=updated_label,
         ),
     )

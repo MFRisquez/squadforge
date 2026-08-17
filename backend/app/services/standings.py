@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
-
 from sqlalchemy.orm import Session
 
 from app.models import (
     ChipPlay,
+    Gameweek,
     H2HMatch,
     League,
     Manager,
@@ -20,9 +19,29 @@ from app.services import squad as squad_svc
 from app.services import td as td_svc
 
 
-def _manager_row_base(db: Session, manager: Manager, gw) -> dict:
-    from app.models import Gameweek
+def _cumulative_total(db: Session, manager_id: int, through_number: int) -> float:
+    """Season total using only gameweeks up to through_number (inclusive)."""
+    rows = (
+        db.query(ManagerGameweekScore)
+        .join(Gameweek, Gameweek.id == ManagerGameweekScore.gameweek_id)
+        .filter(
+            ManagerGameweekScore.manager_id == manager_id,
+            Gameweek.number <= through_number,
+        )
+        .all()
+    )
+    return float(sum(s.total for s in rows))
 
+
+def _rank_by_manager(
+    entries: list[tuple[int, float, float, str]],
+) -> dict[int, int]:
+    """entries: (manager_id, total, gw_points, name). Returns manager_id -> rank."""
+    ordered = sorted(entries, key=lambda e: (-e[1], -e[2], e[3]))
+    return {mid: i for i, (mid, *_rest) in enumerate(ordered, start=1)}
+
+
+def _manager_row_base(db: Session, manager: Manager, gw) -> dict:
     owned = squad_svc.owned_players(db, manager.id)
     spend = squad_svc.squad_spend(owned)
     score = (
@@ -33,12 +52,7 @@ def _manager_row_base(db: Session, manager: Manager, gw) -> dict:
         )
         .one_or_none()
     )
-    totals = (
-        db.query(ManagerGameweekScore)
-        .filter(ManagerGameweekScore.manager_id == manager.id)
-        .all()
-    )
-    total_points = sum(s.total for s in totals)
+    total_points = _cumulative_total(db, manager.id, gw.number)
     gw_points = score.total if score else 0.0
     # Last 5 finished/current GW scores for a compact form string
     recent_gws = (
@@ -98,6 +112,27 @@ def classic_standings(db: Session, league: League, gw) -> list[dict]:
     rows.sort(key=lambda r: (-r["total_points"], -r["gw_points"], r["manager"].display_name.lower()))
     for i, row in enumerate(rows, start=1):
         row["rank"] = i
+
+    # Rank movement vs previous gameweek (FPL-style: ↑ climbed, ↓ dropped)
+    prev_ranks: dict[int, int] = {}
+    if gw.number > 1:
+        prev_entries = []
+        for row in rows:
+            mid = row["manager"].id
+            prev_total = _cumulative_total(db, mid, gw.number - 1)
+            prev_entries.append(
+                (mid, prev_total, 0.0, row["manager"].display_name.lower())
+            )
+        prev_ranks = _rank_by_manager(prev_entries)
+
+    for row in rows:
+        prev = prev_ranks.get(row["manager"].id)
+        if prev is None:
+            row["prev_rank"] = None
+            row["rank_delta"] = None
+        else:
+            row["prev_rank"] = prev
+            row["rank_delta"] = prev - row["rank"]
     return rows
 
 
@@ -187,6 +222,8 @@ def h2h_standings(db: Session, league: League, gw) -> tuple[list[dict], list[dic
     )
     for i, row in enumerate(rows, start=1):
         row["rank"] = i
+        row["prev_rank"] = None
+        row["rank_delta"] = None
 
     by_id = {m.id: m for m in members}
     fixtures = []
