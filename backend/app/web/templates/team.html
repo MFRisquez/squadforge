@@ -37,6 +37,11 @@
         <strong>{{ transfers_gw }}</strong>
         <span class="stat-sub">this GW</span>
       </div>
+      <div class="stat" title="{{ captain_success.definition if captain_success else '' }}">
+        <span class="stat-label">Captain</span>
+        <strong>{{ captain_success.label if captain_success else '—' }}</strong>
+        <span class="stat-sub">{{ captain_success.sub if captain_success else 'hit rate' }}</span>
+      </div>
     </div>
 
     <form method="post" action="/transfers/make" id="transferForm" class="swap-bar" hidden>

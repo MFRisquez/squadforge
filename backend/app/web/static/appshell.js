@@ -1,6 +1,6 @@
 (() => {
-  const CATALOG_KEY = "ff_players_catalog_v1";
-  const CATALOG_META = "ff_players_catalog_meta_v1";
+  const CATALOG_KEY = "ff_players_catalog_v2";
+  const CATALOG_META = "ff_players_catalog_meta_v2";
   const WARM_KEY = "ff_shell_warmed_v1";
   const SHELL_PATHS = new Set(["/", "/lineup", "/team", "/fixtures", "/rules", "/leagues", "/onboard"]);
   const pageCache = new Map(); // full path+search -> { html, at }
