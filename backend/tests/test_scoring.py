@@ -18,22 +18,21 @@ def test_def_thresholds_and_cap():
     metrics = {
         "minutes": 90,
         "clean_sheets": 1,
-        "tackles": 6,
-        "interceptions": 4,
-        "blocks": 3,
-        "clearances": 12,
-        "goal_line_clearances": 1,
+        "tackles": 2,
+        "cbi": 8,
+        "goal_line_clearances": 1,  # ignored: no real data source yet
     }
     result = score_player("DEF", metrics)
-    # Base 2 + CS 4 = 6; raw extras would be 2+1+1+1+1=6 but capped to 4
+    # Base 2 + CS 4 = 6; extras: tackles 2 + cbi 2 = 4 → capped to 3; GLC always 0
+    assert result.breakdown.get("goal_line_clearance", 0) == 0.0
+    assert result.breakdown.get("tackles_threshold", 0) == 2.0
+    assert result.breakdown.get("cbi_threshold", 0) > 0
     extras = (
         result.breakdown.get("tackles_threshold", 0)
-        + result.breakdown.get("interceptions_threshold", 0)
-        + result.breakdown.get("blocks_threshold", 0)
-        + result.breakdown.get("clearances_threshold", 0)
+        + result.breakdown.get("cbi_threshold", 0)
         + result.breakdown.get("goal_line_clearance", 0)
     )
-    assert extras <= 4.0 + 1e-6
+    assert extras <= 3.0 + 1e-6
     assert abs(result.total - (6 + extras)) < 1e-6
 
 

@@ -33,11 +33,10 @@ def demo_metrics_for_positions() -> dict[str, dict[str, Any]]:
             "assists": 0,
             "clean_sheets": 1,
             "goals_conceded": 0,
-            "tackles": 6,
-            "interceptions": 4,
-            "blocks": 3,
-            "clearances": 11,
-            "goal_line_clearances": 1,
+            "tackles": 2,
+            "cbi": 8,
+            # No data source yet; formula forces goal_line_clearance = 0
+            "goal_line_clearances": 0,
         },
         "MID": {
             "minutes": 78,
