@@ -60,6 +60,9 @@ def _ensure_schema_patches() -> None:
         if "league_type" not in cols:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE leagues ADD COLUMN league_type VARCHAR(16) DEFAULT 'classic'"))
+        if "owner_id" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE leagues ADD COLUMN owner_id INTEGER"))
     if "squad_picks" in tables:
         cols = {c["name"] for c in inspect(engine).get_columns("squad_picks")}
         if "is_vice_captain" not in cols:

@@ -166,6 +166,7 @@ def create_league(
         name=name.strip() or "Private League",
         invite_code=invite_code(),
         league_type=lt,
+        owner_id=manager.id,
     )
     db.add(league)
     db.flush()

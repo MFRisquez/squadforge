@@ -91,6 +91,8 @@ class League(Base):
     invite_code: Mapped[str] = mapped_column(String(16), unique=True, index=True)
     # classic = FPL-style cumulative table · h2h = weekly head-to-head (best with even members)
     league_type: Mapped[str] = mapped_column(String(16), default="classic")
+    # Creator / admin — nullable so existing leagues keep working until backfilled.
+    owner_id: Mapped[Optional[int]] = mapped_column(ForeignKey("managers.id"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     memberships: Mapped[list["Membership"]] = relationship(back_populates="league")
