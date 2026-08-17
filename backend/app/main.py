@@ -112,12 +112,11 @@ def on_startup() -> None:
     Base.metadata.create_all(bind=engine)
     _ensure_schema_patches()
     db_kind = "postgres" if "postgresql" in settings.database_url else "sqlite"
-    print(f"[futfantasy] database backend: {db_kind}", flush=True)
+    logger.info("database backend: %s", db_kind)
     if db_kind == "sqlite":
-        print(
-            "[futfantasy] WARNING: SQLite is wiped on every Render redeploy. "
-            "Set DATABASE_URL to your Supabase Postgres URI so accounts persist.",
-            flush=True,
+        logger.warning(
+            "SQLite is wiped on every Render redeploy. "
+            "Set DATABASE_URL to your Supabase Postgres URI so accounts persist."
         )
     db = SessionLocal()
     try:
