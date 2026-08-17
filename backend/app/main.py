@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import logging
+
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -15,6 +17,8 @@ from app.web_routes import router as web_router
 
 BASE_DIR = Path(__file__).resolve().parent
 ICONS_DIR = BASE_DIR / "web" / "static" / "icons"
+logger = logging.getLogger("squadforge.main")
+_DEFAULT_SECRET_KEY = "squadforge-dev-change-me"
 
 app = FastAPI(title=settings.app_name)
 app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
@@ -94,6 +98,11 @@ def _ensure_schema_patches() -> None:
 
 @app.on_event("startup")
 def on_startup() -> None:
+    if settings.secret_key == _DEFAULT_SECRET_KEY and not settings.debug:
+        logger.warning(
+            "INSECURE: SECRET_KEY is still the built-in default while DEBUG is False. "
+            "Set a unique SECRET_KEY in the environment before serving real users."
+        )
     # Never wipe existing data on deploy. Only drop when explicitly requested.
     if settings.reset_db_on_startup:
         Base.metadata.drop_all(bind=engine)
