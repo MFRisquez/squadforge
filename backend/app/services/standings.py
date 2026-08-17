@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
+
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -12,11 +15,13 @@ from app.models import (
     Manager,
     ManagerGameweekScore,
     Membership,
+    OwnedPlayer,
+    Player,
+    TechnicalDirectorPick,
     TransferLog,
     TransferState,
 )
 from app.services import squad as squad_svc
-from app.services import td as td_svc
 
 
 def _cumulative_total(db: Session, manager_id: int, through_number: int) -> float:
@@ -78,20 +83,37 @@ def _rank_by_manager(
     return {mid: i for i, (mid, *_rest) in enumerate(ordered, start=1)}
 
 
-def _manager_row_base(db: Session, manager: Manager, gw) -> dict:
-    owned = squad_svc.owned_players(db, manager.id)
-    spend = squad_svc.squad_spend(owned)
-    score = (
-        db.query(ManagerGameweekScore)
-        .filter(
-            ManagerGameweekScore.manager_id == manager.id,
-            ManagerGameweekScore.gameweek_id == gw.id,
-        )
-        .one_or_none()
+def _trend_from_scores(scores_by_gw_id: dict[int, float], last_n: int = 6) -> list[float]:
+    """Last N totals ordered by gameweek_id ascending (matches gw_points_trend)."""
+    if not scores_by_gw_id:
+        return []
+    ordered_ids = sorted(scores_by_gw_id.keys())[-last_n:]
+    return [float(scores_by_gw_id[gid]) for gid in ordered_ids]
+
+
+def _batch_manager_row_bases(db: Session, managers: list[Manager], gw) -> list[dict]:
+    """Build standings row bases for many managers with a handful of bulk queries."""
+    from app.services.chips import CHIP_SHORT
+
+    if not managers:
+        return []
+
+    manager_ids = [m.id for m in managers]
+
+    # One pull of all scores for these managers (totals / form / trend / current GW).
+    score_join_rows = (
+        db.query(ManagerGameweekScore, Gameweek)
+        .join(Gameweek, Gameweek.id == ManagerGameweekScore.gameweek_id)
+        .filter(ManagerGameweekScore.manager_id.in_(manager_ids))
+        .all()
     )
-    total_points = _cumulative_total(db, manager.id, gw.number)
-    gw_points = score.total if score else 0.0
-    # Last 5 finished/current GW scores for a compact form string
+    scores_by_mgr_gw_id: dict[int, dict[int, float]] = defaultdict(dict)
+    scores_by_mgr_number: dict[int, dict[int, float]] = defaultdict(dict)
+    for score, gweek in score_join_rows:
+        total = float(score.total or 0)
+        scores_by_mgr_gw_id[score.manager_id][gweek.id] = total
+        scores_by_mgr_number[score.manager_id][gweek.number] = total
+
     recent_gws = (
         db.query(Gameweek)
         .filter(Gameweek.number <= gw.number)
@@ -100,56 +122,112 @@ def _manager_row_base(db: Session, manager: Manager, gw) -> dict:
         .all()
     )
     recent_gws = list(reversed(recent_gws))
-    form_parts: list[str] = []
-    for rg in recent_gws:
-        rs = (
-            db.query(ManagerGameweekScore)
-            .filter(
-                ManagerGameweekScore.manager_id == manager.id,
-                ManagerGameweekScore.gameweek_id == rg.id,
-            )
-            .one_or_none()
-        )
-        form_parts.append(str(int(rs.total)) if rs else "–")
-    form = "·".join(form_parts) if form_parts else "—"
-    transfers = (
-        db.query(TransferLog)
-        .filter(TransferLog.manager_id == manager.id, TransferLog.gameweek_id == gw.id)
-        .count()
-    )
-    chip = (
-        db.query(ChipPlay)
-        .filter(ChipPlay.manager_id == manager.id, ChipPlay.gameweek_id == gw.id)
-        .one_or_none()
-    )
-    from app.services.chips import CHIP_SHORT
 
-    chip_key = chip.chip if chip else None
-    td = td_svc.current_td(db, manager.id, gw.number)
-    ft_state = db.query(TransferState).filter(TransferState.manager_id == manager.id).one_or_none()
-    trend = gw_points_trend(db, manager.id, last_n=6)
-    return {
-        "manager": manager,
-        "team_name": (manager.team_name or "").strip() or "—",
-        "gw_points": gw_points,
-        "total_points": total_points,
-        "squad_value": spend,
-        "transfers": transfers,
-        "chip": CHIP_SHORT.get(chip_key, "—") if chip_key else "—",
-        "chip_key": chip_key,
-        "td_club": td.club_code if td else "—",
-        "ft_left": ft_state.free_transfers if ft_state else 0,
-        "players_owned": len(owned),
-        "form": form,
-        "trend": trend,
-        "trend_rising": _trend_is_rising(trend),
-        "trend_polyline": trend_polyline(trend),
+    transfer_counts = dict(
+        db.query(TransferLog.manager_id, func.count(TransferLog.id))
+        .filter(
+            TransferLog.manager_id.in_(manager_ids),
+            TransferLog.gameweek_id == gw.id,
+        )
+        .group_by(TransferLog.manager_id)
+        .all()
+    )
+
+    chips_by_mgr = {
+        c.manager_id: c
+        for c in db.query(ChipPlay)
+        .filter(ChipPlay.manager_id.in_(manager_ids), ChipPlay.gameweek_id == gw.id)
+        .all()
     }
+
+    ft_by_mgr = {
+        s.manager_id: s
+        for s in db.query(TransferState).filter(TransferState.manager_id.in_(manager_ids)).all()
+    }
+
+    td_by_mgr = {
+        p.manager_id: p
+        for p in db.query(TechnicalDirectorPick)
+        .filter(
+            TechnicalDirectorPick.manager_id.in_(manager_ids),
+            TechnicalDirectorPick.start_gw <= gw.number,
+            TechnicalDirectorPick.end_gw >= gw.number,
+        )
+        .all()
+    }
+
+    owned_links = (
+        db.query(OwnedPlayer).filter(OwnedPlayer.manager_id.in_(manager_ids)).all()
+    )
+    player_ids = {row.player_id for row in owned_links}
+    players_by_id: dict[int, Player] = {}
+    if player_ids:
+        players_by_id = {
+            p.id: p for p in db.query(Player).filter(Player.id.in_(player_ids)).all()
+        }
+    owned_by_mgr: dict[int, list[Player]] = defaultdict(list)
+    for link in owned_links:
+        player = players_by_id.get(link.player_id)
+        if player:
+            owned_by_mgr[link.manager_id].append(player)
+
+    rows: list[dict] = []
+    for manager in managers:
+        mid = manager.id
+        by_number = scores_by_mgr_number.get(mid, {})
+        by_gw_id = scores_by_mgr_gw_id.get(mid, {})
+        owned = owned_by_mgr.get(mid, [])
+        spend = squad_svc.squad_spend(owned)
+        gw_points = float(by_gw_id.get(gw.id, 0.0))
+        total_points = float(sum(v for n, v in by_number.items() if n <= gw.number))
+
+        form_parts: list[str] = []
+        for rg in recent_gws:
+            rs = by_gw_id.get(rg.id)
+            form_parts.append(str(int(rs)) if rs is not None else "–")
+        form = "·".join(form_parts) if form_parts else "—"
+
+        chip = chips_by_mgr.get(mid)
+        chip_key = chip.chip if chip else None
+        td = td_by_mgr.get(mid)
+        ft_state = ft_by_mgr.get(mid)
+        trend = _trend_from_scores(by_gw_id, last_n=6)
+
+        rows.append(
+            {
+                "manager": manager,
+                "team_name": (manager.team_name or "").strip() or "—",
+                "gw_points": gw_points,
+                "total_points": total_points,
+                "squad_value": spend,
+                "transfers": int(transfer_counts.get(mid, 0)),
+                "chip": CHIP_SHORT.get(chip_key, "—") if chip_key else "—",
+                "chip_key": chip_key,
+                "td_club": td.club_code if td else "—",
+                "ft_left": ft_state.free_transfers if ft_state else 0,
+                "players_owned": len(owned),
+                "form": form,
+                "trend": trend,
+                "trend_rising": _trend_is_rising(trend),
+                "trend_polyline": trend_polyline(trend),
+                # Used by classic_standings for prev-rank without extra queries.
+                "_totals_by_number": by_number,
+            }
+        )
+    return rows
+
+
+def _manager_row_base(db: Session, manager: Manager, gw) -> dict:
+    """Single-manager helper (tests / callers). Same fields as the batch path."""
+    row = _batch_manager_row_bases(db, [manager], gw)[0]
+    row.pop("_totals_by_number", None)
+    return row
 
 
 def classic_standings(db: Session, league: League, gw) -> list[dict]:
     members = db.query(Membership).filter(Membership.league_id == league.id).all()
-    rows = [_manager_row_base(db, m.manager, gw) for m in members]
+    managers = [m.manager for m in members]
+    rows = _batch_manager_row_bases(db, managers, gw)
     rows.sort(key=lambda r: (-r["total_points"], -r["gw_points"], r["manager"].display_name.lower()))
     for i, row in enumerate(rows, start=1):
         row["rank"] = i
@@ -160,13 +238,15 @@ def classic_standings(db: Session, league: League, gw) -> list[dict]:
         prev_entries = []
         for row in rows:
             mid = row["manager"].id
-            prev_total = _cumulative_total(db, mid, gw.number - 1)
+            by_number = row.get("_totals_by_number") or {}
+            prev_total = float(sum(v for n, v in by_number.items() if n <= gw.number - 1))
             prev_entries.append(
                 (mid, prev_total, 0.0, row["manager"].display_name.lower())
             )
         prev_ranks = _rank_by_manager(prev_entries)
 
     for row in rows:
+        row.pop("_totals_by_number", None)
         prev = prev_ranks.get(row["manager"].id)
         if prev is None:
             row["prev_rank"] = None
@@ -215,9 +295,13 @@ def ensure_h2h_pairings(db: Session, league: League, gw) -> list[H2HMatch]:
 def h2h_standings(db: Session, league: League, gw) -> tuple[list[dict], list[dict]]:
     """Return (table_rows, this_week_fixtures)."""
     members = [m.manager for m in db.query(Membership).filter(Membership.league_id == league.id).all()]
-    stats = {
-        m.id: {
-            **_manager_row_base(db, m, gw),
+    base_rows = _batch_manager_row_bases(db, members, gw)
+    stats = {}
+    for base in base_rows:
+        base.pop("_totals_by_number", None)
+        mid = base["manager"].id
+        stats[mid] = {
+            **base,
             "played": 0,
             "wins": 0,
             "draws": 0,
@@ -226,8 +310,6 @@ def h2h_standings(db: Session, league: League, gw) -> tuple[list[dict], list[dic
             "pf": 0.0,
             "pa": 0.0,
         }
-        for m in members
-    }
 
     all_matches = db.query(H2HMatch).filter(H2HMatch.league_id == league.id).all()
     for match in all_matches:
