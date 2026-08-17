@@ -217,6 +217,30 @@ def manager_leagues(db: Session, manager_id: int) -> list[League]:
     return rows
 
 
+def backfill_null_league_owners(db: Session) -> int:
+    """Assign owner_id on legacy leagues where it is NULL.
+
+    Uses the earliest Membership (joined_at, then id) so Delete league works again.
+    Returns how many leagues were updated.
+    """
+    orphans = db.query(League).filter(League.owner_id.is_(None)).all()
+    updated = 0
+    for league in orphans:
+        first = (
+            db.query(Membership)
+            .filter(Membership.league_id == league.id)
+            .order_by(Membership.joined_at.asc(), Membership.id.asc())
+            .first()
+        )
+        if not first:
+            continue
+        league.owner_id = first.manager_id
+        updated += 1
+    if updated:
+        db.commit()
+    return updated
+
+
 def delete_league(db: Session, league: League, requesting_manager_id: int) -> None:
     """Remove a league and its league-scoped rows (memberships + H2H fixtures)."""
     if league.owner_id != requesting_manager_id:

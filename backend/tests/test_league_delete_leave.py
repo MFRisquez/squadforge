@@ -158,6 +158,37 @@ def test_league_page_shows_delete_or_leave(db):
     assert "Delete league" not in html
 
 
+def test_backfill_null_league_owners_assigns_earliest_member(db):
+    """Legacy leagues with owner_id NULL get the earliest member as owner."""
+    from datetime import datetime, timedelta
+
+    owner, guest = _two_managers(db)
+    league = League(
+        name="Legacy Classic",
+        invite_code="LEGACY1",
+        league_type="classic",
+        owner_id=None,
+    )
+    db.add(league)
+    db.flush()
+    early = datetime.utcnow() - timedelta(days=10)
+    late = datetime.utcnow() - timedelta(days=1)
+    db.add(Membership(league_id=league.id, manager_id=guest.id, joined_at=late))
+    db.add(Membership(league_id=league.id, manager_id=owner.id, joined_at=early))
+    db.commit()
+    assert league.owner_id is None
+
+    n = league_svc.backfill_null_league_owners(db)
+    assert n == 1
+    db.refresh(league)
+    assert league.owner_id == owner.id
+
+    client = _client()
+    client.post("/login", data={"login": "Owner", "password": "secret12"}, follow_redirects=False)
+    html = client.get(f"/league/{league.id}").text
+    assert "Delete league" in html
+
+
 def test_leave_confirm_safe_with_apostrophe_league_name(db):
     """Apostrophe in league name must not break JS/HTML (JSON script tag)."""
     import json
