@@ -1,48 +1,46 @@
 {% extends "base.html" %}
 {% block title %}{{ league.name }} · {{ app_name }}{% endblock %}
+{% block body_class %}page-standings{% endblock %}
 {% block content %}
-<section class="hero-block compact standings-hero">
-  <p class="eyebrow">{% if mode == 'h2h' %}Head to Head{% else %}Classic{% endif %} · GW {{ gw.number if gw else '' }}</p>
+<section class="standings-hero">
+  <p class="eyebrow">{% if mode == 'h2h' %}Head to Head{% else %}Classic{% endif %} · GW{{ gw.number if gw else '' }}</p>
   <h1>{{ league.name }}</h1>
-  <p class="lede tight">
-    {% if mode == 'h2h' %}
-      Weekly matches · 3 pts win · 1 draw. Tap a team to scout their XI for this gameweek.
-    {% else %}
-      Rank by season total. Tap a team name to see their locked gameweek squad.
-    {% endif %}
-  </p>
+  {% if updated_label %}
+  <p class="standings-updated">Last updated · {{ updated_label }}</p>
+  {% endif %}
 </section>
 
 {% if mode == 'classic' %}
-<section class="panel table-wrap standings-panel">
-  <table class="standings standings-classic">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Team</th>
-        <th>GW</th>
-        <th>Tot</th>
-        <th class="standings-form-col">Form</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in rows %}
-      <tr class="{% if me and row.manager.id == me.id %}is-me{% endif %} {% if row.rank <= 3 %}rank-{{ row.rank }}{% endif %}">
-        <td class="rank-cell">{{ row.rank }}</td>
-        <td class="standings-team-cell">
-          <a class="standings-team-link" href="/league/{{ league.id }}/opponent/{{ row.manager.id }}?gw={{ gw.number }}">
-            {{ row.team_name }}
-          </a>
-          <span class="standings-form-inline muted tiny">Form {{ row.form or '—' }}</span>
-        </td>
-        <td class="standings-num">{{ '%.0f'|format(row.gw_points) }}</td>
-        <td class="standings-num"><strong>{{ '%.0f'|format(row.total_points) }}</strong></td>
-        <td class="standings-form-col muted tiny">{{ row.form or '—' }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  <p class="muted tiny">Form = last 5 GW scores. Tap a team to scout their locked GW squad.</p>
+<section class="standings-board" aria-label="Classic standings">
+  <div class="standings-cols" aria-hidden="true">
+    <span>Pos</span>
+    <span>Team</span>
+    <span>GW{{ gw.number }}</span>
+    <span>Total</span>
+  </div>
+  <ul class="standings-list">
+    {% for row in rows %}
+    <li class="standings-row {% if me and row.manager.id == me.id %}is-me{% endif %} {% if row.rank <= 3 %}is-top-{{ row.rank }}{% endif %}">
+      <div class="standings-pos">
+        <span class="standings-rank">{{ row.rank }}</span>
+        {% if row.rank_delta is none %}
+          <span class="rank-move is-same" title="No previous GW">–</span>
+        {% elif row.rank_delta > 0 %}
+          <span class="rank-move is-up" title="Up {{ row.rank_delta }}">↑</span>
+        {% elif row.rank_delta < 0 %}
+          <span class="rank-move is-down" title="Down {{ -row.rank_delta }}">↓</span>
+        {% else %}
+          <span class="rank-move is-same" title="No change">–</span>
+        {% endif %}
+      </div>
+      <a class="standings-team" href="/league/{{ league.id }}/opponent/{{ row.manager.id }}?gw={{ gw.number }}">
+        <strong>{{ row.team_name }}</strong>
+      </a>
+      <span class="standings-gw">{{ '%.0f'|format(row.gw_points) }}</span>
+      <span class="standings-tot">{{ '%.0f'|format(row.total_points) }}</span>
+    </li>
+    {% endfor %}
+  </ul>
 </section>
 {% else %}
 <section class="panel table-wrap standings-panel">

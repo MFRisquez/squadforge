@@ -258,4 +258,32 @@
       }
     });
   }
+
+  function formatCountdown(ms) {
+    if (ms <= 0) return "Locked";
+    const totalSec = Math.floor(ms / 1000);
+    const d = Math.floor(totalSec / 86400);
+    const h = Math.floor((totalSec % 86400) / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    if (d > 0) return `${d}d ${h}h ${m}m`;
+    if (h > 0) return `${h}h ${m}m ${String(s).padStart(2, "0")}s`;
+    return `${m}m ${String(s).padStart(2, "0")}s`;
+  }
+
+  function tickCountdowns() {
+    document.querySelectorAll(".gw-countdown[data-deadline]").forEach((el) => {
+      const raw = el.getAttribute("data-deadline");
+      if (!raw) return;
+      const end = new Date(raw);
+      if (Number.isNaN(end.getTime())) return;
+      const left = end.getTime() - Date.now();
+      el.textContent = formatCountdown(left);
+      el.classList.toggle("is-urgent", left > 0 && left < 3 * 60 * 60 * 1000);
+      el.classList.toggle("is-locked", left <= 0);
+    });
+  }
+
+  tickCountdowns();
+  window.setInterval(tickCountdowns, 1000);
 })();

@@ -470,6 +470,8 @@ select {
   font-weight: 700;
 }
 .gw-deadline { font-size: 0.78rem; opacity: 0.85; }
+.gw-countdown.is-urgent { color: #ff8a80; }
+.gw-countdown.is-locked { color: #fff; opacity: 0.85; }
 .gw-lock-note {
   margin: 0.55rem 0 0;
   font-size: 0.8rem;
@@ -5015,6 +5017,122 @@ body.page-opponent .desk-xi { margin-top: 0.25rem; }
 .standings tr.rank-1 .rank-cell { color: #b8860b; font-weight: 900; }
 .standings tr.rank-2 .rank-cell { color: #708090; font-weight: 900; }
 .standings tr.rank-3 .rank-cell { color: #a0522d; font-weight: 900; }
+
+/* Classic league board — FPL-style, brand palette */
+.standings-hero {
+  margin: 0 0 0.85rem;
+}
+.standings-hero h1 {
+  margin: 0.1rem 0 0.25rem;
+  font-size: clamp(1.45rem, 4vw, 1.85rem);
+}
+.standings-updated {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+.standings-board {
+  margin: 0 0 1rem;
+}
+.standings-cols {
+  display: grid;
+  grid-template-columns: 3.4rem minmax(0, 1fr) 3.4rem 3.6rem;
+  gap: 0.45rem;
+  padding: 0 0.55rem 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.standings-cols span:nth-child(3),
+.standings-cols span:nth-child(4) {
+  text-align: right;
+}
+.standings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.28rem;
+}
+.standings-row {
+  display: grid;
+  grid-template-columns: 3.4rem minmax(0, 1fr) 3.4rem 3.6rem;
+  gap: 0.45rem;
+  align-items: center;
+  padding: 0.72rem 0.55rem;
+  border-radius: 0.85rem;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+}
+.standings-row:last-child { border-bottom: 0; }
+.standings-pos {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.standings-rank {
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  min-width: 1.1rem;
+}
+.rank-move {
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 0.62rem;
+  font-weight: 900;
+  line-height: 1;
+  color: #fff;
+}
+.rank-move.is-up { background: #1faa59; }
+.rank-move.is-down { background: #e53935; }
+.rank-move.is-same { background: #808080; }
+.standings-team {
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+}
+.standings-team strong {
+  display: block;
+  font-size: 0.98rem;
+  font-weight: 900;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.standings-gw,
+.standings-tot {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.standings-tot { font-weight: 900; }
+.standings-row.is-me {
+  background: linear-gradient(90deg, #C0FF00 0%, #7a9a00 42%, #1a1a1a 100%);
+  border-bottom: 0;
+  color: #fff;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+}
+.standings-row.is-me .standings-team,
+.standings-row.is-me .standings-gw,
+.standings-row.is-me .standings-tot,
+.standings-row.is-me .standings-rank {
+  color: #fff;
+}
+.standings-row.is-me .rank-move.is-same {
+  background: rgba(255, 255, 255, 0.35);
+  color: #111;
+}
+html[data-theme="light"] .standings-row.is-me {
+  background: linear-gradient(90deg, #C0FF00 0%, #9fbf00 48%, #222 100%);
+}
 .chip-tag {
   display: inline-block;
   padding: 0.12rem 0.4rem;
