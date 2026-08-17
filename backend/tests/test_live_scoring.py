@@ -83,8 +83,9 @@ def test_demo_scoring_writes_manager_total():
         summary = live_svc.run_gameweek_scoring(db, force_demo=True)
         assert summary["managers_scored"] >= 1
         assert summary["players_scored"] >= 1
+        assert summary["ingest"]["source"] == "demo_sim"
 
-        from app.models import ManagerGameweekScore
+        from app.models import ManagerGameweekScore, MatchEvent
 
         row = (
             db.query(ManagerGameweekScore)
@@ -95,6 +96,83 @@ def test_demo_scoring_writes_manager_total():
             .one()
         )
         assert row.total != 0 or row.squad_points >= 0
+        assert (
+            db.query(MatchEvent)
+            .filter(MatchEvent.gameweek_id == gw.id, MatchEvent.source == "demo_sim")
+            .count()
+            > 0
+        )
+        assert live_svc.is_demo_scoring_active(db, gw) is True
+    finally:
+        db.close()
+
+
+def test_auto_scoring_never_falls_back_to_demo(monkeypatch):
+    """Empty live ingest must not invent demo_sim points (auto-scorer / Refresh live)."""
+    from app.models import MatchEvent
+
+    db = SessionLocal()
+    try:
+        gw = squad_svc.current_gameweek(db)
+        # Prior tests may have left demo_sim rows — clear so this asserts the auto path.
+        live_svc.clear_demo_scoring_data(db, gameweek_id=gw.id)
+
+        def _empty_live(_db, _gw):
+            return {"source": "fpl_live", "players_updated": 0, "club_results": 0, "live_empty": True}
+
+        monkeypatch.setattr(live_svc, "ingest_fpl_live", _empty_live)
+        before = (
+            db.query(MatchEvent)
+            .filter(MatchEvent.gameweek_id == gw.id, MatchEvent.source == "demo_sim")
+            .count()
+        )
+        summary = live_svc.run_gameweek_scoring(db, prefer_live=True, force_demo=False)
+        assert summary["ingest"].get("demo_skipped") is True
+        assert summary["ingest"].get("fell_back_demo") is None
+        assert summary["ingest"].get("source") != "demo_sim"
+        after = (
+            db.query(MatchEvent)
+            .filter(MatchEvent.gameweek_id == gw.id, MatchEvent.source == "demo_sim")
+            .count()
+        )
+        assert before == 0
+        assert after == 0
+    finally:
+        db.close()
+
+
+def test_clear_demo_scoring_data_removes_fake_points():
+    from app.models import ManagerGameweekScore, MatchEvent
+
+    db = SessionLocal()
+    try:
+        gw = squad_svc.current_gameweek(db)
+        live_svc.simulate_demo_metrics(db, gw)
+        live_svc.score_players(db, gw)
+        live_svc.score_managers(db, gw)
+        assert (
+            db.query(MatchEvent)
+            .filter(MatchEvent.gameweek_id == gw.id, MatchEvent.source == "demo_sim")
+            .count()
+            > 0
+        )
+        assert live_svc.is_demo_scoring_active(db, gw) is True
+
+        cleared = live_svc.clear_demo_scoring_data(db, gameweek_id=gw.id)
+        assert cleared["match_events_deleted"] > 0
+        assert (
+            db.query(MatchEvent)
+            .filter(MatchEvent.gameweek_id == gw.id, MatchEvent.source == "demo_sim")
+            .count()
+            == 0
+        )
+        assert (
+            db.query(ManagerGameweekScore)
+            .filter(ManagerGameweekScore.gameweek_id == gw.id)
+            .count()
+            == 0
+        )
+        assert live_svc.is_demo_scoring_active(db, gw) is False
     finally:
         db.close()
 

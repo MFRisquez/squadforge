@@ -9,12 +9,12 @@
   <meta name="apple-mobile-web-app-title" content="Fut Fantasy" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="description" content="Private Fantasy Premier League for your friends." />
-  <link rel="manifest" href="/static/manifest.webmanifest?v=101" />
-  <link rel="icon" href="/favicon.ico?v=101" sizes="any" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32.png?v=101" />
-  <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16.png?v=101" />
-  <link rel="icon" type="image/svg+xml" href="/static/icons/logo.svg?v=101" />
-  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png?v=101" />
+  <link rel="manifest" href="/static/manifest.webmanifest?v=102" />
+  <link rel="icon" href="/favicon.ico?v=102" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32.png?v=102" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16.png?v=102" />
+  <link rel="icon" type="image/svg+xml" href="/static/icons/logo.svg?v=102" />
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png?v=102" />
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
   <script>
     (function () {
@@ -80,6 +80,12 @@
   </nav>
   {% endif %}
 
+  {% if demo_data_active %}
+  <div class="demo-data-banner" role="status">
+    ⚠️ Demo data — not real results
+  </div>
+  {% endif %}
+
   <main class="shell reveal">
     {% if error %}<p class="flash error" role="alert">{{ error }}</p>{% endif %}
     {% if notice %}<p class="flash notice" role="status">{{ notice }}</p>{% endif %}
@@ -102,7 +108,7 @@
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
-        navigator.serviceWorker.register("/static/sw.js?v=101").catch(() => {});
+        navigator.serviceWorker.register("/static/sw.js?v=102").catch(() => {});
       });
     }
   </script>

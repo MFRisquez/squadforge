@@ -34,13 +34,21 @@ def maybe_score_locked_gw(*, force: bool = False) -> Optional[dict]:
             if not deadline_svc.deadline_passed(gw):
                 return None
             summary = live_svc.run_gameweek_scoring(db, prefer_live=True, force_demo=False)
+            # Never invent demo points in the background loop.
+            if summary.get("ingest", {}).get("demo_skipped"):
+                logger.info(
+                    "auto-score GW%s skipped demo (live empty) · managers=%s",
+                    gw.number,
+                    summary.get("managers_scored"),
+                )
             _last_run_at = now
             _last_gw = gw.number
             logger.info(
-                "auto-scored GW%s · managers=%s players=%s",
+                "auto-scored GW%s · managers=%s players=%s source=%s",
                 gw.number,
                 summary.get("managers_scored"),
                 summary.get("players_scored"),
+                (summary.get("ingest") or {}).get("source"),
             )
             return summary
         except Exception:

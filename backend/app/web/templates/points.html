@@ -8,13 +8,13 @@
   <p class="eyebrow">My Points</p>
   <h1>{{ '%.0f'|format(score.total) if score else '—' }}</h1>
   <p class="lede tight">
-    {% if score %}
+      {% if score %}
       Squad {{ '%.0f'|format(score.squad_points) }}
       {% if score.td_points %} · TD {{ '%+.0f'|format(score.td_points) }}{% endif %}
       {% if breakdown.hit_points %} · Hits {{ '%+.0f'|format(breakdown.hit_points) }}{% endif %}
       · {{ breakdown.chip|default('—') }}
     {% else %}
-      No score yet — refresh live points below (uses demo metrics until FPL GW goes live).
+      No score yet — refresh live scores when FPL data is available.
     {% endif %}
   </p>
 </section>
@@ -24,10 +24,12 @@
     <input type="hidden" name="mode" value="auto" />
     <button class="btn" type="submit">Refresh live scores</button>
   </form>
+  {% if debug %}
   <form method="post" action="/score/run">
     <input type="hidden" name="mode" value="demo" />
     <button class="btn ghost" type="submit">Score with demo data</button>
   </form>
+  {% endif %}
   <a class="btn ghost" href="/lineup?gw={{ gw.number }}">XI</a>
 </div>
 

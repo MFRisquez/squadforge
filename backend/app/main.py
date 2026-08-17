@@ -125,10 +125,19 @@ def on_startup() -> None:
     try:
         seed_if_empty(db, force_fpl_sync=False)
         from app.services import league as league_svc
+        from app.services import live_scoring as live_svc
 
         n = league_svc.backfill_null_league_owners(db)
         if n:
             logger.info("backfilled owner_id on %s legacy league(s)", n)
+        cleared = live_svc.clear_demo_scoring_data(db)
+        if cleared.get("match_events_deleted"):
+            logger.info(
+                "cleared demo scoring data · events=%s scores=%s gws=%s",
+                cleared.get("match_events_deleted"),
+                cleared.get("manager_scores_deleted"),
+                cleared.get("gameweek_ids"),
+            )
     finally:
         db.close()
     from app.services.auto_score import start_auto_scorer

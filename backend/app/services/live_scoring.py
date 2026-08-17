@@ -192,9 +192,10 @@ def ingest_fpl_live(db: Session, gw: Gameweek) -> dict[str, Any]:
 
 
 def simulate_demo_metrics(db: Session, gw: Gameweek) -> dict[str, Any]:
-    """When FPL live is empty (pre-kickoff), invent plausible metrics for owned players.
+    """Invent plausible metrics for owned players (explicit demo / debug only).
 
-    Deterministic per player+gw so re-runs are stable for demos/friends testing.
+    Writes MatchEvent rows with source=\"demo_sim\" so they can be cleared later.
+    Never called by the background auto-scorer.
     """
     owned_ids = {r.player_id for r in db.query(OwnedPlayer).all()}
     if not owned_ids:
@@ -627,19 +628,33 @@ def resolve_h2h(db: Session, gw: Gameweek) -> int:
     return updated
 
 
-def run_gameweek_scoring(db: Session, *, prefer_live: bool = True, force_demo: bool = False) -> dict[str, Any]:
-    """Full pipeline for the current gameweek."""
+def run_gameweek_scoring(
+    db: Session,
+    *,
+    prefer_live: bool = True,
+    force_demo: bool = False,
+) -> dict[str, Any]:
+    """Full pipeline for the current gameweek.
+
+    Demo metrics are **never** applied automatically. Pass ``force_demo=True``
+    only from an explicit developer action (e.g. Score with demo data).
+    """
     gw = squad_svc.current_gameweek(db)
     ingest: dict[str, Any]
     if force_demo:
         ingest = simulate_demo_metrics(db, gw)
     else:
         try:
-            ingest = ingest_fpl_live(db, gw) if prefer_live else {"live_empty": True}
+            ingest = ingest_fpl_live(db, gw) if prefer_live else {"live_empty": True, "source": "skipped"}
         except Exception as exc:
             ingest = {"source": "fpl_error", "error": str(exc), "live_empty": True}
+        # Pre-kickoff / empty live: leave real zeros — do NOT invent demo_sim points.
         if ingest.get("live_empty") or ingest.get("players_updated", 0) == 0:
-            ingest = {**ingest, **simulate_demo_metrics(db, gw), "fell_back_demo": True}
+            ingest = {
+                **ingest,
+                "demo_skipped": True,
+                "source": ingest.get("source") or "fpl_live",
+            }
 
     # Advanced defensive/create stats from API-Football (optional; never blocks scoring).
     try:
@@ -660,3 +675,79 @@ def run_gameweek_scoring(db: Session, *, prefer_live: bool = True, force_demo: b
         "h2h_updated": n_h2h,
         "formula_version": settings.formula_version,
     }
+
+
+def clear_demo_scoring_data(db: Session, *, gameweek_id: int | None = None) -> dict[str, Any]:
+    """Delete demo_sim MatchEvents and derived scores so tables show real zeros.
+
+    Durable signal: MatchEvent.source == \"demo_sim\" (fell_back_demo was never persisted).
+    """
+    q = db.query(MatchEvent).filter(MatchEvent.source == "demo_sim")
+    if gameweek_id is not None:
+        q = q.filter(MatchEvent.gameweek_id == gameweek_id)
+    gw_ids = sorted({int(r[0]) for r in q.with_entities(MatchEvent.gameweek_id).distinct().all()})
+    deleted_events = q.delete(synchronize_session=False)
+
+    deleted_scores = 0
+    deleted_player_pts = 0
+    reset_h2h = 0
+    deleted_club_results = 0
+    for gid in gw_ids:
+        deleted_scores += (
+            db.query(ManagerGameweekScore)
+            .filter(ManagerGameweekScore.gameweek_id == gid)
+            .delete(synchronize_session=False)
+        )
+        deleted_player_pts += (
+            db.query(PlayerPoints)
+            .filter(PlayerPoints.gameweek_id == gid)
+            .delete(synchronize_session=False)
+        )
+        for match in db.query(H2HMatch).filter(H2HMatch.gameweek_id == gid).all():
+            match.home_points = 0.0
+            match.away_points = 0.0
+            match.result = "pending"
+            reset_h2h += 1
+        # Demo rewrite wiped + replaced ClubResult for the GW; if no real events remain, clear.
+        remaining = (
+            db.query(MatchEvent)
+            .filter(MatchEvent.gameweek_id == gid)
+            .count()
+        )
+        if remaining == 0:
+            deleted_club_results += (
+                db.query(ClubResult)
+                .filter(ClubResult.gameweek_id == gid)
+                .delete(synchronize_session=False)
+            )
+    db.commit()
+    return {
+        "gameweek_ids": gw_ids,
+        "match_events_deleted": int(deleted_events or 0),
+        "manager_scores_deleted": int(deleted_scores or 0),
+        "player_points_deleted": int(deleted_player_pts or 0),
+        "h2h_reset": reset_h2h,
+        "club_results_deleted": int(deleted_club_results or 0),
+    }
+
+
+def is_demo_scoring_active(db: Session, gw: Gameweek | None = None) -> bool:
+    """True when demo_sim MatchEvents exist for the GW (or a live demo session is on)."""
+    try:
+        from app.services import demo_live as demo_svc
+
+        if demo_svc.is_live_demo_active(db):
+            return True
+    except Exception:
+        pass
+    if gw is None:
+        try:
+            gw = squad_svc.current_gameweek(db)
+        except Exception:
+            return False
+    return (
+        db.query(MatchEvent.id)
+        .filter(MatchEvent.gameweek_id == gw.id, MatchEvent.source == "demo_sim")
+        .first()
+        is not None
+    )
