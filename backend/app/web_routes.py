@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import threading
+import time
 from pathlib import Path
 from typing import Optional
 from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
@@ -25,6 +27,45 @@ from app.services.seed import seed_if_empty
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "web" / "templates"))
 
+_LOGIN_WINDOW_SEC = 15 * 60
+_LOGIN_MAX_FAILURES = 5
+_login_failures: dict[str, list[float]] = {}
+_login_lock = threading.Lock()
+
+
+def _client_ip(request: Request) -> str:
+    forwarded = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+    if forwarded:
+        return forwarded
+    if request.client and request.client.host:
+        return request.client.host
+    return "unknown"
+
+
+def _login_prune(failures: list[float], now: float) -> list[float]:
+    cutoff = now - _LOGIN_WINDOW_SEC
+    return [t for t in failures if t >= cutoff]
+
+
+def _login_blocked(ip: str) -> bool:
+    now = time.time()
+    with _login_lock:
+        recent = _login_prune(_login_failures.get(ip, []), now)
+        _login_failures[ip] = recent
+        return len(recent) >= _LOGIN_MAX_FAILURES
+
+
+def _login_record_failure(ip: str) -> None:
+    now = time.time()
+    with _login_lock:
+        recent = _login_prune(_login_failures.get(ip, []), now)
+        recent.append(now)
+        _login_failures[ip] = recent
+
+
+def _login_clear_failures(ip: str) -> None:
+    with _login_lock:
+        _login_failures.pop(ip, None)
 
 def _format_kickoff_zones(iso: str | None) -> str:
     """Short date + Mexico / US (ET) / Venezuela local times for fixture cards."""
@@ -273,14 +314,27 @@ def login_submit(
     password: str = Form(...),
     db: Session = Depends(get_db),
 ):
+    ip = _client_ip(request)
+    if _login_blocked(ip):
+        return templates.TemplateResponse(
+            "login.html",
+            _ctx(
+                request,
+                db,
+                error="Too many failed login attempts. Try again in 15 minutes.",
+            ),
+            status_code=429,
+        )
     try:
         manager = league_svc.authenticate_manager(db, login=login, password=password)
     except league_svc.LeagueError as exc:
+        _login_record_failure(ip)
         return templates.TemplateResponse(
             "login.html",
             _ctx(request, db, error=str(exc)),
             status_code=400,
         )
+    _login_clear_failures(ip)
     login_manager(request, manager)
     if manager_has_complete_squad(db, manager.id):
         return RedirectResponse("/", status_code=303)
