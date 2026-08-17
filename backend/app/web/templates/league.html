@@ -52,7 +52,8 @@
   <form
     method="post"
     action="/league/{{ league.id }}/leave"
-    onsubmit="return confirm('Leave {{ league.name }}?');"
+    class="js-leave-league"
+    data-league-name={{ league.name | tojson }}
   >
     <button class="btn ghost" type="submit">Leave league</button>
   </form>

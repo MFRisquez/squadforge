@@ -301,4 +301,22 @@
       btn.textContent = show ? "🙈" : "👁";
     });
   });
+
+  // Leave-league confirm — name comes from data-league-name={{ name|tojson }}
+  // (tojson supplies the attribute quotes; do not wrap again in the template).
+  document.querySelectorAll("form.js-leave-league").forEach((form) => {
+    form.addEventListener("submit", (e) => {
+      const raw = form.getAttribute("data-league-name") || "";
+      let name = raw;
+      try {
+        // Attribute value is the JSON string body (unicode-escaped by tojson).
+        name = JSON.parse(`"${raw}"`);
+      } catch (_) {
+        /* keep raw */
+      }
+      if (!window.confirm(`Leave ${name}?`)) {
+        e.preventDefault();
+      }
+    });
+  });
 })();

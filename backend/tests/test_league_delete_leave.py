@@ -156,3 +156,32 @@ def test_league_page_shows_delete_or_leave(db):
     html = client.get(f"/league/{league.id}").text
     assert "Leave league" in html
     assert "Delete league" not in html
+
+
+def test_leave_confirm_safe_with_apostrophe_league_name(db):
+    """Apostrophe in league name must not break JS/HTML (use tojson data attr)."""
+    import json
+    import re
+
+    owner, guest = _two_managers(db)
+    league = league_svc.create_league(db, "Manu's Cup", owner)
+    league_svc.join_league(db, league.invite_code, guest)
+    client = _client()
+
+    client.post("/login", data={"login": "Guest", "password": "secret12"}, follow_redirects=False)
+    html = client.get(f"/league/{league.id}").text
+
+    # Must not use the broken inline confirm('Leave Manu's Cup?') pattern
+    assert "confirm('Leave " not in html
+    assert 'class="js-leave-league"' in html or "class='js-leave-league'" in html
+
+    m = re.search(r'data-league-name=(".*?"|\'.*?\')', html)
+    assert m, "expected data-league-name attribute on leave form"
+    attr = m.group(1)
+    # Attribute is well-formed JSON from |tojson (quotes are the delimiters)
+    if attr.startswith('"'):
+        body = attr[1:-1]
+        name = json.loads(f'"{body}"')
+    else:
+        name = json.loads(attr[1:-1] if attr[0] in "'\"" else attr)
+    assert name == "Manu's Cup"
