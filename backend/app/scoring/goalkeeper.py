@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.scoring.common import appearance_points, card_points, m
+from app.scoring.common import appearance_points, card_points, m, threshold_hit
 
 
 def score(metrics: dict[str, Any]) -> tuple[float, dict[str, float]]:
@@ -31,6 +31,8 @@ def score(metrics: dict[str, Any]) -> tuple[float, dict[str, float]]:
         # -1 per 2 goals conceded (FPL-like)
         "goals_conceded": -1.0 * (gc // 2),
         "saves": 1.0 * (saves // 3),  # +1 per 3 saves
+        # Extra flat bonus when the keeper makes a big save haul
+        "saves_bonus_5plus": threshold_hit(saves, 5, 2.0),
         "penalties_saved": 5.0 * pen_saved,
         "penalties_missed": -2.0 * pen_missed,
         **cards,

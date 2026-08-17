@@ -42,6 +42,23 @@ def test_threshold_helper():
     assert threshold_hit(4, 5, 2) == 0
 
 
+def test_gk_saves_progressive_and_5plus_bonus():
+    """+1 per 3 saves, plus flat +2 when saves >= 5 (via threshold_hit)."""
+    four = score_player("GK", {"minutes": 90, "saves": 4})
+    five = score_player("GK", {"minutes": 90, "saves": 5})
+    six = score_player("GK", {"minutes": 90, "saves": 6})
+
+    assert four.breakdown["saves"] == 1.0  # 4 // 3
+    assert four.breakdown.get("saves_bonus_5plus", 0) == 0.0
+
+    assert five.breakdown["saves"] == 1.0  # 5 // 3
+    assert five.breakdown["saves_bonus_5plus"] == 2.0
+    assert five.total == four.total + 2.0
+
+    assert six.breakdown["saves"] == 2.0  # 6 // 3
+    assert six.breakdown["saves_bonus_5plus"] == 2.0
+
+
 def test_cameo_with_goal_gets_full_appearance():
     blank_sub = score_player("ATT", {"minutes": 20, "goals": 0, "assists": 0})
     hero_sub = score_player("ATT", {"minutes": 20, "goals": 1, "assists": 0})
