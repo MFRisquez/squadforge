@@ -123,10 +123,10 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS that still showed the rail
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v97"' in sw
+    assert 'CACHE = "futfantasy-v98"' in sw
     assert "/static/styles.css" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=97" in base
+    assert "sw.js?v=98" in base
 
 
 def test_owned_checkmark_is_side_absolute():
@@ -143,3 +143,31 @@ def test_owned_checkmark_is_side_absolute():
     squad = (STATIC / "squadboard.js").read_text(encoding="utf-8")
     assert 'tr-owned-mark' in squad
     assert "✓" in squad
+
+
+def test_super_sub_mobile_layout_consolidated():
+    """Phone Super Sub: one ≤899 block with display:contents; dead dual-body selector gone."""
+    css = (STATIC / "styles.css").read_text(encoding="utf-8")
+    marker = "Super Sub phone/tablet (≤899): one layout"
+    start = css.find(marker)
+    assert start >= 0
+    chunk = css[start : start + 2400]
+    assert "@media (max-width: 899px)" in chunk
+    assert "display: contents" in chunk
+    assert "grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1.35fr) auto" in chunk
+    assert "body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form" in chunk
+    # Dead selector never matches (two body classes as descendant)
+    assert "body.page-squad body.page-xi .chip-card-fpl.chip-card-ss" not in css
+    # Narrow wrap keeps toggle on row 1, select under title
+    wrap = css.find("Narrow phones: keep Off/On on the title row")
+    assert wrap >= 0
+    wrap_chunk = css[wrap : wrap + 900]
+    assert "@media (max-width: 390px)" in wrap_chunk
+    assert "grid-row: 2" in wrap_chunk
+    assert "grid-column: 2 / 5" in wrap_chunk
+    # Desktop one-line Super Sub must remain
+    desk = css.find("Super Sub: icon · title · info · Off · bench select")
+    assert desk >= 0
+    desk_chunk = css[desk : desk + 800]
+    assert "display: contents" in desk_chunk
+    assert "minmax(0, 1.2fr)" in desk_chunk

@@ -5574,12 +5574,9 @@ html.is-standalone body::after {
   body.page-xi .chip-strip-cards {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
-  body.page-xi .chip-card-fpl.chip-card-ss {
-    grid-column: 1 / -1;
-  }
+  /* Super Sub layout lives in the ≤899 consolidated block below */
   .chip-card-fpl,
-  .chip-card-fpl.chip-card-wide,
-  .chip-card-fpl.chip-card-ss {
+  .chip-card-fpl.chip-card-wide {
     width: 100%;
     max-width: none;
     min-width: 0;
@@ -5631,29 +5628,6 @@ html.is-standalone body::after {
     padding: 0.14rem 0.55rem;
   }
   .chip-card-fpl .chip-status { font-size: 0.62rem; min-height: 0; }
-  body.page-squad body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form {
-    display: contents;
-  }
-  body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form .chip-toggle {
-    grid-row: 1;
-    grid-column: 3;
-    justify-self: start;
-  }
-  body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form select {
-    grid-row: 1;
-    grid-column: 4;
-    min-width: 0;
-    width: 100%;
-    max-width: 7.2rem;
-    min-height: 1.85rem;
-    font-size: 0.72rem;
-    padding: 0.22rem 0.35rem;
-  }
-  body.page-xi .chip-card-fpl.chip-card-ss .chip-status {
-    grid-row: 1;
-    grid-column: 3 / 5;
-    justify-self: start;
-  }
   .stat-strip {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.16rem;
@@ -6401,6 +6375,96 @@ html.is-standalone body::after {
   body.page-squad.page-fit .desk-rail.transfer-rail,
   body.page-squad.page-fit .squad-alerts {
     display: none !important;
+  }
+}
+
+/* Super Sub phone/tablet (≤899): one layout — ico | name | info | select | Off/On.
+   Fixes dead `body.page-squad body.page-xi … display:contents` (never matched),
+   which left the bench select on grid-row 2 far below the title.
+   Desktop ≥900 one-line rules are unchanged. */
+@media (max-width: 899px) {
+  body.page-xi .chip-card-fpl.chip-card-ss {
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1.35fr) auto;
+    grid-template-rows: auto;
+    align-items: center;
+    column-gap: 0.35rem;
+    row-gap: 0.2rem;
+    padding: 0.32rem 0.45rem;
+    min-height: 2.55rem;
+    border-radius: 0.5rem;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form {
+    display: contents;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-ico {
+    grid-row: 1;
+    grid-column: 1;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-name {
+    grid-row: 1;
+    grid-column: 2;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-info-wrap {
+    grid-row: 1;
+    grid-column: 3;
+    justify-self: start;
+    align-self: center;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form select {
+    grid-row: 1;
+    grid-column: 4;
+    min-width: 0;
+    width: 100%;
+    max-width: 7.5rem;
+    min-height: 1.85rem;
+    font-size: 0.72rem;
+    padding: 0.22rem 0.35rem;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form .chip-toggle {
+    grid-row: 1;
+    grid-column: 5;
+    justify-self: end;
+    margin: 0;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-status {
+    grid-row: 1;
+    grid-column: 4 / 6;
+    justify-self: end;
+    margin: 0;
+  }
+}
+
+/* Narrow phones: keep Off/On on the title row; bench select wraps tight underneath */
+@media (max-width: 390px) {
+  body.page-xi .chip-card-fpl.chip-card-ss {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-rows: auto auto;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-info-wrap {
+    grid-column: 3;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form .chip-toggle {
+    grid-column: 4;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form select {
+    grid-row: 2;
+    grid-column: 2 / 5;
+    max-width: none;
+    width: 100%;
+  }
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-status {
+    grid-row: 1;
+    grid-column: 4;
   }
 }
 
