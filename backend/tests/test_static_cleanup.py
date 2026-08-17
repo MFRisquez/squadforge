@@ -50,14 +50,25 @@ def test_mobile_pwa_and_input_zoom_guards():
     assert '"background_color": "#121212"' in manifest
 
 
-def test_mobile_pitch_scrolls_inside_page_fit():
-    """Tall formations (3-4-3) must scroll inside the pitch on phone, not clip under Bench."""
+def test_mobile_pitch_scales_rows_inside_page_fit():
+    """Phone pitch rows share height; shirts scale — no internal pitch scroll."""
     css = (STATIC / "styles.css").read_text(encoding="utf-8")
-    # Find the phone page-fit media block and require overflow-y on pitches there.
-    start = css.find("No page scroll / fixed viewport — phone only")
+    start = css.find("Phone XI/Squad: proportional pitch tokens")
     assert start >= 0
-    chunk = css[start : start + 3500]
-    assert "body.page-fit .squad-pitch" in chunk
-    assert "body.page-fit .xi-pitch" in chunk
-    assert "overflow-y: auto" in chunk
-    assert "-webkit-overflow-scrolling: touch" in chunk
+    chunk = css[start : start + 4500]
+    assert "body.page-fit .xi-pitch" in chunk or "body.page-fit.page-xi .xi-pitch" in chunk
+    assert "body.page-fit .squad-pitch" in chunk or "body.page-fit.page-squad .squad-pitch" in chunk
+    assert "flex: 1 1 0" in chunk
+    assert "clamp(3rem" in chunk
+    assert "container-type: size" in chunk
+    assert "overflow: hidden" in chunk
+    assert "overflow-y: auto" not in chunk
+    # Phone page-fit pitch block (not desktop): equal flex rows, no scroll
+    phone = css.find("No page scroll / fixed viewport — phone only")
+    assert phone >= 0
+    phone_pitch = css.find("Equal row bands — shirts scale with row height", phone)
+    assert phone_pitch >= 0
+    phone_rules = css[phone_pitch : phone_pitch + 600]
+    assert "overflow: hidden" in phone_rules
+    assert "overflow-y: auto" not in phone_rules
+    assert "flex-direction: column" in phone_rules

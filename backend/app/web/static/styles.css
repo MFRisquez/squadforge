@@ -5256,12 +5256,17 @@ html[data-theme="light"] .standings-row.is-me {
     min-height: 0;
     height: 100%;
     max-height: none;
-    /* Tall XIs (e.g. 3-4-3) can exceed the slot above Bench — scroll inside
-       the pitch instead of clipping ATT nameplates under the bench. */
-    overflow-x: hidden;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
+    /* Equal row bands — shirts scale with row height (no internal scroll). */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    align-content: stretch;
+  }
+  body.page-fit .squad-pitch .pitch-row,
+  body.page-fit .xi-pitch .pitch-row {
+    flex: 1 1 0;
+    min-height: 0;
+    align-items: center;
   }
   body.page-fit .xi-bench-phone {
     flex: 0 0 auto;
@@ -6208,6 +6213,130 @@ html.is-standalone body::after {
   .nav a { padding: 0.22rem 0.04rem; font-size: 0.52rem; }
   .nav-ico { font-size: 0.8rem; }
   .chip-pill { min-width: 5.2rem; }
+}
+
+/* Phone XI/Squad: proportional pitch tokens (last among phone rules so they win).
+   Rows share pitch height equally; shirts shrink with the row — never scroll,
+   never JS formation detection. Desktop (≥900px) unchanged. */
+@media (max-width: 899px) {
+  body.page-fit .xi-pitch,
+  body.page-fit .squad-pitch,
+  body.page-fit.page-xi .xi-pitch,
+  body.page-fit.page-squad .squad-pitch {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    gap: 0.12rem;
+    padding-top: 1.05rem;
+    padding-bottom: 0.4rem;
+    padding-left: 0.2rem;
+    padding-right: 0.2rem;
+    align-content: stretch;
+    justify-content: flex-start;
+  }
+  body.page-fit.page-xi .xi-pitch .pitch-row,
+  body.page-fit.page-xi .xi-pitch .pitch-row.zone-gk,
+  body.page-fit.page-xi .xi-pitch .pitch-row.zone-def,
+  body.page-fit.page-xi .xi-pitch .pitch-row.zone-mid,
+  body.page-fit.page-xi .xi-pitch .pitch-row.zone-att,
+  body.page-fit.page-squad .squad-pitch .pitch-row,
+  body.page-fit.page-squad .squad-pitch .pitch-row.zone-gk,
+  body.page-fit.page-squad .squad-pitch .pitch-row.zone-def,
+  body.page-fit.page-squad .squad-pitch .pitch-row.zone-mid,
+  body.page-fit.page-squad .squad-pitch .pitch-row.zone-att {
+    flex: 1 1 0;
+    min-height: 0;
+    transform: none;
+    align-items: center;
+    justify-content: center;
+    gap: 0.22rem;
+    container-type: size;
+    overflow: hidden;
+  }
+  body.page-fit .xi-pitch .pitch-row > .shirt-card,
+  body.page-fit .squad-pitch .pitch-row > .shirt-card {
+    flex: 0 1 auto;
+    box-sizing: border-box;
+    width: clamp(3rem, 72cqh, var(--pitch-token-w, 3.85rem));
+    min-width: 3rem;
+    max-width: min(var(--pitch-token-w, 3.85rem), 100%);
+    height: auto;
+    max-height: 100%;
+    aspect-ratio: 68 / 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+  }
+  body.page-fit .xi-pitch .pitch-row > .shirt-card .xi-shirt,
+  body.page-fit .xi-pitch .pitch-row > .shirt-card .squad-shirt,
+  body.page-fit .squad-pitch .pitch-row > .shirt-card .xi-shirt,
+  body.page-fit .squad-pitch .pitch-row > .shirt-card .squad-shirt {
+    width: 100%;
+    max-width: 100%;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    min-width: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  body.page-fit .xi-pitch .shirt-kit,
+  body.page-fit .squad-pitch .shirt-kit {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+  }
+  body.page-fit .xi-pitch .jersey-img,
+  body.page-fit .squad-pitch .jersey-img {
+    width: auto;
+    height: auto;
+    max-width: 88%;
+    max-height: 78%;
+    aspect-ratio: 66 / 87;
+    object-fit: contain;
+  }
+  body.page-fit .xi-pitch .shirt-overlay,
+  body.page-fit .squad-pitch .shirt-overlay {
+    width: 92%;
+    max-width: 100%;
+  }
+  body.page-fit .xi-pitch .shirt-nameplate,
+  body.page-fit .xi-pitch .shirt-foot,
+  body.page-fit .squad-pitch .shirt-nameplate,
+  body.page-fit .squad-pitch .shirt-foot {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: clamp(0.4rem, 9cqh, 0.52rem);
+    padding-left: 0.06rem;
+    padding-right: 0.06rem;
+  }
+  body.page-fit .xi-pitch .shirt.empty,
+  body.page-fit .xi-pitch .shirt.jersey-empty,
+  body.page-fit .squad-pitch .shirt.empty,
+  body.page-fit .squad-pitch .shirt.jersey-empty {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+  }
+  body.page-fit .xi-pitch .role-badge,
+  body.page-fit .squad-pitch .role-badge {
+    width: clamp(0.85rem, 18cqh, 1.05rem);
+    height: clamp(0.85rem, 18cqh, 1.05rem);
+    min-width: 0;
+    font-size: clamp(0.42rem, 10cqh, 0.54rem);
+  }
 }
 
 /* Phone install banner */
