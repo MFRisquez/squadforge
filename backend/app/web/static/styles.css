@@ -2286,6 +2286,14 @@ table.standings td {
   white-space: nowrap;
 }
 table.standings th { color: var(--muted); font-weight: 700; font-size: 0.75rem; }
+/* Sticky first column (manager/team) for horizontal scroll on narrow screens */
+table.standings th:first-child,
+table.standings td:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--panel);
+  z-index: 1;
+}
 .tiny { font-size: 0.8rem; margin-top: 0.75rem; }
 .shirt.filled {
   background: transparent;

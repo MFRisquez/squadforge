@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Optional
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -539,7 +539,10 @@ def team_page(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/login", status_code=303)
     if not manager_has_complete_squad(db, manager.id):
         return RedirectResponse("/onboard", status_code=303)
-    return _squad_board_response(request, db, manager, template_name="team.html")
+    try:
+        return _squad_board_response(request, db, manager, template_name="team.html")
+    except squad_svc.SquadError as exc:
+        return RedirectResponse(f"/?error={quote(str(exc))}", status_code=303)
 
 
 @router.get("/onboard", response_class=HTMLResponse)
@@ -916,7 +919,10 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/login", status_code=303)
     from app.services import chips as chips_svc
 
-    view = _resolve_gw(request, db)
+    try:
+        view = _resolve_gw(request, db)
+    except squad_svc.SquadError as exc:
+        return RedirectResponse(f"/?error={quote(str(exc))}", status_code=303)
     gw = view["gw"]
     squad_svc.bank_free_transfers(db, manager.id, view["current_gw"].number)
     chips_svc.restore_free_hits_if_needed(db, manager_id=manager.id, current_gw=view["current_gw"])
@@ -1247,7 +1253,10 @@ def td_page(request: Request, db: Session = Depends(get_db)):
     manager = current_manager(request, db)
     if not manager:
         return RedirectResponse("/login", status_code=303)
-    gw = squad_svc.current_gameweek(db)
+    try:
+        gw = squad_svc.current_gameweek(db)
+    except squad_svc.SquadError as exc:
+        return RedirectResponse(f"/?error={quote(str(exc))}", status_code=303)
     pick = td_svc.current_td(db, manager.id, gw.number)
     clubs = db.query(Club).order_by(Club.name).all()
     can_set = td_svc.can_select_td(db, manager.id, gw.number)
