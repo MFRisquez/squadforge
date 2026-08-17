@@ -83,9 +83,11 @@ def test_gk_saves_progressive_and_5plus_bonus():
 
 def test_cameo_with_goal_gets_full_appearance():
     blank_sub = score_player("ATT", {"minutes": 20, "goals": 0, "assists": 0})
-    hero_sub = score_player("ATT", {"minutes": 20, "goals": 1, "assists": 0})
+    # xg=1 so clinical_bonus does not fire; this test isolates appearance only
+    hero_sub = score_player("ATT", {"minutes": 20, "goals": 1, "assists": 0, "xg": 1.0})
     assert blank_sub.breakdown["appearance"] == 1
     assert hero_sub.breakdown["appearance"] == 2
+    assert hero_sub.breakdown.get("clinical_bonus", 0) == 0.0
     # Goal points are separate; cameo only upgrades appearance 1 → 2
     assert hero_sub.total == blank_sub.total - 1 + 2 + 4
 
