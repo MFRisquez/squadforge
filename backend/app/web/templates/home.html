@@ -59,8 +59,20 @@
 </section>
 
 <section class="home-card home-admin-card">
-  <form method="post" action="/sync/players" class="home-inline-form">
-    <button class="btn ghost mini-btn" type="submit">Refresh FPL data</button>
+  <form method="post" action="/sync/players" class="home-inline-form" id="syncPlayersForm">
+    <button class="btn ghost mini-btn" type="submit" id="syncPlayersBtn">Refresh FPL data</button>
   </form>
 </section>
+<script>
+(function () {
+  var form = document.getElementById("syncPlayersForm");
+  var btn = document.getElementById("syncPlayersBtn");
+  if (!form || !btn) return;
+  form.addEventListener("submit", function () {
+    btn.disabled = true;
+    btn.classList.add("is-loading");
+    btn.textContent = "Refreshing…";
+  });
+})();
+</script>
 {% endblock %}

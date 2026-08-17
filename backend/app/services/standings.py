@@ -33,6 +33,43 @@ def _cumulative_total(db: Session, manager_id: int, through_number: int) -> floa
     return float(sum(s.total for s in rows))
 
 
+def gw_points_trend(db: Session, manager_id: int, last_n: int = 6) -> list[float]:
+    """Last N scored gameweeks for a manager, oldest → newest (by gameweek_id)."""
+    rows = (
+        db.query(ManagerGameweekScore)
+        .filter(ManagerGameweekScore.manager_id == manager_id)
+        .order_by(ManagerGameweekScore.gameweek_id.desc())
+        .limit(last_n)
+        .all()
+    )
+    return [float(r.total or 0) for r in reversed(rows)]
+
+
+def _trend_is_rising(values: list[float]) -> bool:
+    """True when avg of last 3 GWs beats avg of the 3 before that."""
+    if len(values) < 6:
+        return False
+    recent = values[-3:]
+    previous = values[-6:-3]
+    return (sum(recent) / 3) > (sum(previous) / 3)
+
+
+def trend_polyline(values: list[float], width: float = 60, height: float = 20, pad: float = 2) -> str:
+    """Min-max normalized SVG polyline points for a sparkline."""
+    if len(values) < 2:
+        return ""
+    lo = min(values)
+    hi = max(values)
+    span = (hi - lo) or 1.0
+    n = len(values)
+    pts: list[str] = []
+    for i, v in enumerate(values):
+        x = pad + (width - 2 * pad) * (i / (n - 1))
+        y = (height - pad) - (height - 2 * pad) * ((v - lo) / span)
+        pts.append(f"{x:.1f},{y:.1f}")
+    return " ".join(pts)
+
+
 def _rank_by_manager(
     entries: list[tuple[int, float, float, str]],
 ) -> dict[int, int]:
@@ -90,6 +127,7 @@ def _manager_row_base(db: Session, manager: Manager, gw) -> dict:
     chip_key = chip.chip if chip else None
     td = td_svc.current_td(db, manager.id, gw.number)
     ft_state = db.query(TransferState).filter(TransferState.manager_id == manager.id).one_or_none()
+    trend = gw_points_trend(db, manager.id, last_n=6)
     return {
         "manager": manager,
         "team_name": (manager.team_name or "").strip() or "—",
@@ -103,6 +141,9 @@ def _manager_row_base(db: Session, manager: Manager, gw) -> dict:
         "ft_left": ft_state.free_transfers if ft_state else 0,
         "players_owned": len(owned),
         "form": form,
+        "trend": trend,
+        "trend_rising": _trend_is_rising(trend),
+        "trend_polyline": trend_polyline(trend),
     }
 
 
