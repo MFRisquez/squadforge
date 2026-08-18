@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import inspect, text
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api import router as api_router
@@ -21,6 +22,7 @@ logger = logging.getLogger("squadforge.main")
 _DEFAULT_SECRET_KEY = "squadforge-dev-change-me"
 
 app = FastAPI(title=settings.app_name)
+app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, https_only=True)
 app.include_router(api_router)
 app.include_router(web_router)
