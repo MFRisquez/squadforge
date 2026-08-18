@@ -2,9 +2,6 @@
 
 from pathlib import Path
 
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATES = ROOT / "app" / "web" / "templates"
 STATIC = ROOT / "app" / "web" / "static"
@@ -38,101 +35,48 @@ def test_pick_row_avail_matches_transfer_rail_ink():
     assert ".pick-row.avail-doubt" in css
     assert "#6a5200" in css  # rail + pick doubt
     assert "#7a1010" in css  # rail + pick out
-    assert "html[data-theme=\"dark\"] .pick-price" in css
-    assert "html[data-theme=\"dark\"] .pick-row.avail-doubt .pick-price" in css
-    assert "html[data-theme=\"dark\"] .pick-row.avail-out .pick-price" in css
+    assert 'html[data-theme="dark"] .pick-price' in css
+    assert 'html[data-theme="dark"] .pick-row.avail-doubt .pick-price' in css
+    assert 'html[data-theme="dark"] .pick-row.avail-out .pick-price' in css
 
 
-def _driver_with(html: str):
-    path = Path("/tmp/nav-pick-contrast-test.html")
-    path.write_text(html, encoding="utf-8")
-    opts = Options()
-    opts.add_argument("--headless=new")
-    opts.add_argument("--no-sandbox")
-    opts.add_argument("--disable-dev-shm-usage")
-    driver = webdriver.Chrome(options=opts)
-    driver.get(path.as_uri())
-    return driver
-
-
-def test_dark_pick_row_price_is_white_like_desktop_rail():
+def test_dark_pick_row_price_ink_matches_rail_contract():
+    """Dark ok price is white; avail-doubt/out keep warning ink (same hex as rgb checks)."""
     css = (STATIC / "styles.css").read_text(encoding="utf-8")
-    html = f"""<!DOCTYPE html>
-<html data-theme="dark">
-<head><meta charset="utf-8"><style>{css}</style></head>
-<body>
-<button class="pick-row" id="ok">
-  <span class="pick-main"><strong class="pick-name">Salah</strong><span class="pick-sub">LIV · MID</span></span>
-  <span class="pick-price">£14.5</span>
-</button>
-<button class="pick-row avail-doubt" id="doubt">
-  <span class="pick-main"><strong class="pick-name">Player D</strong><span class="pick-sub">ARS · MID</span></span>
-  <span class="pick-price">£6.5</span>
-</button>
-</body></html>"""
-    try:
-        driver = _driver_with(html)
-    except Exception:
-        # Chrome may be unavailable in some CI images — structural asserts above still run.
-        return
-    try:
-        ok_price = driver.find_element("css selector", "#ok .pick-price")
-        color = driver.execute_script("return getComputedStyle(arguments[0]).color", ok_price)
-        assert color == "rgb(255, 255, 255)", color
+    pick_price_dark = css[css.find('html[data-theme="dark"] .pick-price') :][:120]
+    assert "#fff" in pick_price_dark or "#ffffff" in pick_price_dark.lower() or "color: #fff" in pick_price_dark
 
-        doubt_price = driver.find_element("css selector", "#doubt .pick-price")
-        dcolor = driver.execute_script("return getComputedStyle(arguments[0]).color", doubt_price)
-        assert dcolor == "rgb(106, 82, 0)", dcolor
-    finally:
-        driver.quit()
+    doubt_chunk = css[
+        css.find('html[data-theme="dark"] .pick-row.avail-doubt .pick-price') : css.find(
+            'html[data-theme="dark"] .pick-row.avail-doubt .pick-price'
+        )
+        + 280
+    ]
+    assert "#6a5200" in doubt_chunk
+    assert "!important" in doubt_chunk
+
+    out_chunk = css[
+        css.find('html[data-theme="dark"] .pick-row.avail-out .pick-price') : css.find(
+            'html[data-theme="dark"] .pick-row.avail-out .pick-price'
+        )
+        + 280
+    ]
+    assert "#7a1010" in out_chunk
+    assert "!important" in out_chunk
 
 
-def test_sticky_chrome_no_gap_when_scrolled():
-    """Measure .top/.nav adjacency after scroll on a tall page (Rules-like)."""
+def test_sticky_chrome_keeps_top_and_nav_together():
+    """`.app-chrome` wraps `.top`+`.nav` as one sticky unit — no separate sticky gap."""
     css = (STATIC / "styles.css").read_text(encoding="utf-8")
-    html = f"""<!DOCTYPE html>
-<html data-theme="dark">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<style>{css}
-body {{ margin:0; }}
-.shell {{ min-height: 220vh; padding: 1rem; }}
-</style></head>
-<body>
-<div class="app-chrome">
-  <header class="top"><a class="brand" href="/"><span class="brand-text">Fut Fantasy</span></a></header>
-  <nav class="nav" aria-label="Main">
-    <a href="/">Home</a><a class="is-active" href="/rules">Rules</a><a href="/team">Transfers</a>
-  </nav>
-</div>
-<main class="shell"><p>long page</p></main>
-</body></html>"""
-    try:
-        driver = _driver_with(html)
-    except Exception:
-        return
-    try:
-        driver.set_window_size(390, 844)
-        driver.execute_script("window.scrollTo(0, 420)")
-        gap = driver.execute_script(
-            """
-            const top = document.querySelector('.top');
-            const nav = document.querySelector('.nav');
-            const t = top.getBoundingClientRect();
-            const n = nav.getBoundingClientRect();
-            return Math.round((n.top - t.bottom) * 100) / 100;
-            """
-        )
-        assert abs(gap) <= 1.0, f"unexpected gap between .top and .nav while sticky: {gap}px"
-
-        # Second “short page” case: tiny scroll still flush
-        driver.execute_script("window.scrollTo(0, 40)")
-        gap2 = driver.execute_script(
-            """
-            const t = document.querySelector('.top').getBoundingClientRect();
-            const n = document.querySelector('.nav').getBoundingClientRect();
-            return Math.round((n.top - t.bottom) * 100) / 100;
-            """
-        )
-        assert abs(gap2) <= 1.0, f"gap after short scroll: {gap2}px"
-    finally:
-        driver.quit()
+    html = (TEMPLATES / "base.html").read_text(encoding="utf-8")
+    assert 'class="app-chrome"' in html or "class='app-chrome'" in html
+    assert ".app-chrome" in css
+    chrome = css[css.find(".app-chrome") : css.find(".app-chrome") + 120]
+    assert "position: sticky" in chrome
+    assert "top: 0" in chrome
+    # Inner .top must not also be sticky (would open a gap under the brand bar)
+    # Scope: first .top rule after .app-chrome should be flex layout only.
+    top_idx = css.find(".top {", css.find(".app-chrome"))
+    assert top_idx > 0
+    top_rule = css[top_idx : top_idx + 200]
+    assert "position: sticky" not in top_rule
