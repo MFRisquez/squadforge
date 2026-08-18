@@ -123,12 +123,15 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS that still showed the rail
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v114"' in sw
+    assert 'CACHE = "futfantasy-v115"' in sw
     assert "/static/styles.css" in sw
     assert "/static/league_h2h.js" in sw
     assert "/static/club-sheet.js" in sw
+    assert 'BADGE_CDN_HOST = "resources.premierleague.com"' in sw
+    assert "isBadgeCdn" in sw
+    assert "isStatic || isCatalog || isBadgeCdn" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=114" in base
+    assert "sw.js?v=115" in base
 
 
 def test_dt_club_picker_hides_list_while_viewing_and_updates_badge():

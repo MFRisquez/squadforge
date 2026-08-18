@@ -1,5 +1,5 @@
 /* FutFantasy phone app shell */
-const CACHE = "futfantasy-v114";
+const CACHE = "futfantasy-v115";
 const PRECACHE = [
   "/static/styles.css",
   "/static/ui.js",
@@ -21,6 +21,8 @@ const PRECACHE = [
   "/static/icons/logo.svg",
   "/favicon.ico",
 ];
+/* Club badges (+ player photos) from FPL CDN — same host as BADGE_CDN in kits.py */
+const BADGE_CDN_HOST = "resources.premierleague.com";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -42,6 +44,7 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   const isStatic = url.pathname.startsWith("/static/");
   const isCatalog = url.pathname === "/api/players/catalog";
+  const isBadgeCdn = url.hostname === BADGE_CDN_HOST;
   const isShell =
     url.pathname === "/" ||
     url.pathname === "/login" ||
@@ -54,13 +57,16 @@ self.addEventListener("fetch", (event) => {
     url.pathname.startsWith("/standings/") ||
     url.pathname.startsWith("/league");
 
-  if (!isStatic && !isShell && !isCatalog) return;
+  if (!isStatic && !isShell && !isCatalog && !isBadgeCdn) return;
 
   event.respondWith(
     caches.match(req).then((cached) => {
       const fetched = fetch(req)
         .then((res) => {
-          if (res && res.ok && (isStatic || isCatalog)) {
+          // Opaque cross-origin (no-cors <img>) has ok=false / status 0 — still cacheable.
+          const okToCache =
+            res && (res.ok || (isBadgeCdn && res.type === "opaque"));
+          if (okToCache && (isStatic || isCatalog || isBadgeCdn)) {
             const copy = res.clone();
             caches.open(CACHE).then((cache) => cache.put(req, copy));
           }
@@ -68,8 +74,8 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(() => cached);
 
-      // Static + player catalog: cache-first
-      if (isStatic || isCatalog) return cached || fetched;
+      // Static + player catalog + FPL badge CDN: cache-first
+      if (isStatic || isCatalog || isBadgeCdn) return cached || fetched;
 
       // Shell HTML: always network-first so GW / standings / fixtures never paint stale.
       // Do not put HTML into Cache Storage (query params like ?gw= must stay live).
