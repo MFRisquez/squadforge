@@ -3632,6 +3632,10 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   padding: 0;
   overflow: hidden;
 }
+/* Club profile sits above the DT club list when both are in play */
+#clubDetail.drawer {
+  z-index: 90;
+}
 .drawer .drawer-sheet,
 .drawer .match-detail-sheet,
 .drawer .player-detail-sheet {

@@ -9,6 +9,47 @@
     return Promise.resolve();
   }
 
+  let activeCode = null;
+  let restorePickerOnClose = false;
+  let choseClub = false;
+  let activeOnDismiss = null;
+
+  function clubPickerEl() {
+    return document.getElementById("clubPicker");
+  }
+
+  function hideClubPicker() {
+    const clubPicker = clubPickerEl();
+    if (!clubPicker || clubPicker.hidden) return;
+    // Drop the list so only the club profile sheet stays up.
+    clubPicker.hidden = true;
+  }
+
+  function showClubPicker() {
+    const clubPicker = clubPickerEl();
+    if (!clubPicker) return;
+    if (clubPicker.parentElement !== document.body) {
+      document.body.appendChild(clubPicker);
+    }
+    clubPicker.hidden = false;
+  }
+
+  function dismissClubDetail() {
+    const clubDetail = document.getElementById("clubDetail");
+    const shouldRestore = restorePickerOnClose && !choseClub;
+    const onDismiss = activeOnDismiss;
+    restorePickerOnClose = false;
+    activeOnDismiss = null;
+    return closeDrawer(clubDetail).then(() => {
+      if (shouldRestore) showClubPicker();
+      if (typeof onDismiss === "function" && !choseClub) {
+        try {
+          onDismiss();
+        } catch (_) {}
+      }
+    });
+  }
+
   function paintClubDetail(data, { canChoose, onChoose } = {}) {
     const clubDetail = document.getElementById("clubDetail");
     const clubDetailBody = document.getElementById("clubDetailBody");
@@ -16,7 +57,7 @@
     const clubDetailBadge = document.getElementById("clubDetailBadge");
     const clubDetailName = document.getElementById("clubDetailName");
     const clubDetailSub = document.getElementById("clubDetailSub");
-    const clubPicker = document.getElementById("clubPicker");
+    const clubPicker = clubPickerEl();
 
     if (clubDetailName) clubDetailName.textContent = data.name || data.code;
     if (clubDetailSub) clubDetailSub.textContent = data.code || "";
@@ -99,6 +140,8 @@
         choose.className = "btn";
         choose.textContent = "Choose club";
         choose.addEventListener("click", () => {
+          choseClub = true;
+          restorePickerOnClose = false;
           onChoose(data);
           closeDrawer(clubDetail).then(() => closeDrawer(clubPicker));
         });
@@ -106,8 +149,6 @@
       }
     }
   }
-
-  let activeCode = null;
 
   function openClubDetail(code, opts = {}) {
     const clubDetail = document.getElementById("clubDetail");
@@ -118,8 +159,17 @@
     const clubDetailName = document.getElementById("clubDetailName");
     const clubDetailSub = document.getElementById("clubDetailSub");
     const clubDetailEyebrow = document.getElementById("clubDetailEyebrow");
+    const clubPicker = clubPickerEl();
 
     activeCode = code;
+    choseClub = false;
+    activeOnDismiss = typeof opts.onDismiss === "function" ? opts.onDismiss : null;
+    // From the DT list: tuck the list away while the profile sheet is open.
+    restorePickerOnClose = Boolean(
+      opts.fromPicker && clubPicker && !clubPicker.hidden
+    );
+    if (restorePickerOnClose) hideClubPicker();
+
     if (clubDetailEyebrow) clubDetailEyebrow.textContent = "Technical Director";
     if (clubDetailName) clubDetailName.textContent = code;
     if (clubDetailSub) clubDetailSub.textContent = "Loading…";
@@ -155,12 +205,12 @@
     const closeClubDetailBtn = document.getElementById("closeClubDetail");
     if (closeClubDetailBtn && !closeClubDetailBtn.dataset.ffBound) {
       closeClubDetailBtn.dataset.ffBound = "1";
-      closeClubDetailBtn.addEventListener("click", () => closeDrawer(clubDetail));
+      closeClubDetailBtn.addEventListener("click", () => dismissClubDetail());
     }
     if (clubDetail && !clubDetail.dataset.ffBound) {
       clubDetail.dataset.ffBound = "1";
       clubDetail.addEventListener("click", (e) => {
-        if (e.target === clubDetail) closeDrawer(clubDetail);
+        if (e.target === clubDetail) dismissClubDetail();
       });
     }
   }
@@ -168,6 +218,7 @@
   window.__ffOpenClubDetail = openClubDetail;
   window.__ffBindClubDetail = bindClubDetailChrome;
   window.__ffCloseClubDrawer = closeDrawer;
+  window.__ffDismissClubDetail = dismissClubDetail;
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", bindClubDetailChrome);

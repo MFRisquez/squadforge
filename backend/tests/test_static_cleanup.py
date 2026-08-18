@@ -123,12 +123,34 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS that still showed the rail
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v113"' in sw
+    assert 'CACHE = "futfantasy-v114"' in sw
     assert "/static/styles.css" in sw
     assert "/static/league_h2h.js" in sw
     assert "/static/club-sheet.js" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=113" in base
+    assert "sw.js?v=114" in base
+
+
+def test_dt_club_picker_hides_list_while_viewing_and_updates_badge():
+    """Viewing a club tucks the list away; Choose updates the DT badge; dismiss restores list."""
+    club = (STATIC / "club-sheet.js").read_text(encoding="utf-8")
+    squad = (STATIC / "squadboard.js").read_text(encoding="utf-8")
+    css = (STATIC / "styles.css").read_text(encoding="utf-8")
+
+    assert "fromPicker" in club
+    assert "restorePickerOnClose" in club
+    assert "hideClubPicker" in club
+    assert "showClubPicker" in club
+    assert "dismissClubDetail" in club
+    assert "choseClub" in club
+
+    assert "fromPicker: true" in squad
+    assert "previewTdSelection(data)" in squad
+    assert 'badge.className = "td-badge"' in squad or "td-badge" in squad
+    assert "info.badge" in squad
+
+    assert "#clubDetail.drawer" in css
+    assert "z-index: 90" in css
 
 
 def test_appshell_warms_all_nav_tabs():

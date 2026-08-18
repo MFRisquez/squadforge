@@ -343,17 +343,39 @@
     }
   }
 
-  function previewTdSelection(code) {
-    const club = code || currentTd();
+  function previewTdSelection(codeOrData) {
+    const info =
+      codeOrData && typeof codeOrData === "object"
+        ? codeOrData
+        : { code: codeOrData || currentTd() };
+    const club = info.code || info.club_code || "";
     if (!club) return;
     const corner = document.querySelector(".td-corner");
     if (!corner) return;
+
+    // Update badge immediately when a club is chosen (before Save).
+    let badge = corner.querySelector(".td-badge");
+    if (info.badge) {
+      if (!badge) {
+        badge = document.createElement("img");
+        badge.className = "td-badge";
+        badge.width = 56;
+        badge.height = 56;
+        corner.insertBefore(badge, corner.firstChild);
+      }
+      badge.src = info.badge;
+      badge.alt = `${club} badge`;
+      badge.hidden = false;
+    }
+
     const meta = corner.querySelector(".td-corner-meta");
     if (!meta) return;
     const kicker = meta.querySelector(".td-kicker");
     if (kicker) kicker.textContent = club;
     const windowEl = meta.querySelector(".td-window");
     if (windowEl) windowEl.textContent = "Tap Save";
+    const foot = meta.querySelector(".td-foot");
+    if (foot) foot.textContent = "Tap Save";
   }
 
   const STATUS_LABEL = {
@@ -1559,9 +1581,10 @@
     if (typeof window.__ffOpenClubDetail !== "function") return;
     window.__ffOpenClubDetail(code, {
       canChoose: true,
+      fromPicker: true,
       onChoose: (data) => {
         setTdValue(data.code);
-        previewTdSelection(data.code);
+        previewTdSelection(data);
         saveVisual = "dirty";
         paintSaveBtn();
       },
