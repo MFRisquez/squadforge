@@ -124,11 +124,11 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS that still showed the rail
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v102"' in sw
+    assert 'CACHE = "futfantasy-v103"' in sw
     assert "/static/styles.css" in sw
     assert "/static/league_h2h.js" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=102" in base
+    assert "sw.js?v=103" in base
 
 
 def test_desktop_pitch_rail_uses_flex_leftover_height():
@@ -188,20 +188,26 @@ def test_desktop_pitch_rail_uses_flex_leftover_height():
     assert "min-height: 0" in rail_chunk
 
 
-def test_owned_checkmark_is_side_absolute():
-    """Owned ✓ sits on the right of the rail row, not above the name (no extra height)."""
+def test_mobile_picker_rows_are_horizontal():
+    """Phone picker: name/team/price share one row (not stacked/centered columns)."""
     css = (STATIC / "styles.css").read_text(encoding="utf-8")
-    start = css.find(".transfer-rail-row.is-owned .tr-owned-mark")
+    start = css.find("Mobile picker: one horizontal row")
     assert start >= 0
-    chunk = css[start : start + 450]
-    assert "position: absolute" in chunk
-    assert "right: -0.3rem" in chunk
-    assert "top: 50%" in chunk
-    assert "translateY(-50%)" in chunk
-    assert "margin-right: 0.28rem" not in chunk
+    chunk = css[start : start + 1600]
+    assert "flex-direction: row" in chunk
+    assert "text-align: center" not in chunk
+    assert "justify-items: center" not in chunk
+    assert "grid-template-columns: minmax(0, 1fr) auto auto" in chunk
+    assert ".pick-row .grow" in chunk
+
+    """Owned rows use accent bar only — no side ✓ mark."""
+    css = (STATIC / "styles.css").read_text(encoding="utf-8")
+    assert ".transfer-rail-row.is-owned .tr-owned-mark" not in css
+    assert "tr-owned-mark" not in css
     squad = (STATIC / "squadboard.js").read_text(encoding="utf-8")
-    assert 'tr-owned-mark' in squad
-    assert "✓" in squad
+    assert "tr-owned-mark" not in squad
+    # Accent bar cue remains
+    assert "box-shadow: inset 4px 0 0 var(--accent)" in css
 
 
 def test_super_sub_mobile_layout_consolidated():

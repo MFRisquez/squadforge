@@ -277,6 +277,7 @@ def _owned_payload(
 @router.get("/", response_class=HTMLResponse)
 def home(request: Request, db: Session = Depends(get_db)):
     from app.services import demo_live as demo_svc
+    from app.services import td as td_svc
 
     manager = current_manager(request, db)
     if not manager:
@@ -297,6 +298,12 @@ def home(request: Request, db: Session = Depends(get_db)):
         live_demo = demo_svc.is_live_demo_active(db)
     except Exception:
         live_demo = False
+    td_banner = None
+    try:
+        gw = squad_svc.current_gameweek(db)
+        td_banner = td_svc.td_home_banner(db, manager.id, gw.number)
+    except Exception:
+        td_banner = None
     return templates.TemplateResponse(
         "home.html",
         _ctx(
@@ -305,6 +312,7 @@ def home(request: Request, db: Session = Depends(get_db)):
             leagues=leagues,
             formula_version=settings.formula_version,
             live_demo_active=live_demo,
+            td_banner=td_banner,
             notice=request.query_params.get("notice"),
             error=request.query_params.get("error"),
         ),

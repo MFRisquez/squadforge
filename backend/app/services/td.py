@@ -181,6 +181,30 @@ def td_view(db: Session, manager_id: int, gw_number: int, *, gameweek_id: int | 
     }
 
 
+def td_home_banner(db: Session, manager_id: int, gw_number: int) -> dict | None:
+    """Visible Home reminder when the DT window is ending or already expired."""
+    active = active_td(db, manager_id, gw_number)
+    if active and int(active.end_gw) == int(gw_number):
+        return {
+            "level": "warn",
+            "club_code": active.club_code,
+            "end_gw": active.end_gw,
+            "message": (
+                f"Your DT window ends after this GW — pick a new club "
+                f"(can't repeat {active.club_code}) before the next deadline."
+            ),
+        }
+    latest = latest_td(db, manager_id)
+    if latest and int(latest.end_gw) < int(gw_number) and active is None:
+        return {
+            "level": "urgent",
+            "club_code": latest.club_code,
+            "end_gw": latest.end_gw,
+            "message": "Your DT pick has expired — choose a new club now.",
+        }
+    return None
+
+
 # Back-compat aliases used by routes
 def current_td(db: Session, manager_id: int, gw_number: int) -> Optional[TechnicalDirectorPick]:
     return active_td(db, manager_id, gw_number)

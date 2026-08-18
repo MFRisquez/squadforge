@@ -87,3 +87,29 @@ def test_td_can_change_before_first_deadline():
         assert second.start_gw == 1
     finally:
         db.close()
+
+
+def test_td_home_banner_warns_on_final_gw_and_urgent_when_expired():
+    db = SessionLocal()
+    try:
+        manager = Manager(display_name="TDBanner", pin="1234", team_name="Banner FC")
+        db.add(manager)
+        db.commit()
+        db.refresh(manager)
+
+        pick = td_svc.set_td_pick(db, manager_id=manager.id, club_code="LIV", gw_number=5)
+        assert pick.end_gw == 7
+        assert td_svc.td_home_banner(db, manager.id, 5) is None
+        assert td_svc.td_home_banner(db, manager.id, 6) is None
+        warn = td_svc.td_home_banner(db, manager.id, 7)
+        assert warn is not None
+        assert warn["level"] == "warn"
+        assert "LIV" in warn["message"]
+        assert "ends after this GW" in warn["message"]
+
+        urgent = td_svc.td_home_banner(db, manager.id, 8)
+        assert urgent is not None
+        assert urgent["level"] == "urgent"
+        assert "expired" in urgent["message"].lower()
+    finally:
+        db.close()
