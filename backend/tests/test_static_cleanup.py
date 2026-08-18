@@ -123,7 +123,7 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS that still showed the rail
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v116"' in sw
+    assert 'CACHE = "futfantasy-v117"' in sw
     assert "/static/styles.css" in sw
     assert "/static/league_h2h.js" in sw
     assert "/static/club-sheet.js" in sw
@@ -131,7 +131,7 @@ def test_transfer_rail_hidden_on_phone_page_fit():
     assert "isBadgeCdn" in sw
     assert "isStatic || isCatalog || isBadgeCdn" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=116" in base
+    assert "sw.js?v=117" in base
 
 
 def test_transfers_pitch_price_frame_and_pending_white_border():
@@ -139,18 +139,21 @@ def test_transfers_pitch_price_frame_and_pending_white_border():
     squad = (STATIC / "squadboard.js").read_text(encoding="utf-8")
     css = (STATIC / "styles.css").read_text(encoding="utf-8")
 
-    assert 'class="shirt-price"' in squad
-    assert "toFixed(1)}m" in squad or 'toFixed(1)}m`' in squad
+    # Price is a direct child of the shirt button (above kit), not stacked under jersey grid
+    shirt_html_fn = squad[squad.find("function shirtHtml") : squad.find("function syncHidden")]
+    assert 'class="shirt-price"' in shirt_html_fn
+    assert shirt_html_fn.find("shirt-price") < shirt_html_fn.find('class="shirt-kit"')
+    assert "toFixed(1)}m" in shirt_html_fn
     assert "is-pending-in" in squad
 
     assert "body.page-squad .squad-pitch .squad-shirt.filled" in css
     assert "rgba(55, 58, 64, 0.42)" in css
-    assert "body.page-squad .squad-pitch .squad-shirt.is-pending-in" in css
-    # White border for unsaved transfer-in; gray frame shadow retained
-    pending_idx = css.find("body.page-squad .squad-pitch .squad-shirt.is-pending-in")
+    assert "body.page-squad .squad-pitch .squad-shirt.filled > .shirt-price" in css
+    assert "body.page-squad .squad-pitch .squad-shirt.filled.is-pending-in" in css
+    pending_idx = css.find("body.page-squad .squad-pitch .squad-shirt.filled.is-pending-in")
     assert pending_idx >= 0
-    pending_chunk = css[pending_idx : pending_idx + 280]
-    assert "border-color: #fff" in pending_chunk
+    pending_chunk = css[pending_idx : pending_idx + 320]
+    assert "border: 2px solid #ffffff" in pending_chunk
     assert "outline: none" in pending_chunk
     assert "shirt-price" in css
 
