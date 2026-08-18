@@ -133,11 +133,11 @@
     return lines.length ? `<ul class="fx-detail-news">${lines.join("")}</ul>` : "";
   }
 
-  function fmtKpi(v, digits) {
+  function fmtMatchKpi(v) {
     if (v == null || v === "") return "—";
     const n = Number(v);
     if (!Number.isFinite(n)) return "—";
-    return digits != null ? n.toFixed(digits) : String(Math.round(n));
+    return Number.isInteger(n) ? String(n) : n.toFixed(1);
   }
 
   function myPlayersBlock(players, heading) {
@@ -147,12 +147,10 @@
         const avail = p.availability || "ok";
         return `<tr class="avail-${avail}">
           <td class="fx-xi-name"><span class="fx-xi-player">${p.name || "—"}</span><span class="fx-xi-pos">${p.position || ""}</span></td>
-          <td>${fmtKpi(p.form, 1)}</td>
-          <td>${fmtKpi(p.total_points)}</td>
-          <td>${fmtKpi(p.threat)}</td>
-          <td>${fmtKpi(p.creativity)}</td>
-          <td>${fmtKpi(p.cbi)}</td>
-          <td>£${fmtKpi(p.price, 1)}</td>
+          <td>${fmtMatchKpi(p.goals)}</td>
+          <td>${fmtMatchKpi(p.assists)}</td>
+          <td>${fmtMatchKpi(p.clean_sheets)}</td>
+          <td>${fmtMatchKpi(p.points)}</td>
         </tr>`;
       })
       .join("");
@@ -163,12 +161,10 @@
           <thead>
             <tr>
               <th scope="col">Player</th>
-              <th scope="col">Form</th>
+              <th scope="col">G</th>
+              <th scope="col">A</th>
+              <th scope="col">CS</th>
               <th scope="col">Pts</th>
-              <th scope="col">Thr</th>
-              <th scope="col">Cre</th>
-              <th scope="col">CBI</th>
-              <th scope="col">£</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>

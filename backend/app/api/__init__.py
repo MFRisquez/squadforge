@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
@@ -211,10 +211,19 @@ def api_fixtures_refresh(gw: Optional[int] = None) -> dict:
 
 
 @router.get("/fixtures/{fixture_id}")
-def api_fixture_detail(fixture_id: int) -> dict:
+def api_fixture_detail(request: Request, fixture_id: int) -> dict:
+    from app.auth import current_manager
+    from app.services import squad as squad_svc
+
     db = SessionLocal()
     try:
-        detail = fixtures_svc.fixture_detail(db, fixture_id=fixture_id)
+        owned = None
+        manager = current_manager(request, db)
+        if manager:
+            owned = squad_svc.owned_players(db, manager.id)
+        detail = fixtures_svc.fixture_detail(
+            db, fixture_id=fixture_id, owned_players=owned
+        )
         if not detail:
             return {"error": "not_found"}
         return detail

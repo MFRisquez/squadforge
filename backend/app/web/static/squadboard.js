@@ -1241,7 +1241,7 @@
       const blocked = clubBlocked || budgetBlocked;
       const li = document.createElement("li");
       const avail = p.availability || "ok";
-      li.className = `pick-row-wrap avail-${avail}`;
+      li.className = `pick-row-wrap avail-${avail}${blocked ? " is-blocked" : ""}`;
       let limitNote = "";
       if (clubBlocked) {
         limitNote = `<span class="club-limit">3/${MAX_CLUB} club</span>`;

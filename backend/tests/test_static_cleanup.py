@@ -123,12 +123,12 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS that still showed the rail
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v110"' in sw
+    assert 'CACHE = "futfantasy-v111"' in sw
     assert "/static/styles.css" in sw
     assert "/static/league_h2h.js" in sw
     assert "/static/club-sheet.js" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=110" in base
+    assert "sw.js?v=111" in base
 
 
 def test_desktop_pitch_rail_uses_flex_leftover_height():
@@ -221,7 +221,7 @@ def test_super_sub_mobile_layout_consolidated():
     assert "display: contents" in chunk
     assert "grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1.35fr) auto" in chunk
     assert "body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form" in chunk
-    assert "font-size: 0.58rem" in chunk
+    assert "font-size: 0.55rem !important" in chunk
     # Dead selector never matches (two body classes as descendant)
     assert "body.page-squad body.page-xi .chip-card-fpl.chip-card-ss" not in css
     # Narrow wrap keeps toggle on row 1, select under title

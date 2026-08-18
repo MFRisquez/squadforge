@@ -2672,13 +2672,18 @@ body.picker-open {
   background: #ffc9c9;
   border: 1px solid rgba(160, 30, 30, 0.35);
 }
+.pick-row-wrap.is-blocked {
+  background: #e8e8e8;
+}
 .pick-row-wrap.avail-doubt .pick-row,
-.pick-row-wrap.avail-out .pick-row {
+.pick-row-wrap.avail-out .pick-row,
+.pick-row-wrap.is-blocked .pick-row {
   border: 0;
   background: transparent !important;
 }
 .pick-row-wrap.avail-doubt .pick-info-btn,
-.pick-row-wrap.avail-out .pick-info-btn {
+.pick-row-wrap.avail-out .pick-info-btn,
+.pick-row-wrap.is-blocked .pick-info-btn {
   background: transparent;
   align-self: stretch;
   display: grid;
@@ -2696,7 +2701,8 @@ body.picker-open {
 }
 .pick-info-btn:hover { color: #000000; background: #F2F2F2; }
 .pick-row-wrap.avail-doubt .pick-info-btn:hover,
-.pick-row-wrap.avail-out .pick-info-btn:hover {
+.pick-row-wrap.avail-out .pick-info-btn:hover,
+.pick-row-wrap.is-blocked .pick-info-btn:hover {
   background: rgba(0, 0, 0, 0.06);
 }
 
@@ -6255,7 +6261,7 @@ html.is-standalone body::after {
   }
   body.page-fixtures .fx-xi-table {
     font-size: 0.64rem;
-    min-width: 19.5rem;
+    min-width: 15rem;
   }
   body.page-fixtures .fx-xi-table thead th {
     font-size: 0.52rem;
@@ -6901,8 +6907,16 @@ html.is-standalone body::after {
     min-height: 100%;
   }
   .pick-row-wrap.avail-doubt,
-  .pick-row-wrap.avail-out {
+  .pick-row-wrap.avail-out,
+  .pick-row-wrap.is-blocked {
     border-radius: 0;
+  }
+  /* Super Sub: beat the global 16px !important select rule on phones */
+  body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form select {
+    font-size: 0.55rem !important;
+    line-height: 1.2;
+    min-height: 1.7rem;
+    padding: 0.14rem 0.22rem;
   }
   .rail-search input,
   .transfer-rail-search {
@@ -7240,9 +7254,9 @@ html.is-standalone body::after {
     min-width: 0;
     width: 100%;
     max-width: 7.5rem;
-    min-height: 1.85rem;
-    font-size: 0.58rem;
-    padding: 0.18rem 0.28rem;
+    min-height: 1.7rem;
+    font-size: 0.55rem !important;
+    padding: 0.14rem 0.22rem;
   }
   body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form .chip-toggle {
     grid-row: 1;
@@ -7275,7 +7289,7 @@ html.is-standalone body::after {
     grid-column: 2 / 5;
     max-width: none;
     width: 100%;
-    font-size: 0.56rem;
+    font-size: 0.52rem !important;
   }
   body.page-xi .chip-card-fpl.chip-card-ss .chip-status {
     grid-row: 1;
@@ -8417,7 +8431,7 @@ html[data-theme="dark"] .fx-stat-table td.is-lead { color: #C0FF00; }
 }
 .fx-xi-table {
   width: 100%;
-  min-width: 22rem;
+  min-width: 16rem;
   border-collapse: collapse;
   font-size: 0.72rem;
 }

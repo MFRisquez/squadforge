@@ -297,7 +297,6 @@ def _scorer_lines(events: dict[str, Any], side: str) -> list[dict[str, Any]]:
 def squad_by_club(players: list[Player]) -> dict[str, list[dict[str, Any]]]:
     """club_code → owned players (for fixture highlights / light news)."""
     from app.services.fpl_sync import availability_flag
-    from app.services.player_catalog import _season_kpis
 
     out: dict[str, list[dict[str, Any]]] = {}
     for p in players:
@@ -305,23 +304,178 @@ def squad_by_club(players: list[Player]) -> dict[str, list[dict[str, Any]]]:
         if not code:
             continue
         news = (getattr(p, "news", "") or "").strip()
+        fpl_el = None
+        ext = getattr(p, "external_id", "") or ""
+        if ext.startswith("fpl-"):
+            try:
+                fpl_el = int(ext.split("-", 1)[1])
+            except ValueError:
+                fpl_el = None
         out.setdefault(code, []).append(
             {
                 "id": p.id,
                 "name": p.name,
                 "position": p.position,
-                "price": float(getattr(p, "price", 0) or 0),
+                "fpl_element": fpl_el,
                 "news": news,
                 "availability": availability_flag(
                     getattr(p, "status", "a") or "a",
                     getattr(p, "chance_of_playing", None),
                 ),
-                **_season_kpis(p),
             }
         )
     for rows in out.values():
         rows.sort(key=lambda r: (r["position"], r["name"]))
     return out
+
+
+def _fixture_element_totals(fixture: Fixture) -> dict[int, dict[str, int]]:
+    """FPL element id → goal/assist/etc counts from this fixture's stats_json."""
+    try:
+        stats = json.loads(fixture.stats_json or "[]")
+    except json.JSONDecodeError:
+        stats = []
+    keys = {
+        "goals_scored": "goals",
+        "assists": "assists",
+        "own_goals": "own_goals",
+        "yellow_cards": "yellow_cards",
+        "red_cards": "red_cards",
+        "saves": "saves",
+        "penalties_saved": "penalties_saved",
+        "penalties_missed": "penalties_missed",
+        "bonus": "bonus",
+        "bps": "bps",
+    }
+    out: dict[int, dict[str, int]] = {}
+    for block in stats:
+        if not isinstance(block, dict):
+            continue
+        ident = block.get("identifier")
+        metric = keys.get(ident) if isinstance(ident, str) else None
+        if not metric:
+            continue
+        for side in ("h", "a"):
+            for row in block.get(side) or []:
+                el = int(row.get("element") or 0)
+                val = int(row.get("value") or 0)
+                if not el or val < 1:
+                    continue
+                bucket = out.setdefault(el, {})
+                bucket[metric] = bucket.get(metric, 0) + val
+    return out
+
+
+def my_players_for_fixture(
+    db: Session,
+    fixture: Fixture,
+    players: list[Player],
+) -> dict[str, list[dict[str, Any]]]:
+    """Owned players in this match with fixture/GW KPIs (G, A, CS, Pts).
+
+    Before kickoff every KPI is null (UI shows —). Once the fixture has
+    started, goals/assists come from this fixture's FPL stats; clean sheets
+    and points come from GW MatchEvent / PlayerPoints (updated each GW).
+    """
+    from app.config import settings
+    from app.models import Gameweek, PlayerPoints
+    from app.scoring import score_player
+    from app.services.fpl_sync import availability_flag
+    from app.services.live_scoring import metrics_for_player
+
+    by_club = squad_by_club(players)
+    home_code = (fixture.home_club_code or "").upper()
+    away_code = (fixture.away_club_code or "").upper()
+    started = bool(fixture.started or fixture.finished)
+    element_totals = _fixture_element_totals(fixture) if started else {}
+
+    gw = (
+        db.query(Gameweek).filter(Gameweek.number == fixture.gameweek_number).one_or_none()
+        if fixture.gameweek_number
+        else None
+    )
+    points_by_player: dict[int, float] = {}
+    if started and gw is not None:
+        rows = (
+            db.query(PlayerPoints)
+            .filter(
+                PlayerPoints.gameweek_id == gw.id,
+                PlayerPoints.formula_version == settings.formula_version,
+            )
+            .all()
+        )
+        points_by_player = {r.player_id: float(r.total) for r in rows}
+
+    def enrich_side(code: str, side: str) -> list[dict[str, Any]]:
+        rows = []
+        conceded = None
+        if started and fixture.home_score is not None and fixture.away_score is not None:
+            conceded = (
+                int(fixture.away_score) if side == "home" else int(fixture.home_score)
+            )
+        for base in by_club.get(code, []):
+            row = dict(base)
+            if not started:
+                row.update(
+                    {
+                        "goals": None,
+                        "assists": None,
+                        "clean_sheets": None,
+                        "points": None,
+                    }
+                )
+                rows.append(row)
+                continue
+
+            el = base.get("fpl_element")
+            fx_stats = element_totals.get(int(el), {}) if el else {}
+            goals = int(fx_stats.get("goals") or 0)
+            assists = int(fx_stats.get("assists") or 0)
+
+            metrics: dict[str, float] = {}
+            if gw is not None:
+                metrics = metrics_for_player(db, gw.id, int(base["id"]))
+
+            # Prefer fixture G/A; fill CS from live GW metrics when present.
+            cs = metrics.get("clean_sheets")
+            if cs is None and conceded is not None:
+                pos = (base.get("position") or "").upper()
+                minutes = float(metrics.get("minutes") or 0)
+                if pos in {"GK", "DEF"} and conceded == 0 and minutes >= 60:
+                    cs = 1.0
+                elif pos in {"GK", "DEF"}:
+                    cs = 0.0
+                else:
+                    cs = 0.0
+            elif cs is None:
+                cs = 0.0
+
+            pts = points_by_player.get(int(base["id"]))
+            if pts is None and metrics:
+                try:
+                    pts = float(
+                        score_player(base.get("position") or "MID", metrics).total
+                    )
+                except ValueError:
+                    pts = 0.0
+            elif pts is None:
+                pts = 0.0
+
+            row.update(
+                {
+                    "goals": goals,
+                    "assists": assists,
+                    "clean_sheets": int(cs),
+                    "points": round(float(pts), 1),
+                }
+            )
+            rows.append(row)
+        return rows
+
+    return {
+        "home": enrich_side(home_code, "home"),
+        "away": enrich_side(away_code, "away"),
+    }
 
 
 def enrich_fixtures_with_squad(
@@ -465,7 +619,12 @@ def parse_match_events(db: Session, fixture: Fixture) -> dict[str, Any]:
     }
 
 
-def fixture_detail(db: Session, *, fixture_id: int) -> dict[str, Any] | None:
+def fixture_detail(
+    db: Session,
+    *,
+    fixture_id: int,
+    owned_players: list[Player] | None = None,
+) -> dict[str, Any] | None:
     fx = db.query(Fixture).filter(Fixture.id == fixture_id).one_or_none()
     if not fx:
         return None
@@ -494,6 +653,8 @@ def fixture_detail(db: Session, *, fixture_id: int) -> dict[str, Any] | None:
         },
         **events,
     }
+    if owned_players is not None:
+        payload["my_players"] = my_players_for_fixture(db, fx, owned_players)
     try:
         from app.services import pl_content
 

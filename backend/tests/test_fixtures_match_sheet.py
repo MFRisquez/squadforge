@@ -148,6 +148,20 @@ def test_fixtures_js_match_sheet_section_order():
     assert 0 < status_i < stats_i < xi_i < news_i
 
 
+def test_fixtures_js_xi_table_is_match_kpis():
+    js = (STATIC / "fixtures.js").read_text(encoding="utf-8")
+    assert "fx-xi-table" in js
+    assert 'scope="col">G</th>' in js
+    assert 'scope="col">A</th>' in js
+    assert 'scope="col">CS</th>' in js
+    assert 'scope="col">Pts</th>' in js
+    assert "p.goals" in js
+    assert "p.assists" in js
+    assert "p.clean_sheets" in js
+    assert "total_points" not in js
+    assert "p.form" not in js
+
+
 def test_fixtures_css_vs_aligned_with_crests():
     css = (STATIC / "styles.css").read_text(encoding="utf-8")
     assert ".match-scoreline-badges" in css
@@ -159,16 +173,33 @@ def test_fixtures_css_vs_aligned_with_crests():
     assert "gap: 0.4rem" in css
 
 
-def test_squad_by_club_includes_season_kpis():
+def test_my_players_fixture_kpis_blank_before_kickoff():
     db = SessionLocal()
     try:
         if not db.query(Club).filter(Club.code == "ARS").one_or_none():
             db.add(Club(code="ARS", name="Arsenal", kit_code=3))
-        ext = "kpi-ars-saka"
-        existing = db.query(Player).filter(Player.external_id == ext).one_or_none()
-        if existing:
-            p = existing
-        else:
+        if not db.query(Club).filter(Club.code == "LIV").one_or_none():
+            db.add(Club(code="LIV", name="Liverpool", kit_code=14))
+        fx = db.query(Fixture).filter(Fixture.fpl_id == 92001).one_or_none()
+        if not fx:
+            fx = Fixture(
+                fpl_id=92001,
+                gameweek_number=1,
+                home_club_code="ARS",
+                away_club_code="LIV",
+                home_difficulty=3,
+                away_difficulty=3,
+                kickoff_at="2026-08-21T19:00:00Z",
+                started=0,
+                finished=0,
+            )
+            db.add(fx)
+        fx.started = 0
+        fx.finished = 0
+        fx.stats_json = "[]"
+        ext = "fpl-92001"
+        p = db.query(Player).filter(Player.external_id == ext).one_or_none()
+        if not p:
             p = Player(
                 external_id=ext,
                 name="Saka",
@@ -177,36 +208,98 @@ def test_squad_by_club_includes_season_kpis():
                 price=9.0,
             )
             db.add(p)
-        p.price = 9.0
-        p.season_stats_json = (
-            '{"form": 6.2, "total_points": 88, "threat": 410, "creativity": 320, "cbi": 12}'
-        )
+        p.season_stats_json = '{"form": 9.9, "total_points": 999}'
         db.commit()
-        by_club = fixtures_svc.squad_by_club([p])
-        assert "ARS" in by_club
-        row = by_club["ARS"][0]
+
+        mine = fixtures_svc.my_players_for_fixture(db, fx, [p])
+        assert len(mine["home"]) == 1
+        row = mine["home"][0]
         assert row["name"] == "Saka"
-        assert row["form"] == 6.2
-        assert row["total_points"] == 88
-        assert row["threat"] == 410.0
-        assert row["creativity"] == 320.0
-        assert row["cbi"] == 12.0
-        assert row["price"] == 9.0
+        assert row["goals"] is None
+        assert row["assists"] is None
+        assert row["clean_sheets"] is None
+        assert row["points"] is None
+        assert "form" not in row
+        assert "total_points" not in row
+    finally:
+        db.close()
+
+
+def test_my_players_fixture_kpis_from_match_stats():
+    import json
+
+    db = SessionLocal()
+    try:
+        for code, name, kit in (("ARS", "Arsenal", 3), ("LIV", "Liverpool", 14)):
+            if not db.query(Club).filter(Club.code == code).one_or_none():
+                db.add(Club(code=code, name=name, kit_code=kit))
+        fx = db.query(Fixture).filter(Fixture.fpl_id == 92002).one_or_none()
+        if not fx:
+            fx = Fixture(
+                fpl_id=92002,
+                gameweek_number=1,
+                home_club_code="ARS",
+                away_club_code="LIV",
+                home_difficulty=3,
+                away_difficulty=3,
+                kickoff_at="2026-08-21T19:00:00Z",
+                started=1,
+                finished=1,
+            )
+            db.add(fx)
+        fx.started = 1
+        fx.finished = 1
+        fx.home_score = 2
+        fx.away_score = 0
+        fx.stats_json = json.dumps(
+            [
+                {
+                    "identifier": "goals_scored",
+                    "h": [{"element": 55501, "value": 1}],
+                    "a": [],
+                },
+                {
+                    "identifier": "assists",
+                    "h": [{"element": 55501, "value": 1}],
+                    "a": [],
+                },
+            ]
+        )
+        ext = "fpl-55501"
+        p = db.query(Player).filter(Player.external_id == ext).one_or_none()
+        if not p:
+            p = Player(
+                external_id=ext,
+                name="Saka",
+                position="MID",
+                team_code="ARS",
+                price=9.0,
+            )
+            db.add(p)
+        db.commit()
+
+        mine = fixtures_svc.my_players_for_fixture(db, fx, [p])
+        row = mine["home"][0]
+        assert row["goals"] == 1
+        assert row["assists"] == 1
+        assert row["clean_sheets"] == 0  # MID
+        assert row["points"] is not None
     finally:
         db.close()
 
 
 def test_super_sub_bench_select_smaller_on_phone():
     css = (STATIC / "styles.css").read_text(encoding="utf-8")
-    chunk = css[css.find("@media (max-width: 899px)") :]
-    assert "body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form select" in chunk
-    assert "font-size: 0.58rem" in chunk
+    assert "font-size: 0.55rem !important" in css
+    # Must override the global phone select { font-size: 16px !important }
+    assert "select,\n  textarea {\n    font-size: 16px !important;" in css or "font-size: 16px !important" in css
 
 
 def test_pick_row_wrap_avail_bg_covers_info_btn():
     css = (STATIC / "styles.css").read_text(encoding="utf-8")
     assert ".pick-row-wrap.avail-doubt" in css
     assert ".pick-row-wrap.avail-out" in css
-    assert ".pick-row-wrap.avail-doubt .pick-info-btn" in css
+    assert ".pick-row-wrap.is-blocked" in css
+    assert ".pick-row-wrap.is-blocked .pick-info-btn" in css
     js = (STATIC / "squadboard.js").read_text(encoding="utf-8")
-    assert "pick-row-wrap avail-${avail}" in js
+    assert "pick-row-wrap avail-${avail}${blocked ? \" is-blocked\" : \"\"}" in js
