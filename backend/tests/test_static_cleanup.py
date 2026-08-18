@@ -123,12 +123,38 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS that still showed the rail
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v111"' in sw
+    assert 'CACHE = "futfantasy-v112"' in sw
     assert "/static/styles.css" in sw
     assert "/static/league_h2h.js" in sw
     assert "/static/club-sheet.js" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=111" in base
+    assert "sw.js?v=112" in base
+
+
+def test_appshell_warms_all_nav_tabs():
+    """Cold-start prefetch covers Home, Rules, and League (standings or hub)."""
+    js = (STATIC / "appshell.js").read_text(encoding="utf-8")
+    assert "function leagueWarmUrl()" in js
+    assert 'prefetch("/")' in js
+    assert 'prefetch("/rules")' in js
+    assert "prefetch(leagueWarmUrl())" in js
+    assert 'prefetch("/lineup")' in js
+    assert 'prefetch("/team")' in js
+    assert 'prefetch("/fixtures")' in js
+    # Splash still waits a fixed 2s and does not await warm completion before hide
+    assert "setTimeout(r, 2000)" in js
+    assert "hideSplash();" in js
+    warm_block = js[js.find("async function warmShellData()") : js.find("function hideSplash()")]
+    assert "Promise.allSettled" in warm_block
+    assert "await Promise.allSettled" in warm_block
+    splash = js[js.find("async function runColdStartSplash()") : js.find("function updateNavActive")]
+    assert "const warm = warmShellData()" in splash
+    assert "await new Promise((r) => setTimeout(r, 2000))" in splash
+    # warm continues in background after splash hides
+    assert "void warm" in splash
+    # League URL mirrors nav: single standings id or /leagues hub
+    assert 'href === "/leagues"' in js or "href === \"/leagues\"" in js
+    assert "/standings/" in js
 
 
 def test_desktop_pitch_rail_uses_flex_leftover_height():

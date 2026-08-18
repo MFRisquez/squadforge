@@ -71,12 +71,26 @@
       .catch(() => {});
   }
 
+  function leagueWarmUrl() {
+    // Mirror base.html nav: one league → /standings/{id}; else hub /leagues.
+    const nav = document.querySelector("nav.nav");
+    if (!nav) return "/leagues";
+    for (const a of nav.querySelectorAll("a[href]")) {
+      const href = (a.getAttribute("href") || "").split("?")[0];
+      if (href === "/leagues" || /^\/standings\/\d+$/.test(href)) return href;
+    }
+    return "/leagues";
+  }
+
   async function warmShellData() {
     await Promise.allSettled([
       warmCatalog(),
+      prefetch("/"),
       prefetch("/lineup"),
       prefetch("/team"),
       prefetch("/fixtures"),
+      prefetch(leagueWarmUrl()),
+      prefetch("/rules"),
     ]);
     try {
       sessionStorage.setItem(WARM_KEY, String(Date.now()));
