@@ -123,7 +123,7 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS that still showed the rail
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v118"' in sw
+    assert 'CACHE = "futfantasy-v119"' in sw
     assert "/static/styles.css" in sw
     assert "/static/league_h2h.js" in sw
     assert "/static/club-sheet.js" in sw
@@ -131,7 +131,7 @@ def test_transfer_rail_hidden_on_phone_page_fit():
     assert "isBadgeCdn" in sw
     assert "isStatic || isCatalog || isBadgeCdn" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=118" in base
+    assert "sw.js?v=119" in base
 
 
 def test_transfers_pitch_price_frame_and_pending_white_border():
@@ -153,12 +153,15 @@ def test_transfers_pitch_price_frame_and_pending_white_border():
     assert "body.page-squad .squad-pitch .squad-shirt.filled" in css
     assert "rgba(55, 58, 64, 0.42)" in css
     assert "body.page-squad .squad-pitch .squad-shirt.filled > .shirt-price" in css
-    assert "margin-top: 0.22rem" in css
+    # Overlay in normal flow so the dark box fully wraps jersey + nameplate
+    assert "body.page-squad .squad-pitch .squad-shirt.filled .shirt-overlay" in css
+    assert "position: relative" in css[css.find("body.page-squad .squad-pitch .squad-shirt.filled .shirt-overlay") : css.find("body.page-squad .squad-pitch .squad-shirt.filled .shirt-overlay") + 220]
     assert "body.page-squad .squad-pitch .squad-shirt.filled.is-pending-in" in css
     pending_idx = css.find("body.page-squad .squad-pitch .squad-shirt.filled.is-pending-in")
     assert pending_idx >= 0
-    pending_chunk = css[pending_idx : pending_idx + 360]
-    assert "border: 1px solid rgba(255, 255, 255, 0.95)" in pending_chunk
+    pending_chunk = css[pending_idx : pending_idx + 420]
+    # iOS-safe white ring via box-shadow (button borders are unreliable)
+    assert "0 0 0 1.5px #ffffff" in pending_chunk
     assert "outline: none" in pending_chunk
     assert "shirt-price" in css
 

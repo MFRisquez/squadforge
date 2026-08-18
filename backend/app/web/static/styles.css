@@ -724,16 +724,42 @@ body.page-squad .squad-pitch .squad-shirt.filled {
   border: 1px solid transparent;
   border-radius: 0.45rem;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
-  padding: 0.1rem 0.1rem 0.2rem;
-  gap: 0.04rem;
-  align-content: start;
-  justify-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0.12rem 0.22rem 0.28rem;
+  gap: 0.02rem;
+  width: 100%;
+  max-width: 100%;
   box-sizing: border-box;
+  overflow: visible;
 }
 body.page-squad .squad-pitch .squad-shirt.filled .shirt-kit {
-  min-height: 4.75rem;
-  padding-top: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
   width: 100%;
+  min-height: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+body.page-squad .squad-pitch .squad-shirt.filled .jersey-img {
+  width: 88%;
+  max-width: 100%;
+  height: auto;
+}
+/* Keep nameplate + fixture inside the dark box (not absolute hang-off) */
+body.page-squad .squad-pitch .squad-shirt.filled .shirt-overlay {
+  position: relative;
+  left: auto;
+  bottom: auto;
+  transform: none;
+  width: 100%;
+  margin-top: -0.28rem;
+  z-index: 2;
 }
 /* Price sits above the kit; nudged slightly down into the dark box */
 body.page-squad .squad-pitch .squad-shirt.filled > .shirt-price {
@@ -748,15 +774,21 @@ body.page-squad .squad-pitch .squad-shirt.filled > .shirt-price {
   letter-spacing: 0.01em;
   line-height: 1.15;
   color: #fff;
-  margin-top: 0.22rem;
-  padding: 0.08rem 0.08rem 0.06rem;
+  margin-top: 0.18rem;
+  margin-bottom: 0.04rem;
+  padding: 0.06rem 0.08rem 0.04rem;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
 }
-/* Fine white line on the dark jersey box only (not nameplate / fixture plate) */
+/*
+ * Fine white contour on the dark jersey box.
+ * Use box-shadow ring (not only border): iOS Safari often ignores button borders.
+ */
 body.page-squad .squad-pitch .squad-shirt.filled.is-pending-in {
   outline: none;
-  border: 1px solid rgba(255, 255, 255, 0.95);
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
+  border-color: rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 0 0 1.5px #ffffff,
+    0 3px 10px rgba(0, 0, 0, 0.28);
 }
 body.page-squad .squad-pitch .squad-shirt.filled.is-pending-in .shirt-kit {
   box-shadow: none;
@@ -893,9 +925,11 @@ body.chip-bb-on .xi-bench-panel .desk-rail-head h2 {
   }
   body.page-squad .squad-pitch .shirt.is-pending-in {
     outline: none;
-    /* Fine white contour on dark box; gray frame shadow stays */
-    border: 1px solid rgba(255, 255, 255, 0.95);
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
+    /* iOS-safe white ring on the dark box */
+    border-color: rgba(255, 255, 255, 0.95);
+    box-shadow:
+      0 0 0 1.5px #ffffff,
+      0 3px 10px rgba(0, 0, 0, 0.28);
   }
   body.page-xi .xi-pitch .shirt-card.is-swap-selected .shirt-kit,
   body.page-squad .squad-pitch .shirt-card.is-swap-selected .shirt-kit {
@@ -5045,12 +5079,19 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     min-height: 6.55rem;
   }
   body.page-squad .squad-pitch-wrap .squad-shirt.filled .shirt-kit {
-    min-height: 6.55rem;
+    min-height: 0;
+  }
+  body.page-squad .squad-pitch-wrap .squad-shirt.filled .jersey-img {
+    width: 90%;
+  }
+  body.page-squad .squad-pitch-wrap .squad-shirt.filled .shirt-overlay {
+    width: 100%;
+    margin-top: -0.35rem;
   }
   body.page-squad .squad-pitch-wrap .squad-shirt.filled > .shirt-price {
     font-size: 0.7rem;
-    margin-top: 0.28rem;
-    padding: 0.1rem 0.1rem 0.08rem;
+    margin-top: 0.22rem;
+    padding: 0.08rem 0.1rem 0.06rem;
   }
   body.page-squad .squad-pitch-wrap .shirt-overlay,
   body.page-xi .xi-pitch-wrap .shirt-overlay {
@@ -6690,12 +6731,27 @@ html.is-standalone body::after {
     min-height: 4.75rem;
   }
   body.page-squad .squad-pitch .squad-shirt.filled .shirt-kit {
-    min-height: 4.55rem;
+    min-height: 0;
+  }
+  body.page-squad .squad-pitch .squad-shirt.filled .jersey-img {
+    width: 86%;
+  }
+  body.page-squad .squad-pitch .squad-shirt.filled .shirt-overlay {
+    width: 100%;
+    margin-top: -0.22rem;
   }
   body.page-squad .squad-pitch .squad-shirt.filled > .shirt-price {
     font-size: 0.56rem;
-    margin-top: 0.18rem;
-    padding: 0.06rem 0.04rem 0.04rem;
+    margin-top: 0.14rem;
+    padding: 0.04rem 0.04rem 0.02rem;
+  }
+  /* Phone: reinforce pending white ring (button border is unreliable) */
+  body.page-squad .squad-pitch .squad-shirt.filled.is-pending-in {
+    outline: none;
+    border-color: #ffffff;
+    box-shadow:
+      0 0 0 1.5px #ffffff,
+      0 3px 10px rgba(0, 0, 0, 0.28);
   }
   body.page-squad .squad-pitch .jersey-img,
   body.page-xi .xi-pitch .jersey-img {
