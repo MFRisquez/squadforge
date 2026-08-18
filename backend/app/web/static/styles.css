@@ -1933,6 +1933,16 @@ html[data-theme="light"] .transfer-rail-row.avail-out {
   color: #7a1010 !important;
   -webkit-text-fill-color: #7a1010 !important;
 }
+/* Price stays normal black on warning rows (pale yellow/red) — not brown/red inherited. */
+.transfer-rail-row.avail-doubt .tr-price,
+.transfer-rail-row.avail-out .tr-price,
+html[data-theme="light"] .transfer-rail-row.avail-doubt .tr-price,
+html[data-theme="light"] .transfer-rail-row.avail-out .tr-price,
+html[data-theme="dark"] .transfer-rail-row.avail-doubt .tr-price,
+html[data-theme="dark"] .transfer-rail-row.avail-out .tr-price {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+}
 .rail-filters {
   display: grid;
   grid-template-columns: 1fr 1fr;

@@ -20,10 +20,10 @@ def _driver_with(html: str):
     return driver
 
 
-def test_dark_theme_avail_rows_use_dark_warning_text():
+def _row_html(theme: str) -> str:
     css = (STATIC / "styles.css").read_text(encoding="utf-8")
-    html = f"""<!DOCTYPE html>
-<html data-theme="dark">
+    return f"""<!DOCTYPE html>
+<html data-theme="{theme}">
 <head><meta charset="utf-8"><style>{css}</style></head>
 <body>
 <button class="transfer-rail-row avail-doubt" id="doubt">
@@ -38,18 +38,21 @@ def test_dark_theme_avail_rows_use_dark_warning_text():
   <span class="tr-form">1.0</span>
   <span class="tr-pts">10</span>
 </button>
+<button class="transfer-rail-row" id="ok">
+  <span class="tr-name"><span class="tr-name-text"><strong>Player OK</strong><span>MCI · ATT</span></span></span>
+  <span class="tr-price">£9.0</span>
+  <span class="tr-form">6.0</span>
+  <span class="tr-pts">120</span>
+</button>
 </body></html>"""
-    driver = _driver_with(html)
+
+
+def test_dark_theme_avail_rows_use_dark_warning_text():
+    driver = _driver_with(_row_html("dark"))
     try:
         for row_id, expected in (("doubt", "rgb(106, 82, 0)"), ("out", "rgb(122, 16, 16)")):
             row = driver.find_element("id", row_id)
-            for sel in (
-                ".tr-name strong",
-                ".tr-name-text > span",
-                ".tr-price",
-                ".tr-form",
-                ".tr-pts",
-            ):
+            for sel in (".tr-name strong", ".tr-name-text > span", ".tr-form", ".tr-pts"):
                 el = row.find_element("css selector", sel)
                 color = driver.execute_script(
                     "return getComputedStyle(arguments[0]).color", el
@@ -58,10 +61,25 @@ def test_dark_theme_avail_rows_use_dark_warning_text():
             bg = driver.execute_script(
                 "return getComputedStyle(arguments[0]).backgroundColor", row
             )
-            # Pale warning backgrounds (not darkened for theme)
             assert bg in (
-                "rgb(255, 243, 191)",  # doubt #fff3bf
-                "rgb(255, 201, 201)",  # out #ffc9c9
+                "rgb(255, 243, 191)",
+                "rgb(255, 201, 201)",
             ), f"{row_id} bg={bg}"
     finally:
         driver.quit()
+
+
+def test_avail_row_price_stays_black_in_light_and_dark():
+    """Price matches normal black (#000), not brown/red warning ink."""
+    for theme in ("light", "dark"):
+        driver = _driver_with(_row_html(theme))
+        try:
+            for row_id in ("doubt", "out"):
+                row = driver.find_element("id", row_id)
+                price = row.find_element("css selector", ".tr-price")
+                color = driver.execute_script(
+                    "return getComputedStyle(arguments[0]).color", price
+                )
+                assert color == "rgb(0, 0, 0)", f"{theme} {row_id} price={color}"
+        finally:
+            driver.quit()
