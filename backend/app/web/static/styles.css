@@ -1123,6 +1123,13 @@ body.chip-bb-on .xi-bench-panel .desk-rail-head h2 {
 .td-foot.fdr-4 { background: #ffd0da; color: #5a1020; }
 .td-corner-xi { pointer-events: none; }
 .td-corner-xi a { pointer-events: auto; }
+.td-corner-xi.is-club-tappable {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.td-corner.is-club-tappable {
+  cursor: pointer;
+}
 .xi-top {
   display: grid;
   justify-items: center;

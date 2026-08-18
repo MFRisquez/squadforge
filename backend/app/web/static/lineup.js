@@ -956,6 +956,29 @@
   }
   if (cancelSwapBtn) cancelSwapBtn.addEventListener("click", clearSwap);
 
+  /* DT club sheet (same profile as transfers) */
+  const tdCornerXi = document.querySelector(".td-corner-xi.is-club-tappable");
+  function openTdClubFromXi() {
+    const code = (tdCornerXi && tdCornerXi.getAttribute("data-club-code")) || "";
+    if (!code || typeof window.__ffOpenClubDetail !== "function") return;
+    window.__ffOpenClubDetail(code, { canChoose: false });
+  }
+  if (tdCornerXi) {
+    tdCornerXi.addEventListener("click", (e) => {
+      if (e.target.closest("a")) return;
+      openTdClubFromXi();
+    });
+    tdCornerXi.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openTdClubFromXi();
+      }
+    });
+  }
+  if (typeof window.__ffBindClubDetail === "function") {
+    window.__ffBindClubDetail();
+  }
+
   if (lineupForm) {
     lineupForm.addEventListener("submit", async (e) => {
       e.preventDefault();

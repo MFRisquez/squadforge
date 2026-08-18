@@ -22,17 +22,46 @@ STATUS_LABELS = {
 }
 
 
-def _player_points(player: Player) -> float:
+def season_scoring_started(db: Session) -> bool:
+    """True once any PL fixture has kicked off or finished this season."""
+    row = (
+        db.query(Fixture.id)
+        .filter((Fixture.started == 1) | (Fixture.finished == 1))
+        .limit(1)
+        .first()
+    )
+    return row is not None
+
+
+def _season_stats(player: Player) -> dict[str, Any]:
     try:
         stats = json.loads(getattr(player, "season_stats_json", None) or "{}")
     except json.JSONDecodeError:
         stats = {}
-    if not isinstance(stats, dict):
+    return stats if isinstance(stats, dict) else {}
+
+
+def _player_points(player: Player, *, scoring_started: bool) -> float:
+    """Current-season FPL points for club leaderboards.
+
+    Before any match has started, always 0 — bootstrap can still carry stale
+    totals. After kickoff, use total_points only when the player has minutes
+    (avoids previous-season bleed with minutes still at 0).
+    """
+    if not scoring_started:
         return 0.0
+    stats = _season_stats(player)
     try:
-        return float(stats.get("total_points") or 0)
+        minutes = float(stats.get("minutes") or 0)
     except (TypeError, ValueError):
+        minutes = 0.0
+    try:
+        pts = float(stats.get("total_points") or 0)
+    except (TypeError, ValueError):
+        pts = 0.0
+    if minutes <= 0:
         return 0.0
+    return pts
 
 
 def club_table_stats(db: Session, club_code: str) -> dict[str, int]:
@@ -75,9 +104,20 @@ def club_table_stats(db: Session, club_code: str) -> dict[str, int]:
 
 
 def club_top_players(db: Session, club_code: str, *, limit: int = 3) -> list[dict[str, Any]]:
+    """Top scorers for a club — re-ranked from live season_stats on every call."""
     code = (club_code or "").upper()
+    scoring_started = season_scoring_started(db)
     players = db.query(Player).filter(Player.team_code == code).all()
-    ranked = sorted(players, key=_player_points, reverse=True)[: max(0, limit)]
+
+    def sort_key(p: Player) -> tuple[float, float, str]:
+        pts = _player_points(p, scoring_started=scoring_started)
+        price = float(getattr(p, "price", 0) or 0)
+        # Pre-season: price as stand-in so the sheet still lists three names at 0 pts.
+        if not scoring_started:
+            return (price, 0.0, p.name or "")
+        return (pts, price, p.name or "")
+
+    ranked = sorted(players, key=sort_key, reverse=True)[: max(0, limit)]
     out: list[dict[str, Any]] = []
     for p in ranked:
         status = (getattr(p, "status", "a") or "a").lower()
@@ -92,7 +132,7 @@ def club_top_players(db: Session, club_code: str, *, limit: int = 3) -> list[dic
                 "id": p.id,
                 "name": p.name,
                 "position": p.position,
-                "points": _player_points(p),
+                "points": _player_points(p, scoring_started=scoring_started),
                 "availability": avail,
                 "status": status,
                 "status_label": label,
@@ -116,6 +156,7 @@ def club_profile(db: Session, club_code: str, *, from_gw: int | None = None) -> 
         "name": club.name,
         "badge": badge_url(club.code, kit_code=club.kit_code),
         "table": table,
+        "scoring_started": season_scoring_started(db),
         "top_players": club_top_players(db, code, limit=3),
         "fixtures": fixtures_svc.next_fixtures_for_club(
             db, club_code=code, from_gw=int(from_gw), limit=3

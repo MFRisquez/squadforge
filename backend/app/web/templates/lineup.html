@@ -67,7 +67,11 @@
             <span class="pitch-save-label">Save C</span>
           </button>
           {% endif %}
-          <aside class="td-corner td-corner-xi" aria-label="Technical Director">
+          <aside
+            class="td-corner td-corner-xi{% if td_info and td_info.club_code %} is-club-tappable{% endif %}"
+            aria-label="Technical Director"
+            {% if td_info and td_info.club_code %}role="button" tabindex="0" data-club-code="{{ td_info.club_code }}"{% endif %}
+          >
             {% if td_info and td_info.club_code %}
               {% if td_info.badge %}
               <img class="td-badge" src="{{ td_info.badge }}" alt="" width="56" height="56" />
@@ -152,7 +156,26 @@
   </div>
 </div>
 
+<div class="drawer" id="clubDetail" hidden>
+  <div class="drawer-sheet player-detail-sheet club-detail-sheet">
+    <header class="drawer-head player-detail-head">
+      <div class="player-detail-title">
+        <img class="player-detail-photo club-detail-badge" id="clubDetailBadge" alt="" hidden />
+        <div class="player-detail-copy">
+          <p class="eyebrow" id="clubDetailEyebrow">Club</p>
+          <h2 id="clubDetailName">—</h2>
+          <p class="player-detail-sub" id="clubDetailSub"></p>
+        </div>
+      </div>
+      <button type="button" class="icon-btn" id="closeClubDetail" aria-label="Close">✕</button>
+    </header>
+    <div class="player-detail-actions" id="clubDetailActions"></div>
+    <div class="player-detail-body" id="clubDetailBody"></div>
+  </div>
+</div>
+
 <script id="ownedData" type="application/json">{{ owned_json | tojson }}</script>
 <script id="initialLineup" type="application/json">{{ initial_lineup | tojson }}</script>
+<script src="/static/club-sheet.js"></script>
 <script src="/static/lineup.js"></script>
 {% endblock %}
