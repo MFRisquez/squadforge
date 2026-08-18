@@ -234,6 +234,7 @@
   let detailContext = null; // { player, fromPicker, pos, index }
   let scrollLockY = 0;
   let baselineSig = null;
+  let baselineIds = new Set();
   let baselineTd = "";
   let saveVisual = "idle"; // idle | dirty | saved | saving
 
@@ -271,6 +272,16 @@
   function squadDirty() {
     if (baselineSig == null) return false;
     return squadSignature() !== baselineSig;
+  }
+
+  function captureBaseline() {
+    baselineSig = squadSignature();
+    baselineIds = new Set(filledIds().map(Number));
+  }
+
+  function isUnsavedPitchPlayer(playerId) {
+    if (playerId == null || baselineSig == null) return false;
+    return !baselineIds.has(Number(playerId));
   }
 
   function tdDirty() {
@@ -1100,11 +1111,12 @@
         if (p) {
           const avail = p.availability || "ok";
           const pendingIn =
-            inPlayer &&
-            removedSlot &&
-            removedSlot.pos === pos &&
-            removedSlot.index === index &&
-            inPlayer.id === p.id;
+            (inPlayer &&
+              removedSlot &&
+              removedSlot.pos === pos &&
+              removedSlot.index === index &&
+              inPlayer.id === p.id) ||
+            isUnsavedPitchPlayer(p.id);
           btn.className =
             "shirt filled jersey xi-shirt squad-shirt avail-" +
             avail +
@@ -1112,7 +1124,13 @@
           btn.innerHTML = shirtHtml(p);
           if (p.news) btn.title = p.news;
           btn.addEventListener("click", () => {
-            if (pendingIn) {
+            if (
+              inPlayer &&
+              removedSlot &&
+              removedSlot.pos === pos &&
+              removedSlot.index === index &&
+              inPlayer.id === p.id
+            ) {
               active = { pos, index };
               pickerMode = "transfer";
               if (isDesktop()) {
@@ -1439,7 +1457,7 @@
             if (!res.ok || data.error || !data.ok) {
               throw new Error(data.error || "Could not save squad");
             }
-            baselineSig = squadSignature();
+            captureBaseline();
             INITIAL.hasSquad = true;
             INITIAL.selected = filledIds().slice();
           }
@@ -1455,6 +1473,7 @@
           }
           saveVisual = "saved";
           paintSaveBtn();
+          render();
         } catch (err) {
           saveVisual = "dirty";
           paintSaveBtn();
@@ -1664,7 +1683,7 @@
     });
   }
 
-  baselineSig = squadSignature();
+  captureBaseline();
   baselineTd = currentTd();
   saveVisual = "idle";
   render();
