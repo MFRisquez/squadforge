@@ -6979,6 +6979,28 @@ html[data-theme="light"] body.page-auth .auth-text-link {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+.td-banner.is-warn {
+  border-color: rgba(180, 140, 0, 0.35);
+  background: linear-gradient(135deg, rgba(255, 243, 191, 0.55), var(--panel) 55%);
+}
+.td-banner.is-urgent {
+  border-color: rgba(160, 30, 30, 0.35);
+  background: linear-gradient(135deg, rgba(255, 201, 201, 0.55), var(--panel) 55%);
+}
+.td-banner-kicker {
+  margin: 0 0 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.td-banner-msg {
+  margin: 0 0 0.45rem;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  font-weight: 650;
+}
 .home-card-head h2 {
   margin: 0 0 0.45rem;
   font-size: 0.95rem;

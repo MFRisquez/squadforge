@@ -25,6 +25,14 @@
     </section>
     {% endif %}
 
+    {% if td_banner %}
+    <section class="home-card td-banner is-{{ td_banner.level }}" role="status">
+      <p class="td-banner-kicker">{% if td_banner.level == 'urgent' %}DT expired{% else %}DT window{% endif %}</p>
+      <p class="td-banner-msg">{{ td_banner.message }}</p>
+      <a class="text-link" href="/team">Manage DT on Squad</a>
+    </section>
+    {% endif %}
+
     <section class="home-card home-leagues-card" id="leagues">
       <header class="home-card-head">
         <h2>Your leagues</h2>
