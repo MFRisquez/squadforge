@@ -1881,12 +1881,78 @@ html[data-theme="dark"] .chip-card-fpl .chip-toggle.is-on {
 .transfer-rail-row.avail-doubt {
   background: #fff3bf !important;
   color: #6a5200 !important;
+  -webkit-text-fill-color: #6a5200 !important;
   border-bottom-color: rgba(180, 140, 0, 0.22);
 }
 .transfer-rail-row.avail-out {
   background: #ffc9c9 !important;
   color: #7a1010 !important;
+  -webkit-text-fill-color: #7a1010 !important;
   border-bottom-color: rgba(160, 30, 30, 0.22);
+}
+/* Warning rows keep dark text on pale backgrounds in every theme.
+   Culprit (verified via getComputedStyle): dark-theme child rules
+   `html[data-theme="dark"] .transfer-rail-row .tr-price|form|pts` → white
+   and `.tr-name span` (matches .tr-name-text) → gray, inherited by <strong>. */
+.transfer-rail-row.avail-doubt .tr-name,
+.transfer-rail-row.avail-doubt .tr-name strong,
+.transfer-rail-row.avail-doubt .tr-name span,
+.transfer-rail-row.avail-doubt .tr-name-text,
+.transfer-rail-row.avail-doubt .tr-price,
+.transfer-rail-row.avail-doubt .tr-form,
+.transfer-rail-row.avail-doubt .tr-pts,
+html[data-theme="dark"] .transfer-rail-row.avail-doubt .tr-name,
+html[data-theme="dark"] .transfer-rail-row.avail-doubt .tr-name strong,
+html[data-theme="dark"] .transfer-rail-row.avail-doubt .tr-name span,
+html[data-theme="dark"] .transfer-rail-row.avail-doubt .tr-name-text,
+html[data-theme="dark"] .transfer-rail-row.avail-doubt .tr-price,
+html[data-theme="dark"] .transfer-rail-row.avail-doubt .tr-form,
+html[data-theme="dark"] .transfer-rail-row.avail-doubt .tr-pts,
+html[data-theme="light"] .transfer-rail-row.avail-doubt .tr-name,
+html[data-theme="light"] .transfer-rail-row.avail-doubt .tr-name strong,
+html[data-theme="light"] .transfer-rail-row.avail-doubt .tr-name span,
+html[data-theme="light"] .transfer-rail-row.avail-doubt .tr-name-text,
+html[data-theme="light"] .transfer-rail-row.avail-doubt .tr-price,
+html[data-theme="light"] .transfer-rail-row.avail-doubt .tr-form,
+html[data-theme="light"] .transfer-rail-row.avail-doubt .tr-pts {
+  color: #6a5200 !important;
+  -webkit-text-fill-color: #6a5200 !important;
+}
+.transfer-rail-row.avail-out .tr-name,
+.transfer-rail-row.avail-out .tr-name strong,
+.transfer-rail-row.avail-out .tr-name span,
+.transfer-rail-row.avail-out .tr-name-text,
+.transfer-rail-row.avail-out .tr-price,
+.transfer-rail-row.avail-out .tr-form,
+.transfer-rail-row.avail-out .tr-pts,
+html[data-theme="dark"] .transfer-rail-row.avail-out .tr-name,
+html[data-theme="dark"] .transfer-rail-row.avail-out .tr-name strong,
+html[data-theme="dark"] .transfer-rail-row.avail-out .tr-name span,
+html[data-theme="dark"] .transfer-rail-row.avail-out .tr-name-text,
+html[data-theme="dark"] .transfer-rail-row.avail-out .tr-price,
+html[data-theme="dark"] .transfer-rail-row.avail-out .tr-form,
+html[data-theme="dark"] .transfer-rail-row.avail-out .tr-pts,
+html[data-theme="light"] .transfer-rail-row.avail-out .tr-name,
+html[data-theme="light"] .transfer-rail-row.avail-out .tr-name strong,
+html[data-theme="light"] .transfer-rail-row.avail-out .tr-name span,
+html[data-theme="light"] .transfer-rail-row.avail-out .tr-name-text,
+html[data-theme="light"] .transfer-rail-row.avail-out .tr-price,
+html[data-theme="light"] .transfer-rail-row.avail-out .tr-form,
+html[data-theme="light"] .transfer-rail-row.avail-out .tr-pts {
+  color: #7a1010 !important;
+  -webkit-text-fill-color: #7a1010 !important;
+}
+html[data-theme="dark"] .transfer-rail-row.avail-doubt,
+html[data-theme="light"] .transfer-rail-row.avail-doubt {
+  background: #fff3bf !important;
+  color: #6a5200 !important;
+  -webkit-text-fill-color: #6a5200 !important;
+}
+html[data-theme="dark"] .transfer-rail-row.avail-out,
+html[data-theme="light"] .transfer-rail-row.avail-out {
+  background: #ffc9c9 !important;
+  color: #7a1010 !important;
+  -webkit-text-fill-color: #7a1010 !important;
 }
 .rail-filters {
   display: grid;
