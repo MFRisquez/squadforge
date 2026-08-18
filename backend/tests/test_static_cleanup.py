@@ -124,11 +124,11 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS that still showed the rail
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v103"' in sw
+    assert 'CACHE = "futfantasy-v104"' in sw
     assert "/static/styles.css" in sw
     assert "/static/league_h2h.js" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=103" in base
+    assert "sw.js?v=104" in base
 
 
 def test_desktop_pitch_rail_uses_flex_leftover_height():

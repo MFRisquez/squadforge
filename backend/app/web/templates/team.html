@@ -114,15 +114,10 @@
               </div>
             {% endif %}
             {% if can_set_td %}
-            <label class="sr-only" for="tdClub">Technical Director club</label>
-            <select name="club_code" id="tdClub" class="td-select" form="tdForm" required>
-              {% if not td_info or not td_info.club_code %}
-              <option value="" selected disabled>Pick club…</option>
-              {% endif %}
-              {% for c in td_club_choices %}
-              <option value="{{ c.code }}" {% if td_info and td_info.club_code == c.code %}selected{% endif %}>{{ c.name }}</option>
-              {% endfor %}
-            </select>
+            <input type="hidden" name="club_code" id="tdClub" form="tdForm" value="{{ td_info.club_code if td_info and td_info.club_code else '' }}" />
+            <button type="button" class="td-pick-btn" id="tdPickBtn" aria-haspopup="dialog">
+              {% if td_info and td_info.club_code %}Change DT{% else %}Pick club{% endif %}
+            </button>
             {% if td_info and td_info.banned_club %}
             <p class="td-ban muted tiny">Not {{ td_info.banned_club }} next</p>
             {% endif %}
@@ -250,7 +245,40 @@
   </div>
 </div>
 
+<div class="drawer" id="clubPicker" hidden>
+  <div class="drawer-sheet club-picker-sheet">
+    <header class="drawer-head">
+      <div>
+        <p class="eyebrow">Technical Director</p>
+        <h2>Pick a club</h2>
+      </div>
+      <button type="button" class="icon-btn" id="closeClubPicker" aria-label="Close">✕</button>
+    </header>
+    <ul class="club-picker-list" id="clubPickerList"></ul>
+  </div>
+</div>
+
+<div class="drawer" id="clubDetail" hidden>
+  <div class="drawer-sheet player-detail-sheet club-detail-sheet">
+    <header class="drawer-head player-detail-head">
+      <div class="player-detail-title">
+        <img class="player-detail-photo club-detail-badge" id="clubDetailBadge" alt="" hidden />
+        <div class="player-detail-copy">
+          <p class="eyebrow" id="clubDetailEyebrow">Club</p>
+          <h2 id="clubDetailName">—</h2>
+          <p class="player-detail-sub" id="clubDetailSub"></p>
+        </div>
+      </div>
+      <button type="button" class="icon-btn" id="closeClubDetail" aria-label="Close">✕</button>
+    </header>
+    <div class="player-detail-actions" id="clubDetailActions"></div>
+    <div class="player-detail-body" id="clubDetailBody"></div>
+  </div>
+</div>
+
 <script id="playersData" type="application/json">[]</script>
 <script id="initialSquad" type="application/json">{{ initial_squad | tojson }}</script>
+<script id="tdBoot" type="application/json">{{ {"banned": (td_info.banned_club if td_info else none), "can_set": can_set_td|default(false)} | tojson }}</script>
 <script src="/static/squadboard.js"></script>
 {% endblock %}
+

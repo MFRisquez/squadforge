@@ -11,7 +11,7 @@
       const el = m.target;
       if (!(el instanceof HTMLElement) || !el.classList.contains("drawer")) continue;
       if (el.hidden) continue;
-      el.querySelectorAll(".drawer-sheet, .match-detail-sheet, .player-detail-sheet").forEach((sheet) => {
+      el.querySelectorAll(".drawer-sheet, .match-detail-sheet, .player-detail-sheet, .club-picker-sheet").forEach((sheet) => {
         sheet.classList.remove("sheet-out");
         sheet.classList.remove("sheet-in");
         void sheet.offsetWidth;
@@ -24,7 +24,7 @@
   window.__ffCloseDrawer = function closeDrawer(drawer) {
     if (!drawer) return Promise.resolve();
     const sheet = drawer.querySelector(
-      ".drawer-sheet, .match-detail-sheet, .player-detail-sheet"
+      ".drawer-sheet, .match-detail-sheet, .player-detail-sheet, .club-picker-sheet"
     );
     if (!sheet || drawer.hidden) {
       drawer.hidden = true;

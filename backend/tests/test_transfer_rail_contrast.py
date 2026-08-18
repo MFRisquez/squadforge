@@ -38,12 +38,6 @@ def _row_html(theme: str) -> str:
   <span class="tr-form">1.0</span>
   <span class="tr-pts">10</span>
 </button>
-<button class="transfer-rail-row" id="ok">
-  <span class="tr-name"><span class="tr-name-text"><strong>Player OK</strong><span>MCI · ATT</span></span></span>
-  <span class="tr-price">£9.0</span>
-  <span class="tr-form">6.0</span>
-  <span class="tr-pts">120</span>
-</button>
 </body></html>"""
 
 
@@ -52,7 +46,13 @@ def test_dark_theme_avail_rows_use_dark_warning_text():
     try:
         for row_id, expected in (("doubt", "rgb(106, 82, 0)"), ("out", "rgb(122, 16, 16)")):
             row = driver.find_element("id", row_id)
-            for sel in (".tr-name strong", ".tr-name-text > span", ".tr-form", ".tr-pts"):
+            for sel in (
+                ".tr-name strong",
+                ".tr-name-text > span",
+                ".tr-price",
+                ".tr-form",
+                ".tr-pts",
+            ):
                 el = row.find_element("css selector", sel)
                 color = driver.execute_script(
                     "return getComputedStyle(arguments[0]).color", el
@@ -69,17 +69,30 @@ def test_dark_theme_avail_rows_use_dark_warning_text():
         driver.quit()
 
 
-def test_avail_row_price_stays_black_in_light_and_dark():
-    """Price matches normal black (#000), not brown/red warning ink."""
+def test_avail_row_price_matches_other_kpis():
+    """Price uses the same warning ink as form/pts (not forced black)."""
     for theme in ("light", "dark"):
         driver = _driver_with(_row_html(theme))
         try:
-            for row_id in ("doubt", "out"):
+            for row_id, expected in (
+                ("doubt", "rgb(106, 82, 0)"),
+                ("out", "rgb(122, 16, 16)"),
+            ):
                 row = driver.find_element("id", row_id)
-                price = row.find_element("css selector", ".tr-price")
-                color = driver.execute_script(
-                    "return getComputedStyle(arguments[0]).color", price
+                price = driver.execute_script(
+                    "return getComputedStyle(arguments[0]).color",
+                    row.find_element("css selector", ".tr-price"),
                 )
-                assert color == "rgb(0, 0, 0)", f"{theme} {row_id} price={color}"
+                form = driver.execute_script(
+                    "return getComputedStyle(arguments[0]).color",
+                    row.find_element("css selector", ".tr-form"),
+                )
+                pts = driver.execute_script(
+                    "return getComputedStyle(arguments[0]).color",
+                    row.find_element("css selector", ".tr-pts"),
+                )
+                assert price == form == pts == expected, (
+                    f"{theme} {row_id}: price={price} form={form} pts={pts}"
+                )
         finally:
             driver.quit()
