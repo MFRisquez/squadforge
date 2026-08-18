@@ -6343,23 +6343,62 @@ html.is-standalone body::after {
   .xi-bench-wrap .shirt-nameplate { font-size: 0.48rem; }
   .xi-bench-wrap .shirt-foot { font-size: 0.44rem; }
   .picker-card { max-height: min(54vh, 24rem); }
-  .pick-name { font-size: 0.9rem; text-align: center; }
-  .pick-sub { font-size: 0.7rem; text-align: center; }
-  .pick-price {
-    font-size: 0.82rem;
-    text-align: center;
-    justify-self: center;
-  }
+  /* Mobile picker: one horizontal row — name | team | radar | price */
   .pick-row {
     padding: 0.4rem 0.5rem;
     gap: 0.35rem;
     min-height: 2.3rem;
-    grid-template-columns: minmax(0, 1fr) minmax(4.2rem, 4.8rem);
-    text-align: center;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    text-align: left;
   }
   .pick-main {
-    justify-items: center;
-    text-align: center;
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.45rem;
+    min-width: 0;
+    text-align: left;
+  }
+  .pick-name {
+    font-size: 0.9rem;
+    text-align: left;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .pick-sub {
+    font-size: 0.7rem;
+    text-align: right;
+    flex: 0 1 auto;
+    max-width: 46%;
+  }
+  .pick-price {
+    font-size: 0.82rem;
+    text-align: right;
+    justify-self: end;
+  }
+  .pick-row .grow {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.45rem;
+    min-width: 0;
+  }
+  .pick-row .grow strong {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+  }
+  .pick-row .grow .muted {
+    flex: 0 1 auto;
+    white-space: nowrap;
+    text-align: right;
   }
   .pick-row-wrap {
     grid-template-columns: minmax(0, 1fr) auto;

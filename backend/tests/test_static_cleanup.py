@@ -124,11 +124,11 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS that still showed the rail
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v102"' in sw
+    assert 'CACHE = "futfantasy-v103"' in sw
     assert "/static/styles.css" in sw
     assert "/static/league_h2h.js" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=102" in base
+    assert "sw.js?v=103" in base
 
 
 def test_desktop_pitch_rail_uses_flex_leftover_height():
@@ -188,7 +188,18 @@ def test_desktop_pitch_rail_uses_flex_leftover_height():
     assert "min-height: 0" in rail_chunk
 
 
-def test_owned_checkmark_removed_from_transfer_rail():
+def test_mobile_picker_rows_are_horizontal():
+    """Phone picker: name/team/price share one row (not stacked/centered columns)."""
+    css = (STATIC / "styles.css").read_text(encoding="utf-8")
+    start = css.find("Mobile picker: one horizontal row")
+    assert start >= 0
+    chunk = css[start : start + 1600]
+    assert "flex-direction: row" in chunk
+    assert "text-align: center" not in chunk
+    assert "justify-items: center" not in chunk
+    assert "grid-template-columns: minmax(0, 1fr) auto auto" in chunk
+    assert ".pick-row .grow" in chunk
+
     """Owned rows use accent bar only — no side ✓ mark."""
     css = (STATIC / "styles.css").read_text(encoding="utf-8")
     assert ".transfer-rail-row.is-owned .tr-owned-mark" not in css
