@@ -1240,7 +1240,8 @@
       const budgetBlocked = p.price > maxAfford + 1e-9;
       const blocked = clubBlocked || budgetBlocked;
       const li = document.createElement("li");
-      li.className = "pick-row-wrap";
+      const avail = p.availability || "ok";
+      li.className = `pick-row-wrap avail-${avail}`;
       let limitNote = "";
       if (clubBlocked) {
         limitNote = `<span class="club-limit">3/${MAX_CLUB} club</span>`;
@@ -1249,10 +1250,9 @@
       } else if (clubN > 0) {
         limitNote = `<span class="muted tiny"> · ${clubN}/${MAX_CLUB}</span>`;
       }
-      const flag =
-        p.availability === "out" ? "OUT" : p.availability === "doubt" ? "DOUBT" : "";
+      const flag = avail === "out" ? "OUT" : avail === "doubt" ? "DOUBT" : "";
       li.innerHTML = `
-        <button type="button" class="pick-row avail-${p.availability || "ok"}${blocked ? " is-blocked" : ""}" ${blocked ? "disabled" : ""}>
+        <button type="button" class="pick-row avail-${avail}${blocked ? " is-blocked" : ""}" ${blocked ? "disabled" : ""}>
           <span class="pick-main">
             <span class="pick-name">${p.name}</span>
             <span class="pick-sub">${p.team}${flag ? ` · ${flag}` : ""}${limitNote}</span>

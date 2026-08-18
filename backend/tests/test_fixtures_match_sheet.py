@@ -134,9 +134,10 @@ def test_fixture_detail_includes_team_news_and_preview():
 
 def test_fixtures_js_match_sheet_section_order():
     js = (STATIC / "fixtures.js").read_text(encoding="utf-8")
-    assert "match-crests" in js
-    assert "match-names" in js
+    assert "match-side" in js
+    assert "match-club-name" in js
     assert "In your XI" in js
+    assert "fx-xi-table" in js
     assert "fx-news-section" in js
     assert "fx-preview-card" in js
     assert "team_news" in js
@@ -149,8 +150,63 @@ def test_fixtures_js_match_sheet_section_order():
 
 def test_fixtures_css_vs_aligned_with_crests():
     css = (STATIC / "styles.css").read_text(encoding="utf-8")
-    assert ".match-scoreline .match-crests" in css
-    assert "grid-template-columns: 1fr auto 1fr" in css
+    assert ".match-scoreline-badges" in css
+    assert ".match-scoreline-badges .match-side" in css
+    assert "justify-items: center" in css
+    assert ".fx-xi-table" in css
     assert ".fx-news-card" in css
     assert ".fx-preview-card" in css
     assert "gap: 0.4rem" in css
+
+
+def test_squad_by_club_includes_season_kpis():
+    db = SessionLocal()
+    try:
+        if not db.query(Club).filter(Club.code == "ARS").one_or_none():
+            db.add(Club(code="ARS", name="Arsenal", kit_code=3))
+        ext = "kpi-ars-saka"
+        existing = db.query(Player).filter(Player.external_id == ext).one_or_none()
+        if existing:
+            p = existing
+        else:
+            p = Player(
+                external_id=ext,
+                name="Saka",
+                position="MID",
+                team_code="ARS",
+                price=9.0,
+            )
+            db.add(p)
+        p.price = 9.0
+        p.season_stats_json = (
+            '{"form": 6.2, "total_points": 88, "threat": 410, "creativity": 320, "cbi": 12}'
+        )
+        db.commit()
+        by_club = fixtures_svc.squad_by_club([p])
+        assert "ARS" in by_club
+        row = by_club["ARS"][0]
+        assert row["name"] == "Saka"
+        assert row["form"] == 6.2
+        assert row["total_points"] == 88
+        assert row["threat"] == 410.0
+        assert row["creativity"] == 320.0
+        assert row["cbi"] == 12.0
+        assert row["price"] == 9.0
+    finally:
+        db.close()
+
+
+def test_super_sub_bench_select_smaller_on_phone():
+    css = (STATIC / "styles.css").read_text(encoding="utf-8")
+    chunk = css[css.find("@media (max-width: 899px)") :]
+    assert "body.page-xi .chip-card-fpl.chip-card-ss .chip-ss-form select" in chunk
+    assert "font-size: 0.58rem" in chunk
+
+
+def test_pick_row_wrap_avail_bg_covers_info_btn():
+    css = (STATIC / "styles.css").read_text(encoding="utf-8")
+    assert ".pick-row-wrap.avail-doubt" in css
+    assert ".pick-row-wrap.avail-out" in css
+    assert ".pick-row-wrap.avail-doubt .pick-info-btn" in css
+    js = (STATIC / "squadboard.js").read_text(encoding="utf-8")
+    assert "pick-row-wrap avail-${avail}" in js

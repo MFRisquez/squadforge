@@ -297,6 +297,7 @@ def _scorer_lines(events: dict[str, Any], side: str) -> list[dict[str, Any]]:
 def squad_by_club(players: list[Player]) -> dict[str, list[dict[str, Any]]]:
     """club_code → owned players (for fixture highlights / light news)."""
     from app.services.fpl_sync import availability_flag
+    from app.services.player_catalog import _season_kpis
 
     out: dict[str, list[dict[str, Any]]] = {}
     for p in players:
@@ -309,11 +310,13 @@ def squad_by_club(players: list[Player]) -> dict[str, list[dict[str, Any]]]:
                 "id": p.id,
                 "name": p.name,
                 "position": p.position,
+                "price": float(getattr(p, "price", 0) or 0),
                 "news": news,
                 "availability": availability_flag(
                     getattr(p, "status", "a") or "a",
                     getattr(p, "chance_of_playing", None),
                 ),
+                **_season_kpis(p),
             }
         )
     for rows in out.values():
