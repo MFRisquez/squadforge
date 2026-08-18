@@ -378,19 +378,9 @@ def _parse_breakdown(raw: str | None) -> dict:
     return data if isinstance(data, dict) else {}
 
 
-def _top_xi_player(db: Session, manager_id: int, gw) -> dict | None:
-    """Highest-scoring player line from ManagerGameweekScore.breakdown_json (XI)."""
-    if gw is None:
-        return None
-    row = (
-        db.query(ManagerGameweekScore)
-        .filter(
-            ManagerGameweekScore.manager_id == manager_id,
-            ManagerGameweekScore.gameweek_id == gw.id,
-        )
-        .one_or_none()
-    )
-    if not row:
+def _best_xi_from_score(row: ManagerGameweekScore | None) -> tuple[int, float] | None:
+    """Highest-scoring XI player_id + points from a ManagerGameweekScore row."""
+    if row is None:
         return None
     players = _parse_breakdown(row.breakdown_json).get("players") or []
     best_pid = None
@@ -411,15 +401,31 @@ def _top_xi_player(db: Session, manager_id: int, gw) -> dict | None:
             best_pid = int(pid)
     if best_pid is None:
         return None
+    return best_pid, best_pts
+
+
+def _top_xi_player(db: Session, manager_id: int, gw) -> dict | None:
+    """Highest-scoring player line from ManagerGameweekScore.breakdown_json (XI)."""
+    if gw is None:
+        return None
+    row = (
+        db.query(ManagerGameweekScore)
+        .filter(
+            ManagerGameweekScore.manager_id == manager_id,
+            ManagerGameweekScore.gameweek_id == gw.id,
+        )
+        .one_or_none()
+    )
+    hit = _best_xi_from_score(row)
+    if hit is None:
+        return None
+    best_pid, best_pts = hit
     pl = db.query(Player).filter(Player.id == best_pid).one_or_none()
     name = (pl.name if pl else "") or f"Player {best_pid}"
     return {"player_id": best_pid, "name": name, "points": best_pts}
 
 
-def _chips_remaining_labels(db: Session, manager_id: int) -> list[str]:
-    from app.models import ChipState
-
-    state = db.query(ChipState).filter(ChipState.manager_id == manager_id).one_or_none()
+def _chips_labels_from_state(state) -> list[str]:
     if not state:
         return []
     labels = []
@@ -434,6 +440,13 @@ def _chips_remaining_labels(db: Session, manager_id: int) -> list[str]:
         if int(getattr(state, attr, 0) or 0) > 0:
             labels.append(label)
     return labels
+
+
+def _chips_remaining_labels(db: Session, manager_id: int) -> list[str]:
+    from app.models import ChipState
+
+    state = db.query(ChipState).filter(ChipState.manager_id == manager_id).one_or_none()
+    return _chips_labels_from_state(state)
 
 
 def _team_initials(name: str) -> str:
@@ -469,6 +482,7 @@ def h2h_fixture_cards(db: Session, league: League, gw) -> list[dict]:
     """This-week H2H fixtures enriched for league page cards + match sheet."""
     if gw is None:
         return []
+    from app.models import ChipState
     from app.services import deadline as deadline_svc
 
     _, fixtures = h2h_standings(db, league, gw)
@@ -476,6 +490,58 @@ def h2h_fixture_cards(db: Session, league: League, gw) -> list[dict]:
     # Scores / top XI only after the deadline — never leak live picks pre-lock.
     show_scores = deadline_svc.deadline_passed(gw) and status not in {"upcoming", ""}
     season = _h2h_season_records(db, league.id)
+
+    manager_ids: list[int] = []
+    seen: set[int] = set()
+    for fx in fixtures:
+        home = fx.get("home")
+        away = fx.get("away")
+        home_id = fx.get("home_manager_id") or (home.id if home else None)
+        away_id = fx.get("away_manager_id") or (away.id if away else None)
+        for mid in (home_id, away_id):
+            if mid is not None and mid not in seen:
+                seen.add(mid)
+                manager_ids.append(mid)
+
+    scores_by_mgr: dict[int, ManagerGameweekScore] = {}
+    chips_by_mgr: dict[int, ChipState] = {}
+    if manager_ids:
+        scores_by_mgr = {
+            r.manager_id: r
+            for r in db.query(ManagerGameweekScore)
+            .filter(
+                ManagerGameweekScore.manager_id.in_(manager_ids),
+                ManagerGameweekScore.gameweek_id == gw.id,
+            )
+            .all()
+        }
+        chips_by_mgr = {
+            c.manager_id: c
+            for c in db.query(ChipState).filter(ChipState.manager_id.in_(manager_ids)).all()
+        }
+
+    best_by_mgr: dict[int, tuple[int, float]] = {}
+    if show_scores:
+        for mid in manager_ids:
+            hit = _best_xi_from_score(scores_by_mgr.get(mid))
+            if hit is not None:
+                best_by_mgr[mid] = hit
+
+    player_ids = {pid for pid, _ in best_by_mgr.values()}
+    players_by_id: dict[int, Player] = {}
+    if player_ids:
+        players_by_id = {
+            p.id: p for p in db.query(Player).filter(Player.id.in_(player_ids)).all()
+        }
+
+    def top_player_for(mid: int | None) -> dict | None:
+        if mid is None or mid not in best_by_mgr:
+            return None
+        best_pid, best_pts = best_by_mgr[mid]
+        pl = players_by_id.get(best_pid)
+        name = (pl.name if pl else "") or f"Player {best_pid}"
+        return {"player_id": best_pid, "name": name, "points": best_pts}
+
     cards = []
     for fx in fixtures:
         home = fx.get("home")
@@ -487,12 +553,6 @@ def h2h_fixture_cards(db: Session, league: League, gw) -> list[dict]:
         )
         away_name = ((away.team_name if away else "") or "").strip() or (
             away.display_name if away else "TBD"
-        )
-        home_top = (
-            _top_xi_player(db, home_id, gw) if show_scores and home_id else None
-        )
-        away_top = (
-            _top_xi_player(db, away_id, gw) if show_scores and away_id else None
         )
         season_record = None
         if home_id and away_id:
@@ -517,8 +577,10 @@ def h2h_fixture_cards(db: Session, league: League, gw) -> list[dict]:
                     "display_name": home.display_name if home else "TBD",
                     "initials": _team_initials(home_name),
                     "points": float(fx.get("home_points") or 0),
-                    "top_player": home_top,
-                    "chips_left": _chips_remaining_labels(db, home_id) if home_id else [],
+                    "top_player": top_player_for(home_id) if show_scores else None,
+                    "chips_left": _chips_labels_from_state(chips_by_mgr.get(home_id))
+                    if home_id
+                    else [],
                 },
                 "away": {
                     "manager_id": away_id,
@@ -526,8 +588,10 @@ def h2h_fixture_cards(db: Session, league: League, gw) -> list[dict]:
                     "display_name": away.display_name if away else "TBD",
                     "initials": _team_initials(away_name),
                     "points": float(fx.get("away_points") or 0),
-                    "top_player": away_top,
-                    "chips_left": _chips_remaining_labels(db, away_id) if away_id else [],
+                    "top_player": top_player_for(away_id) if show_scores else None,
+                    "chips_left": _chips_labels_from_state(chips_by_mgr.get(away_id))
+                    if away_id
+                    else [],
                 },
             }
         )
