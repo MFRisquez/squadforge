@@ -142,6 +142,37 @@ def player_card(player_id: int, mode: str = "season", gw: Optional[int] = None) 
         db.close()
 
 
+@router.get("/clubs")
+def api_clubs(exclude: Optional[str] = None) -> dict:
+    """Club list for Technical Director picker."""
+    from app.services import club_profile as club_svc
+
+    db = SessionLocal()
+    try:
+        return {"ok": True, "clubs": club_svc.clubs_list(db, exclude=exclude)}
+    finally:
+        db.close()
+
+
+@router.get("/clubs/{club_code}")
+def api_club_detail(club_code: str, gw: Optional[int] = None) -> dict:
+    """Club sheet: table stats, top scorers, next fixtures."""
+    from app.services import club_profile as club_svc
+
+    db = SessionLocal()
+    try:
+        from_gw = int(gw) if gw is not None else None
+        if from_gw is None:
+            current = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
+            from_gw = current.number if current else 1
+        profile = club_svc.club_profile(db, club_code, from_gw=from_gw)
+        if not profile:
+            return {"error": "not_found"}
+        return profile
+    finally:
+        db.close()
+
+
 @router.get("/fixtures")
 def api_fixtures(gw: Optional[int] = None) -> dict:
     db = SessionLocal()
