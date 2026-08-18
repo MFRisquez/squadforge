@@ -700,7 +700,6 @@
       if (tip) btn.title = tip;
       btn.innerHTML = `
         <span class="tr-name">
-          ${p.inSquad ? '<span class="tr-owned-mark" aria-hidden="true">✓</span>' : ""}
           <span class="tr-name-text">
             <strong>${p.name}</strong>
             <span>${p.team} · ${p.position}${p.lockReason ? ` · ${p.lockReason}` : ""}</span>

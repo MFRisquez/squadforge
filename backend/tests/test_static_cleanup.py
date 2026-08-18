@@ -188,20 +188,15 @@ def test_desktop_pitch_rail_uses_flex_leftover_height():
     assert "min-height: 0" in rail_chunk
 
 
-def test_owned_checkmark_is_side_absolute():
-    """Owned ✓ sits on the right of the rail row, not above the name (no extra height)."""
+def test_owned_checkmark_removed_from_transfer_rail():
+    """Owned rows use accent bar only — no side ✓ mark."""
     css = (STATIC / "styles.css").read_text(encoding="utf-8")
-    start = css.find(".transfer-rail-row.is-owned .tr-owned-mark")
-    assert start >= 0
-    chunk = css[start : start + 450]
-    assert "position: absolute" in chunk
-    assert "right: -0.3rem" in chunk
-    assert "top: 50%" in chunk
-    assert "translateY(-50%)" in chunk
-    assert "margin-right: 0.28rem" not in chunk
+    assert ".transfer-rail-row.is-owned .tr-owned-mark" not in css
+    assert "tr-owned-mark" not in css
     squad = (STATIC / "squadboard.js").read_text(encoding="utf-8")
-    assert 'tr-owned-mark' in squad
-    assert "✓" in squad
+    assert "tr-owned-mark" not in squad
+    # Accent bar cue remains
+    assert "box-shadow: inset 4px 0 0 var(--accent)" in css
 
 
 def test_super_sub_mobile_layout_consolidated():

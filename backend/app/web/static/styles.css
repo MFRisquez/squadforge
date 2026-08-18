@@ -1825,7 +1825,7 @@ html[data-theme="dark"] .chip-card-fpl .chip-toggle.is-on {
   pointer-events: none;
 }
 .transfer-rail-row.is-owned {
-  /* Keep ink readable; differentiate with accent bar + check (not faded text). */
+  /* Keep ink readable; differentiate with accent bar (not faded text). */
   position: relative;
   background: var(--panel) !important;
   color: var(--ink) !important;
@@ -1833,8 +1833,6 @@ html[data-theme="dark"] .chip-card-fpl .chip-toggle.is-on {
   border-bottom-color: var(--line) !important;
   box-shadow: inset 4px 0 0 var(--accent);
   cursor: pointer;
-  /* Room for the side check so it never steals row height */
-  padding-right: 1.35rem;
 }
 .transfer-rail-row.is-owned .tr-name strong,
 .transfer-rail-row.is-owned .tr-price,
@@ -1846,25 +1844,6 @@ html[data-theme="dark"] .chip-card-fpl .chip-toggle.is-on {
 .transfer-rail-row.is-owned .tr-name-text > span {
   color: var(--muted) !important;
   -webkit-text-fill-color: var(--muted) !important;
-}
-.transfer-rail-row.is-owned .tr-owned-mark {
-  position: absolute;
-  right: -0.3rem;
-  top: 50%;
-  transform: translateY(-50%);
-  display: grid;
-  place-items: center;
-  width: 1.05rem;
-  height: 1.05rem;
-  margin: 0;
-  border-radius: 999px;
-  background: var(--accent);
-  color: #000;
-  font-size: 0.62rem;
-  font-weight: 900;
-  line-height: 1;
-  z-index: 1;
-  pointer-events: none;
 }
 .transfer-rail-row .tr-name {
   display: flex;
@@ -3402,7 +3381,7 @@ html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
   display: grid;
   gap: 0.05rem;
   min-width: 0;
-  /* Owned ✓ is position:absolute on the row — keep name cell free of extra height */
+  /* Name cell stays a simple grid — owned rows use accent bar only */
   position: static;
 }
 .transfer-rail-row .tr-name strong {
