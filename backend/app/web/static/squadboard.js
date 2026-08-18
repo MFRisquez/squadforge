@@ -435,8 +435,8 @@
       footHtml = `<span class="shirt-foot shirt-opp">TBD</span>`;
     }
     return `
+      ${priceLabel ? `<span class="shirt-price">${priceLabel}</span>` : ""}
       <span class="shirt-kit">
-        ${priceLabel ? `<span class="shirt-price">${priceLabel}</span>` : ""}
         <img class="jersey-img" src="${img}" alt="${p.team} kit" width="66" height="87" loading="lazy" decoding="async" />
         ${flag ? `<span class="shirt-status-flag" title="${p.news || flag}">${flag}</span>` : ""}
         <span class="shirt-overlay">
