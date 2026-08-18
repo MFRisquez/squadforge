@@ -471,7 +471,7 @@ def fixture_detail(db: Session, *, fixture_id: int) -> dict[str, Any] | None:
     status = "finished" if fx.finished else ("live" if fx.started else "upcoming")
     home = clubs.get(fx.home_club_code)
     away = clubs.get(fx.away_club_code)
-    return {
+    payload: dict[str, Any] = {
         "id": fx.id,
         "fpl_id": fx.fpl_id,
         "gw": fx.gameweek_number,
@@ -491,6 +491,15 @@ def fixture_detail(db: Session, *, fixture_id: int) -> dict[str, Any] | None:
         },
         **events,
     }
+    try:
+        from app.services import pl_content
+
+        return pl_content.enrich_fixture_sheet(db, fx, payload)
+    except Exception:  # noqa: BLE001 — sheet must still render without Pulse/news
+        payload.setdefault("team_news", {"home": [], "away": []})
+        payload.setdefault("preview", None)
+        payload.setdefault("pulse", None)
+        return payload
 
 
 def refresh_fixtures(db: Session) -> dict[str, int]:

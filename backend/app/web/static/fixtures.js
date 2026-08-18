@@ -138,11 +138,50 @@
     const chips = players
       .map((p) => `<span class="fx-mine-chip avail-${p.availability || "ok"}">${p.name}</span>`)
       .join("");
-    const news = playerNewsList(players);
     return `<div class="fx-detail-side">
       <h4>${heading}</h4>
       <div class="fx-detail-chips">${chips}</div>
-      ${news || `<p class="muted tiny">No injury/suspension notes.</p>`}
+    </div>`;
+  }
+
+  function newsCardHtml(card) {
+    if (!card) return "";
+    const photo = card.photo
+      ? `<img class="fx-news-photo" src="${card.photo}" alt="" width="56" height="56" loading="lazy" decoding="async" />`
+      : `<span class="fx-news-photo is-empty" aria-hidden="true"></span>`;
+    return `<article class="fx-news-card avail-${card.availability || "ok"}">
+      ${photo}
+      <div class="fx-news-copy">
+        <p class="fx-news-kind">${card.kind || "Team news"}</p>
+        <h5 class="fx-news-title">${card.title || card.player || "Update"}</h5>
+        <p class="fx-news-body">${card.body || ""}</p>
+      </div>
+    </article>`;
+  }
+
+  function teamNewsColumn(cards, heading) {
+    const list = (cards || []).map(newsCardHtml).join("");
+    return `<div class="fx-detail-side fx-news-side">
+      <h4>${heading}</h4>
+      ${list || `<p class="muted tiny">No fresh team news.</p>`}
+    </div>`;
+  }
+
+  function previewBlock(data) {
+    const preview = data.preview;
+    if (!preview || !(preview.body || preview.title)) return "";
+    const homeBadge = preview.image_home
+      ? `<img src="${preview.image_home}" alt="" width="40" height="40" />`
+      : "";
+    const awayBadge = preview.image_away
+      ? `<img src="${preview.image_away}" alt="" width="40" height="40" />`
+      : "";
+    return `<div class="fx-preview-card">
+      <div class="fx-preview-media" aria-hidden="true">${homeBadge}<span>vs</span>${awayBadge}</div>
+      <div class="fx-preview-copy">
+        <h5>${preview.title || "Match preview"}</h5>
+        <p>${preview.body || ""}</p>
+      </div>
     </div>`;
   }
 
@@ -196,7 +235,7 @@
       <h3>${upcoming ? "Match stats" : status === "live" ? "Live stats" : "Match stats"}</h3>
       ${
         upcoming
-          ? `<p class="muted tiny fx-stats-note">Preview — goals, assists, cards, saves and penalties fill in once the match is underway.</p>`
+          ? `<p class="muted tiny fx-stats-note">Stats fill in once the match is underway.</p>`
           : ""
       }
       <table class="fx-stat-table">
@@ -217,6 +256,8 @@
     const awayCode = data.away?.code || "";
     const homeMine = data.my_players?.home || MY_BY_CLUB[homeCode] || [];
     const awayMine = data.my_players?.away || MY_BY_CLUB[awayCode] || [];
+    const homeNews = data.team_news?.home || [];
+    const awayNews = data.team_news?.away || [];
 
     const goalsHome = sideLines(data.goals?.home, "⚽");
     const goalsAway = sideLines(data.goals?.away, "⚽");
@@ -247,28 +288,41 @@
 
     const status = data.status || "upcoming";
     const kick = formatKickoff(data.kickoff);
+    const venueBit =
+      data.preview?.venue
+        ? ` · ${data.preview.venue}${data.preview.city ? `, ${data.preview.city}` : ""}`
+        : "";
     const statusLine =
       status === "live"
-        ? `<p class="fx-detail-status is-live">Live · kickoff ${kick} · GW${data.gw}</p>`
+        ? `<p class="fx-detail-status is-live">Live · ${kick} · GW${data.gw}${venueBit}</p>`
         : status === "finished"
-          ? `<p class="fx-detail-status">Full time · kicked off ${kick} · GW${data.gw}</p>`
-          : `<p class="fx-detail-status">Upcoming · ${kick} · GW${data.gw}</p>`;
+          ? `<p class="fx-detail-status">Full time · ${kick} · GW${data.gw}${venueBit}</p>`
+          : `<p class="fx-detail-status">Upcoming · ${kick} · GW${data.gw}${venueBit}</p>`;
 
     const watchBlock = matchStatsCompareHtml(data, status);
 
     const squadBlock =
       homeMine.length || awayMine.length
-        ? `<section class="fx-detail-section">
-            <h3>${status === "upcoming" ? "Your players & news" : "Your players"}</h3>
+        ? `<section class="fx-detail-section fx-xi-section">
+            <h3>In your XI</h3>
             <div class="fx-detail-squad">
               ${myPlayersBlock(homeMine, data.home.name || homeCode)}
               ${myPlayersBlock(awayMine, data.away.name || awayCode)}
             </div>
           </section>`
-        : `<section class="fx-detail-section">
-            <h3>Your players</h3>
+        : `<section class="fx-detail-section fx-xi-section">
+            <h3>In your XI</h3>
             <p class="muted tiny">None of your squad are in this match.</p>
           </section>`;
+
+    const newsBlock = `<section class="fx-detail-section fx-news-section">
+      <h3>News</h3>
+      ${previewBlock(data)}
+      <div class="fx-detail-squad fx-news-grid">
+        ${teamNewsColumn(homeNews, data.home.name || homeCode)}
+        ${teamNewsColumn(awayNews, data.away.name || awayCode)}
+      </div>
+    </section>`;
 
     const actionBlock = hasEvents
       ? `<section class="fx-detail-section">
@@ -287,19 +341,21 @@
 
     return `
       <div class="match-scoreline match-scoreline-badges">
-        <div class="match-club">
+        <div class="match-crests" aria-hidden="true">
           ${homeBadge}
-          <strong class="match-club-name">${data.home.name || homeCode}</strong>
-        </div>
-        <div class="match-score">${score}</div>
-        <div class="match-club away">
+          <div class="match-score">${score}</div>
           ${awayBadge}
+        </div>
+        <div class="match-names">
+          <strong class="match-club-name">${data.home.name || homeCode}</strong>
+          <span class="match-names-gap" aria-hidden="true"></span>
           <strong class="match-club-name">${data.away.name || awayCode}</strong>
         </div>
       </div>
       ${statusLine}
       ${watchBlock}
       ${squadBlock}
+      ${newsBlock}
       ${actionBlock}
     `;
   }
