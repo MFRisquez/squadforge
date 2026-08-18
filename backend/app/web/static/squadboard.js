@@ -425,6 +425,8 @@
     const flag = avail === "out" ? "OUT" : avail === "doubt" ? "!" : "";
     const img = p.shirt || "";
     const fdr = p.fdr;
+    const price = Number(p.price);
+    const priceLabel = Number.isFinite(price) ? `£${price.toFixed(1)}m` : "";
     let footHtml;
     if (fdr) {
       const venue = fdr.venue === "H" ? "H" : "A";
@@ -434,6 +436,7 @@
     }
     return `
       <span class="shirt-kit">
+        ${priceLabel ? `<span class="shirt-price">${priceLabel}</span>` : ""}
         <img class="jersey-img" src="${img}" alt="${p.team} kit" width="66" height="87" loading="lazy" decoding="async" />
         ${flag ? `<span class="shirt-status-flag" title="${p.news || flag}">${flag}</span>` : ""}
         <span class="shirt-overlay">
