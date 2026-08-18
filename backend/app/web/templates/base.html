@@ -41,6 +41,7 @@
     <p class="app-splash-title"><span class="app-splash-fut">Fut</span> Fantasy</p>
   </div>
   {% endif %}
+  <div class="app-chrome">
   <header class="top">
     <a class="brand" href="{% if has_complete_squad %}/{% else %}/onboard{% endif %}">
       <img class="brand-mark" src="/static/icons/logo.svg" width="28" height="28" alt="" />
@@ -79,6 +80,7 @@
     </a>
   </nav>
   {% endif %}
+  </div>
 
   {% if demo_data_active %}
   <div class="demo-data-banner" role="status">
@@ -108,7 +110,7 @@
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
-        navigator.serviceWorker.register("/static/sw.js?v=107").catch(() => {});
+        navigator.serviceWorker.register("/static/sw.js?v=108").catch(() => {});
       });
     }
   </script>

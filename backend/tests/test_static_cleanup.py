@@ -87,8 +87,7 @@ def test_xi_phone_shell_uses_flex_not_fit_chrome():
     assert "body.page-fit" in chunk
     assert "display: flex" in chunk
     assert "flex-direction: column" in chunk
-    assert "body.page-fit > .top" in chunk
-    assert "body.page-fit > .nav" in chunk
+    assert "body.page-fit > .app-chrome" in chunk
     assert "flex: 0 0 auto" in chunk
     assert "body.page-fit > .shell" in chunk
     assert "flex: 1 1 auto" in chunk
@@ -124,12 +123,12 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS that still showed the rail
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v107"' in sw
+    assert 'CACHE = "futfantasy-v108"' in sw
     assert "/static/styles.css" in sw
     assert "/static/league_h2h.js" in sw
     assert "/static/club-sheet.js" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=107" in base
+    assert "sw.js?v=108" in base
 
 
 def test_desktop_pitch_rail_uses_flex_leftover_height():

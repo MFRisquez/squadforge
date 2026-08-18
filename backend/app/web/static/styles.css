@@ -130,15 +130,17 @@ a, button, .shirt, .pick-row, .nav a {
   transition: transform 180ms var(--ease), background 180ms ease, box-shadow 180ms ease, color 160ms ease, border-color 160ms ease, opacity 160ms ease;
 }
 
+.app-chrome {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
 .top {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.55rem 0.95rem;
   border-bottom: 1px solid rgba(255,255,255,0.08);
-  position: sticky;
-  top: 0;
-  z-index: 5;
   background: #000000;
   color: #fff;
 }
@@ -186,9 +188,6 @@ a, button, .shirt, .pick-row, .nav a {
   background: rgba(255,255,255,0.92);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
-  position: sticky;
-  top: 3.15rem;
-  z-index: 4;
 }
 .nav a {
   color: var(--muted);
@@ -4737,10 +4736,8 @@ html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
     display: flex;
     flex-direction: column;
   }
-  body.page-squad.page-fit > .top,
-  body.page-squad.page-fit > .nav,
-  body.page-xi.page-fit > .top,
-  body.page-xi.page-fit > .nav {
+  body.page-squad.page-fit > .app-chrome,
+  body.page-xi.page-fit > .app-chrome {
     flex: 0 0 auto;
     position: relative;
     top: auto;
@@ -5824,7 +5821,7 @@ button.h2h-card-btn:focus-visible {
 
 /* No page scroll / fixed viewport — phone only (≤899px).
    Desktop keeps normal document height + browser scroll.
-   Height model: body is a flex column; .top/.nav keep natural height;
+   Height model: body is a flex column; .app-chrome (.top/.nav) keeps natural height;
    .shell fills the leftover with flex:1 — never calc(100dvh − fixed rem). */
 @media (max-width: 899px) {
   html:has(body.page-fit) {
@@ -5849,8 +5846,7 @@ button.h2h-card-btn:focus-visible {
     display: flex;
     flex-direction: column;
   }
-  body.page-fit > .top,
-  body.page-fit > .nav,
+  body.page-fit > .app-chrome,
   body.page-fit > .demo-data-banner {
     flex: 0 0 auto;
     position: relative;
@@ -6186,7 +6182,6 @@ html.is-standalone body::after {
     overflow-x: hidden;
     width: 100%;
     box-sizing: border-box;
-    top: calc(1.85rem + env(safe-area-inset-top, 0px));
   }
   .nav a {
     display: flex;
