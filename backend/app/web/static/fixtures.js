@@ -280,13 +280,32 @@
     </section>`;
   }
 
-  function detailHtml(data, score) {
+  function newsSectionHtml(data, { loading } = {}) {
+    if (loading) {
+      return `<section class="fx-detail-section fx-news-section" data-fx-news>
+      <h3>News</h3>
+      <p class="muted tiny fx-news-loading">Loading team news…</p>
+    </section>`;
+    }
+    const homeCode = data.home?.code || "";
+    const awayCode = data.away?.code || "";
+    const homeNews = data.team_news?.home || [];
+    const awayNews = data.team_news?.away || [];
+    return `<section class="fx-detail-section fx-news-section" data-fx-news>
+      <h3>News</h3>
+      ${previewBlock(data)}
+      <div class="fx-detail-squad fx-news-grid">
+        ${teamNewsColumn(homeNews, data.home?.name || homeCode)}
+        ${teamNewsColumn(awayNews, data.away?.name || awayCode)}
+      </div>
+    </section>`;
+  }
+
+  function detailHtml(data, score, { newsLoading } = {}) {
     const homeCode = data.home?.code || "";
     const awayCode = data.away?.code || "";
     const homeMine = data.my_players?.home || MY_BY_CLUB[homeCode] || [];
     const awayMine = data.my_players?.away || MY_BY_CLUB[awayCode] || [];
-    const homeNews = data.team_news?.home || [];
-    const awayNews = data.team_news?.away || [];
 
     const goalsHome = sideLines(data.goals?.home, "⚽");
     const goalsAway = sideLines(data.goals?.away, "⚽");
@@ -323,10 +342,10 @@
         : "";
     const statusLine =
       status === "live"
-        ? `<p class="fx-detail-status is-live">Live · ${kick} · GW${data.gw}${venueBit}</p>`
+        ? `<p class="fx-detail-status is-live" data-fx-status>Live · ${kick} · GW${data.gw}${venueBit}</p>`
         : status === "finished"
-          ? `<p class="fx-detail-status">Full time · ${kick} · GW${data.gw}${venueBit}</p>`
-          : `<p class="fx-detail-status">Upcoming · ${kick} · GW${data.gw}${venueBit}</p>`;
+          ? `<p class="fx-detail-status" data-fx-status>Full time · ${kick} · GW${data.gw}${venueBit}</p>`
+          : `<p class="fx-detail-status" data-fx-status>Upcoming · ${kick} · GW${data.gw}${venueBit}</p>`;
 
     const watchBlock = matchStatsCompareHtml(data, status);
 
@@ -344,14 +363,7 @@
             <p class="muted tiny">None of your squad are in this match.</p>
           </section>`;
 
-    const newsBlock = `<section class="fx-detail-section fx-news-section">
-      <h3>News</h3>
-      ${previewBlock(data)}
-      <div class="fx-detail-squad fx-news-grid">
-        ${teamNewsColumn(homeNews, data.home.name || homeCode)}
-        ${teamNewsColumn(awayNews, data.away.name || awayCode)}
-      </div>
-    </section>`;
+    const newsBlock = newsSectionHtml(data, { loading: Boolean(newsLoading) });
 
     const actionBlock = hasEvents
       ? `<section class="fx-detail-section">
@@ -396,7 +408,12 @@
     });
   }
 
-  function renderMatchDetail(raw) {
+  function activeDetailBody() {
+    if (isDesktop() && deskBody && (!matchDetail || matchDetail.hidden)) return deskBody;
+    return matchBody;
+  }
+
+  function renderMatchDetail(raw, { newsLoading } = {}) {
     const data = mergeDetailBadges(raw || {});
     const hs = data.home.score;
     const as_ = data.away.score;
@@ -409,7 +426,7 @@
         : data.status === "finished"
           ? "Full time"
           : "Match preview";
-    const body = detailHtml(data, score);
+    const body = detailHtml(data, score, { newsLoading });
 
     if (isDesktop() && deskEyebrow && deskTitle && deskBody) {
       if (matchDetail) matchDetail.hidden = true;
@@ -428,6 +445,29 @@
     }
     matchDetail.hidden = false;
     matchDetail.scrollTop = 0;
+  }
+
+  function applyMatchPreview(base, enrich) {
+    if (!enrich || enrich.error) return;
+    const merged = mergeDetailBadges({
+      ...base,
+      team_news: enrich.team_news,
+      preview: enrich.preview,
+      pulse: enrich.pulse,
+    });
+    const root = activeDetailBody();
+    if (!root) return;
+    const news = root.querySelector("[data-fx-news]");
+    if (news) news.outerHTML = newsSectionHtml(merged, { loading: false });
+    const statusEl = root.querySelector("[data-fx-status]");
+    if (statusEl && merged.preview?.venue) {
+      const kick = formatKickoff(merged.kickoff);
+      const venueBit = ` · ${merged.preview.venue}${merged.preview.city ? `, ${merged.preview.city}` : ""}`;
+      const status = merged.status || "upcoming";
+      const label =
+        status === "live" ? "Live" : status === "finished" ? "Full time" : "Upcoming";
+      statusEl.textContent = `${label} · ${kick} · GW${merged.gw}${venueBit}`;
+    }
   }
 
   function renderMatchError() {
@@ -450,13 +490,35 @@
 
   function openMatch(id) {
     markSelected(id);
+    const reqId = String(id);
     fetch(`/api/fixtures/${id}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => {
         if (data.error) throw new Error(data.error);
-        renderMatchDetail(data);
+        if (selectedId !== reqId) return null;
+        renderMatchDetail(data, { newsLoading: true });
+        return data;
       })
-      .catch(() => renderMatchError());
+      .then((data) => {
+        if (!data) return;
+        return fetch(`/api/fixtures/${id}/preview`)
+          .then((r) => (r.ok ? r.json() : Promise.reject()))
+          .then((enrich) => {
+            if (selectedId !== reqId) return;
+            applyMatchPreview(data, enrich);
+          })
+          .catch(() => {
+            if (selectedId !== reqId) return;
+            applyMatchPreview(data, {
+              team_news: { home: [], away: [] },
+              preview: null,
+              pulse: null,
+            });
+          });
+      })
+      .catch(() => {
+        if (selectedId === reqId) renderMatchError();
+      });
   }
 
   function bindRows(root) {

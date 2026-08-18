@@ -625,6 +625,11 @@ def fixture_detail(
     fixture_id: int,
     owned_players: list[Player] | None = None,
 ) -> dict[str, Any] | None:
+    """Fast path: scoreline, clubs, badges, status, events, my_players (local DB only).
+
+    Does **not** call PulseLive / team-news enrichment — use
+    ``fixture_sheet_preview`` for that so the match sheet can open in <1s.
+    """
     fx = db.query(Fixture).filter(Fixture.id == fixture_id).one_or_none()
     if not fx:
         return None
@@ -655,15 +660,47 @@ def fixture_detail(
     }
     if owned_players is not None:
         payload["my_players"] = my_players_for_fixture(db, fx, owned_players)
+    return payload
+
+
+def fixture_sheet_preview(db: Session, *, fixture_id: int) -> dict[str, Any] | None:
+    """Slow path: team news + PulseLive venue/formations for the match sheet."""
+    fx = db.query(Fixture).filter(Fixture.id == fixture_id).one_or_none()
+    if not fx:
+        return None
+    clubs = {c.code: c for c in db.query(Club).all()}
+    home = clubs.get(fx.home_club_code)
+    away = clubs.get(fx.away_club_code)
+    base: dict[str, Any] = {
+        "id": fx.id,
+        "home": {
+            "code": fx.home_club_code,
+            "name": home.name if home else fx.home_club_code,
+            "badge": badge_url(fx.home_club_code, kit_code=home.kit_code if home else None),
+        },
+        "away": {
+            "code": fx.away_club_code,
+            "name": away.name if away else fx.away_club_code,
+            "badge": badge_url(fx.away_club_code, kit_code=away.kit_code if away else None),
+        },
+    }
     try:
         from app.services import pl_content
 
-        return pl_content.enrich_fixture_sheet(db, fx, payload)
+        enriched = pl_content.enrich_fixture_sheet(db, fx, base)
     except Exception:  # noqa: BLE001 — sheet must still render without Pulse/news
-        payload.setdefault("team_news", {"home": [], "away": []})
-        payload.setdefault("preview", None)
-        payload.setdefault("pulse", None)
-        return payload
+        return {
+            "id": fx.id,
+            "team_news": {"home": [], "away": []},
+            "preview": None,
+            "pulse": None,
+        }
+    return {
+        "id": fx.id,
+        "team_news": enriched.get("team_news") or {"home": [], "away": []},
+        "preview": enriched.get("preview"),
+        "pulse": enriched.get("pulse"),
+    }
 
 
 def refresh_fixtures(db: Session) -> dict[str, int]:

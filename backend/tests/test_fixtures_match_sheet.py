@@ -74,7 +74,45 @@ def test_match_preview_blurb_includes_venue_and_absences():
     assert "line-ups" in body_l or "formation" in body_l
 
 
-def test_fixture_detail_includes_team_news_and_preview():
+def test_fixture_detail_is_local_only_no_pulse():
+    """Fast path must not attach PulseLive enrichment."""
+    db = SessionLocal()
+    try:
+        for code, name, kit in (("ARS", "Arsenal", 3), ("LIV", "Liverpool", 14)):
+            if not db.query(Club).filter(Club.code == code).one_or_none():
+                db.add(Club(code=code, name=name, kit_code=kit))
+        fx = db.query(Fixture).filter(Fixture.fpl_id == 91001).one_or_none()
+        if not fx:
+            fx = Fixture(
+                fpl_id=91001,
+                gameweek_number=1,
+                home_club_code="ARS",
+                away_club_code="LIV",
+                home_difficulty=3,
+                away_difficulty=3,
+                kickoff_at="2026-08-21T19:00:00Z",
+                started=0,
+                finished=0,
+            )
+            db.add(fx)
+        db.commit()
+        fid = fx.id
+
+        with patch.object(pl_content, "resolve_pulse_fixture") as pulse_mock:
+            detail = fixtures_svc.fixture_detail(db, fixture_id=fid)
+
+        assert detail is not None
+        assert detail["home"]["code"] == "ARS"
+        assert "goals" in detail
+        assert "team_news" not in detail
+        assert "preview" not in detail
+        assert "pulse" not in detail
+        pulse_mock.assert_not_called()
+    finally:
+        db.close()
+
+
+def test_fixture_sheet_preview_includes_team_news_and_preview():
     db = SessionLocal()
     try:
         for code, name, kit in (("ARS", "Arsenal", 3), ("LIV", "Liverpool", 14)):
@@ -119,7 +157,7 @@ def test_fixture_detail_includes_team_news_and_preview():
             "status": "U",
         }
         with patch.object(pl_content, "resolve_pulse_fixture", return_value=fake_pulse):
-            detail = fixtures_svc.fixture_detail(db, fixture_id=fid)
+            detail = fixtures_svc.fixture_sheet_preview(db, fixture_id=fid)
 
         assert detail is not None
         assert "team_news" in detail
@@ -141,6 +179,9 @@ def test_fixtures_js_match_sheet_section_order():
     assert "fx-news-section" in js
     assert "fx-preview-card" in js
     assert "team_news" in js
+    assert "/preview" in js
+    assert "newsLoading" in js
+    assert "applyMatchPreview" in js
     status_i = js.find("${statusLine}")
     stats_i = js.find("${watchBlock}")
     xi_i = js.find("${squadBlock}")

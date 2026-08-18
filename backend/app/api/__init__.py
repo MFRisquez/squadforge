@@ -212,9 +212,15 @@ def api_fixtures_refresh(gw: Optional[int] = None) -> dict:
 
 @router.get("/fixtures/{fixture_id}")
 def api_fixture_detail(request: Request, fixture_id: int) -> dict:
+    """Fast match sheet: local score/events/my_players only (no PulseLive)."""
+    import logging
+    import time
+
     from app.auth import current_manager
     from app.services import squad as squad_svc
 
+    log = logging.getLogger("squadforge.fixtures")
+    t0 = time.perf_counter()
     db = SessionLocal()
     try:
         owned = None
@@ -228,4 +234,26 @@ def api_fixture_detail(request: Request, fixture_id: int) -> dict:
             return {"error": "not_found"}
         return detail
     finally:
+        ms = (time.perf_counter() - t0) * 1000.0
+        log.info("fixture_detail id=%s ms=%.1f", fixture_id, ms)
+        db.close()
+
+
+@router.get("/fixtures/{fixture_id}/preview")
+def api_fixture_preview(fixture_id: int) -> dict:
+    """Slow match-sheet enrichment: team news + PulseLive venue/formations."""
+    import logging
+    import time
+
+    log = logging.getLogger("squadforge.fixtures")
+    t0 = time.perf_counter()
+    db = SessionLocal()
+    try:
+        preview = fixtures_svc.fixture_sheet_preview(db, fixture_id=fixture_id)
+        if not preview:
+            return {"error": "not_found"}
+        return preview
+    finally:
+        ms = (time.perf_counter() - t0) * 1000.0
+        log.info("fixture_preview id=%s ms=%.1f", fixture_id, ms)
         db.close()
