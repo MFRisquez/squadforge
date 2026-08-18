@@ -718,6 +718,41 @@ html[data-theme="dark"] .demo-data-banner {
   outline: 2px solid #B6DB00;
   outline-offset: 2px;
 }
+/* Transfers pitch: gray translucent frame + price; white border while pending IN */
+body.page-squad .squad-pitch .squad-shirt.filled {
+  background: rgba(55, 58, 64, 0.42);
+  border: 1.5px solid transparent;
+  border-radius: 0.45rem;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
+  padding: 0.12rem 0.08rem 0.18rem;
+  gap: 0;
+}
+body.page-squad .squad-pitch .squad-shirt.filled .shirt-kit {
+  min-height: 5.05rem;
+  padding-top: 0;
+}
+body.page-squad .squad-pitch .squad-shirt.filled .shirt-price {
+  display: block;
+  position: relative;
+  z-index: 3;
+  width: 100%;
+  text-align: center;
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  line-height: 1.1;
+  color: #fff;
+  padding: 0.06rem 0.06rem 0.1rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+body.page-squad .squad-pitch .squad-shirt.is-pending-in {
+  outline: none;
+  border-color: #fff;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
+}
+body.page-squad .squad-pitch .squad-shirt.is-pending-in .shirt-kit {
+  box-shadow: none;
+}
 .btn.danger-btn {
   background: #b42318;
   color: #fff;
@@ -838,10 +873,15 @@ body.chip-bb-on .xi-bench-panel .desk-rail-head h2 {
   body.page-squad .squad-pitch .shirt-card.is-swap-selected .shirt,
   body.page-squad .squad-pitch .shirt-card.is-swap-target .shirt,
   body.page-xi .xi-pitch .shirt-card.is-swap-selected .shirt,
-  body.page-squad .squad-pitch .shirt.empty.is-transfer-slot,
-  body.page-squad .squad-pitch .shirt.is-pending-in {
+  body.page-squad .squad-pitch .shirt.empty.is-transfer-slot {
     outline: none;
     box-shadow: none;
+  }
+  body.page-squad .squad-pitch .shirt.is-pending-in {
+    outline: none;
+    /* Keep gray frame shadow; white border marks unsaved transfer-in */
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
+    border-color: #fff;
   }
   body.page-xi .xi-pitch .shirt-card.is-swap-selected .shirt-kit,
   body.page-squad .squad-pitch .shirt-card.is-swap-selected .shirt-kit {
@@ -861,8 +901,8 @@ body.chip-bb-on .xi-bench-panel .desk-rail-head h2 {
     box-shadow: 0 0 0 2px rgba(182, 219, 0, 0.45);
   }
   body.page-squad .squad-pitch .shirt.is-pending-in .shirt-kit {
-    box-shadow: 0 0 0 2px #B6DB00, 0 0 0 4px rgba(182, 219, 0, 0.28);
-    border-radius: 0.35rem;
+    box-shadow: none;
+    border-radius: 0;
   }
   body.page-xi .xi-pitch-wrap,
   body.page-squad .squad-pitch-wrap {
@@ -4990,6 +5030,13 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   body.page-xi .xi-pitch-wrap .xi-shirt .shirt-kit {
     min-height: 6.55rem;
   }
+  body.page-squad .squad-pitch-wrap .squad-shirt.filled .shirt-kit {
+    min-height: 7.05rem;
+  }
+  body.page-squad .squad-pitch-wrap .squad-shirt.filled .shirt-price {
+    font-size: 0.62rem;
+    padding: 0.08rem 0.08rem 0.12rem;
+  }
   body.page-squad .squad-pitch-wrap .shirt-overlay,
   body.page-xi .xi-pitch-wrap .shirt-overlay {
     width: 4.55rem;
@@ -6626,6 +6673,13 @@ html.is-standalone body::after {
   body.page-squad .squad-pitch .xi-shirt .shirt-kit,
   body.page-xi .xi-pitch .xi-shirt .shirt-kit {
     min-height: 4.75rem;
+  }
+  body.page-squad .squad-pitch .squad-shirt.filled .shirt-kit {
+    min-height: 5.15rem;
+  }
+  body.page-squad .squad-pitch .squad-shirt.filled .shirt-price {
+    font-size: 0.48rem;
+    padding: 0.04rem 0.04rem 0.06rem;
   }
   body.page-squad .squad-pitch .jersey-img,
   body.page-xi .xi-pitch .jersey-img {
