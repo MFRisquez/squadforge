@@ -108,8 +108,44 @@ def test_transfers_side_locked_before_deadline(monkeypatch):
     db, league, managers, gw = _league_with_scores(4, tag="lock")
     try:
         monkeypatch.setattr("app.services.deadline.can_edit", lambda _gw: True)
-        payload = desk_side_svc.transfers_side_left_payload(db, leagues=[league], gw=gw)
+        payload = desk_side_svc.transfers_side_left_payload(
+            db, leagues=[league], gw=gw, manager_id=managers[0].id
+        )
         assert payload["locked"] is True
         assert payload["leagues"] == []
+        assert payload["my_transfers"] == []
+    finally:
+        db.close()
+
+
+def test_manager_gw_transfer_rows_listed():
+    db, league, managers, gw = _league_with_scores(4, tag="mine")
+    try:
+        from app.models import Player
+
+        players = db.query(Player).limit(2).all()
+        assert len(players) >= 2
+        p_out, p_in = players[0], players[1]
+        db.add(
+            TransferLog(
+                manager_id=managers[0].id,
+                gameweek_id=gw.id,
+                player_out_id=p_out.id,
+                player_in_id=p_in.id,
+                free_transfers_after=1,
+                is_hit=0,
+            )
+        )
+        db.commit()
+        rows = desk_side_svc.manager_gw_transfer_rows(
+            db, manager_id=managers[0].id, gameweek_id=gw.id
+        )
+        assert len(rows) == 1
+        assert rows[0]["out"] == p_out.name
+        assert rows[0]["in"] == p_in.name
+        payload = desk_side_svc.transfers_side_left_payload(
+            db, leagues=[league], gw=gw, manager_id=managers[0].id
+        )
+        assert payload["my_transfers"][0]["out_id"] == p_out.id
     finally:
         db.close()

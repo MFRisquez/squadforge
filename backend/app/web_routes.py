@@ -915,7 +915,7 @@ def _squad_board_response(
 
             nav_leagues = league_svc.manager_leagues(db, manager.id)
             transfers_side_left = desk_side_svc.transfers_side_left_payload(
-                db, leagues=nav_leagues, gw=gw
+                db, leagues=nav_leagues, gw=gw, manager_id=manager.id
             )
     with timed("team.transfers_unlimited"):
         # Reuse TransferState from bank; reuse active chip when viewing current GW.

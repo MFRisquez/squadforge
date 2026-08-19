@@ -202,19 +202,68 @@ def league_top_transfers(
     }
 
 
+def manager_gw_transfer_rows(
+    db: Session,
+    *,
+    manager_id: int,
+    gameweek_id: int,
+) -> list[dict[str, Any]]:
+    """This manager's TransferLog rows for the GW (out → in), oldest first."""
+    logs = (
+        db.query(TransferLog)
+        .filter(
+            TransferLog.manager_id == manager_id,
+            TransferLog.gameweek_id == gameweek_id,
+        )
+        .order_by(TransferLog.id.asc())
+        .all()
+    )
+    if not logs:
+        return []
+    pids = {int(r.player_out_id) for r in logs if r.player_out_id} | {
+        int(r.player_in_id) for r in logs if r.player_in_id
+    }
+    names: dict[int, str] = {}
+    if pids:
+        for row in db.query(Player.id, Player.name).filter(Player.id.in_(pids)).all():
+            names[int(row[0])] = row[1]
+    rows: list[dict[str, Any]] = []
+    for log in logs:
+        oid = int(log.player_out_id) if log.player_out_id else None
+        iid = int(log.player_in_id) if log.player_in_id else None
+        rows.append(
+            {
+                "out_id": oid,
+                "in_id": iid,
+                "out": names.get(oid, f"#{oid}") if oid else "—",
+                "in": names.get(iid, f"#{iid}") if iid else "—",
+                "is_hit": bool(getattr(log, "is_hit", 0)),
+            }
+        )
+    return rows
+
+
 def transfers_side_left_payload(
     db: Session,
     *,
     leagues: list[League],
     gw,
+    manager_id: int | None = None,
 ) -> dict[str, Any]:
-    """Top transfers rail — only after the GW deadline (privacy)."""
+    """Top transfers rail + this manager's GW history (always)."""
+    my_rows: list[dict[str, Any]] = []
+    if manager_id is not None:
+        my_rows = manager_gw_transfer_rows(
+            db, manager_id=int(manager_id), gameweek_id=int(gw.id)
+        )
+
     if deadline_svc.can_edit(gw):
         return {
             "locked": True,
             "message": "Se revela cuando cierre el mercado",
             "leagues": [],
             "min_managers": MIN_MANAGERS_FOR_TOP_TRANSFERS,
+            "my_transfers": my_rows,
         }
 
     blocks: list[dict[str, Any]] = []
@@ -242,4 +291,10 @@ def transfers_side_left_payload(
             }
         )
 
-    return {"locked": False, "message": None, "leagues": blocks, "min_managers": MIN_MANAGERS_FOR_TOP_TRANSFERS}
+    return {
+        "locked": False,
+        "message": None,
+        "leagues": blocks,
+        "min_managers": MIN_MANAGERS_FOR_TOP_TRANSFERS,
+        "my_transfers": my_rows,
+    }

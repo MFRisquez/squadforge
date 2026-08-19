@@ -198,9 +198,14 @@ def test_desk_side_left_layout_phase0():
     # Fase 1–2 side panel chrome present
     assert "desk-side-league-list" in css
     assert "desk-side-xfer-list" in css
-    assert "save-confirm-list" in css
-    assert 'id="saveConfirm"' in (TEMPLATES / "team.html").read_text(encoding="utf-8")
-    assert "openSaveConfirm" in (STATIC / "squadboard.js").read_text(encoding="utf-8")
+    assert "desk-side-xfer-tables" in css
+    assert "desk-side-my-xfer-list" in css
+    assert "Most transferred IN" in team
+    assert "Most transferred OUT" in team
+    assert 'id="myGwTransfers"' in team
+    assert 'id="saveConfirm"' not in team
+    assert "openSaveConfirm" not in (STATIC / "squadboard.js").read_text(encoding="utf-8")
+    assert "appendMyGwTransfers" in (STATIC / "squadboard.js").read_text(encoding="utf-8")
     assert "xi_side_left" in (TEMPLATES / "lineup.html").read_text(encoding="utf-8")
     assert "transfers_side_left" in (TEMPLATES / "team.html").read_text(encoding="utf-8")
 

@@ -13,7 +13,7 @@
 
 <form method="post" action="/td/save" id="tdForm" hidden aria-hidden="true"></form>
 <div class="desk-board desk-squad">
-  <aside class="desk-rail desk-side-left" id="squadSideLeft" aria-label="League transfer trends">
+  <aside class="desk-rail desk-side-left" id="squadSideLeft" aria-label="Transfers side panel">
     {% set side = transfers_side_left or {} %}
     <section class="desk-side-block desk-side-transfers">
       <header class="desk-rail-head">
@@ -60,6 +60,28 @@
           {% endif %}
         </div>
         {% endfor %}
+      {% endif %}
+    </section>
+    <section class="desk-side-block desk-side-my-xfers" aria-label="Your transfers this GW">
+      <header class="desk-rail-head">
+        <p class="eyebrow">Your GW</p>
+        <h2>Your transfers</h2>
+      </header>
+      {% set mine = side.my_transfers or [] %}
+      {% if mine %}
+      <ul class="desk-side-my-xfer-list" id="myGwTransfers">
+        {% for row in mine %}
+        <li>
+          <span class="sc-out">{{ row.out }}</span>
+          <span class="sc-arrow" aria-hidden="true">→</span>
+          <span class="sc-in">{{ row.in }}</span>
+          {% if row.is_hit %}<span class="sc-hit">hit</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="muted tiny" id="myGwTransfersEmpty">No transfers yet this GW.</p>
+      <ul class="desk-side-my-xfer-list" id="myGwTransfers" hidden></ul>
       {% endif %}
     </section>
   </aside>
@@ -292,19 +314,6 @@
     </header>
     <div class="player-detail-actions" id="detailActions"></div>
     <div class="player-detail-body" id="detailBody"></div>
-  </div>
-</div>
-
-<div class="drawer" id="saveConfirm" hidden>
-  <div class="drawer-sheet player-detail-sheet save-confirm-sheet" role="dialog" aria-modal="true" aria-labelledby="saveConfirmTitle">
-    <header class="drawer-head">
-      <div>
-        <p class="eyebrow">Saved</p>
-        <h2 id="saveConfirmTitle">Squad changes</h2>
-      </div>
-      <button type="button" class="icon-btn" id="closeSaveConfirm" aria-label="Close">✕</button>
-    </header>
-    <ul class="save-confirm-list" id="saveConfirmList"></ul>
   </div>
 </div>
 
