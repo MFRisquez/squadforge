@@ -62,8 +62,8 @@
   function chartGeom(view) {
     const w = Number(view.chart_width) || 400;
     const h = Number(view.chart_height) || 280;
-    const left = Number(view.plot_left != null ? view.plot_left : 100);
-    const right = Number(view.plot_right != null ? view.plot_right : w - 14);
+    const left = Number(view.plot_left != null ? view.plot_left : 78);
+    const right = Number(view.plot_right != null ? view.plot_right : w - 22);
     const top = Number(view.plot_top != null ? view.plot_top : 16);
     const bottom = Number(view.plot_bottom != null ? view.plot_bottom : h - 24);
     return { w, h, left, right, top, bottom };

@@ -4439,6 +4439,9 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     flex: 1 1 auto;
     min-height: 9rem;
     display: flex;
+    /* Nudge plot slightly left so names + series read more centered in the rail */
+    margin-left: -0.15rem;
+    margin-right: 0.1rem;
   }
   .desk-side-rank-spark-chart.is-clickable {
     cursor: zoom-in;
@@ -5556,7 +5559,8 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     display: contents;
   }
   body.page-xi .chip-card-fpl.chip-card-ss {
-    grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1.2fr) auto;
+    /* Give the bench select more width toward the left (title column shrinks a bit). */
+    grid-template-columns: auto minmax(0, 0.75fr) auto minmax(0, 1.65fr) auto;
   }
   body.page-xi .chip-card-fpl.chip-card-ss .chip-info-wrap {
     grid-column: 3;
@@ -5571,10 +5575,13 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     grid-column: 4;
     min-width: 0;
     width: 100%;
-    max-width: 8.5rem;
+    max-width: none;
     min-height: 2.35rem;
-    font-size: 0.9rem;
-    padding: 0.35rem 0.55rem;
+    /* Match stacked "Super Sub" title size */
+    font-size: 0.72rem;
+    line-height: 1.1;
+    font-weight: 750;
+    padding: 0.28rem 0.45rem;
   }
   body.page-xi .chip-card-fpl.chip-card-ss .chip-status {
     grid-row: 1;

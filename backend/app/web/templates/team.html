@@ -25,7 +25,7 @@
       <p class="desk-side-preview-mark">{{ side.watermark or "Preview — real data after deadline" }}</p>
       {% endif %}
       {% if not trends %}
-      <p class="muted tiny">Need {{ side.min_managers or 4 }}+ managers across your leagues to show trends.</p>
+      <p class="muted tiny">Need {{ side.min_managers or 4 }}+ managers{% if (side.league_count or 0) == 1 %} in your league{% else %} across your leagues{% endif %} to show trends.</p>
       {% elif trends.empty and not trends.preview %}
       <p class="muted tiny">No trends logged yet this GW.</p>
       {% else %}
