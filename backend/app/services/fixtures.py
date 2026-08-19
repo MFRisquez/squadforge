@@ -132,9 +132,21 @@ def next_fixtures_for_club(
     return out
 
 
-def club_next_fdr_map(db: Session, *, from_gw: int) -> dict[str, dict[str, Any]]:
-    """club_code → next fixture FDR summary (for pitch shirt badges)."""
-    clubs = {c.code: c for c in db.query(Club).all() if c.code}
+def club_next_fdr_map(
+    db: Session,
+    *,
+    from_gw: int,
+    clubs: dict[str, Club] | None = None,
+) -> dict[str, dict[str, Any]]:
+    """club_code → next fixture FDR summary (for pitch shirt badges).
+
+    Pass ``clubs`` when the caller already loaded them (avoids a duplicate
+    SELECT on catalog rebuild).
+    """
+    if clubs is None:
+        clubs = {c.code: c for c in db.query(Club).all() if c.code}
+    else:
+        clubs = {code: c for code, c in clubs.items() if code}
     rows = (
         db.query(Fixture)
         .filter(Fixture.gameweek_number >= from_gw, Fixture.gameweek_number > 0)
