@@ -95,6 +95,26 @@
       <p class="muted tiny">Join or create a league to track your rank here.</p>
       {% endif %}
     </section>
+    <section class="desk-side-block desk-side-top-scorers">
+      <header class="desk-rail-head">
+        <p class="eyebrow">All time</p>
+        <h2>Your top scorers</h2>
+      </header>
+      {% set scorers = side.top_scorers or [] %}
+      {% if scorers %}
+      <ol class="desk-side-scorer-list">
+        {% for row in scorers %}
+        <li>
+          <span class="desk-side-scorer-rank">{{ loop.index }}</span>
+          <strong>{{ row.name }}</strong>
+          <span>{{ '%.0f'|format(row.points) }} pts</span>
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <p class="muted tiny">Points while you owned them show up after scored gameweeks.</p>
+      {% endif %}
+    </section>
   </aside>
   <div class="desk-main">
     <form method="post" action="/lineup/save" id="lineupForm">

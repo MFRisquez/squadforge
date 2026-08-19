@@ -1484,7 +1484,7 @@
             INITIAL.hasSquad = true;
             INITIAL.selected = filledIds().slice();
             if (Array.isArray(data.changes) && data.changes.length) {
-              openSaveConfirm(data.changes);
+              appendMyGwTransfers(data.changes);
             }
           }
           if (needTd || (goHomeAfter && currentTd())) {
@@ -1714,47 +1714,20 @@
   saveVisual = "idle";
   render();
 
-  const saveConfirm = document.getElementById("saveConfirm");
-  const saveConfirmList = document.getElementById("saveConfirmList");
-  const closeSaveConfirmBtn = document.getElementById("closeSaveConfirm");
-
-  function openSaveConfirm(changes) {
-    if (!saveConfirm || !saveConfirmList || !changes || !changes.length) return;
-    saveConfirmList.innerHTML = changes
-      .map((c) => {
-        const outName = String(c.out || "—");
-        const inName = String(c.in || "—");
-        return `<li><span class="sc-out">${outName}</span><span class="sc-arrow" aria-hidden="true">→</span><span class="sc-in">${inName}</span></li>`;
-      })
-      .join("");
-    saveConfirm.hidden = false;
-    document.body.classList.add("drawer-open");
-  }
-
-  function closeSaveConfirm() {
-    if (!saveConfirm) return;
-    saveConfirm.hidden = true;
-    document.body.classList.remove("drawer-open");
-  }
-
-  if (closeSaveConfirmBtn) closeSaveConfirmBtn.addEventListener("click", closeSaveConfirm);
-  if (saveConfirm) {
-    saveConfirm.addEventListener("click", (e) => {
-      if (e.target === saveConfirm) closeSaveConfirm();
-    });
-  }
-
-  try {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("ok") === "1" && params.get("out") && params.get("in")) {
-      openSaveConfirm([{ out: params.get("out"), in: params.get("in") }]);
-      params.delete("out");
-      params.delete("in");
-      const next = params.toString();
-      const clean = window.location.pathname + (next ? `?${next}` : "");
-      window.history.replaceState({}, "", clean);
+  function appendMyGwTransfers(changes) {
+    const list = document.getElementById("myGwTransfers");
+    const empty = document.getElementById("myGwTransfersEmpty");
+    if (!list || !changes || !changes.length) return;
+    if (empty) empty.hidden = true;
+    list.hidden = false;
+    for (const c of changes) {
+      const outName = String(c.out || "—");
+      const inName = String(c.in || "—");
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="sc-out">${outName}</span><span class="sc-arrow" aria-hidden="true">→</span><span class="sc-in">${inName}</span>`;
+      list.appendChild(li);
     }
-  } catch (e) {}
+  }
 
   const onResize = () => syncTransferRailLayout();
   window.addEventListener("resize", onResize);

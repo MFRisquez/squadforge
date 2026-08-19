@@ -124,20 +124,20 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS / catalog that showed wrong avail flags
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v131"' in sw
+    assert 'CACHE = "futfantasy-v133"' in sw
     assert "if (isStatic || isBadgeCdn) return cached || fetched" in sw
     assert "CSS is network-first" in sw
     # Must not cache-first the catalog (stale availability after FPL sync).
     assert "if (isStatic || isCatalog || isBadgeCdn) return cached || fetched" not in sw
-    assert "/static/styles.css?v=131" in sw
+    assert "/static/styles.css?v=133" in sw
     assert "/static/league_h2h.js" in sw
     assert "/static/club-sheet.js" in sw
     assert 'BADGE_CDN_HOST = "resources.premierleague.com"' in sw
     assert "isBadgeCdn" in sw
     assert "isStatic || isCatalog || isBadgeCdn" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=131" in base
-    assert "styles.css?v=131" in base
+    assert "sw.js?v=133" in base
+    assert "styles.css?v=133" in base
 
     squad = (STATIC / "squadboard.js").read_text(encoding="utf-8")
     assert "ff-players-updated" in squad
@@ -152,7 +152,7 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     css = (STATIC / "styles.css").read_text(encoding="utf-8")
     # Desktop mid token + Transfers vertical compaction / wider row gap.
-    assert "--pitch-token-w: 4.4rem" in css
+    assert "--pitch-token-w: 4.9rem" in css
     assert "body.page-squad .squad-pitch .pitch-row { gap: 1.15rem; }" in css
     assert css.count("--pitch-token-w: 5.45rem") == 0
     assert "width: var(--pitch-token-w, 3.7rem)" in css
@@ -189,18 +189,25 @@ def test_desk_side_left_layout_phase0():
     assert ".desk-xi:has(> .desk-side-left)" in css
     assert ".desk-squad:has(> .desk-side-left)" in css
     assert "grid-template-columns: var(--desk-side-w) minmax(0, 1fr) var(--desk-side-w)" in css
-    assert "--desk-side-w: 16.5rem" in css
-    assert "--desk-side-w: 15.5rem" in css
+    assert "--desk-side-w: 17.25rem" in css
+    assert "--desk-side-w: 16.75rem" in css
     assert "body.page-xi:not(.page-opponent).page-fit .shell" in css
-    assert "width: min(90rem, 100%)" in css
-    # Pitch token size unchanged
-    assert "--pitch-token-w: 4.4rem" in css
+    assert "width: min(94rem, 100%)" in css
+    # Pitch token size for denser desk composition
+    assert "--pitch-token-w: 4.9rem" in css
     # Fase 1–2 side panel chrome present
     assert "desk-side-league-list" in css
     assert "desk-side-xfer-list" in css
-    assert "save-confirm-list" in css
-    assert 'id="saveConfirm"' in (TEMPLATES / "team.html").read_text(encoding="utf-8")
-    assert "openSaveConfirm" in (STATIC / "squadboard.js").read_text(encoding="utf-8")
+    assert "desk-side-xfer-tables" in css
+    assert "desk-side-my-xfer-list" in css
+    assert "desk-side-scorer-list" in css
+    assert "Most transferred IN" in team
+    assert "Most transferred OUT" in team
+    assert 'id="myGwTransfers"' in team
+    assert "Your top scorers" in (TEMPLATES / "lineup.html").read_text(encoding="utf-8")
+    assert 'id="saveConfirm"' not in team
+    assert "openSaveConfirm" not in (STATIC / "squadboard.js").read_text(encoding="utf-8")
+    assert "appendMyGwTransfers" in (STATIC / "squadboard.js").read_text(encoding="utf-8")
     assert "xi_side_left" in (TEMPLATES / "lineup.html").read_text(encoding="utf-8")
     assert "transfers_side_left" in (TEMPLATES / "team.html").read_text(encoding="utf-8")
 
