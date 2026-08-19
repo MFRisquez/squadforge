@@ -48,10 +48,13 @@ RANK_PREVIEW_WATERMARK = "Preview — real ranks after GW2"
 # Desktop position chart geometry (taller so the left rail can fill pitch height).
 _DESK_CHART_W = 400.0
 _DESK_CHART_H = 280.0
-_DESK_PAD_L = 28.0
+_DESK_PAD_L = 100.0  # room for team-name labels on the left
 _DESK_PAD_R = 14.0
 _DESK_PAD_T = 16.0
 _DESK_PAD_B = 24.0
+_DESK_WINDOW_GWS = 5
+_DESK_NAME_MAX = 10
+_DESK_NAME_GAP = 12.0
 
 
 def clear_desk_side_caches() -> None:
@@ -125,7 +128,12 @@ def manager_top_scorers_while_owned(
     current_gw_id: int,
     limit: int = 5,
 ) -> list[dict[str, Any]]:
-    """Top players by points contributed to this manager while owned (TTL-cached)."""
+    """Top players by points contributed to this manager while owned (TTL-cached).
+
+    Also returns starter appearances (APP) and while-owned G / A / CS counts.
+    """
+    from app.models import MatchEvent
+
     key = (int(manager_id), int(current_gw_id))
     now = time.monotonic()
     hit = _TOP_SCORERS_CACHE.get(key)
@@ -138,13 +146,15 @@ def manager_top_scorers_while_owned(
         return []
 
     scores = (
-        db.query(ManagerGameweekScore, Gameweek.number)
+        db.query(ManagerGameweekScore, Gameweek.number, Gameweek.id)
         .join(Gameweek, Gameweek.id == ManagerGameweekScore.gameweek_id)
         .filter(ManagerGameweekScore.manager_id == manager_id)
         .all()
     )
     totals: dict[int, float] = defaultdict(float)
-    for row, num in scores:
+    scored_nums: set[int] = set()
+    for row, num, _gid in scores:
+        scored_nums.add(int(num))
         owned = owned_by_num.get(int(num)) or set()
         if not owned:
             continue
@@ -166,6 +176,56 @@ def manager_top_scorers_while_owned(
 
     ranked = sorted(totals.items(), key=lambda kv: (-kv[1], kv[0]))[:limit]
     pids = [pid for pid, _ in ranked]
+    pid_set = set(pids)
+
+    apps: dict[int, int] = defaultdict(int)
+    goals: dict[int, int] = defaultdict(int)
+    assists: dict[int, int] = defaultdict(int)
+    cs: dict[int, int] = defaultdict(int)
+
+    if pids and scored_nums:
+        starter_rows = (
+            db.query(SquadPick.player_id, Gameweek.number)
+            .join(Gameweek, Gameweek.id == SquadPick.gameweek_id)
+            .filter(
+                SquadPick.manager_id == manager_id,
+                SquadPick.is_starter == 1,
+                SquadPick.player_id.in_(pids),
+                Gameweek.number.in_(scored_nums),
+            )
+            .all()
+        )
+        for pid, num in starter_rows:
+            pid_i = int(pid)
+            if pid_i in (owned_by_num.get(int(num)) or set()):
+                apps[pid_i] += 1
+
+        event_rows = (
+            db.query(MatchEvent.player_id, MatchEvent.metric, MatchEvent.value, Gameweek.number)
+            .join(Gameweek, Gameweek.id == MatchEvent.gameweek_id)
+            .filter(
+                MatchEvent.player_id.in_(pids),
+                MatchEvent.metric.in_(("goals", "assists", "clean_sheets")),
+                Gameweek.number.in_(scored_nums),
+            )
+            .all()
+        )
+        for pid, metric, value, num in event_rows:
+            pid_i = int(pid)
+            if pid_i not in pid_set:
+                continue
+            if pid_i not in (owned_by_num.get(int(num)) or set()):
+                continue
+            v = int(float(value or 0))
+            if v <= 0:
+                continue
+            if metric == "goals":
+                goals[pid_i] += v
+            elif metric == "assists":
+                assists[pid_i] += v
+            elif metric == "clean_sheets":
+                cs[pid_i] += v
+
     names = {
         int(r[0]): r[1]
         for r in db.query(Player.id, Player.name).filter(Player.id.in_(pids)).all()
@@ -175,6 +235,10 @@ def manager_top_scorers_while_owned(
             "player_id": pid,
             "name": names.get(pid, f"#{pid}"),
             "points": round(pts, 1),
+            "app": int(apps.get(pid, 0)),
+            "goals": int(goals.get(pid, 0)),
+            "assists": int(assists.get(pid, 0)),
+            "cs": int(cs.get(pid, 0)),
         }
         for pid, pts in ranked
     ]
@@ -253,8 +317,13 @@ def xi_side_left_payload(
     gw,
     leagues: list[League],
     td_info: dict[str, Any] | None = None,
+    include_kpis: bool = False,
 ) -> dict[str, Any]:
-    """DT window + league cards for #xiSideLeft."""
+    """DT window + league cards for #xiSideLeft.
+
+    Heavy KPI blocks (top scorers + rank charts) default off so /lineup can
+    paint first; clients fetch them from ``/api/xi/side-kpis``.
+    """
     info = td_info
     if info is None:
         info = td_svc.td_view(db, manager_id, gw.number, gameweek_id=gw.id)
@@ -268,7 +337,7 @@ def xi_side_left_payload(
     expired = bool(banner and banner.get("level") == "urgent")
     ending = bool(banner and banner.get("level") == "warn")
 
-    return {
+    payload: dict[str, Any] = {
         "td": {
             "club_code": info.get("club_code"),
             "club_name": info.get("club_name") or info.get("club_code"),
@@ -281,12 +350,34 @@ def xi_side_left_payload(
             "message": (banner or {}).get("message"),
         },
         "leagues": manager_league_cards(db, leagues, manager_id, gw),
+        "kpis_deferred": not include_kpis,
+    }
+    if include_kpis:
+        payload.update(
+            xi_side_kpis_payload(db, manager_id=manager_id, gw=gw, leagues=leagues)
+        )
+    else:
+        payload["top_scorers"] = []
+        payload["rank_spark"] = None
+    return payload
+
+
+def xi_side_kpis_payload(
+    db: Session,
+    *,
+    manager_id: int,
+    gw,
+    leagues: list[League],
+) -> dict[str, Any]:
+    """Heavy left-rail KPI blocks: top scorers + position charts."""
+    return {
         "top_scorers": manager_top_scorers_while_owned(
             db, manager_id=manager_id, current_gw_id=int(gw.id)
         ),
         "rank_spark": manager_rank_sparks(
             db, manager_id=manager_id, gw=gw, leagues=leagues
         ),
+        "kpis_deferred": False,
     }
 
 
@@ -300,6 +391,98 @@ def _desk_chart_kwargs() -> dict[str, Any]:
         "pad_bottom": _DESK_PAD_B,
         "include_area": True,
     }
+
+
+def _truncate_team_name(name: str, max_len: int = _DESK_NAME_MAX) -> str:
+    text = (name or "").strip() or "—"
+    if len(text) <= max_len:
+        return text
+    return text[: max(1, max_len - 1)] + "…"
+
+
+def _nudge_name_labels(labels: list[dict[str, Any]], min_gap: float = _DESK_NAME_GAP) -> list[dict[str, Any]]:
+    ordered = sorted(labels, key=lambda row: float(row["y"]))
+    if not ordered:
+        return []
+    prev = float(ordered[0]["y"])
+    ordered[0]["y"] = round(prev, 1)
+    for lab in ordered[1:]:
+        y = float(lab["y"])
+        if y - prev < min_gap:
+            y = prev + min_gap
+        lab["y"] = round(y, 1)
+        prev = y
+    return ordered
+
+
+def _name_labels_for_chart(chart: dict[str, Any]) -> list[dict[str, Any]]:
+    labels: list[dict[str, Any]] = []
+    for series in chart.get("series") or []:
+        pts = series.get("points") or []
+        if not pts:
+            continue
+        full = series.get("team_name") or "—"
+        labels.append(
+            {
+                "text": _truncate_team_name(full),
+                "full": full,
+                "y": pts[-1]["y"],
+                "is_me": bool(series.get("is_me")),
+            }
+        )
+    return _nudge_name_labels(labels)
+
+
+def _chart_view(chart: dict[str, Any]) -> dict[str, Any]:
+    """Serializable chart slice used by the desk SVG + modal."""
+    labeled = dict(chart)
+    labeled["name_labels"] = _name_labels_for_chart(labeled)
+    return {
+        "gw_numbers": labeled.get("gw_numbers") or [],
+        "gw_labels": labeled.get("gw_labels") or [],
+        "grid": labeled.get("grid") or [],
+        "series": labeled.get("series") or [],
+        "name_labels": labeled.get("name_labels") or [],
+        "chart_width": labeled.get("chart_width") or int(_DESK_CHART_W),
+        "chart_height": labeled.get("chart_height") or int(_DESK_CHART_H),
+        "plot_left": labeled.get("plot_left"),
+        "plot_right": labeled.get("plot_right"),
+        "plot_top": labeled.get("plot_top"),
+        "plot_bottom": labeled.get("plot_bottom"),
+        "max_rank": labeled.get("max_rank"),
+    }
+
+
+def _window_chart(
+    chart: dict[str, Any],
+    *,
+    me_id: int | None,
+    last_n: int = _DESK_WINDOW_GWS,
+) -> dict[str, Any]:
+    gws = list(chart.get("gw_numbers") or [])
+    series = chart.get("series") or []
+    if len(gws) <= last_n:
+        return _chart_view(chart)
+    start = len(gws) - last_n
+    managers = []
+    for s in series:
+        ranks = list(s.get("ranks") or [])[start:]
+        if len(ranks) < 2:
+            continue
+        managers.append(
+            {
+                "manager_id": s.get("manager_id"),
+                "name": s.get("team_name") or "—",
+                "ranks": ranks,
+            }
+        )
+    if not managers:
+        return _chart_view(chart)
+    raw = {"gameweeks": gws[start:], "managers": managers}
+    rebuilt = standings_svc._chart_from_rank_history(
+        raw, me_id=me_id, **_desk_chart_kwargs()
+    )
+    return _chart_view(rebuilt)
 
 
 def _preview_rank_raw(
@@ -351,8 +534,11 @@ def _spark_payload_from_chart(
     *,
     league: League,
     preview: bool,
+    me_id: int | None = None,
 ) -> dict[str, Any]:
-    me = next((s for s in (chart.get("series") or []) if s.get("is_me")), None)
+    full = _chart_view(chart)
+    window = _window_chart(chart, me_id=me_id, last_n=_DESK_WINDOW_GWS)
+    me = next((s for s in (window.get("series") or []) if s.get("is_me")), None)
     ranks = (me or {}).get("ranks") or []
     return {
         "league_id": int(league.id),
@@ -361,18 +547,13 @@ def _spark_payload_from_chart(
         "empty": False,
         "preview": preview,
         "watermark": RANK_PREVIEW_WATERMARK if preview else None,
-        "gw_numbers": chart.get("gw_numbers") or [],
-        "gw_labels": chart.get("gw_labels") or [],
-        "grid": chart.get("grid") or [],
-        "series": chart.get("series") or [],
-        "chart_width": chart.get("chart_width") or int(_DESK_CHART_W),
-        "chart_height": chart.get("chart_height") or int(_DESK_CHART_H),
-        "plot_left": chart.get("plot_left"),
-        "plot_right": chart.get("plot_right"),
-        "plot_top": chart.get("plot_top"),
-        "plot_bottom": chart.get("plot_bottom"),
-        "max_rank": chart.get("max_rank"),
         "current_rank": ranks[-1] if ranks else None,
+        "has_more_gws": len(full.get("gw_numbers") or [])
+        > len(window.get("gw_numbers") or []),
+        "window": window,
+        "full": full,
+        # Flatten window for templates that read top-level chart fields.
+        **window,
     }
 
 
@@ -423,7 +604,9 @@ def manager_rank_sparks(
         gw_numbers = hist.get("gw_numbers") or []
         if len(gw_numbers) >= 2 and hist.get("series"):
             charts.append(
-                _spark_payload_from_chart(hist, league=league, preview=False)
+                _spark_payload_from_chart(
+                    hist, league=league, preview=False, me_id=manager_id
+                )
             )
             continue
 
@@ -437,7 +620,9 @@ def manager_rank_sparks(
             raw, me_id=manager_id, **kwargs
         )
         charts.append(
-            _spark_payload_from_chart(preview_chart, league=league, preview=True)
+            _spark_payload_from_chart(
+                preview_chart, league=league, preview=True, me_id=manager_id
+            )
         )
 
     return {"charts": charts, "count": len(charts)}

@@ -124,20 +124,20 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS / catalog that showed wrong avail flags
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v142"' in sw
+    assert 'CACHE = "futfantasy-v143"' in sw
     assert "if (isStatic || isBadgeCdn) return cached || fetched" in sw
     assert "CSS is network-first" in sw
     # Must not cache-first the catalog (stale availability after FPL sync).
     assert "if (isStatic || isCatalog || isBadgeCdn) return cached || fetched" not in sw
-    assert "/static/styles.css?v=141" in sw
+    assert "/static/styles.css?v=142" in sw
     assert "/static/league_h2h.js" in sw
     assert "/static/club-sheet.js" in sw
     assert 'BADGE_CDN_HOST = "resources.premierleague.com"' in sw
     assert "isBadgeCdn" in sw
     assert "isStatic || isCatalog || isBadgeCdn" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=141" in base
-    assert "styles.css?v=141" in base
+    assert "sw.js?v=142" in base
+    assert "styles.css?v=142" in base
 
     squad = (STATIC / "squadboard.js").read_text(encoding="utf-8")
     assert "ff-players-updated" in squad
@@ -219,8 +219,9 @@ def test_desk_side_left_layout_phase0():
     assert "desk-side-top-row" in css
     assert "desk-side-rank-spark" in css
     assert "desk-side-top-row" in lineup
-    assert "desk-side-rank-spark" in lineup
-    assert "rank_spark" in lineup or "side.rank_spark" in lineup
+    assert "xi-side.js" in lineup
+    assert "xiPositionBlock" in lineup
+    assert "/api/xi/side-kpis" in lineup
     assert "desk-xi-chips" in css
     assert 'class="desk-main desk-xi-main"' in lineup
     assert "desk-xi-chips" in lineup
@@ -235,6 +236,8 @@ def test_desk_side_left_layout_phase0():
     assert "desk-side-xfer-tables" in css
     assert "desk-side-my-xfer-list" in css
     assert "desk-side-scorer-list" in css
+    assert "chip-name-stack" in css
+    assert "desk-side-position" in css
     assert "League Transfer Trends" in team
     assert "Most transferred IN" in team
     assert "Most transferred OUT" in team

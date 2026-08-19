@@ -84,7 +84,14 @@
         data-gw-locked="{{ 1 if gw1_locked else 0 }}"
       >
         <div class="chip-ico" aria-hidden="true">{{ chip_icon(key) }}</div>
-        <strong class="chip-name">{{ label }}</strong>
+        {% set name_parts = label.split(' ') %}
+        <strong class="chip-name{% if name_parts|length > 1 %} chip-name-stack{% endif %}" title="{{ label }}">
+          {% if name_parts|length > 1 %}
+            {% for part in name_parts %}<span>{{ part }}</span>{% endfor %}
+          {% else %}
+            {{ label }}
+          {% endif %}
+        </strong>
         <span class="chip-info-wrap">
           <button type="button" class="chip-info-btn" aria-label="About {{ label }}" aria-expanded="false">i</button>
           <span class="chip-tip" role="tooltip">{% if gw1_locked %}Available from GW2.{% else %}{{ chip_blurb(key) }}{% endif %}</span>

@@ -311,3 +311,32 @@ def api_fixture_preview(fixture_id: int) -> dict:
         ms = (time.perf_counter() - t0) * 1000.0
         log.info("fixture_preview id=%s ms=%.1f", fixture_id, ms)
         db.close()
+
+
+@router.get("/xi/side-kpis")
+def api_xi_side_kpis(request: Request, gw: Optional[int] = None) -> dict:
+    """Deferred XI left-rail KPIs (top scorers + position charts).
+
+    Kept off the initial /lineup HTML so soft-nav paints the pitch first.
+    """
+    from app.auth import current_manager
+    from app.services import deadline as deadline_svc
+    from app.services import desk_side as desk_side_svc
+    from app.services import league as league_svc
+
+    db = SessionLocal()
+    try:
+        manager = current_manager(request, db)
+        if not manager:
+            return {"ok": False, "error": "auth"}
+        try:
+            gameweek = deadline_svc.get_gameweek(db, int(gw) if gw is not None else None)
+        except Exception:
+            return {"ok": False, "error": "gameweek"}
+        leagues = league_svc.manager_leagues(db, manager.id)
+        payload = desk_side_svc.xi_side_kpis_payload(
+            db, manager_id=manager.id, gw=gameweek, leagues=leagues
+        )
+        return {"ok": True, "gw": int(gameweek.number), **payload}
+    finally:
+        db.close()

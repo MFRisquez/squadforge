@@ -65,157 +65,41 @@
       {% endif %}
     </section>
     </div>
-    <section class="desk-side-block desk-side-top-scorers">
+    <section class="desk-side-block desk-side-top-scorers" id="xiTopScorers">
       <header class="desk-rail-head">
         <p class="eyebrow">All time</p>
         <h2>Your top scorers</h2>
       </header>
-      {% set scorers = side.top_scorers or [] %}
-      {% if scorers %}
-      <ol class="desk-side-scorer-list">
-        {% for row in scorers %}
-        <li>
-          <span class="desk-side-scorer-rank">{{ loop.index }}</span>
-          <strong>{{ row.name }}</strong>
-          <span>{{ '%.0f'|format(row.points) }} pts</span>
-        </li>
-        {% endfor %}
-      </ol>
-      {% else %}
-      <p class="muted tiny">Points while you owned them show up after scored gameweeks.</p>
-      {% endif %}
-      {% set spark = side.rank_spark %}
-      {% if spark and spark.charts %}
-      <div class="desk-side-rank-spark{% if spark.charts[0].preview %} is-preview{% endif %}" id="deskRankSpark" aria-label="Position trend">
-        <header class="desk-side-rank-spark-head">
-          <p class="eyebrow">Position</p>
-          {% if spark.charts|length > 1 %}
-          <div class="desk-side-rank-switch" role="tablist" aria-label="League chart">
-            {% for c in spark.charts %}
-            <button
-              type="button"
-              class="desk-side-rank-switch-btn{% if loop.first %} is-active{% endif %}"
-              role="tab"
-              aria-selected="{{ 'true' if loop.first else 'false' }}"
-              data-rank-chart="{{ loop.index0 }}"
-            >{{ c.league_name }}</button>
-            {% endfor %}
-          </div>
-          {% endif %}
-        </header>
-        {% for c in spark.charts %}
-        {% set chart_i = loop.index0 %}
-        <div
-          class="desk-side-rank-panel{% if loop.first %} is-active{% endif %}"
-          data-rank-panel="{{ chart_i }}"
-          role="tabpanel"
-          {% if not loop.first %}hidden{% endif %}
-        >
-          <div class="desk-side-rank-meta">
-            <strong>{{ c.league_name }}{% if c.current_rank and not c.preview %} · #{{ c.current_rank }}{% endif %}</strong>
-            {% if c.preview and c.watermark %}
-            <p class="desk-side-preview-mark">{{ c.watermark }}</p>
-            {% endif %}
-          </div>
-          <div class="desk-side-rank-spark-chart">
-            <svg
-              class="desk-side-rank-spark-svg"
-              viewBox="0 0 {{ c.chart_width }} {{ c.chart_height }}"
-              preserveAspectRatio="none"
-              role="img"
-              aria-label="Your rank by gameweek in {{ c.league_name }}"
-            >
-              <rect
-                class="rank-plot-bg"
-                x="{{ c.plot_left or 28 }}"
-                y="{{ c.plot_top or 16 }}"
-                width="{{ (c.plot_right or (c.chart_width - 14)) - (c.plot_left or 28) }}"
-                height="{{ (c.plot_bottom or (c.chart_height - 24)) - (c.plot_top or 16) }}"
-                rx="4"
-              />
-              {% for g in c.grid %}
-                <line
-                  class="rank-grid"
-                  x1="{{ c.plot_left or 28 }}"
-                  y1="{{ g.y }}"
-                  x2="{{ c.plot_right or (c.chart_width - 14) }}"
-                  y2="{{ g.y }}"
-                />
-                <text class="rank-axis rank-axis-y" x="{{ (c.plot_left or 28) - 6 }}" y="{{ g.y + 3.5 }}">{{ g.rank }}</text>
-              {% endfor %}
-              {% for g in c.gw_labels %}
-                <text class="rank-axis gw" x="{{ g.x }}" y="{{ c.chart_height - 6 }}">GW{{ g.number }}</text>
-              {% endfor %}
-              {% for s in c.series %}
-                {% if s.area_path and s.is_me %}
-                <path class="rank-area is-me" d="{{ s.area_path }}"></path>
-                {% endif %}
-              {% endfor %}
-              {% for s in c.series %}
-                {% if s.polyline %}
-                <polyline
-                  class="rank-line{% if s.is_me %} is-me{% endif %}"
-                  fill="none"
-                  stroke="{{ s.color }}"
-                  stroke-width="{% if s.is_me %}3{% else %}1.35{% endif %}"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  points="{{ s.polyline }}"
-                >
-                  <title>{{ s.team_name }}</title>
-                </polyline>
-                {% for p in s.points %}
-                <circle
-                  class="rank-dot{% if s.is_me %} is-me{% endif %}"
-                  cx="{{ p.x }}"
-                  cy="{{ p.y }}"
-                  r="{% if s.is_me %}3.6{% else %}2.1{% endif %}"
-                  fill="{{ s.color }}"
-                  stroke="#fff"
-                  stroke-width="0.85"
-                >
-                  <title>{{ p.title }}</title>
-                </circle>
-                {% endfor %}
-                {% endif %}
-              {% endfor %}
-            </svg>
-          </div>
-        </div>
-        {% endfor %}
+      <div class="desk-side-kpi-slot is-loading" id="xiScorersSlot" aria-busy="true">
+        <p class="muted tiny desk-side-kpi-wait">Loading stats…</p>
       </div>
-      <script>
-      (function () {
-        var root = document.getElementById("deskRankSpark");
-        if (!root) return;
-        var btns = root.querySelectorAll("[data-rank-chart]");
-        var panels = root.querySelectorAll("[data-rank-panel]");
-        if (!btns.length || panels.length < 2) return;
-        btns.forEach(function (btn) {
-          btn.addEventListener("click", function () {
-            var idx = btn.getAttribute("data-rank-chart");
-            btns.forEach(function (b) {
-              var on = b.getAttribute("data-rank-chart") === idx;
-              b.classList.toggle("is-active", on);
-              b.setAttribute("aria-selected", on ? "true" : "false");
-            });
-            panels.forEach(function (p) {
-              var on = p.getAttribute("data-rank-panel") === idx;
-              p.classList.toggle("is-active", on);
-              if (on) p.removeAttribute("hidden");
-              else p.setAttribute("hidden", "");
-            });
-            root.classList.toggle(
-              "is-preview",
-              !!(root.querySelector('.desk-side-rank-panel.is-active .desk-side-preview-mark'))
-            );
-          });
-        });
-      })();
-      </script>
-      {% endif %}
+    </section>
+    <section
+      class="desk-side-block desk-side-position"
+      id="xiPositionBlock"
+      data-kpi-url="/api/xi/side-kpis?gw={{ gw.number }}"
+    >
+      <div class="desk-side-kpi-slot is-loading" id="xiPositionSlot" aria-busy="true">
+        <header class="desk-rail-head">
+          <p class="eyebrow">Position</p>
+          <h2>League trend</h2>
+        </header>
+        <p class="muted tiny desk-side-kpi-wait">Loading chart…</p>
+      </div>
     </section>
   </aside>
+  <div class="drawer" id="rankHistoryDrawer" hidden>
+    <div class="drawer-sheet rank-history-sheet" role="dialog" aria-modal="true" aria-labelledby="rankHistoryTitle">
+      <header class="drawer-head">
+        <div>
+          <p class="eyebrow">Position</p>
+          <h2 id="rankHistoryTitle">Full season</h2>
+        </div>
+        <button type="button" class="icon-btn" data-rank-close aria-label="Close">✕</button>
+      </header>
+      <div class="rank-history-body" id="rankHistoryBody"></div>
+    </div>
+  </div>
   <div class="desk-main desk-xi-main">
     <div class="desk-main-top desk-xi-chips">
       {% if edits_locked %}
@@ -381,5 +265,6 @@
 <script id="ownedData" type="application/json">{{ owned_json | tojson }}</script>
 <script id="initialLineup" type="application/json">{{ initial_lineup | tojson }}</script>
 <script src="/static/club-sheet.js"></script>
+<script src="/static/xi-side.js"></script>
 <script src="/static/lineup.js"></script>
 {% endblock %}
