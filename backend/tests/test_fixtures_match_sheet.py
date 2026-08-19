@@ -11,6 +11,7 @@ from app.services.seed import seed_if_empty
 
 ROOT = Path(__file__).resolve().parents[1]
 STATIC = ROOT / "app" / "web" / "static"
+TEMPLATES = ROOT / "app" / "web" / "templates"
 
 
 def setup_module():
@@ -187,6 +188,23 @@ def test_fixtures_js_match_sheet_section_order():
     xi_i = js.find("${squadBlock}")
     news_i = js.find("${newsBlock}")
     assert 0 < status_i < stats_i < xi_i < news_i
+
+
+def test_fixtures_list_shows_home_away_and_score_placeholder():
+    tpl = (TEMPLATES / "fixtures.html").read_text(encoding="utf-8")
+    js = (STATIC / "fixtures.js").read_text(encoding="utf-8")
+    css = (STATIC / "styles.css").read_text(encoding="utf-8")
+    assert 'class="fx-ha-tag">Home</span>' in tpl
+    assert 'class="fx-ha-tag">Away</span>' in tpl
+    assert "fx-score-empty" in tpl
+    assert "fx-club-name" in tpl
+    assert "fx-club-code" in tpl
+    assert 'fx-score-empty">-</span>' in js
+    assert "fx-ha-tag\">Home</span>" in js
+    assert "font-size: 101.5%" in css
+    assert "body.page-fixtures .fx-club-code" in css
+    assert "full team name on phone" in css
+    assert "width: 2.4rem" in css
 
 
 def test_fixtures_js_xi_table_is_match_kpis():

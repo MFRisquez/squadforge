@@ -29,12 +29,55 @@ class SquadError(ValueError):
 
 
 def current_gameweek(db: Session) -> Gameweek:
+    maybe_advance_finished_gameweek(db)
     gw = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
     if not gw:
         gw = db.query(Gameweek).order_by(Gameweek.number).first()
     if not gw:
         raise SquadError("No gameweeks seeded")
     return gw
+
+
+def maybe_advance_finished_gameweek(db: Session) -> bool:
+    """When the current GW is fully finished, flip ``is_current`` to the next GW.
+
+    Uses fixture ``finished`` flags when present; otherwise trusts ``Gameweek.status``.
+    Returns True when a roll-forward happened.
+    """
+    from app.models import Fixture
+
+    gw = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
+    if not gw:
+        return False
+
+    finished_flags = (
+        db.query(Fixture.finished)
+        .filter(Fixture.gameweek_number == int(gw.number))
+        .all()
+    )
+    if finished_flags:
+        all_done = all(int(row[0] or 0) == 1 for row in finished_flags)
+    else:
+        all_done = (gw.status or "").lower() == "finished"
+
+    if not all_done:
+        return False
+
+    nxt = (
+        db.query(Gameweek)
+        .filter(Gameweek.number == int(gw.number) + 1)
+        .one_or_none()
+    )
+    if not nxt:
+        return False
+
+    gw.is_current = 0
+    gw.status = "finished"
+    nxt.is_current = 1
+    if (nxt.status or "").lower() in ("", "upcoming"):
+        nxt.status = "live"
+    db.commit()
+    return True
 
 
 def get_transfer_state(db: Session, manager_id: int) -> TransferState:

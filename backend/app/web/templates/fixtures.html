@@ -42,28 +42,32 @@
                 {% endif %}
               </div>
               <div class="fx-card-match">
-                <div class="fx-club">
+                <div class="fx-club" title="Home">
                   {% if m.home.badge %}
                   <img class="fx-badge" src="{{ m.home.badge }}" alt="{{ m.home.name }}" width="40" height="40" loading="lazy" />
                   {% endif %}
-                  <strong>{{ m.home.code }}</strong>
+                  <strong class="fx-club-code">{{ m.home.code }}</strong>
                   <span class="fx-club-name">{{ m.home.name }}</span>
+                  <span class="fx-ha-tag">Home</span>
                 </div>
-                <div class="fx-score-block">
+                <div class="fx-score-block" aria-label="Score">
                   {% if m.home.score is not none and m.away.score is not none %}
                     <span class="fx-score-num">{{ m.home.score }}</span>
                     <span class="fx-score-sep">–</span>
                     <span class="fx-score-num">{{ m.away.score }}</span>
                   {% else %}
-                    <span class="fx-vs">vs</span>
+                    <span class="fx-score-num fx-score-empty">-</span>
+                    <span class="fx-score-sep">–</span>
+                    <span class="fx-score-num fx-score-empty">-</span>
                   {% endif %}
                 </div>
-                <div class="fx-club away">
+                <div class="fx-club away" title="Away">
                   {% if m.away.badge %}
                   <img class="fx-badge" src="{{ m.away.badge }}" alt="{{ m.away.name }}" width="40" height="40" loading="lazy" />
                   {% endif %}
-                  <strong>{{ m.away.code }}</strong>
+                  <strong class="fx-club-code">{{ m.away.code }}</strong>
                   <span class="fx-club-name">{{ m.away.name }}</span>
+                  <span class="fx-ha-tag">Away</span>
                 </div>
               </div>
               {% set home_mine = m.my_players.home if m.my_players else [] %}

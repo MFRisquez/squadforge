@@ -247,6 +247,9 @@ def api_fixtures_refresh(gw: Optional[int] = None) -> dict:
             info = fixtures_svc.refresh_fixtures(db)
         except Exception as exc:
             info = {"fixtures": 0, "error": str(exc)}
+        from app.services import squad as squad_svc
+
+        squad_svc.maybe_advance_finished_gameweek(db)
         if gw is None:
             current = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
             gw_number = current.number if current else 1
