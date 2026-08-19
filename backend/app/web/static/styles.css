@@ -1450,7 +1450,7 @@ body.chip-bb-on .xi-bench-panel .desk-rail-head h2 {
 .xi-bench-wrap .bench {
   gap: 1.15rem;
   padding: 0.55rem 0.5rem;
-  background: #dfe7d8;
+  background: var(--panel);
   border: 0;
   border-radius: 0.65rem;
   justify-content: center;
@@ -2497,7 +2497,7 @@ table.standings td:first-child {
   flex-wrap: wrap;
   justify-content: center;
   padding: 0.75rem;
-  background: #fff;
+  background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 1rem;
 }
@@ -2522,12 +2522,12 @@ table.standings td:first-child {
 .muted-pts { color: #808080 !important; text-shadow: none; }
 .bench .shirt-pts { color: #404040; text-shadow: none; }
 html[data-theme="dark"] .bench {
-  background: #1a1a1a;
+  background: var(--panel);
   border-color: var(--line);
   color: #fff;
 }
 html[data-theme="dark"] .xi-bench-wrap .bench {
-  background: #1a1a1a;
+  background: var(--panel);
 }
 html[data-theme="dark"] .bench .shirt-pts {
   color: #C0FF00;
@@ -4834,7 +4834,7 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   .xi-live-panel {
     border: 1px solid var(--line);
     border-radius: 0.55rem;
-    background: #fff;
+    background: var(--panel);
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -9435,32 +9435,32 @@ html[data-theme="dark"] .fx-xi-table tr.avail-out td {
   background: rgba(220, 50, 80, 0.16);
 }
 
-/* Dark desktop XI: light bench panel for contrast, dark Bench label */
+/* Dark desktop XI: bench follows theme panel (not forced light) */
 @media (min-width: 900px) {
   html[data-theme="dark"] body.page-xi .xi-bench-panel {
-    background: #ececec;
-    border-color: rgba(0, 0, 0, 0.12);
-    color: #111;
+    background: var(--panel);
+    border-color: var(--line);
+    color: var(--ink);
   }
   html[data-theme="dark"] body.page-xi .xi-bench-panel .desk-rail-head {
-    border-bottom-color: rgba(0, 0, 0, 0.1);
+    border-bottom-color: var(--line);
   }
   html[data-theme="dark"] body.page-xi .xi-bench-panel .desk-rail-head h2 {
     background: #111;
     color: #fff;
   }
   html[data-theme="dark"] body.page-xi .xi-bench-stack.bench {
-    background: #f4f4f4;
-    color: #111;
+    background: var(--panel);
+    color: var(--ink);
   }
   html[data-theme="dark"] body.page-xi.chip-bb-on .xi-bench-panel,
   html[data-theme="dark"] body.page-xi.chip-bb-on .xi-bench-stack.bench,
   html[data-theme="dark"] body.page-xi .xi-bench-stack.bb-active {
     background:
-      linear-gradient(180deg, rgba(192, 255, 0, 0.48), rgba(192, 255, 0, 0.22) 78%),
-      color-mix(in oklab, #C0FF00 28%, #ececec);
-    border-color: rgba(120, 160, 0, 0.45);
-    color: #111;
+      linear-gradient(180deg, rgba(192, 255, 0, 0.4), rgba(192, 255, 0, 0.16) 78%),
+      color-mix(in oklab, #C0FF00 24%, #1a1a1a);
+    border-color: rgba(192, 255, 0, 0.55);
+    color: var(--ink);
     outline: 2px solid #C0FF00;
     outline-offset: 2px;
     box-shadow: inset 0 0 0 1px rgba(192, 255, 0, 0.4);
@@ -9470,15 +9470,20 @@ html[data-theme="dark"] .fx-xi-table tr.avail-out td {
     color: #000;
   }
   html[data-theme="dark"] body.page-xi .xi-bench-name {
-    color: #111;
+    color: var(--ink);
   }
   html[data-theme="dark"] body.page-xi .xi-bench-team,
   html[data-theme="dark"] body.page-xi .xi-bench-pos,
   html[data-theme="dark"] body.page-xi .xi-bench-cols {
-    color: #555;
+    color: var(--muted);
   }
   html[data-theme="dark"] body.page-xi .xi-bench-cols {
-    border-bottom-color: rgba(0, 0, 0, 0.12);
+    border-bottom-color: var(--line);
+  }
+  html[data-theme="light"] body.page-xi .xi-bench-panel,
+  html[data-theme="light"] body.page-xi .xi-bench-stack.bench {
+    background: #fff;
+    color: var(--ink);
   }
 }
 html[data-theme="dark"] body.chip-bb-on .xi-bench-wrap .bench,
