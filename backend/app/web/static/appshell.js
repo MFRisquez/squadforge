@@ -191,6 +191,30 @@
     }
   }
 
+  /** Soft-nav timing (kept on for real-device measurement). */
+  function reportSoftNavTiming({ url, fetchMs, scriptsMs, totalMs, fromCache }) {
+    const fetchR = Math.round(fetchMs);
+    const scriptsR = Math.round(scriptsMs);
+    const totalR = Math.round(totalMs);
+    const cacheTag = fromCache ? " cache" : "";
+    console.log(`nav ${url}: fetch=${fetchR}ms, scripts=${scriptsR}ms, total=${totalR}ms${cacheTag}`);
+    try {
+      fetch("/api/client-perf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        credentials: "same-origin",
+        keepalive: true,
+        body: JSON.stringify({
+          url: String(url || ""),
+          fetch_ms: Math.round(fetchMs * 10) / 10,
+          scripts_ms: Math.round(scriptsMs * 10) / 10,
+          total_ms: Math.round(totalMs * 10) / 10,
+          from_cache: Boolean(fromCache),
+        }),
+      }).catch(() => {});
+    } catch (_) {}
+  }
+
   async function fetchPageHtml(path) {
     // Never reuse in-memory HTML for ?gw= — first tap must show the new gameweek.
     const key = path;
@@ -208,7 +232,7 @@
             pageCache.set(key, { html: await res.text(), at: Date.now() });
           })
           .catch(() => {});
-        return hit.html;
+        return { html: hit.html, fromCache: true };
       }
     }
     const res = await fetch(path, {
@@ -226,7 +250,7 @@
     }
     const html = await res.text();
     pageCache.set(key, { html, at: Date.now() });
-    return html;
+    return { html, fromCache: false };
   }
 
   async function softNavigate(path, { push = true } = {}) {
@@ -242,7 +266,11 @@
     navigating = true;
     const main = document.querySelector("main.shell");
     try {
-      const html = await fetchPageHtml(path);
+      const t1 = performance.now();
+      const fetched = await fetchPageHtml(path);
+      const t2 = performance.now();
+      if (fetched == null) return;
+      const html = fetched.html;
       if (html == null) return;
       const doc = new DOMParser().parseFromString(html, "text/html");
       const nextMain = doc.querySelector("main.shell");
@@ -265,6 +293,14 @@
       }
       if (push) history.pushState({ ffShell: true }, "", path);
       await runScripts(nextMain);
+      const t3 = performance.now();
+      reportSoftNavTiming({
+        url: path,
+        fetchMs: t2 - t1,
+        scriptsMs: t3 - t2,
+        totalMs: t3 - t1,
+        fromCache: Boolean(fetched.fromCache),
+      });
       bindGwPicker(nextMain);
       window.scrollTo(0, 0);
       requestAnimationFrame(() => {

@@ -31,6 +31,31 @@ def health() -> dict:
     return {"ok": True, "service": "squadforge"}
 
 
+class SoftNavPerfBody(BaseModel):
+    url: str = Field(default="", max_length=512)
+    fetch_ms: float = Field(default=0, ge=0)
+    scripts_ms: float = Field(default=0, ge=0)
+    total_ms: float = Field(default=0, ge=0)
+    from_cache: bool = False
+
+
+@router.post("/client-perf")
+def client_perf(body: SoftNavPerfBody) -> dict:
+    """Browser soft-nav timings (fetch vs scripts). Temporary measurement hook."""
+    import logging
+
+    log = logging.getLogger("squadforge.client_perf")
+    log.info(
+        "softnav url=%s fetch_ms=%.1f scripts_ms=%.1f total_ms=%.1f from_cache=%s",
+        body.url,
+        body.fetch_ms,
+        body.scripts_ms,
+        body.total_ms,
+        body.from_cache,
+    )
+    return {"ok": True}
+
+
 @router.post("/score")
 def score_endpoint(body: ScoreRequest) -> dict:
     """Try a formula live — useful while we tune weights together."""

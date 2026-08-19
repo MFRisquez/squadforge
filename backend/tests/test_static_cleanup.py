@@ -4,6 +4,7 @@ from pathlib import Path
 
 STATIC = Path(__file__).resolve().parents[1] / "app" / "web" / "static"
 TEMPLATES = Path(__file__).resolve().parents[1] / "app" / "web" / "templates"
+API_INIT = Path(__file__).resolve().parents[1] / "app" / "api" / "__init__.py"
 
 
 def test_app_js_removed_and_unreferenced():
@@ -123,7 +124,7 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS that still showed the rail
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v119"' in sw
+    assert 'CACHE = "futfantasy-v120"' in sw
     assert "/static/styles.css" in sw
     assert "/static/league_h2h.js" in sw
     assert "/static/club-sheet.js" in sw
@@ -131,7 +132,7 @@ def test_transfer_rail_hidden_on_phone_page_fit():
     assert "isBadgeCdn" in sw
     assert "isStatic || isCatalog || isBadgeCdn" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=119" in base
+    assert "sw.js?v=120" in base
 
 
 def test_transfers_pitch_price_frame_and_pending_white_border():
@@ -212,6 +213,25 @@ def test_appshell_warms_all_nav_tabs():
     # League URL mirrors nav: single standings id or /leagues hub
     assert 'href === "/leagues"' in js or "href === \"/leagues\"" in js
     assert "/standings/" in js
+
+
+def test_appshell_softnav_perf_instrumentation():
+    """softNavigate reports fetch vs scripts timing (console + /api/client-perf)."""
+    js = (STATIC / "appshell.js").read_text(encoding="utf-8")
+    assert "function reportSoftNavTiming(" in js
+    assert "performance.now()" in js
+    assert 'fetch("/api/client-perf"' in js
+    assert "fromCache" in js
+    soft = js[js.find("async function softNavigate") : js.find("function bindGwPicker")]
+    assert "const t1 = performance.now()" in soft
+    assert "const t2 = performance.now()" in soft
+    assert "const t3 = performance.now()" in soft
+    assert "reportSoftNavTiming(" in soft
+    assert "fetchMs:" in soft and "scriptsMs:" in soft and "totalMs:" in soft
+
+    api = API_INIT.read_text(encoding="utf-8")
+    assert '="/client-perf"' in api or '"/client-perf"' in api
+    assert "squadforge.client_perf" in api
 
 
 def test_desktop_pitch_rail_uses_flex_leftover_height():
