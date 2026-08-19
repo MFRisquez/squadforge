@@ -124,20 +124,20 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS / catalog that showed wrong avail flags
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v136"' in sw
+    assert 'CACHE = "futfantasy-v137"' in sw
     assert "if (isStatic || isBadgeCdn) return cached || fetched" in sw
     assert "CSS is network-first" in sw
     # Must not cache-first the catalog (stale availability after FPL sync).
     assert "if (isStatic || isCatalog || isBadgeCdn) return cached || fetched" not in sw
-    assert "/static/styles.css?v=135" in sw
+    assert "/static/styles.css?v=136" in sw
     assert "/static/league_h2h.js" in sw
     assert "/static/club-sheet.js" in sw
     assert 'BADGE_CDN_HOST = "resources.premierleague.com"' in sw
     assert "isBadgeCdn" in sw
     assert "isStatic || isCatalog || isBadgeCdn" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=135" in base
-    assert "styles.css?v=135" in base
+    assert "sw.js?v=136" in base
+    assert "styles.css?v=136" in base
 
     squad = (STATIC / "squadboard.js").read_text(encoding="utf-8")
     assert "ff-players-updated" in squad
@@ -151,10 +151,10 @@ def test_transfer_rail_hidden_on_phone_page_fit():
     assert "miniRadarSvg(p)" not in squad[squad.find("pickerList.innerHTML") : squad.find("function pickPlayer")]
 
     css = (STATIC / "styles.css").read_text(encoding="utf-8")
-    # Desktop mid token + Transfers vertical compaction / wider row gap.
-    assert "--pitch-token-w: 4.9rem" in css
+    # Desktop mid token (+10% vs 4.9) + Transfers vertical compaction / wider row gap.
+    assert "--pitch-token-w: 5.4rem" in css
     assert "body.page-squad .squad-pitch .pitch-row { gap: 1.15rem; }" in css
-    assert css.count("--pitch-token-w: 5.45rem") == 0
+    assert css.count("--pitch-token-w: 4.9rem") == 0
     assert "width: var(--pitch-token-w, 3.7rem)" in css
 
     # Fixtures desk detail: stack sections by content (no stretch to list height).
@@ -191,7 +191,6 @@ def test_desk_side_left_layout_phase0():
     # Side rails grow with leftover width; pitch column is capped (not fixed rem | 1fr | fixed rem).
     assert "minmax(var(--desk-side-w), 1fr)" in css
     assert "minmax(0, var(--desk-pitch-col))" in css
-    assert "--desk-pitch-col: 38rem" in css
     assert "grid-template-columns: var(--desk-side-w) minmax(0, 1fr) var(--desk-side-w)" not in css
     assert "--desk-side-w: 20rem" in css
     assert css.count("--desk-side-w: 20rem") >= 2
@@ -199,8 +198,19 @@ def test_desk_side_left_layout_phase0():
     assert "body.page-xi:not(.page-opponent).page-fit .shell" in css
     assert "width: 100%" in css
     assert "max-width: none" in css
-    # Pitch token size unchanged (do not grow shirts when widening rails)
-    assert "--pitch-token-w: 4.9rem" in css
+    assert "--desk-pitch-col: 45.6rem" in css
+    assert "--desk-pitch-col: 38rem" not in css
+    # Pitch token size (+10% Phase 1); shirts grow with --pitch-token-w
+    assert "--pitch-token-w: 5.4rem" in css
+    # Bench shirts match pitch token width (not the old 2.55rem mini)
+    assert "body.page-xi .xi-bench-stack .xi-shirt" in css
+    assert "width: var(--pitch-token-w, 5.4rem) !important" in css
+    assert "width: 2.55rem !important" not in css
+    # Name + fixture type bumped on both pitches
+    assert "body.page-xi .xi-pitch-wrap .shirt-nameplate" in css
+    assert "font-size: 0.78rem" in css
+    assert "body.page-xi .xi-pitch-wrap .shirt-foot" in css
+    assert "font-size: 0.70rem" in css
     assert "desk-xi-chips" in css
     assert 'class="desk-main desk-xi-main"' in lineup
     assert "desk-xi-chips" in lineup
