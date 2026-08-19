@@ -121,11 +121,12 @@ def test_transfers_side_locked_before_deadline(monkeypatch):
 def test_manager_gw_transfer_rows_listed():
     db, league, managers, gw = _league_with_scores(4, tag="mine")
     try:
-        from app.models import Player
+        from app.models import Gameweek, Player
 
-        players = db.query(Player).limit(2).all()
-        assert len(players) >= 2
+        players = db.query(Player).limit(4).all()
+        assert len(players) >= 4
         p_out, p_in = players[0], players[1]
+        p_out2, p_in2 = players[2], players[3]
         db.add(
             TransferLog(
                 manager_id=managers[0].id,
@@ -136,17 +137,35 @@ def test_manager_gw_transfer_rows_listed():
                 is_hit=0,
             )
         )
+        db.add(
+            TransferLog(
+                manager_id=managers[0].id,
+                gameweek_id=gw.id,
+                player_out_id=p_out2.id,
+                player_in_id=p_in2.id,
+                free_transfers_after=1,
+                is_hit=1,
+            )
+        )
         db.commit()
         rows = desk_side_svc.manager_gw_transfer_rows(
             db, manager_id=managers[0].id, gameweek_id=gw.id
         )
-        assert len(rows) == 1
-        assert rows[0]["out"] == p_out.name
-        assert rows[0]["in"] == p_in.name
+        assert len(rows) == 2
+        assert rows[0]["out"] == p_out2.name  # newest first
+        assert rows[1]["out"] == p_out.name
+        other = db.query(Gameweek).filter(Gameweek.id != gw.id).order_by(Gameweek.number).first()
+        assert other is not None
+        assert (
+            desk_side_svc.manager_gw_transfer_rows(
+                db, manager_id=managers[0].id, gameweek_id=other.id
+            )
+            == []
+        )
         payload = desk_side_svc.transfers_side_left_payload(
             db, leagues=[league], gw=gw, manager_id=managers[0].id
         )
-        assert payload["my_transfers"][0]["out_id"] == p_out.id
+        assert payload["my_transfers"][0]["out_id"] == p_out2.id
     finally:
         db.close()
 

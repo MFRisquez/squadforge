@@ -349,14 +349,18 @@ def manager_gw_transfer_rows(
     manager_id: int,
     gameweek_id: int,
 ) -> list[dict[str, Any]]:
-    """This manager's TransferLog rows for the GW (out → in), oldest first."""
+    """This manager's TransferLog rows for the GW (out → in), newest first.
+
+    Always filtered to ``gameweek_id`` so the list clears automatically when a
+    new GW starts (no manual wipe).
+    """
     logs = (
         db.query(TransferLog)
         .filter(
             TransferLog.manager_id == manager_id,
             TransferLog.gameweek_id == gameweek_id,
         )
-        .order_by(TransferLog.id.asc())
+        .order_by(TransferLog.id.desc())
         .all()
     )
     if not logs:
