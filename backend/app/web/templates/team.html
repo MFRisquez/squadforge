@@ -13,6 +13,46 @@
 
 <form method="post" action="/td/save" id="tdForm" hidden aria-hidden="true"></form>
 <div class="desk-board desk-squad">
+  <aside class="desk-rail desk-side-left" id="squadSideLeft" aria-label="League transfer trends">
+    {% set side = transfers_side_left or {} %}
+    <section class="desk-side-block desk-side-transfers">
+      <header class="desk-rail-head">
+        <p class="eyebrow">This GW</p>
+        <h2>Top transfers</h2>
+      </header>
+      {% if side.locked %}
+      <p class="muted tiny">{{ side.message or "Se revela cuando cierre el mercado" }}</p>
+      {% elif not side.leagues %}
+      <p class="muted tiny">Need {{ side.min_managers or 4 }}+ managers in a league to show trends.</p>
+      {% else %}
+        {% for block in side.leagues %}
+        <div class="desk-side-xfer-league">
+          <h3>{{ block.name }}</h3>
+          {% if block.empty %}
+          <p class="muted tiny">No transfers logged yet this GW.</p>
+          {% else %}
+          {% if block.most_in %}
+          <p class="desk-side-xfer-label">Most in</p>
+          <ul class="desk-side-xfer-list">
+            {% for row in block.most_in %}
+            <li><strong>{{ row.name }}</strong><span>{{ row.count }} in</span></li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+          {% if block.most_out %}
+          <p class="desk-side-xfer-label">Most out</p>
+          <ul class="desk-side-xfer-list">
+            {% for row in block.most_out %}
+            <li><strong>{{ row.name }}</strong><span>{{ row.count }} out</span></li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% endif %}
+    </section>
+  </aside>
   <div class="desk-main-top">
     {{ chip_strip(chips, active_chip, edits_locked, bench_options, group='squad', next_path='/team', gw_number=gw.number) }}
 
@@ -242,6 +282,19 @@
     </header>
     <div class="player-detail-actions" id="detailActions"></div>
     <div class="player-detail-body" id="detailBody"></div>
+  </div>
+</div>
+
+<div class="drawer" id="saveConfirm" hidden>
+  <div class="drawer-sheet player-detail-sheet save-confirm-sheet" role="dialog" aria-modal="true" aria-labelledby="saveConfirmTitle">
+    <header class="drawer-head">
+      <div>
+        <p class="eyebrow">Saved</p>
+        <h2 id="saveConfirmTitle">Squad changes</h2>
+      </div>
+      <button type="button" class="icon-btn" id="closeSaveConfirm" aria-label="Close">✕</button>
+    </header>
+    <ul class="save-confirm-list" id="saveConfirmList"></ul>
   </div>
 </div>
 

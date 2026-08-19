@@ -906,6 +906,17 @@ def _squad_board_response(
         )
         can_set_td = td_svc.can_change_td(db, manager.id, gw, active=td_info.get("pick"))
     td_club_choices = [c for c in clubs if c.code != td_info.get("banned_club")]
+    transfers_side_left = None
+    nav_leagues = None
+    if template_name == "team.html":
+        with timed("team.desk_side"):
+            from app.services import desk_side as desk_side_svc
+            from app.services import league as league_svc
+
+            nav_leagues = league_svc.manager_leagues(db, manager.id)
+            transfers_side_left = desk_side_svc.transfers_side_left_payload(
+                db, leagues=nav_leagues, gw=gw
+            )
     with timed("team.transfers_unlimited"):
         # Reuse TransferState from bank; reuse active chip when viewing current GW.
         if gw.id == current_gw.id:
@@ -972,61 +983,63 @@ def _squad_board_response(
     # Reuse auth manager + resolve_gw current_gw + known squad completeness —
     # do not re-run those queries inside _ctx (was ~186ms of duplicate RTT).
     squad_complete = template_name != "onboard.html"
+    ctx_kwargs = dict(
+        manager=manager,
+        gw=view["current_gw"],
+        has_complete_squad=squad_complete,
+        owned=owned,
+        spend=spend,
+        pick_rows=pick_rows,
+        chips=chips,
+        active_chip=active_chip,
+        bench_options=bench_options,
+        td=td_info.get("pick"),
+        td_info=td_info,
+        can_set_td=can_set_td,
+        clubs=clubs,
+        td_club_choices=td_club_choices,
+        ft_left=ft_state.free_transfers,
+        unlimited_transfers=unlimited,
+        transfers_gw=transfers_gw,
+        hits_gw=hits_gw,
+        hit_cost=squad_svc.HIT_COST,
+        players_json=[],  # loaded client-side from /api/players/catalog
+        captain_success=captain_success,
+        squad_alerts=squad_alerts,
+        transfers_side_left=transfers_side_left,
+        initial_squad={
+            "selected": [p.id for p in owned],
+            "budget": settings.budget,
+            "maxPerClub": settings.max_per_club,
+            "unlimited": unlimited and not view["edits_locked"],
+            "hasSquad": len(owned) == settings.squad_size,
+            "requireTd": template_name == "onboard.html" or len(owned) != settings.squad_size,
+            "ft": ft_state.free_transfers,
+            "hitCost": squad_svc.HIT_COST,
+            "locked": view["edits_locked"],
+            "starters": starters,
+            "captain": captain,
+            "vice": vice,
+            "gw": gw.number,
+        },
+        player_count=player_count,
+        ok=request.query_params.get("ok"),
+        error=request.query_params.get("error") or request.query_params.get("chip_error"),
+        notice=resolved_notice,
+        # view fields except gw (gw above is current for demo_scoring;
+        # templates need the *viewed* gameweek as gw)
+        current_gw=view["current_gw"],
+        edits_locked=view["edits_locked"],
+        deadline_label=view["deadline_label"],
+        prev_gw=view["prev_gw"],
+        next_gw=view["next_gw"],
+        all_gws=view["all_gws"],
+        current_gw_number=view["current_gw_number"],
+    )
+    if nav_leagues is not None:
+        ctx_kwargs["nav_leagues"] = nav_leagues
     with timed("team.ctx"):
-        ctx = _ctx(
-            request,
-            db,
-            manager=manager,
-            gw=view["current_gw"],
-            has_complete_squad=squad_complete,
-            owned=owned,
-            spend=spend,
-            pick_rows=pick_rows,
-            chips=chips,
-            active_chip=active_chip,
-            bench_options=bench_options,
-            td=td_info.get("pick"),
-            td_info=td_info,
-            can_set_td=can_set_td,
-            clubs=clubs,
-            td_club_choices=td_club_choices,
-            ft_left=ft_state.free_transfers,
-            unlimited_transfers=unlimited,
-            transfers_gw=transfers_gw,
-            hits_gw=hits_gw,
-            hit_cost=squad_svc.HIT_COST,
-            players_json=[],  # loaded client-side from /api/players/catalog
-            captain_success=captain_success,
-            squad_alerts=squad_alerts,
-            initial_squad={
-                "selected": [p.id for p in owned],
-                "budget": settings.budget,
-                "maxPerClub": settings.max_per_club,
-                "unlimited": unlimited and not view["edits_locked"],
-                "hasSquad": len(owned) == settings.squad_size,
-                "requireTd": template_name == "onboard.html" or len(owned) != settings.squad_size,
-                "ft": ft_state.free_transfers,
-                "hitCost": squad_svc.HIT_COST,
-                "locked": view["edits_locked"],
-                "starters": starters,
-                "captain": captain,
-                "vice": vice,
-                "gw": gw.number,
-            },
-            player_count=player_count,
-            ok=request.query_params.get("ok"),
-            error=request.query_params.get("error") or request.query_params.get("chip_error"),
-            notice=resolved_notice,
-            # view fields except gw (gw above is current for demo_scoring;
-            # templates need the *viewed* gameweek as gw)
-            current_gw=view["current_gw"],
-            edits_locked=view["edits_locked"],
-            deadline_label=view["deadline_label"],
-            prev_gw=view["prev_gw"],
-            next_gw=view["next_gw"],
-            all_gws=view["all_gws"],
-            current_gw_number=view["current_gw_number"],
-        )
+        ctx = _ctx(request, db, **ctx_kwargs)
         ctx["gw"] = view["gw"]
     with timed("team.template_render"):
         return templates.TemplateResponse(template_name, ctx)
@@ -1154,6 +1167,8 @@ async def team_save(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
     player_ids = [int(x) for x in form.getlist("player_id")]
     gw = squad_svc.current_gameweek(db)
+    before_owned = squad_svc.owned_players(db, manager.id)
+    before_by_id = {p.id: p for p in before_owned}
     try:
         squad_svc.save_ownership(db, manager_id=manager.id, player_ids=player_ids, gw_number=gw.number)
         owned = squad_svc.owned_players(db, manager.id)
@@ -1213,7 +1228,39 @@ async def team_save(request: Request, db: Session = Depends(get_db)):
             status_code=400,
         )
     if wants_json:
-        return JSONResponse({"ok": True, "saved": "squad", "player_ids": player_ids})
+        after_ids = set(player_ids)
+        before_ids = set(before_by_id)
+        removed = sorted(before_ids - after_ids)
+        added = sorted(after_ids - before_ids)
+        # Pair by position when possible so the confirm list reads as out → in.
+        rem_by_pos: dict[str, list[Player]] = {}
+        for pid in removed:
+            p = before_by_id.get(pid)
+            if p:
+                rem_by_pos.setdefault(p.position or "?", []).append(p)
+        add_players = (
+            db.query(Player).filter(Player.id.in_(added)).all() if added else []
+        )
+        add_by_pos: dict[str, list[Player]] = {}
+        for p in add_players:
+            add_by_pos.setdefault(p.position or "?", []).append(p)
+        changes = []
+        for pos in ("GK", "DEF", "MID", "ATT", "?"):
+            outs = rem_by_pos.get(pos) or []
+            ins = add_by_pos.get(pos) or []
+            while outs or ins:
+                o = outs.pop(0) if outs else None
+                i = ins.pop(0) if ins else None
+                if o or i:
+                    changes.append(
+                        {
+                            "out": o.name if o else "—",
+                            "in": i.name if i else "—",
+                        }
+                    )
+        return JSONResponse(
+            {"ok": True, "saved": "squad", "player_ids": player_ids, "changes": changes}
+        )
     if manager_has_complete_squad(db, manager.id):
         return RedirectResponse("/?notice=Squad+saved", status_code=303)
     return RedirectResponse("/team?notice=Squad+saved", status_code=303)
@@ -1251,19 +1298,27 @@ async def lineup_role(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/lineup", response_class=HTMLResponse)
 def lineup_page(request: Request, db: Session = Depends(get_db)):
-    manager = current_manager(request, db)
+    from app.perf_trace import attach_server_perf_header, perf_begin, timed
+
+    perf_begin()
+    with timed("lineup.auth.current_manager"):
+        manager = current_manager(request, db)
     if not manager:
         return RedirectResponse("/login", status_code=303)
     from app.services import chips as chips_svc
 
     try:
-        view = _resolve_gw(request, db)
+        with timed("lineup.resolve_gw"):
+            view = _resolve_gw(request, db)
     except squad_svc.SquadError as exc:
         return RedirectResponse(f"/?error={quote(str(exc))}", status_code=303)
     gw = view["gw"]
-    squad_svc.bank_free_transfers(db, manager.id, view["current_gw"].number)
-    chips_svc.restore_free_hits_if_needed(db, manager_id=manager.id, current_gw=view["current_gw"])
-    owned = squad_svc.owned_players(db, manager.id)
+    with timed("lineup.bank_ft"):
+        squad_svc.bank_free_transfers(db, manager.id, view["current_gw"].number)
+    with timed("lineup.restore_fh"):
+        chips_svc.restore_free_hits_if_needed(db, manager_id=manager.id, current_gw=view["current_gw"])
+    with timed("lineup.owned"):
+        owned = squad_svc.owned_players(db, manager.id)
     if len(owned) != settings.squad_size:
         return RedirectResponse("/onboard", status_code=303)
     picks = (
@@ -1348,6 +1403,18 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
         for p in picks
     }
     td_info = td_svc.td_view(db, manager.id, gw.number, gameweek_id=gw.id)
+    from app.services import desk_side as desk_side_svc
+    from app.services import league as league_svc
+
+    with timed("lineup.desk_side"):
+        nav_leagues = league_svc.manager_leagues(db, manager.id)
+        xi_side_left = desk_side_svc.xi_side_left_payload(
+            db,
+            manager_id=manager.id,
+            gw=gw,
+            leagues=nav_leagues,
+            td_info=td_info,
+        )
     super_sub_player_id = None
     if active_chip and active_chip.chip == "super_sub":
         try:
@@ -1366,43 +1433,49 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
     )
     played_count = max(0, len(starters) - left_to_play)
 
-    return templates.TemplateResponse(
-        "lineup.html",
-        _ctx(
-            request,
-            db,
-            owned_json=_owned_payload(owned, db, gw_number=gw.number),
-            initial_lineup={
-                "starters": starters,
-                "captain": captain,
-                "vice": vice,
-                "locked": view["edits_locked"],
-                "captainEditable": captain_editable,
-                "fixtureStarted": fixture_started,
-                "captainArmed": armed,
-                "gw": gw.number,
-                "points": points_map,
-                "breakdowns": points_breakdown,
-                "gwTotal": gw_total,
-                "activeChip": active_chip.chip if active_chip else None,
-                "superSubPlayerId": super_sub_player_id,
-            },
-            spend=squad_svc.squad_spend(owned),
-            gw_total=gw_total,
-            any_fixture_started=any_fixture_started,
-            captain_name=captain_name,
-            left_to_play=left_to_play,
-            played_count=played_count,
-            chips=chips,
-            active_chip=active_chip,
-            bench_options=bench_options,
-            captain_editable=captain_editable,
-            td_info=td_info,
-            notice=notice,
-            error=error,
-            **view,
-        ),
-    )
+    with timed("lineup.template_render"):
+        resp = templates.TemplateResponse(
+            "lineup.html",
+            _ctx(
+                request,
+                db,
+                manager=manager,
+                has_complete_squad=True,
+                nav_leagues=nav_leagues,
+                owned_json=_owned_payload(owned, db, gw_number=gw.number),
+                initial_lineup={
+                    "starters": starters,
+                    "captain": captain,
+                    "vice": vice,
+                    "locked": view["edits_locked"],
+                    "captainEditable": captain_editable,
+                    "fixtureStarted": fixture_started,
+                    "captainArmed": armed,
+                    "gw": gw.number,
+                    "points": points_map,
+                    "breakdowns": points_breakdown,
+                    "gwTotal": gw_total,
+                    "activeChip": active_chip.chip if active_chip else None,
+                    "superSubPlayerId": super_sub_player_id,
+                },
+                spend=squad_svc.squad_spend(owned),
+                gw_total=gw_total,
+                any_fixture_started=any_fixture_started,
+                captain_name=captain_name,
+                left_to_play=left_to_play,
+                played_count=played_count,
+                chips=chips,
+                active_chip=active_chip,
+                bench_options=bench_options,
+                captain_editable=captain_editable,
+                td_info=td_info,
+                xi_side_left=xi_side_left,
+                notice=notice,
+                error=error,
+                **view,
+            ),
+        )
+    return attach_server_perf_header(resp, path="/lineup")
 
 
 @router.post("/lineup/save")
@@ -1533,6 +1606,8 @@ def transfers_make(
         return RedirectResponse(f"/?error={quote(str(exc))}", status_code=303)
     if not deadline_svc.can_edit(gw):
         return RedirectResponse("/team?error=Deadline+passed+—+transfers+locked", status_code=303)
+    out_player = db.query(Player).filter(Player.id == player_out_id).one_or_none()
+    in_player = db.query(Player).filter(Player.id == player_in_id).one_or_none()
     try:
         before_hits = squad_svc.hit_transfers_this_gw(db, manager.id, gw.id)
         squad_svc.make_transfer(
@@ -1545,10 +1620,14 @@ def transfers_make(
         after_hits = squad_svc.hit_transfers_this_gw(db, manager.id, gw.id)
     except squad_svc.SquadError as exc:
         return RedirectResponse(f"/team?error={quote(str(exc))}", status_code=303)
+    q = {
+        "ok": "1",
+        "out": (out_player.name if out_player else f"#{player_out_id}"),
+        "in": (in_player.name if in_player else f"#{player_in_id}"),
+    }
     if after_hits > before_hits:
-        notice = quote(f"Transfer done (−{squad_svc.HIT_COST} hit).")
-        return RedirectResponse(f"/team?ok=1&notice={notice}", status_code=303)
-    return RedirectResponse("/team?ok=1", status_code=303)
+        q["notice"] = f"Transfer done (−{squad_svc.HIT_COST} hit)."
+    return RedirectResponse(f"/team?{urlencode(q)}", status_code=303)
 
 
 @router.post("/sync/players")

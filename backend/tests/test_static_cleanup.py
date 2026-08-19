@@ -124,20 +124,20 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS / catalog that showed wrong avail flags
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v129"' in sw
+    assert 'CACHE = "futfantasy-v131"' in sw
     assert "if (isStatic || isBadgeCdn) return cached || fetched" in sw
     assert "CSS is network-first" in sw
     # Must not cache-first the catalog (stale availability after FPL sync).
     assert "if (isStatic || isCatalog || isBadgeCdn) return cached || fetched" not in sw
-    assert "/static/styles.css?v=129" in sw
+    assert "/static/styles.css?v=131" in sw
     assert "/static/league_h2h.js" in sw
     assert "/static/club-sheet.js" in sw
     assert 'BADGE_CDN_HOST = "resources.premierleague.com"' in sw
     assert "isBadgeCdn" in sw
     assert "isStatic || isCatalog || isBadgeCdn" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=129" in base
-    assert "styles.css?v=129" in base
+    assert "sw.js?v=131" in base
+    assert "styles.css?v=131" in base
 
     squad = (STATIC / "squadboard.js").read_text(encoding="utf-8")
     assert "ff-players-updated" in squad
@@ -170,6 +170,39 @@ def test_transfer_rail_hidden_on_phone_page_fit():
     assert "flex: 0 0 auto" in body_chunk
     assert "align-content: start" in body_chunk
     assert "flex: 1 1 auto" not in body_chunk
+
+
+def test_desk_side_left_layout_phase0():
+    """XI + Transfers share a 3-col desk with equal side rails; pitch stays middle."""
+    css = (STATIC / "styles.css").read_text(encoding="utf-8")
+    lineup = (TEMPLATES / "lineup.html").read_text(encoding="utf-8")
+    team = (TEMPLATES / "team.html").read_text(encoding="utf-8")
+
+    assert 'id="xiSideLeft"' in lineup
+    assert 'class="desk-rail desk-side-left"' in lineup
+    assert 'id="squadSideLeft"' in team
+    assert 'class="desk-rail desk-side-left"' in team
+    # Free Agents rail still present on Transfers
+    assert 'id="transferRail"' in team
+    assert "desk-side-left" in team[: team.find("transferRail")]
+
+    assert ".desk-xi:has(> .desk-side-left)" in css
+    assert ".desk-squad:has(> .desk-side-left)" in css
+    assert "grid-template-columns: var(--desk-side-w) minmax(0, 1fr) var(--desk-side-w)" in css
+    assert "--desk-side-w: 16.5rem" in css
+    assert "--desk-side-w: 15.5rem" in css
+    assert "body.page-xi:not(.page-opponent).page-fit .shell" in css
+    assert "width: min(90rem, 100%)" in css
+    # Pitch token size unchanged
+    assert "--pitch-token-w: 4.4rem" in css
+    # Fase 1–2 side panel chrome present
+    assert "desk-side-league-list" in css
+    assert "desk-side-xfer-list" in css
+    assert "save-confirm-list" in css
+    assert 'id="saveConfirm"' in (TEMPLATES / "team.html").read_text(encoding="utf-8")
+    assert "openSaveConfirm" in (STATIC / "squadboard.js").read_text(encoding="utf-8")
+    assert "xi_side_left" in (TEMPLATES / "lineup.html").read_text(encoding="utf-8")
+    assert "transfers_side_left" in (TEMPLATES / "team.html").read_text(encoding="utf-8")
 
 
 def test_transfers_pitch_price_frame_and_pending_white_border():

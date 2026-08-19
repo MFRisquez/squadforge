@@ -45,6 +45,57 @@
 
 <p class="sr-only" id="xiHint"></p>
 <div class="desk-board desk-xi">
+  <aside class="desk-rail desk-side-left" id="xiSideLeft" aria-label="DT and leagues">
+    {% set side = xi_side_left or {} %}
+    {% set td_side = side.td or {} %}
+    <section class="desk-side-block desk-side-td">
+      <header class="desk-rail-head">
+        <p class="eyebrow">Technical Director</p>
+        <h2>DT window</h2>
+      </header>
+      {% if td_side.expired %}
+      <p class="desk-side-alert desk-side-alert-urgent">{{ td_side.message or "Your DT pick has expired — choose a new club now." }}</p>
+      {% elif td_side.club_code %}
+      <div class="desk-side-td-row">
+        {% if td_side.badge %}
+        <img class="desk-side-td-badge" src="{{ td_side.badge }}" alt="" width="40" height="40" loading="lazy" />
+        {% endif %}
+        <div class="desk-side-td-copy">
+          <strong>{{ td_side.club_name or td_side.club_code }}</strong>
+          <span class="muted tiny">GW{{ td_side.start_gw }}–{{ td_side.end_gw }}</span>
+          {% if td_side.gws_left is not none %}
+          <span class="desk-side-td-left">{% if td_side.gws_left == 0 %}Ends this GW{% elif td_side.gws_left == 1 %}1 GW left{% else %}{{ td_side.gws_left }} GWs left{% endif %}</span>
+          {% endif %}
+        </div>
+      </div>
+      {% if td_side.ending and td_side.message %}
+      <p class="desk-side-alert desk-side-alert-warn">{{ td_side.message }}</p>
+      {% endif %}
+      {% else %}
+      <p class="muted tiny">No DT club active — pick one on Transfers.</p>
+      {% endif %}
+    </section>
+    <section class="desk-side-block desk-side-leagues">
+      <header class="desk-rail-head">
+        <p class="eyebrow">Leagues</p>
+        <h2>Your leagues</h2>
+      </header>
+      {% if side.leagues %}
+      <ul class="desk-side-league-list">
+        {% for lg in side.leagues %}
+        <li>
+          <a class="desk-side-league-row" href="{{ lg.href }}">
+            <strong>{{ lg.name }}</strong>
+            <span>{{ lg.label }}</span>
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="muted tiny">Join or create a league to track your rank here.</p>
+      {% endif %}
+    </section>
+  </aside>
   <div class="desk-main">
     <form method="post" action="/lineup/save" id="lineupForm">
       <div id="hiddenFields"></div>
