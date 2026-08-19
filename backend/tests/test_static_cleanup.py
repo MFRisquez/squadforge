@@ -124,20 +124,20 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS / catalog that showed wrong avail flags
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v126"' in sw
+    assert 'CACHE = "futfantasy-v127"' in sw
     assert "if (isStatic || isBadgeCdn) return cached || fetched" in sw
     assert "CSS is network-first" in sw
     # Must not cache-first the catalog (stale availability after FPL sync).
     assert "if (isStatic || isCatalog || isBadgeCdn) return cached || fetched" not in sw
-    assert "/static/styles.css?v=126" in sw
+    assert "/static/styles.css?v=127" in sw
     assert "/static/league_h2h.js" in sw
     assert "/static/club-sheet.js" in sw
     assert 'BADGE_CDN_HOST = "resources.premierleague.com"' in sw
     assert "isBadgeCdn" in sw
     assert "isStatic || isCatalog || isBadgeCdn" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=126" in base
-    assert "styles.css?v=126" in base
+    assert "sw.js?v=127" in base
+    assert "styles.css?v=127" in base
 
     squad = (STATIC / "squadboard.js").read_text(encoding="utf-8")
     assert "ff-players-updated" in squad
@@ -151,10 +151,10 @@ def test_transfer_rail_hidden_on_phone_page_fit():
     assert "miniRadarSvg(p)" not in squad[squad.find("pickerList.innerHTML") : squad.find("function pickPlayer")]
 
     css = (STATIC / "styles.css").read_text(encoding="utf-8")
-    # Desktop: XI larger tokens (wide pitch); Transfers smaller (15 + price frame).
-    assert "--pitch-token-w: 5.9rem" in css
-    assert "--pitch-token-w: 3.9rem" in css
+    # Desktop XI + Transfers share one token size.
+    assert "--pitch-token-w: 4.7rem" in css
     assert css.count("--pitch-token-w: 5.45rem") == 0
+    assert css.count("--pitch-token-w: 5.9rem") == 0
     assert "width: var(--pitch-token-w, 3.7rem)" in css
 
 
