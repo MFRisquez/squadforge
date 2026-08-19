@@ -124,7 +124,7 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS / catalog that showed wrong avail flags
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v124"' in sw
+    assert 'CACHE = "futfantasy-v125"' in sw
     assert "if (isStatic || isBadgeCdn) return cached || fetched" in sw
     assert "Player catalog + shell HTML: network-first" in sw
     # Must not cache-first the catalog (stale availability after FPL sync).
@@ -150,8 +150,9 @@ def test_transfer_rail_hidden_on_phone_page_fit():
     assert "miniRadarSvg(p)" not in squad[squad.find("pickerList.innerHTML") : squad.find("function pickPlayer")]
 
     css = (STATIC / "styles.css").read_text(encoding="utf-8")
-    # Desktop XI + Squad/Transfers share one mid-size token (not 3.7 lock vs 5.45 card).
-    assert "--pitch-token-w: 4.6rem" in css
+    # Desktop: XI larger tokens (wide pitch); Transfers slightly smaller (15 + price frame).
+    assert "--pitch-token-w: 5.4rem" in css
+    assert "--pitch-token-w: 4.25rem" in css
     assert css.count("--pitch-token-w: 5.45rem") == 0
     assert "width: var(--pitch-token-w, 3.7rem)" in css
 
