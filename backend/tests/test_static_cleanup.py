@@ -124,7 +124,7 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS / catalog that showed wrong avail flags
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v133"' in sw
+    assert 'CACHE = "futfantasy-v134"' in sw
     assert "if (isStatic || isBadgeCdn) return cached || fetched" in sw
     assert "CSS is network-first" in sw
     # Must not cache-first the catalog (stale availability after FPL sync).
@@ -189,12 +189,21 @@ def test_desk_side_left_layout_phase0():
     assert ".desk-xi:has(> .desk-side-left)" in css
     assert ".desk-squad:has(> .desk-side-left)" in css
     assert "grid-template-columns: var(--desk-side-w) minmax(0, 1fr) var(--desk-side-w)" in css
-    assert "--desk-side-w: 17.25rem" in css
-    assert "--desk-side-w: 16.75rem" in css
+    assert "--desk-side-w: 20rem" in css
+    assert "--desk-side-w: 19.5rem" in css
     assert "body.page-xi:not(.page-opponent).page-fit .shell" in css
-    assert "width: min(94rem, 100%)" in css
-    # Pitch token size for denser desk composition
+    assert "width: 100%" in css
+    assert "max-width: none" in css
+    # Pitch token size unchanged (do not grow shirts when widening rails)
     assert "--pitch-token-w: 4.9rem" in css
+    assert "desk-xi-chips" in css
+    assert 'class="desk-main desk-xi-main"' in lineup
+    assert "desk-xi-chips" in lineup
+    # Chips live inside the pitch column (desk-xi-chips), not above the full board
+    assert "desk-xi-chips" in lineup
+    chips_block = lineup[lineup.find("desk-xi-chips") : lineup.find("lineupForm")]
+    assert "chip_strip" in chips_block
+    assert lineup.find('id="xiSideLeft"') < lineup.find("desk-xi-chips")
     # Fase 1–2 side panel chrome present
     assert "desk-side-league-list" in css
     assert "desk-side-xfer-list" in css

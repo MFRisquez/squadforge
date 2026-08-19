@@ -11,38 +11,6 @@
   <h1 class="xi-title sr-only">{% if edits_locked %}{{ xi_title }} · Live{% else %}{{ xi_title }} · Starting XI{% endif %}</h1>
 </div>
 
-{% if edits_locked %}
-<section class="live-hub" aria-label="Live gameweek">
-  <div class="live-hub-score">
-    <span class="live-hub-label">GW{{ gw.number }}</span>
-    <strong class="live-hub-pts">{% if gw_total is not none %}{{ '%.0f'|format(gw_total) }}{% else %}—{% endif %}</strong>
-    <span class="live-hub-unit">pts</span>
-  </div>
-  <div class="live-hub-meta">
-    {% if captain_name %}
-    <p class="live-hub-line"><span>Captain</span><strong>{{ captain_name }}</strong></p>
-    {% endif %}
-    <p class="live-hub-line">
-      <span>Playing</span>
-      <strong>{% if any_fixture_started %}{{ played_count }}/{{ played_count + left_to_play }} started{% else %}Kickoff pending{% endif %}</strong>
-    </p>
-    {% if left_to_play and any_fixture_started %}
-    <p class="live-hub-line live-hub-left"><span>Left</span><strong>{{ left_to_play }} to play</strong></p>
-    {% endif %}
-  </div>
-  <div class="live-hub-actions">
-    {% if nav_leagues and nav_leagues|length == 1 %}
-    <a class="btn live-hub-btn" href="/standings/{{ nav_leagues[0].id }}">League</a>
-    {% elif nav_leagues %}
-    <a class="btn live-hub-btn" href="/leagues">League</a>
-    {% endif %}
-    <a class="btn ghost live-hub-btn" href="/fixtures?gw={{ gw.number }}">Fixtures</a>
-  </div>
-</section>
-{% else %}
-{{ chip_strip(chips, active_chip, edits_locked, bench_options, group='xi', next_path='/lineup', gw_number=gw.number, gw_total=gw_total) }}
-{% endif %}
-
 <p class="sr-only" id="xiHint"></p>
 <div class="desk-board desk-xi">
   <aside class="desk-rail desk-side-left" id="xiSideLeft" aria-label="DT and leagues">
@@ -116,7 +84,40 @@
       {% endif %}
     </section>
   </aside>
-  <div class="desk-main">
+  <div class="desk-main desk-xi-main">
+    <div class="desk-main-top desk-xi-chips">
+      {% if edits_locked %}
+      <section class="live-hub" aria-label="Live gameweek">
+        <div class="live-hub-score">
+          <span class="live-hub-label">GW{{ gw.number }}</span>
+          <strong class="live-hub-pts">{% if gw_total is not none %}{{ '%.0f'|format(gw_total) }}{% else %}—{% endif %}</strong>
+          <span class="live-hub-unit">pts</span>
+        </div>
+        <div class="live-hub-meta">
+          {% if captain_name %}
+          <p class="live-hub-line"><span>Captain</span><strong>{{ captain_name }}</strong></p>
+          {% endif %}
+          <p class="live-hub-line">
+            <span>Playing</span>
+            <strong>{% if any_fixture_started %}{{ played_count }}/{{ played_count + left_to_play }} started{% else %}Kickoff pending{% endif %}</strong>
+          </p>
+          {% if left_to_play and any_fixture_started %}
+          <p class="live-hub-line live-hub-left"><span>Left</span><strong>{{ left_to_play }} to play</strong></p>
+          {% endif %}
+        </div>
+        <div class="live-hub-actions">
+          {% if nav_leagues and nav_leagues|length == 1 %}
+          <a class="btn live-hub-btn" href="/standings/{{ nav_leagues[0].id }}">League</a>
+          {% elif nav_leagues %}
+          <a class="btn live-hub-btn" href="/leagues">League</a>
+          {% endif %}
+          <a class="btn ghost live-hub-btn" href="/fixtures?gw={{ gw.number }}">Fixtures</a>
+        </div>
+      </section>
+      {% else %}
+      {{ chip_strip(chips, active_chip, edits_locked, bench_options, group='xi', next_path='/lineup', gw_number=gw.number, gw_total=gw_total) }}
+      {% endif %}
+    </div>
     <form method="post" action="/lineup/save" id="lineupForm">
       <div id="hiddenFields"></div>
       <section class="pitch-wrap xi-pitch-wrap">

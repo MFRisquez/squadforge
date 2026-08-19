@@ -4086,11 +4086,11 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   .desk-squad,
   .desk-xi {
     display: grid;
-    grid-template-columns: minmax(0, 1.65fr) minmax(17.25rem, 1fr);
+    grid-template-columns: minmax(0, 1.65fr) minmax(20rem, 1fr);
     gap: 0.55rem;
     align-items: stretch;
     min-height: 0;
-    --desk-side-w: 17.25rem;
+    --desk-side-w: 20rem;
   }
   .desk-xi:has(> .desk-side-left),
   .desk-squad:has(> .desk-side-left) {
@@ -4120,7 +4120,10 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   /* Widen shell so left rail does not steal pitch / FA width; GW bar follows shell. */
   body.page-xi:not(.page-opponent).page-fit .shell,
   body.page-squad:not(.page-onboard).page-fit .shell {
-    width: min(94rem, 100%);
+    width: 100%;
+    max-width: none;
+    padding-left: 0.55rem;
+    padding-right: 0.55rem;
   }
   .desk-squad > .desk-side-left,
   .desk-xi > .desk-side-left {
@@ -4161,17 +4164,17 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     min-width: 0;
   }
   .desk-side-td-copy strong {
-    font-size: 0.88rem;
+    font-size: 1.05rem;
     line-height: 1.15;
   }
   .desk-side-td-left {
-    font-size: 0.72rem;
+    font-size: 0.86rem;
     font-weight: 700;
     color: var(--ink);
   }
   .desk-side-alert {
     margin: 0;
-    font-size: 0.68rem;
+    font-size: 0.82rem;
     line-height: 1.35;
     padding: 0.35rem 0.4rem;
     border-radius: 0.45rem;
@@ -4202,10 +4205,10 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     background: rgba(0, 0, 0, 0.18);
   }
   .desk-side-league-row strong {
-    font-size: 0.78rem;
+    font-size: 0.95rem;
   }
   .desk-side-league-row span {
-    font-size: 0.66rem;
+    font-size: 0.8rem;
     color: var(--muted);
   }
   .desk-side-scorer-list {
@@ -4220,12 +4223,12 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     grid-template-columns: 1.1rem minmax(0, 1fr) auto;
     gap: 0.35rem;
     align-items: center;
-    font-size: 0.78rem;
+    font-size: 0.95rem;
   }
   .desk-side-scorer-rank {
     color: var(--muted);
     font-weight: 800;
-    font-size: 0.68rem;
+    font-size: 0.8rem;
   }
   .desk-side-scorer-list strong {
     min-width: 0;
@@ -4331,8 +4334,46 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     min-width: 0;
     max-width: 100%;
   }
+  .desk-xi > .desk-main.desk-xi-main {
+    grid-column: 2;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    max-width: 100%;
+    align-self: stretch;
+    overflow: hidden;
+    gap: 0.35rem;
+  }
+  .desk-xi-main > #lineupForm {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .desk-xi-chips {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+  }
+  .desk-xi-chips .chip-strip-wrap,
+  .desk-xi-chips .live-hub {
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    margin-bottom: 0;
+  }
+  .desk-side-left .desk-rail-head h2 {
+    font-size: 1.12rem;
+  }
+  .desk-side-left .desk-rail-head .eyebrow {
+    font-size: 0.78rem;
+  }
   .desk-squad > .desk-main,
-  .desk-xi > .desk-main {
+  .desk-xi > .desk-main:not(.desk-xi-main) {
     grid-column: 2;
     min-width: 0;
     min-height: 0;
@@ -5058,13 +5099,17 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     min-height: 2.05rem;
   }
 
-  /* Squad + XI chips: full width, one horizontal line each, no scroll */
-  body.page-xi .chip-strip-wrap.chip-strip-xi,
+  /* Squad chips: full center column. XI chips sit only above pitch (inside desk-xi-main). */
   body.page-squad .chip-strip-wrap.chip-strip-squad {
     width: 100%;
     max-width: none;
     margin-left: 0;
     margin-right: 0;
+  }
+  body.page-xi .desk-xi-chips .chip-strip-wrap.chip-strip-xi {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
   }
   body.page-xi .chip-strip,
   body.page-xi .chip-strip-cards {
@@ -5261,8 +5306,9 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     align-items: stretch;
   }
   body.page-squad.page-fit .desk-main-top,
-  body.page-xi.page-fit .chip-strip-wrap,
-  body.page-xi.page-fit .live-hub {
+  body.page-xi.page-fit .desk-xi-chips,
+  body.page-xi.page-fit .desk-xi-chips .chip-strip-wrap,
+  body.page-xi.page-fit .desk-xi-chips .live-hub {
     flex: 0 0 auto;
   }
   body.page-squad.page-fit .desk-squad > .desk-main,
@@ -8243,13 +8289,13 @@ body > .chip-tip.is-open-tip {
 @media (min-width: 900px) {
   .desk-squad {
     display: grid;
-    grid-template-columns: minmax(0, 1.7fr) minmax(16.75rem, 1fr);
+    grid-template-columns: minmax(0, 1.7fr) minmax(19.5rem, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
     gap: 0.45rem;
     align-items: stretch;
     min-height: 0;
     overflow: hidden;
-    --desk-side-w: 16.75rem;
+    --desk-side-w: 19.5rem;
   }
   .desk-squad:has(> .desk-side-left) {
     grid-template-columns: var(--desk-side-w) minmax(0, 1fr) var(--desk-side-w);
