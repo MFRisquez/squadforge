@@ -41,6 +41,9 @@ def maybe_score_locked_gw(*, force: bool = False) -> Optional[dict]:
                     gw.number,
                     summary.get("managers_scored"),
                 )
+            advanced = squad_svc.maybe_advance_finished_gameweek(db)
+            if advanced:
+                logger.info("auto-advanced current gameweek after GW%s finished", gw.number)
             _last_run_at = now
             _last_gw = gw.number
             logger.info(

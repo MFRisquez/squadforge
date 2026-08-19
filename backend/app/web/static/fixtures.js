@@ -578,7 +578,7 @@
         const top = fixtureTopHtml(m);
         const scoreBlock = scored
           ? `<span class="fx-score-num">${m.home.score}</span><span class="fx-score-sep">–</span><span class="fx-score-num">${m.away.score}</span>`
-          : `<span class="fx-vs">vs</span>`;
+          : `<span class="fx-score-num fx-score-empty">-</span><span class="fx-score-sep">–</span><span class="fx-score-num fx-score-empty">-</span>`;
         const homeBadge = m.home.badge
           ? `<img class="fx-badge" src="${m.home.badge}" alt="" width="40" height="40" loading="lazy" />`
           : "";
@@ -596,16 +596,18 @@
           <button type="button" class="fx-card status-${m.status}${hasMine ? " has-mine" : ""}${selected}" data-fixture-id="${m.id}" data-home-badge="${m.home.badge || ""}" data-away-badge="${m.away.badge || ""}">
             <div class="fx-card-top">${top}</div>
             <div class="fx-card-match">
-              <div class="fx-club">
+              <div class="fx-club" title="Home">
                 ${homeBadge}
-                <strong>${m.home.code}</strong>
+                <strong class="fx-club-code">${m.home.code || ""}</strong>
                 <span class="fx-club-name">${m.home.name || ""}</span>
+                <span class="fx-ha-tag">Home</span>
               </div>
-              <div class="fx-score-block">${scoreBlock}</div>
-              <div class="fx-club away">
+              <div class="fx-score-block" aria-label="Score">${scoreBlock}</div>
+              <div class="fx-club away" title="Away">
                 ${awayBadge}
-                <strong>${m.away.code}</strong>
+                <strong class="fx-club-code">${m.away.code || ""}</strong>
                 <span class="fx-club-name">${m.away.name || ""}</span>
+                <span class="fx-ha-tag">Away</span>
               </div>
             </div>
             ${mineBlock}
@@ -630,7 +632,7 @@
     list.querySelectorAll(".fx-card[data-fixture-id]").forEach((btn) => {
       const id = btn.getAttribute("data-fixture-id");
       const imgs = btn.querySelectorAll(".fx-badge");
-      const codes = btn.querySelectorAll(".fx-club > strong");
+      const codes = btn.querySelectorAll(".fx-club-code");
       const names = btn.querySelectorAll(".fx-club-name");
       FIXTURE_META[String(id)] = {
         homeBadge: btn.getAttribute("data-home-badge") || imgs[0]?.getAttribute("src") || "",
