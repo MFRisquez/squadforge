@@ -124,7 +124,7 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS / catalog that showed wrong avail flags
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v122"' in sw
+    assert 'CACHE = "futfantasy-v123"' in sw
     assert "if (isStatic || isBadgeCdn) return cached || fetched" in sw
     assert "Player catalog + shell HTML: network-first" in sw
     # Must not cache-first the catalog (stale availability after FPL sync).
@@ -136,12 +136,18 @@ def test_transfer_rail_hidden_on_phone_page_fit():
     assert "isBadgeCdn" in sw
     assert "isStatic || isCatalog || isBadgeCdn" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=122" in base
+    assert "sw.js?v=123" in base
 
     squad = (STATIC / "squadboard.js").read_text(encoding="utf-8")
     assert "ff-players-updated" in squad
     assert "function applyPlayersCatalog" in squad
     assert "notify: true" in squad
+    # ADD PLAYER picker: columns, no mini-radar triangle mistaken for doubt
+    assert 'class="pick-team"' in squad
+    assert 'class="pick-avail' in squad
+    assert "Available" in squad and "Doubt" in squad
+    assert "pick-radar" not in squad or "display: none" in (STATIC / "styles.css").read_text(encoding="utf-8")
+    assert "miniRadarSvg(p)" not in squad[squad.find("pickerList.innerHTML") : squad.find("function pickPlayer")]
 
 
 def test_transfers_pitch_price_frame_and_pending_white_border():
@@ -328,16 +334,18 @@ def test_desktop_pitch_rail_uses_flex_leftover_height():
 
 
 def test_mobile_picker_rows_are_horizontal():
-    """Phone picker: name/team/price share one row (not stacked/centered columns)."""
+    """Phone picker: Name | Team | Avail | Club | Price (+ ⓘ) — no stacked columns."""
     css = (STATIC / "styles.css").read_text(encoding="utf-8")
-    start = css.find("Mobile picker: one horizontal row")
+    start = css.find("Mobile picker: Name | Team | Avail | Club | Price")
     assert start >= 0
-    chunk = css[start : start + 1600]
-    assert "flex-direction: row" in chunk
+    chunk = css[start : start + 1800]
     assert "text-align: center" not in chunk
     assert "justify-items: center" not in chunk
-    assert "grid-template-columns: minmax(0, 1fr) auto auto" in chunk
-    assert ".pick-row .grow" in chunk
+    assert "grid-template-columns: minmax(0, 1.2fr) 2.35rem 3.9rem 2.35rem 2.85rem" in chunk
+    assert ".pick-team" in css
+    assert ".pick-avail" in css
+    assert ".pick-club" in css
+    assert "display: none" in css[css.find(".pick-radar") : css.find(".pick-radar") + 120]
 
     """Owned rows use accent bar only — no side ✓ mark."""
     css = (STATIC / "styles.css").read_text(encoding="utf-8")

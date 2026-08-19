@@ -207,17 +207,21 @@
       const budgetBlocked = p.price > maxAfford + 1e-9;
       const blocked = clubBlocked || budgetBlocked;
       const li = document.createElement("li");
-      const availNote =
-        p.availability === "doubt" ? " · doubtful" : p.availability === "out" ? " · out" : "";
-      let limitNote = "";
+      const avail = p.availability || "ok";
+      const availLabel =
+        avail === "out" ? "Out" : avail === "doubt" ? "Doubt" : "Available";
+      let clubLabel = `${clubN}/${MAX_CLUB}`;
+      let clubClass = "pick-club";
       if (clubBlocked) {
-        limitNote = `<span class="club-limit">3/${MAX_CLUB} club</span>`;
+        clubLabel = `${MAX_CLUB}/${MAX_CLUB}`;
+        clubClass = "pick-club is-limit";
       } else if (budgetBlocked) {
-        limitNote = `<span class="club-limit is-budget">Over budget</span>`;
-      } else if (clubN > 0) {
-        limitNote = `<span class="muted tiny"> · ${clubN}/${MAX_CLUB}</span>`;
+        clubLabel = "Over £";
+        clubClass = "pick-club is-budget";
+      } else if (clubN === 0) {
+        clubLabel = "—";
       }
-      li.innerHTML = `<button type="button" class="pick-row avail-${p.availability || "ok"}${blocked ? " is-blocked" : ""}" ${blocked ? "disabled" : ""}><span class="grow"><strong>${p.name}</strong> <span class="muted">${p.position} · ${p.team}${availNote}</span>${limitNote}</span><span class="pick-radar" title="Threat · Creativity · CBI">${miniRadarSvg(p)}</span><span>£${p.price.toFixed(1)}m</span></button>`;
+      li.innerHTML = `<button type="button" class="pick-row avail-${avail}${blocked ? " is-blocked" : ""}" ${blocked ? "disabled" : ""}><span class="pick-name">${p.name}</span><span class="pick-team">${p.team}</span><span class="pick-avail avail-text-${avail === "ok" ? "ok" : avail}">${availLabel}</span><span class="${clubClass}">${clubLabel}</span><span class="pick-price">£${p.price.toFixed(1)}</span></button>`;
       const btn = li.querySelector("button");
       if (!blocked) {
         btn.addEventListener("click", () => {
