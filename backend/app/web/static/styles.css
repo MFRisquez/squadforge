@@ -4086,11 +4086,11 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   .desk-squad,
   .desk-xi {
     display: grid;
-    grid-template-columns: minmax(0, 1.65fr) minmax(16.5rem, 1fr);
+    grid-template-columns: minmax(0, 1.65fr) minmax(17.25rem, 1fr);
     gap: 0.55rem;
     align-items: stretch;
     min-height: 0;
-    --desk-side-w: 16.5rem;
+    --desk-side-w: 17.25rem;
   }
   .desk-xi:has(> .desk-side-left),
   .desk-squad:has(> .desk-side-left) {
@@ -4120,7 +4120,7 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   /* Widen shell so left rail does not steal pitch / FA width; GW bar follows shell. */
   body.page-xi:not(.page-opponent).page-fit .shell,
   body.page-squad:not(.page-onboard).page-fit .shell {
-    width: min(90rem, 100%);
+    width: min(94rem, 100%);
   }
   .desk-squad > .desk-side-left,
   .desk-xi > .desk-side-left {
@@ -4366,11 +4366,11 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     padding-top: 0.58rem;
     padding-bottom: 0.58rem;
   }
-  .transfer-rail-row .tr-name strong { font-size: 0.9rem; }
-  .transfer-rail-row .tr-name span { font-size: 0.68rem; }
+  .transfer-rail-row .tr-name strong { font-size: 1.02rem; }
+  .transfer-rail-row .tr-name span { font-size: 0.78rem; }
   .transfer-rail-row .tr-price,
   .transfer-rail-row .tr-form,
-  .transfer-rail-row .tr-pts { font-size: 0.84rem; }
+  .transfer-rail-row .tr-pts { font-size: 0.95rem; }
   .transfer-rail-list {
     flex: 1 1 auto;
     min-height: 0;
@@ -4593,13 +4593,12 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     margin-left: 0;
     margin-right: 0;
   }
-  /* Desktop mid: shared token (XI down from 4.7; Transfers meets mid).
-     Transfers height is mostly stack chrome — compact that, keep labels. */
+  /* Desktop mid: fill more of the widened shell without edge-to-edge shirts. */
   body.page-xi .xi-pitch-wrap,
   .desk-board.desk-xi .xi-pitch-wrap,
   body.page-squad .squad-pitch-wrap,
   .desk-board.desk-squad .squad-pitch-wrap {
-    --pitch-token-w: 4.4rem;
+    --pitch-token-w: 4.9rem;
   }
   .xi-pitch,
   .squad-pitch {
@@ -5358,7 +5357,7 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     display: inline-block;
     background: #000000;
     color: #fff;
-    font-size: 0.78rem;
+    font-size: 0.86rem;
     font-weight: 800;
     letter-spacing: 0.02em;
     padding: 0.22rem 0.65rem;
@@ -5371,13 +5370,13 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   }
   body.page-xi .xi-bench-cols {
     display: grid;
-    grid-template-columns: 2.2rem minmax(0, 1.2fr) minmax(0, 1.15fr) minmax(0, 1fr) 3.75rem;
+    grid-template-columns: 2.55rem minmax(0, 1.2fr) minmax(0, 1.15fr) minmax(0, 1fr) 3.9rem;
     gap: 0.38rem;
     align-items: center;
     padding: 0 0 0.14rem;
     margin-bottom: 0.06rem;
     border-bottom: 1px solid var(--line);
-    font-size: 0.57rem;
+    font-size: 0.64rem;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.03em;
@@ -5388,7 +5387,7 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   body.page-xi .xi-bench-stack .xi-bench-row {
     width: 100%;
     display: grid;
-    grid-template-columns: 2.2rem minmax(0, 1fr);
+    grid-template-columns: 2.55rem minmax(0, 1fr);
     align-items: center;
     justify-items: stretch;
     gap: 0.38rem;
@@ -5396,22 +5395,22 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   }
   body.page-xi .xi-bench-stack .xi-shirt,
   body.page-xi .xi-bench-stack .xi-bench-mini {
-    width: 2.2rem !important;
+    width: 2.55rem !important;
     min-height: 0;
     padding: 0;
   }
   body.page-xi .xi-bench-stack .shirt-kit {
-    min-height: 2.6rem !important;
+    min-height: 2.95rem !important;
     padding: 0;
   }
   body.page-xi .xi-bench-stack .jersey-img {
-    width: 1.95rem !important;
+    width: 2.25rem !important;
   }
   body.page-xi .xi-bench-stack .shirt-overlay { display: none !important; }
   body.page-xi .xi-bench-stack .shirt-status-flag { display: none; }
   body.page-xi .xi-bench-meta {
     display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.15fr) minmax(0, 1fr) 3.75rem;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.15fr) minmax(0, 1fr) 3.9rem;
     gap: 0.38rem;
     align-items: center;
     min-width: 0;
@@ -5419,7 +5418,7 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     width: 100%;
   }
   body.page-xi .xi-bench-name {
-    font-size: 0.75rem;
+    font-size: 0.86rem;
     font-weight: 800;
     white-space: nowrap;
     overflow: hidden;
@@ -5428,7 +5427,7 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   }
   body.page-xi .xi-bench-team,
   body.page-xi .xi-bench-pos {
-    font-size: 0.68rem;
+    font-size: 0.78rem;
     font-weight: 700;
     color: var(--muted);
     white-space: nowrap;
@@ -5445,7 +5444,7 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     margin-top: 0;
     padding: 0.12rem 0.24rem;
     border-radius: 0.3rem;
-    font-size: 0.62rem;
+    font-size: 0.72rem;
     font-weight: 800;
     background: #000000;
     color: #fff;
@@ -5472,7 +5471,7 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     display: inline-block;
     background: #000000;
     color: #fff;
-    font-size: 0.78rem;
+    font-size: 0.86rem;
     font-weight: 800;
     letter-spacing: 0.02em;
     padding: 0.22rem 0.65rem;
@@ -5480,7 +5479,7 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   }
   body.page-xi .xi-live-leader {
     margin: 0.28rem 0 0;
-    font-size: 0.68rem;
+    font-size: 0.78rem;
     font-weight: 800;
     color: #000000;
   }
@@ -5530,19 +5529,19 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   }
   body.page-xi .xi-live-table {
     width: 100%;
-    font-size: 0.7rem;
+    font-size: 0.82rem;
     border-collapse: collapse;
     table-layout: fixed;
   }
   body.page-xi .xi-live-table th,
   body.page-xi .xi-live-table td {
-    padding: 0.12rem 0.14rem;
+    padding: 0.14rem 0.16rem;
     line-height: 1.15;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   body.page-xi .xi-live-table th {
-    font-size: 0.68em;
+    font-size: 0.72em;
   }
   body.page-xi .xi-live-table th:first-child,
   body.page-xi .xi-live-table td:first-child {
@@ -5551,11 +5550,11 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   body.page-xi .xi-live-section td,
   body.page-xi .xi-live-split td {
     text-align: left !important;
-    font-size: 0.52rem;
+    font-size: 0.6rem;
     font-weight: 900;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    padding: 0.16rem 0.24rem !important;
+    padding: 0.18rem 0.24rem !important;
   }
   body.page-xi .xi-live-section td {
     background: rgba(182, 219, 0, 0.16);
@@ -8185,13 +8184,13 @@ body > .chip-tip.is-open-tip {
 @media (min-width: 900px) {
   .desk-squad {
     display: grid;
-    grid-template-columns: minmax(0, 1.7fr) minmax(15.5rem, 1fr);
+    grid-template-columns: minmax(0, 1.7fr) minmax(16.75rem, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
     gap: 0.45rem;
     align-items: stretch;
     min-height: 0;
     overflow: hidden;
-    --desk-side-w: 15.5rem;
+    --desk-side-w: 16.75rem;
   }
   .desk-squad:has(> .desk-side-left) {
     grid-template-columns: var(--desk-side-w) minmax(0, 1fr) var(--desk-side-w);
