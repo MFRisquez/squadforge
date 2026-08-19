@@ -4210,18 +4210,31 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   }
   .desk-side-xfer-league {
     display: grid;
-    gap: 0.22rem;
-    margin-top: 0.35rem;
+    gap: 0.35rem;
+    margin-top: 0.4rem;
   }
   .desk-side-xfer-league h3 {
     margin: 0;
-    font-size: 0.72rem;
+    font-size: 0.78rem;
+  }
+  .desk-side-xfer-tables {
+    display: grid;
+    gap: 0.45rem;
+  }
+  .desk-side-xfer-table {
+    display: grid;
+    gap: 0.18rem;
+    padding: 0.35rem 0.4rem 0.4rem;
+    border: 1px solid var(--line);
+    border-radius: 0.45rem;
+    background: #fafafa;
   }
   .desk-side-xfer-label {
-    margin: 0.15rem 0 0;
-    font-size: 0.58rem;
+    margin: 0;
+    font-size: 0.62rem;
     letter-spacing: 0.04em;
     text-transform: uppercase;
+    font-weight: 800;
     color: var(--muted);
   }
   .desk-side-xfer-list {
@@ -4235,12 +4248,15 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     display: flex;
     justify-content: space-between;
     gap: 0.35rem;
-    font-size: 0.72rem;
+    font-size: 0.78rem;
   }
   .desk-side-xfer-list span {
     color: var(--muted);
     white-space: nowrap;
+    font-weight: 700;
   }
+  .desk-side-xfer-in li span { color: #2f6b00; }
+  .desk-side-xfer-out li span { color: #9b1c1c; }
   .save-confirm-sheet {
     max-height: min(70dvh, 28rem);
   }

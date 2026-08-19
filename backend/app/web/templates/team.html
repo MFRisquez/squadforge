@@ -31,22 +31,32 @@
           {% if block.empty %}
           <p class="muted tiny">No transfers logged yet this GW.</p>
           {% else %}
-          {% if block.most_in %}
-          <p class="desk-side-xfer-label">Most in</p>
-          <ul class="desk-side-xfer-list">
-            {% for row in block.most_in %}
-            <li><strong>{{ row.name }}</strong><span>{{ row.count }} in</span></li>
-            {% endfor %}
-          </ul>
-          {% endif %}
-          {% if block.most_out %}
-          <p class="desk-side-xfer-label">Most out</p>
-          <ul class="desk-side-xfer-list">
-            {% for row in block.most_out %}
-            <li><strong>{{ row.name }}</strong><span>{{ row.count }} out</span></li>
-            {% endfor %}
-          </ul>
-          {% endif %}
+          <div class="desk-side-xfer-tables">
+            <div class="desk-side-xfer-table" aria-label="Most transferred in">
+              <p class="desk-side-xfer-label">Most transferred IN</p>
+              {% if block.most_in %}
+              <ul class="desk-side-xfer-list desk-side-xfer-in">
+                {% for row in block.most_in %}
+                <li><strong>{{ row.name }}</strong><span>{{ row.count }}</span></li>
+                {% endfor %}
+              </ul>
+              {% else %}
+              <p class="muted tiny">—</p>
+              {% endif %}
+            </div>
+            <div class="desk-side-xfer-table" aria-label="Most transferred out">
+              <p class="desk-side-xfer-label">Most transferred OUT</p>
+              {% if block.most_out %}
+              <ul class="desk-side-xfer-list desk-side-xfer-out">
+                {% for row in block.most_out %}
+                <li><strong>{{ row.name }}</strong><span>{{ row.count }}</span></li>
+                {% endfor %}
+              </ul>
+              {% else %}
+              <p class="muted tiny">—</p>
+              {% endif %}
+            </div>
+          </div>
           {% endif %}
         </div>
         {% endfor %}
