@@ -149,3 +149,91 @@ def test_manager_gw_transfer_rows_listed():
         assert payload["my_transfers"][0]["out_id"] == p_out.id
     finally:
         db.close()
+
+
+def test_top_scorers_sum_across_rebuys():
+    """Sell + re-buy the same player: points from both stints must add."""
+    from app.models import Gameweek, OwnedPlayer, Player
+
+    db = SessionLocal()
+    try:
+        m = league_svc.register_manager(
+            db,
+            display_name="ScorerA",
+            password="secret12",
+            email="scorera@example.com",
+            team_name="Scorer FC",
+        )
+        gws = db.query(Gameweek).order_by(Gameweek.number).limit(3).all()
+        assert len(gws) >= 3
+        g1, g2, g3 = gws[0], gws[1], gws[2]
+        players = db.query(Player).limit(3).all()
+        assert len(players) >= 3
+        star, filler, temp = players[0], players[1], players[2]
+
+        # Current squad includes star (re-bought) + filler.
+        db.add(OwnedPlayer(manager_id=m.id, player_id=star.id))
+        db.add(OwnedPlayer(manager_id=m.id, player_id=filler.id))
+        # GW2: sell star → temp; GW3: sell temp → star (re-buy)
+        db.add(
+            TransferLog(
+                manager_id=m.id,
+                gameweek_id=g2.id,
+                player_out_id=star.id,
+                player_in_id=temp.id,
+                free_transfers_after=1,
+                is_hit=0,
+            )
+        )
+        db.add(
+            TransferLog(
+                manager_id=m.id,
+                gameweek_id=g3.id,
+                player_out_id=temp.id,
+                player_in_id=star.id,
+                free_transfers_after=1,
+                is_hit=0,
+            )
+        )
+        # Scores: star 10 in GW1 (owned), 0 in GW2 (not owned), 7 in GW3 (owned again)
+        import json
+
+        def _score(gw, lines):
+            db.add(
+                ManagerGameweekScore(
+                    manager_id=m.id,
+                    gameweek_id=gw.id,
+                    total=sum(float(x["points"]) for x in lines),
+                    breakdown_json=json.dumps({"players": lines}),
+                )
+            )
+
+        _score(g1, [{"player_id": star.id, "points": 10}, {"player_id": filler.id, "points": 2}])
+        _score(g2, [{"player_id": temp.id, "points": 5}, {"player_id": filler.id, "points": 1}])
+        _score(g3, [{"player_id": star.id, "points": 7}, {"player_id": filler.id, "points": 3}])
+        db.commit()
+
+        desk_side_svc.clear_desk_side_caches()
+        owned = desk_side_svc.ownership_by_gw_number(db, m.id)
+        assert star.id in owned[g1.number]
+        assert star.id not in owned[g2.number]
+        assert star.id in owned[g3.number]
+
+        top = desk_side_svc.manager_top_scorers_while_owned(
+            db, manager_id=m.id, current_gw_id=g3.id, limit=5
+        )
+        by_id = {r["player_id"]: r["points"] for r in top}
+        assert by_id[star.id] == 17.0  # 10 + 7, not reset on re-buy
+        assert by_id[filler.id] == 6.0  # 2+1+3
+        assert temp.id not in by_id or by_id.get(temp.id) == 5.0
+
+        # TTL cache hit
+        key = (int(m.id), int(g3.id))
+        ts1 = desk_side_svc._TOP_SCORERS_CACHE[key][0]
+        top2 = desk_side_svc.manager_top_scorers_while_owned(
+            db, manager_id=m.id, current_gw_id=g3.id, limit=5
+        )
+        assert top2[0]["points"] == top[0]["points"]
+        assert desk_side_svc._TOP_SCORERS_CACHE[key][0] == ts1
+    finally:
+        db.close()

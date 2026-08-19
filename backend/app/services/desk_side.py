@@ -2,13 +2,23 @@
 
 from __future__ import annotations
 
+import json
 import time
+from collections import defaultdict
 from typing import Any
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models import League, Membership, Player, TransferLog
+from app.models import (
+    Gameweek,
+    League,
+    ManagerGameweekScore,
+    Membership,
+    OwnedPlayer,
+    Player,
+    TransferLog,
+)
 from app.services import deadline as deadline_svc
 from app.services import standings as standings_svc
 from app.services import td as td_svc
@@ -18,12 +28,140 @@ _RANK_TTL = 45.0
 # (league_id, gw_id) -> (monotonic_ts, {manager_id: card_fields})
 _RANK_CACHE: dict[tuple[int, int], tuple[float, dict[int, dict[str, Any]]]] = {}
 
+# Top scorers while-owned: longer TTL — walk TransferLog + scores is heavier.
+_TOP_SCORERS_TTL = 180.0
+# (manager_id, current_gw_id) -> (monotonic_ts, top rows)
+_TOP_SCORERS_CACHE: dict[tuple[int, int], tuple[float, list[dict[str, Any]]]] = {}
+
 # Minimum active managers before "top transfers" is meaningful.
 MIN_MANAGERS_FOR_TOP_TRANSFERS = 4
 
 
 def clear_desk_side_caches() -> None:
     _RANK_CACHE.clear()
+    _TOP_SCORERS_CACHE.clear()
+
+
+def _parse_breakdown(raw: str | None) -> dict[str, Any]:
+    try:
+        data = json.loads(raw or "{}")
+    except json.JSONDecodeError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def ownership_by_gw_number(db: Session, manager_id: int) -> dict[int, set[int]]:
+    """Reconstruct which player_ids were owned for each scored GW.
+
+    Starts from current OwnedPlayer and undoes TransferLog rows newest→oldest
+    so re-bought players accumulate points across separate ownership stints.
+    """
+    current = {
+        int(pid)
+        for (pid,) in db.query(OwnedPlayer.player_id)
+        .filter(OwnedPlayer.manager_id == manager_id)
+        .all()
+    }
+    logs = (
+        db.query(TransferLog, Gameweek.number)
+        .join(Gameweek, Gameweek.id == TransferLog.gameweek_id)
+        .filter(TransferLog.manager_id == manager_id)
+        .order_by(Gameweek.number.desc(), TransferLog.id.desc())
+        .all()
+    )
+    by_gw: dict[int, list[TransferLog]] = defaultdict(list)
+    for log, num in logs:
+        by_gw[int(num)].append(log)
+
+    score_nums = [
+        int(n)
+        for (n,) in (
+            db.query(Gameweek.number)
+            .join(ManagerGameweekScore, ManagerGameweekScore.gameweek_id == Gameweek.id)
+            .filter(ManagerGameweekScore.manager_id == manager_id)
+            .distinct()
+            .all()
+        )
+    ]
+    transfer_nums = list(by_gw.keys())
+    all_nums = sorted(set(score_nums) | set(transfer_nums) | ({1} if current else set()))
+    if not all_nums:
+        return {}
+
+    squad = set(current)
+    owned: dict[int, set[int]] = {}
+    for n in sorted(all_nums, reverse=True):
+        owned[n] = set(squad)
+        for log in by_gw.get(n, []):
+            if log.player_in_id:
+                squad.discard(int(log.player_in_id))
+            if log.player_out_id:
+                squad.add(int(log.player_out_id))
+    return owned
+
+
+def manager_top_scorers_while_owned(
+    db: Session,
+    *,
+    manager_id: int,
+    current_gw_id: int,
+    limit: int = 5,
+) -> list[dict[str, Any]]:
+    """Top players by points contributed to this manager while owned (TTL-cached)."""
+    key = (int(manager_id), int(current_gw_id))
+    now = time.monotonic()
+    hit = _TOP_SCORERS_CACHE.get(key)
+    if hit is not None and (now - hit[0]) < _TOP_SCORERS_TTL:
+        return hit[1]
+
+    owned_by_num = ownership_by_gw_number(db, manager_id)
+    if not owned_by_num:
+        _TOP_SCORERS_CACHE[key] = (now, [])
+        return []
+
+    scores = (
+        db.query(ManagerGameweekScore, Gameweek.number)
+        .join(Gameweek, Gameweek.id == ManagerGameweekScore.gameweek_id)
+        .filter(ManagerGameweekScore.manager_id == manager_id)
+        .all()
+    )
+    totals: dict[int, float] = defaultdict(float)
+    for row, num in scores:
+        owned = owned_by_num.get(int(num)) or set()
+        if not owned:
+            continue
+        bd = _parse_breakdown(row.breakdown_json)
+        for line in bd.get("players") or []:
+            if not isinstance(line, dict):
+                continue
+            pid = line.get("player_id")
+            if pid is None:
+                continue
+            pid_i = int(pid)
+            if pid_i not in owned:
+                continue
+            totals[pid_i] += float(line.get("points") or 0)
+
+    if not totals:
+        _TOP_SCORERS_CACHE[key] = (now, [])
+        return []
+
+    ranked = sorted(totals.items(), key=lambda kv: (-kv[1], kv[0]))[:limit]
+    pids = [pid for pid, _ in ranked]
+    names = {
+        int(r[0]): r[1]
+        for r in db.query(Player.id, Player.name).filter(Player.id.in_(pids)).all()
+    }
+    rows = [
+        {
+            "player_id": pid,
+            "name": names.get(pid, f"#{pid}"),
+            "points": round(pts, 1),
+        }
+        for pid, pts in ranked
+    ]
+    _TOP_SCORERS_CACHE[key] = (now, rows)
+    return rows
 
 
 def _league_rank_map(db: Session, league: League, gw) -> dict[int, dict[str, Any]]:
@@ -125,6 +263,9 @@ def xi_side_left_payload(
             "message": (banner or {}).get("message"),
         },
         "leagues": manager_league_cards(db, leagues, manager_id, gw),
+        "top_scorers": manager_top_scorers_while_owned(
+            db, manager_id=manager_id, current_gw_id=int(gw.id)
+        ),
     }
 
 

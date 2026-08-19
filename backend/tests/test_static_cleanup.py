@@ -200,9 +200,11 @@ def test_desk_side_left_layout_phase0():
     assert "desk-side-xfer-list" in css
     assert "desk-side-xfer-tables" in css
     assert "desk-side-my-xfer-list" in css
+    assert "desk-side-scorer-list" in css
     assert "Most transferred IN" in team
     assert "Most transferred OUT" in team
     assert 'id="myGwTransfers"' in team
+    assert "Your top scorers" in (TEMPLATES / "lineup.html").read_text(encoding="utf-8")
     assert 'id="saveConfirm"' not in team
     assert "openSaveConfirm" not in (STATIC / "squadboard.js").read_text(encoding="utf-8")
     assert "appendMyGwTransfers" in (STATIC / "squadboard.js").read_text(encoding="utf-8")

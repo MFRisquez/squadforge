@@ -4208,6 +4208,35 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     font-size: 0.66rem;
     color: var(--muted);
   }
+  .desk-side-scorer-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.22rem;
+  }
+  .desk-side-scorer-list li {
+    display: grid;
+    grid-template-columns: 1.1rem minmax(0, 1fr) auto;
+    gap: 0.35rem;
+    align-items: center;
+    font-size: 0.78rem;
+  }
+  .desk-side-scorer-rank {
+    color: var(--muted);
+    font-weight: 800;
+    font-size: 0.68rem;
+  }
+  .desk-side-scorer-list strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .desk-side-scorer-list span:last-child {
+    font-weight: 800;
+    white-space: nowrap;
+  }
   .desk-side-xfer-league {
     display: grid;
     gap: 0.35rem;
