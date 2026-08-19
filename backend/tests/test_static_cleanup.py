@@ -241,6 +241,10 @@ def test_appshell_softnav_perf_instrumentation():
     assert 'timed("ctx.current_manager")' in routes
     assert 'timed("team.owned_players")' in routes
     assert "attach_server_perf_header" in routes
+    # /team reuses auth manager + resolve_gw current + known squad flag in _ctx
+    assert "manager=manager," in routes
+    assert 'gw=view["current_gw"]' in routes
+    assert "has_complete_squad=squad_complete" in routes
     catalog = (
         Path(__file__).resolve().parents[1] / "app" / "services" / "player_catalog.py"
     ).read_text(encoding="utf-8")

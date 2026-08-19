@@ -185,28 +185,51 @@ def _resolve_gw(request: Request, db: Session):
 
 
 def _ctx(request: Request, db: Session, **extra):
+    """Shared template context. Pass manager/gw/nav_leagues/has_complete_squad/
+    demo_data_active in extra to skip re-querying values the caller already has.
+    """
     from app.perf_trace import timed
 
-    with timed("ctx.current_manager"):
-        manager = current_manager(request, db)
-    gw = None
-    try:
-        with timed("ctx.current_gameweek"):
-            gw = squad_svc.current_gameweek(db)
-    except Exception:
-        pass
-    with timed("ctx.manager_leagues"):
-        leagues = league_svc.manager_leagues(db, manager.id) if manager else []
-    with timed("ctx.has_complete_squad"):
-        has_squad = bool(manager and manager_has_complete_squad(db, manager.id))
-    demo_data_active = False
-    try:
-        from app.services import live_scoring as live_svc
+    if "manager" in extra:
+        manager = extra["manager"]
+    else:
+        with timed("ctx.current_manager"):
+            manager = current_manager(request, db)
 
-        with timed("ctx.demo_scoring_active"):
-            demo_data_active = live_svc.is_demo_scoring_active(db, gw)
-    except Exception:
+    if "gw" in extra:
+        gw = extra["gw"]
+    else:
+        gw = None
+        try:
+            with timed("ctx.current_gameweek"):
+                gw = squad_svc.current_gameweek(db)
+        except Exception:
+            pass
+
+    if "nav_leagues" in extra:
+        leagues = extra["nav_leagues"]
+    else:
+        with timed("ctx.manager_leagues"):
+            leagues = league_svc.manager_leagues(db, manager.id) if manager else []
+
+    if "has_complete_squad" in extra:
+        has_squad = bool(extra["has_complete_squad"])
+    else:
+        with timed("ctx.has_complete_squad"):
+            has_squad = bool(manager and manager_has_complete_squad(db, manager.id))
+
+    if "demo_data_active" in extra:
+        demo_data_active = bool(extra["demo_data_active"])
+    else:
         demo_data_active = False
+        try:
+            from app.services import live_scoring as live_svc
+
+            with timed("ctx.demo_scoring_active"):
+                demo_data_active = live_svc.is_demo_scoring_active(db, gw)
+        except Exception:
+            demo_data_active = False
+
     data = {
         "request": request,
         "app_name": settings.app_name,
@@ -916,10 +939,16 @@ def _squad_board_response(
         )
     with timed("team.player_count"):
         player_count = db.query(Player).count()
+    # Reuse auth manager + resolve_gw current_gw + known squad completeness —
+    # do not re-run those queries inside _ctx (was ~186ms of duplicate RTT).
+    squad_complete = template_name != "onboard.html"
     with timed("team.ctx"):
         ctx = _ctx(
             request,
             db,
+            manager=manager,
+            gw=view["current_gw"],
+            has_complete_squad=squad_complete,
             owned=owned,
             spend=spend,
             pick_rows=pick_rows,
@@ -958,8 +987,17 @@ def _squad_board_response(
             ok=request.query_params.get("ok"),
             error=request.query_params.get("error") or request.query_params.get("chip_error"),
             notice=resolved_notice,
-            **view,
+            # view fields except gw (gw above is current for demo_scoring;
+            # templates need the *viewed* gameweek as gw)
+            current_gw=view["current_gw"],
+            edits_locked=view["edits_locked"],
+            deadline_label=view["deadline_label"],
+            prev_gw=view["prev_gw"],
+            next_gw=view["next_gw"],
+            all_gws=view["all_gws"],
+            current_gw_number=view["current_gw_number"],
         )
+        ctx["gw"] = view["gw"]
     with timed("team.template_render"):
         return templates.TemplateResponse(template_name, ctx)
 
