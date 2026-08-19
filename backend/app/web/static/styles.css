@@ -5460,16 +5460,20 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   }
   body.page-fixtures .fixture-detail-panel {
     position: static;
-    height: 100%;
+    /* Size to content — do not stretch to the (taller) fixture list height. */
+    height: auto;
     min-height: 0;
+    align-self: start;
     display: flex;
     flex-direction: column;
   }
   body.page-fixtures .fixture-detail-panel .match-detail-body {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     min-height: 0;
-    max-height: none;
+    max-height: min(70vh, 42rem);
     overflow: auto;
+    /* Keep free space at the bottom; never distribute it between sections. */
+    align-content: start;
     padding: 0.7rem 0.85rem 0.9rem;
   }
   body.page-fixtures .fixture-detail-panel .match-scoreline .fx-badge,
