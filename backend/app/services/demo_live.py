@@ -38,8 +38,10 @@ def _clear_backup(gw: Gameweek) -> None:
     gw.name = raw.split("\x1e", 1)[0] or f"Gameweek {gw.number}"
 
 
-def is_live_demo_active(db: Session) -> bool:
-    gw = squad_svc.current_gameweek(db)
+def is_live_demo_active(db: Session, gw: Gameweek | None = None) -> bool:
+    """True when the current GW name carries a DEMO_LIVE backup marker."""
+    if gw is None:
+        gw = squad_svc.current_gameweek(db)
     return _decode_backup(gw) is not None
 
 
