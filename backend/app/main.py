@@ -23,7 +23,11 @@ _DEFAULT_SECRET_KEY = "squadforge-dev-change-me"
 
 app = FastAPI(title=settings.app_name)
 app.add_middleware(GZipMiddleware, minimum_size=500)
-app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, https_only=True)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.secret_key,
+    https_only=not settings.debug,
+)
 app.include_router(api_router)
 app.include_router(web_router)
 

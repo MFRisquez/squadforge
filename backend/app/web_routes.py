@@ -1298,19 +1298,27 @@ async def lineup_role(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/lineup", response_class=HTMLResponse)
 def lineup_page(request: Request, db: Session = Depends(get_db)):
-    manager = current_manager(request, db)
+    from app.perf_trace import attach_server_perf_header, perf_begin, timed
+
+    perf_begin()
+    with timed("lineup.auth.current_manager"):
+        manager = current_manager(request, db)
     if not manager:
         return RedirectResponse("/login", status_code=303)
     from app.services import chips as chips_svc
 
     try:
-        view = _resolve_gw(request, db)
+        with timed("lineup.resolve_gw"):
+            view = _resolve_gw(request, db)
     except squad_svc.SquadError as exc:
         return RedirectResponse(f"/?error={quote(str(exc))}", status_code=303)
     gw = view["gw"]
-    squad_svc.bank_free_transfers(db, manager.id, view["current_gw"].number)
-    chips_svc.restore_free_hits_if_needed(db, manager_id=manager.id, current_gw=view["current_gw"])
-    owned = squad_svc.owned_players(db, manager.id)
+    with timed("lineup.bank_ft"):
+        squad_svc.bank_free_transfers(db, manager.id, view["current_gw"].number)
+    with timed("lineup.restore_fh"):
+        chips_svc.restore_free_hits_if_needed(db, manager_id=manager.id, current_gw=view["current_gw"])
+    with timed("lineup.owned"):
+        owned = squad_svc.owned_players(db, manager.id)
     if len(owned) != settings.squad_size:
         return RedirectResponse("/onboard", status_code=303)
     picks = (
@@ -1395,7 +1403,6 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
         for p in picks
     }
     td_info = td_svc.td_view(db, manager.id, gw.number, gameweek_id=gw.id)
-    from app.perf_trace import timed
     from app.services import desk_side as desk_side_svc
     from app.services import league as league_svc
 
@@ -1426,47 +1433,49 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
     )
     played_count = max(0, len(starters) - left_to_play)
 
-    return templates.TemplateResponse(
-        "lineup.html",
-        _ctx(
-            request,
-            db,
-            manager=manager,
-            has_complete_squad=True,
-            nav_leagues=nav_leagues,
-            owned_json=_owned_payload(owned, db, gw_number=gw.number),
-            initial_lineup={
-                "starters": starters,
-                "captain": captain,
-                "vice": vice,
-                "locked": view["edits_locked"],
-                "captainEditable": captain_editable,
-                "fixtureStarted": fixture_started,
-                "captainArmed": armed,
-                "gw": gw.number,
-                "points": points_map,
-                "breakdowns": points_breakdown,
-                "gwTotal": gw_total,
-                "activeChip": active_chip.chip if active_chip else None,
-                "superSubPlayerId": super_sub_player_id,
-            },
-            spend=squad_svc.squad_spend(owned),
-            gw_total=gw_total,
-            any_fixture_started=any_fixture_started,
-            captain_name=captain_name,
-            left_to_play=left_to_play,
-            played_count=played_count,
-            chips=chips,
-            active_chip=active_chip,
-            bench_options=bench_options,
-            captain_editable=captain_editable,
-            td_info=td_info,
-            xi_side_left=xi_side_left,
-            notice=notice,
-            error=error,
-            **view,
-        ),
-    )
+    with timed("lineup.template_render"):
+        resp = templates.TemplateResponse(
+            "lineup.html",
+            _ctx(
+                request,
+                db,
+                manager=manager,
+                has_complete_squad=True,
+                nav_leagues=nav_leagues,
+                owned_json=_owned_payload(owned, db, gw_number=gw.number),
+                initial_lineup={
+                    "starters": starters,
+                    "captain": captain,
+                    "vice": vice,
+                    "locked": view["edits_locked"],
+                    "captainEditable": captain_editable,
+                    "fixtureStarted": fixture_started,
+                    "captainArmed": armed,
+                    "gw": gw.number,
+                    "points": points_map,
+                    "breakdowns": points_breakdown,
+                    "gwTotal": gw_total,
+                    "activeChip": active_chip.chip if active_chip else None,
+                    "superSubPlayerId": super_sub_player_id,
+                },
+                spend=squad_svc.squad_spend(owned),
+                gw_total=gw_total,
+                any_fixture_started=any_fixture_started,
+                captain_name=captain_name,
+                left_to_play=left_to_play,
+                played_count=played_count,
+                chips=chips,
+                active_chip=active_chip,
+                bench_options=bench_options,
+                captain_editable=captain_editable,
+                td_info=td_info,
+                xi_side_left=xi_side_left,
+                notice=notice,
+                error=error,
+                **view,
+            ),
+        )
+    return attach_server_perf_header(resp, path="/lineup")
 
 
 @router.post("/lineup/save")
