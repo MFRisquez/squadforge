@@ -1,4 +1,4 @@
-"""POST /api/client-perf accepts soft-nav timing payloads."""
+"""POST/GET /api/client-perf soft-nav timing buffer."""
 
 from fastapi.testclient import TestClient
 
@@ -26,3 +26,23 @@ def test_client_perf_endpoint_defaults():
     r = client.post("/api/client-perf", json={})
     assert r.status_code == 200
     assert r.json().get("ok") is True
+
+
+def test_client_perf_get_returns_ring_buffer():
+    client = TestClient(app, base_url="https://testserver")
+    client.post(
+        "/api/client-perf",
+        json={
+            "url": "/rules",
+            "fetch_ms": 100,
+            "scripts_ms": 50,
+            "total_ms": 150,
+            "from_cache": True,
+        },
+    )
+    r = client.get("/api/client-perf?limit=10")
+    assert r.status_code == 200
+    data = r.json()
+    assert data.get("ok") is True
+    assert data.get("count", 0) >= 1
+    assert any(e.get("url") == "/rules" for e in data.get("events", []))

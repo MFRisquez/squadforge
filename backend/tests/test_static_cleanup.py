@@ -232,6 +232,8 @@ def test_appshell_softnav_perf_instrumentation():
     api = API_INIT.read_text(encoding="utf-8")
     assert '="/client-perf"' in api or '"/client-perf"' in api
     assert "squadforge.client_perf" in api
+    assert "_SOFTNAV_PERF" in api
+    assert "def client_perf_list" in api
 
 
 def test_desktop_pitch_rail_uses_flex_leftover_height():

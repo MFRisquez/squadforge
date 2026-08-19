@@ -39,12 +39,29 @@ class SoftNavPerfBody(BaseModel):
     from_cache: bool = False
 
 
+# In-memory ring buffer so we can read timings without Render log access.
+_SOFTNAV_PERF: list[dict] = []
+_SOFTNAV_PERF_MAX = 80
+
+
 @router.post("/client-perf")
 def client_perf(body: SoftNavPerfBody) -> dict:
     """Browser soft-nav timings (fetch vs scripts). Temporary measurement hook."""
     import logging
+    import time
 
     log = logging.getLogger("squadforge.client_perf")
+    entry = {
+        "ts": time.time(),
+        "url": body.url,
+        "fetch_ms": body.fetch_ms,
+        "scripts_ms": body.scripts_ms,
+        "total_ms": body.total_ms,
+        "from_cache": body.from_cache,
+    }
+    _SOFTNAV_PERF.append(entry)
+    if len(_SOFTNAV_PERF) > _SOFTNAV_PERF_MAX:
+        del _SOFTNAV_PERF[: len(_SOFTNAV_PERF) - _SOFTNAV_PERF_MAX]
     log.info(
         "softnav url=%s fetch_ms=%.1f scripts_ms=%.1f total_ms=%.1f from_cache=%s",
         body.url,
@@ -54,6 +71,13 @@ def client_perf(body: SoftNavPerfBody) -> dict:
         body.from_cache,
     )
     return {"ok": True}
+
+
+@router.get("/client-perf")
+def client_perf_list(limit: int = 40) -> dict:
+    """Recent soft-nav timings from this process (newest last)."""
+    n = max(1, min(int(limit or 40), _SOFTNAV_PERF_MAX))
+    return {"ok": True, "count": len(_SOFTNAV_PERF), "events": list(_SOFTNAV_PERF[-n:])}
 
 
 @router.post("/score")
