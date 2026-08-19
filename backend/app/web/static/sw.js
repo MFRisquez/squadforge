@@ -1,7 +1,7 @@
 /* FutFantasy phone app shell */
-const CACHE = "futfantasy-v125";
+const CACHE = "futfantasy-v126";
 const PRECACHE = [
-  "/static/styles.css",
+  "/static/styles.css?v=126",
   "/static/ui.js",
   "/static/chips.js",
   "/static/appshell.js",
@@ -43,6 +43,7 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   const isStatic = url.pathname.startsWith("/static/");
+  const isCss = isStatic && url.pathname.endsWith(".css");
   const isCatalog = url.pathname === "/api/players/catalog";
   const isBadgeCdn = url.hostname === BADGE_CDN_HOST;
   const isShell =
@@ -54,6 +55,7 @@ self.addEventListener("fetch", (event) => {
     url.pathname === "/rules" ||
     url.pathname === "/leagues" ||
     url.pathname === "/onboard" ||
+    url.pathname === "/xi" ||
     url.pathname.startsWith("/standings/") ||
     url.pathname.startsWith("/league");
 
@@ -66,7 +68,7 @@ self.addEventListener("fetch", (event) => {
           // Opaque cross-origin (no-cors <img>) has ok=false / status 0 — still cacheable.
           const okToCache =
             res && (res.ok || (isBadgeCdn && res.type === "opaque"));
-          // Catalog is network-first — still warm the cache for offline fallback only.
+          // Catalog / CSS: network-first — still warm cache for offline fallback only.
           if (okToCache && (isStatic || isCatalog || isBadgeCdn)) {
             const copy = res.clone();
             caches.open(CACHE).then((cache) => cache.put(req, copy));
@@ -75,11 +77,14 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(() => cached);
 
-      // Static + badge CDN: cache-first.
+      // CSS is network-first so desktop shirt/layout tweaks are not stuck on stale SW cache.
+      if (isCss || isCatalog || isShell) {
+        return fetched.then((res) => res || cached);
+      }
+
+      // Other static + badge CDN: cache-first.
       if (isStatic || isBadgeCdn) return cached || fetched;
 
-      // Player catalog + shell HTML: network-first so availability / GW stay live.
-      // Stale catalog was painting "doubt" flags for everyone after FPL syncs.
       return fetched.then((res) => res || cached);
     })
   );

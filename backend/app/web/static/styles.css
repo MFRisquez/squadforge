@@ -4427,14 +4427,14 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     margin-right: 0;
   }
   /* XI pitch is wider (narrow rail) — larger tokens fill the green.
-     Transfers packs 15 + price frame — slightly smaller/shorter tokens. */
+     Transfers packs 15 + price frame — smaller/shorter tokens. */
   body.page-xi .xi-pitch-wrap,
   .desk-board.desk-xi .xi-pitch-wrap {
-    --pitch-token-w: 5.4rem;
+    --pitch-token-w: 5.9rem;
   }
   body.page-squad .squad-pitch-wrap,
   .desk-board.desk-squad .squad-pitch-wrap {
-    --pitch-token-w: 4.25rem;
+    --pitch-token-w: 3.9rem;
   }
   .xi-pitch,
   .squad-pitch {
@@ -4471,25 +4471,31 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   .desk-board .jersey-img,
   .squad-pitch-wrap .jersey-img,
   .xi-pitch-wrap .jersey-img,
-  .xi-shirt .jersey-img,
-  body.page-squad .squad-pitch .squad-shirt.filled .jersey-img,
-  body.page-squad .squad-pitch-wrap .squad-shirt.filled .jersey-img {
-    width: 92%;
+  .xi-shirt .jersey-img {
+    width: 96%;
     max-width: 100%;
     height: auto;
+  }
+  /* Transfers: shorter jersey graphic inside the gray price frame */
+  body.page-squad .squad-pitch .squad-shirt.filled .jersey-img,
+  body.page-squad .squad-pitch-wrap .squad-shirt.filled .jersey-img {
+    width: 80%;
+  }
+  .desk-board .shirt-overlay,
+  .xi-shirt .shirt-overlay {
+    width: 96%;
+    max-width: 100%;
+  }
+  body.page-squad .squad-pitch .squad-shirt.filled .shirt-overlay,
+  body.page-squad .squad-pitch-wrap .squad-shirt.filled .shirt-overlay {
+    width: 100%;
+    max-width: 100%;
   }
   /* Kit height from jersey — no fixed tall empty box on XI */
   .desk-board .xi-shirt .shirt-kit,
   .desk-board .squad-shirt .shirt-kit,
   .xi-shirt .shirt-kit {
     min-height: 0;
-  }
-  .desk-board .shirt-overlay,
-  .xi-shirt .shirt-overlay,
-  body.page-squad .squad-pitch .squad-shirt.filled .shirt-overlay,
-  body.page-squad .squad-pitch-wrap .squad-shirt.filled .shirt-overlay {
-    width: 92%;
-    max-width: 100%;
   }
   /* Transfers: tighten price so the gray frame is less tall */
   body.page-squad .squad-pitch .squad-shirt.filled {
