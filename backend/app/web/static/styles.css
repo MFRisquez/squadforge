@@ -4731,6 +4731,31 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     align-self: stretch;
     overflow: hidden;
   }
+  /*
+   * XI desktop column reorder (Transfers untouched).
+   * Visual: pitch+chips | bench+live | DT/leagues/scorers.
+   * Tracks remapped so each panel keeps its prior width:
+   *   pitch → minmax(0, --desk-pitch-col), sides → minmax(--desk-side-w, 1fr).
+   * Rollback: delete this block only (HTML unchanged).
+   */
+  .desk-xi:has(> .desk-side-left) {
+    grid-template-columns:
+      minmax(0, var(--desk-pitch-col))
+      minmax(var(--desk-side-w), 1fr)
+      minmax(var(--desk-side-w), 1fr);
+  }
+  .desk-xi > .desk-main.desk-xi-main {
+    order: 1;
+    grid-column: 1;
+  }
+  .desk-xi > .xi-side-rail {
+    order: 2;
+    grid-column: 2;
+  }
+  .desk-xi > .desk-side-left {
+    order: 3;
+    grid-column: 3;
+  }
   /* Legacy 2-col boards (opponent / onboard): right rail stays column 2 */
   .desk-squad:not(:has(> .desk-side-left)) > .transfer-rail,
   .desk-squad:not(:has(> .desk-side-left)) > .desk-rail,
