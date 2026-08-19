@@ -4080,7 +4080,8 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   }
   .player-detail-actions .btn { font-size: 0.95rem; }
 
-  /* Align with stat strip: pitch left, free agents right — never let left chrome spill */
+  /* Align with stat strip: pitch | right rail (default 2-col).
+     Boards with .desk-side-left become 3-col — equal sides keep pitch centered. */
   .desk-board,
   .desk-squad,
   .desk-xi {
@@ -4089,6 +4090,11 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     gap: 0.55rem;
     align-items: stretch;
     min-height: 0;
+    --desk-side-w: 16.5rem;
+  }
+  .desk-xi:has(> .desk-side-left),
+  .desk-squad:has(> .desk-side-left) {
+    grid-template-columns: var(--desk-side-w) minmax(0, 1fr) var(--desk-side-w);
   }
   .desk-xi {
     grid-template-rows: minmax(0, 1fr);
@@ -4111,15 +4117,29 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   body.page-fixtures .desk-board.desk-page > .desk-main {
     max-width: none;
   }
+  /* Widen shell so left rail does not steal pitch / FA width; GW bar follows shell. */
+  body.page-xi:not(.page-opponent).page-fit .shell,
+  body.page-squad:not(.page-onboard).page-fit .shell {
+    width: min(90rem, 100%);
+  }
+  .desk-squad > .desk-side-left,
+  .desk-xi > .desk-side-left {
+    grid-column: 1;
+    min-width: 0;
+    min-height: 0;
+    max-width: 100%;
+    align-self: stretch;
+    overflow: hidden;
+  }
   .desk-squad > .desk-main-top,
   .desk-xi > .desk-main-top {
-    grid-column: 1;
+    grid-column: 2;
     min-width: 0;
     max-width: 100%;
   }
   .desk-squad > .desk-main,
   .desk-xi > .desk-main {
-    grid-column: 1;
+    grid-column: 2;
     min-width: 0;
     min-height: 0;
     max-width: 100%;
@@ -4127,14 +4147,26 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     overflow: hidden;
   }
   .desk-squad > .transfer-rail,
-  .desk-squad > .desk-rail,
-  .desk-xi > .desk-rail {
-    grid-column: 2;
+  .desk-squad > .squad-alerts.desk-only,
+  .desk-xi > .xi-side-rail {
+    grid-column: 3;
     min-width: 0;
     min-height: 0;
     max-width: 100%;
     align-self: stretch;
     overflow: hidden;
+  }
+  /* Legacy 2-col boards (opponent / onboard): right rail stays column 2 */
+  .desk-squad:not(:has(> .desk-side-left)) > .transfer-rail,
+  .desk-squad:not(:has(> .desk-side-left)) > .desk-rail,
+  .desk-squad:not(:has(> .desk-side-left)) > .squad-alerts.desk-only,
+  .desk-xi:not(:has(> .desk-side-left)) > .desk-rail {
+    grid-column: 2;
+  }
+  .desk-squad:not(:has(> .desk-side-left)) > .desk-main-top,
+  .desk-squad:not(:has(> .desk-side-left)) > .desk-main,
+  .desk-xi:not(:has(> .desk-side-left)) > .desk-main {
+    grid-column: 1;
   }
   .desk-main {
     min-width: 0;
@@ -5043,8 +5075,10 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   body.page-squad.page-fit .desk-squad > .desk-main,
   body.page-squad.page-fit .desk-squad > .transfer-rail,
   body.page-squad.page-fit .desk-squad > .desk-rail,
+  body.page-squad.page-fit .desk-squad > .desk-side-left,
   body.page-xi.page-fit .desk-xi > .desk-main,
-  body.page-xi.page-fit .desk-xi > .desk-rail {
+  body.page-xi.page-fit .desk-xi > .desk-rail,
+  body.page-xi.page-fit .desk-xi > .desk-side-left {
     align-self: stretch;
     min-height: 0;
     overflow: hidden;
@@ -8022,6 +8056,10 @@ body > .chip-tip.is-open-tip {
     align-items: stretch;
     min-height: 0;
     overflow: hidden;
+    --desk-side-w: 15.5rem;
+  }
+  .desk-squad:has(> .desk-side-left) {
+    grid-template-columns: var(--desk-side-w) minmax(0, 1fr) var(--desk-side-w);
   }
   .desk-xi {
     min-height: 0;
@@ -8029,12 +8067,24 @@ body > .chip-tip.is-open-tip {
     align-items: stretch;
     grid-template-rows: minmax(0, 1fr);
   }
-  .desk-main-top {
+  .desk-squad > .desk-side-left {
     grid-column: 1;
+    grid-row: 1 / -1;
+    min-width: 0;
+    min-height: 0;
+    max-width: 100%;
+    overflow: hidden;
+    align-self: stretch;
+  }
+  .desk-main-top {
+    grid-column: 2;
     grid-row: 1;
     min-width: 0;
     max-width: 100%;
     overflow: hidden;
+  }
+  .desk-squad:not(:has(> .desk-side-left)) > .desk-main-top {
+    grid-column: 1;
   }
   .desk-main-top .chip-strip-wrap,
   .desk-main-top .stat-strip,
@@ -8051,7 +8101,7 @@ body > .chip-tip.is-open-tip {
   .squad-alerts.desk-only {
     display: flex;
     flex-direction: column;
-    grid-column: 2;
+    grid-column: 3;
     grid-row: 1;
     min-width: 0;
     height: 100%;
@@ -8063,6 +8113,9 @@ body > .chip-tip.is-open-tip {
     border: 1px solid rgba(192, 255, 0, 0.22);
     box-shadow: 0 8px 22px rgba(0, 0, 0, 0.14);
     overflow: hidden;
+  }
+  .desk-squad:not(:has(> .desk-side-left)) > .squad-alerts.desk-only {
+    grid-column: 2;
   }
   .squad-alerts-head { margin: 0 0 0.3rem; flex: 0 0 auto; }
   .squad-alerts-head .eyebrow { color: #C0FF00; margin: 0; }
@@ -8124,7 +8177,7 @@ body > .chip-tip.is-open-tip {
     color: rgba(255, 255, 255, 0.65);
   }
   .desk-squad > .desk-main {
-    grid-column: 1;
+    grid-column: 2;
     grid-row: 2;
     min-width: 0;
     min-height: 0;
@@ -8132,8 +8185,11 @@ body > .chip-tip.is-open-tip {
     overflow: hidden;
     align-self: stretch;
   }
+  .desk-squad:not(:has(> .desk-side-left)) > .desk-main {
+    grid-column: 1;
+  }
   .desk-squad > .transfer-rail {
-    grid-column: 2;
+    grid-column: 3;
     grid-row: 2;
     min-width: 0;
     max-width: 100%;
@@ -8144,6 +8200,9 @@ body > .chip-tip.is-open-tip {
     display: flex;
     flex-direction: column;
     align-self: stretch;
+  }
+  .desk-squad:not(:has(> .desk-side-left)) > .transfer-rail {
+    grid-column: 2;
   }
 }
 

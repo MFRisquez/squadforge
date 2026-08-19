@@ -13,6 +13,9 @@
 
 <form method="post" action="/td/save" id="tdForm" hidden aria-hidden="true"></form>
 <div class="desk-board desk-squad">
+  <aside class="desk-rail desk-side-left" id="squadSideLeft" aria-label="League transfer trends">
+    <!-- Fase 2: top transfers after deadline -->
+  </aside>
   <div class="desk-main-top">
     {{ chip_strip(chips, active_chip, edits_locked, bench_options, group='squad', next_path='/team', gw_number=gw.number) }}
 
