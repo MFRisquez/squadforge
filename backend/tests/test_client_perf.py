@@ -15,6 +15,10 @@ def test_client_perf_endpoint_ok():
             "scripts_ms": 890.1,
             "total_ms": 1210.6,
             "from_cache": False,
+            "server_perf": {
+                "server_ms": 900,
+                "spans": [{"name": "ctx.current_manager", "ms": 12}],
+            },
         },
     )
     assert r.status_code == 200

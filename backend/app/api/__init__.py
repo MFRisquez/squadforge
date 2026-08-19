@@ -37,11 +37,7 @@ class SoftNavPerfBody(BaseModel):
     scripts_ms: float = Field(default=0, ge=0)
     total_ms: float = Field(default=0, ge=0)
     from_cache: bool = False
-
-
-# In-memory ring buffer so we can read timings without Render log access.
-_SOFTNAV_PERF: list[dict] = []
-_SOFTNAV_PERF_MAX = 80
+    server_perf: Optional[dict] = None
 
 
 @router.post("/client-perf")
@@ -50,8 +46,11 @@ def client_perf(body: SoftNavPerfBody) -> dict:
     import logging
     import time
 
+    from app.perf_trace import record_perf_event
+
     log = logging.getLogger("squadforge.client_perf")
     entry = {
+        "kind": "softnav",
         "ts": time.time(),
         "url": body.url,
         "fetch_ms": body.fetch_ms,
@@ -59,25 +58,28 @@ def client_perf(body: SoftNavPerfBody) -> dict:
         "total_ms": body.total_ms,
         "from_cache": body.from_cache,
     }
-    _SOFTNAV_PERF.append(entry)
-    if len(_SOFTNAV_PERF) > _SOFTNAV_PERF_MAX:
-        del _SOFTNAV_PERF[: len(_SOFTNAV_PERF) - _SOFTNAV_PERF_MAX]
+    if body.server_perf:
+        entry["server_perf"] = body.server_perf
+    record_perf_event(entry)
     log.info(
-        "softnav url=%s fetch_ms=%.1f scripts_ms=%.1f total_ms=%.1f from_cache=%s",
+        "softnav url=%s fetch_ms=%.1f scripts_ms=%.1f total_ms=%.1f from_cache=%s server_perf=%s",
         body.url,
         body.fetch_ms,
         body.scripts_ms,
         body.total_ms,
         body.from_cache,
+        body.server_perf,
     )
     return {"ok": True}
 
 
 @router.get("/client-perf")
 def client_perf_list(limit: int = 40) -> dict:
-    """Recent soft-nav timings from this process (newest last)."""
-    n = max(1, min(int(limit or 40), _SOFTNAV_PERF_MAX))
-    return {"ok": True, "count": len(_SOFTNAV_PERF), "events": list(_SOFTNAV_PERF[-n:])}
+    """Recent soft-nav / server / catalog timings (newest last)."""
+    from app.perf_trace import list_perf_events, perf_event_count
+
+    events = list_perf_events(limit)
+    return {"ok": True, "count": perf_event_count(), "events": events}
 
 
 @router.post("/score")

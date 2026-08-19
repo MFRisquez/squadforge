@@ -124,7 +124,7 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS that still showed the rail
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v120"' in sw
+    assert 'CACHE = "futfantasy-v121"' in sw
     assert "/static/styles.css" in sw
     assert "/static/league_h2h.js" in sw
     assert "/static/club-sheet.js" in sw
@@ -132,7 +132,7 @@ def test_transfer_rail_hidden_on_phone_page_fit():
     assert "isBadgeCdn" in sw
     assert "isStatic || isCatalog || isBadgeCdn" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=120" in base
+    assert "sw.js?v=121" in base
 
 
 def test_transfers_pitch_price_frame_and_pending_white_border():
@@ -222,18 +222,30 @@ def test_appshell_softnav_perf_instrumentation():
     assert "performance.now()" in js
     assert 'fetch("/api/client-perf"' in js
     assert "fromCache" in js
+    assert "readServerPerfHeader" in js
+    assert "X-FF-Server-Perf" in js
     soft = js[js.find("async function softNavigate") : js.find("function bindGwPicker")]
     assert "const t1 = performance.now()" in soft
     assert "const t2 = performance.now()" in soft
     assert "const t3 = performance.now()" in soft
     assert "reportSoftNavTiming(" in soft
     assert "fetchMs:" in soft and "scriptsMs:" in soft and "totalMs:" in soft
+    assert "serverPerf:" in soft
 
     api = API_INIT.read_text(encoding="utf-8")
     assert '="/client-perf"' in api or '"/client-perf"' in api
     assert "squadforge.client_perf" in api
-    assert "_SOFTNAV_PERF" in api
-    assert "def client_perf_list" in api
+    assert "server_perf" in api
+
+    routes = (Path(__file__).resolve().parents[1] / "app" / "web_routes.py").read_text(encoding="utf-8")
+    assert 'timed("ctx.current_manager")' in routes
+    assert 'timed("team.owned_players")' in routes
+    assert "attach_server_perf_header" in routes
+    catalog = (
+        Path(__file__).resolve().parents[1] / "app" / "services" / "player_catalog.py"
+    ).read_text(encoding="utf-8")
+    assert "catalog.build_loop" in catalog
+    assert "per_player_ms" in catalog
 
 
 def test_desktop_pitch_rail_uses_flex_leftover_height():

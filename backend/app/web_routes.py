@@ -153,17 +153,21 @@ def _wants_json(request: Request) -> bool:
 
 def _resolve_gw(request: Request, db: Session):
     from app.services import deadline as deadline_svc
+    from app.perf_trace import timed
 
-    raw = request.query_params.get("gw")
-    number = int(raw) if raw and str(raw).isdigit() else None
-    gw = deadline_svc.get_gameweek(db, number)
-    current = squad_svc.current_gameweek(db)
+    with timed("resolve_gw.get_gameweek"):
+        raw = request.query_params.get("gw")
+        number = int(raw) if raw and str(raw).isdigit() else None
+        gw = deadline_svc.get_gameweek(db, number)
+    with timed("resolve_gw.current_gameweek"):
+        current = squad_svc.current_gameweek(db)
     # Viewing a non-current GW is always locked for edits
     if gw.id != current.id:
         edits_locked = True
     else:
         edits_locked = not deadline_svc.can_edit(current)
-    all_gws = db.query(Gameweek).order_by(Gameweek.number).all()
+    with timed("resolve_gw.all_gws"):
+        all_gws = db.query(Gameweek).order_by(Gameweek.number).all()
     numbers = [g.number for g in all_gws]
     idx = numbers.index(gw.number) if gw.number in numbers else 0
     prev_gw = numbers[idx - 1] if idx > 0 else None
@@ -181,19 +185,26 @@ def _resolve_gw(request: Request, db: Session):
 
 
 def _ctx(request: Request, db: Session, **extra):
-    manager = current_manager(request, db)
+    from app.perf_trace import timed
+
+    with timed("ctx.current_manager"):
+        manager = current_manager(request, db)
     gw = None
     try:
-        gw = squad_svc.current_gameweek(db)
+        with timed("ctx.current_gameweek"):
+            gw = squad_svc.current_gameweek(db)
     except Exception:
         pass
-    leagues = league_svc.manager_leagues(db, manager.id) if manager else []
-    has_squad = bool(manager and manager_has_complete_squad(db, manager.id))
+    with timed("ctx.manager_leagues"):
+        leagues = league_svc.manager_leagues(db, manager.id) if manager else []
+    with timed("ctx.has_complete_squad"):
+        has_squad = bool(manager and manager_has_complete_squad(db, manager.id))
     demo_data_active = False
     try:
         from app.services import live_scoring as live_svc
 
-        demo_data_active = live_svc.is_demo_scoring_active(db, gw)
+        with timed("ctx.demo_scoring_active"):
+            demo_data_active = live_svc.is_demo_scoring_active(db, gw)
     except Exception:
         demo_data_active = False
     data = {
@@ -767,13 +778,20 @@ def league_leave(league_id: int, request: Request, db: Session = Depends(get_db)
 
 @router.get("/team", response_class=HTMLResponse)
 def team_page(request: Request, db: Session = Depends(get_db)):
-    manager = current_manager(request, db)
+    from app.perf_trace import attach_server_perf_header, perf_begin, timed
+
+    perf_begin()
+    with timed("team.auth.current_manager"):
+        manager = current_manager(request, db)
     if not manager:
         return RedirectResponse("/login", status_code=303)
-    if not manager_has_complete_squad(db, manager.id):
+    with timed("team.auth.has_complete_squad"):
+        complete = manager_has_complete_squad(db, manager.id)
+    if not complete:
         return RedirectResponse("/onboard", status_code=303)
     try:
-        return _squad_board_response(request, db, manager, template_name="team.html")
+        resp = _squad_board_response(request, db, manager, template_name="team.html")
+        return attach_server_perf_header(resp, path="/team")
     except squad_svc.SquadError as exc:
         return RedirectResponse(f"/?error={quote(str(exc))}", status_code=303)
 
@@ -810,38 +828,51 @@ def _squad_board_response(
     from app.services import td as td_svc
     from app.services.captain_success import captain_success_for_manager
     from app.services.fpl_sync import availability_flag
+    from app.perf_trace import timed
 
-    view = _resolve_gw(request, db)
+    with timed("team.resolve_gw"):
+        view = _resolve_gw(request, db)
     gw = view["gw"]
-    captain_success = captain_success_for_manager(db, manager.id)
-    ft_state = squad_svc.bank_free_transfers(db, manager.id, view["current_gw"].number)
-    chips_svc.restore_free_hits_if_needed(db, manager_id=manager.id, current_gw=view["current_gw"])
-    owned = squad_svc.owned_players(db, manager.id)
+    with timed("team.captain_success"):
+        captain_success = captain_success_for_manager(db, manager.id)
+    with timed("team.bank_free_transfers"):
+        ft_state = squad_svc.bank_free_transfers(db, manager.id, view["current_gw"].number)
+    with timed("team.restore_free_hits"):
+        chips_svc.restore_free_hits_if_needed(db, manager_id=manager.id, current_gw=view["current_gw"])
+    with timed("team.owned_players"):
+        owned = squad_svc.owned_players(db, manager.id)
     spend = squad_svc.squad_spend(owned)
-    picks = (
-        db.query(SquadPick)
-        .filter(SquadPick.manager_id == manager.id, SquadPick.gameweek_id == gw.id)
-        .all()
-    )
+    with timed("team.squad_picks_query"):
+        picks = (
+            db.query(SquadPick)
+            .filter(SquadPick.manager_id == manager.id, SquadPick.gameweek_id == gw.id)
+            .all()
+        )
     by_id = {p.id: p for p in owned}
     pick_rows = []
     for pick in sorted(picks, key=lambda x: (0 if x.is_starter else 1, x.bench_order, x.id)):
         player = by_id.get(pick.player_id)
         if player:
             pick_rows.append({"pick": pick, "player": player})
-    chips = chips_svc.ensure_chip_state(db, manager.id)
-    active_chip = chips_svc.active_chip(db, manager.id, gw.id)
-    td_info = td_svc.td_view(db, manager.id, gw.number, gameweek_id=gw.id)
-    can_set_td = td_svc.can_change_td(db, manager.id, gw)
-    clubs = db.query(Club).order_by(Club.name).all()
+    with timed("team.chip_state"):
+        chips = chips_svc.ensure_chip_state(db, manager.id)
+        active_chip = chips_svc.active_chip(db, manager.id, gw.id)
+    with timed("team.td_view"):
+        td_info = td_svc.td_view(db, manager.id, gw.number, gameweek_id=gw.id)
+        can_set_td = td_svc.can_change_td(db, manager.id, gw)
+    with timed("team.clubs_query"):
+        clubs = db.query(Club).order_by(Club.name).all()
     td_club_choices = [c for c in clubs if c.code != td_info.get("banned_club")]
-    unlimited = squad_svc.transfers_are_unlimited(db, manager.id, view["current_gw"])
-    transfers_gw = (
-        db.query(TransferLog)
-        .filter(TransferLog.manager_id == manager.id, TransferLog.gameweek_id == gw.id)
-        .count()
-    )
-    hits_gw = squad_svc.hit_transfers_this_gw(db, manager.id, gw.id)
+    with timed("team.transfers_unlimited"):
+        unlimited = squad_svc.transfers_are_unlimited(db, manager.id, view["current_gw"])
+    with timed("team.transfer_log_count"):
+        transfers_gw = (
+            db.query(TransferLog)
+            .filter(TransferLog.manager_id == manager.id, TransferLog.gameweek_id == gw.id)
+            .count()
+        )
+    with timed("team.hits_this_gw"):
+        hits_gw = squad_svc.hit_transfers_this_gw(db, manager.id, gw.id)
     starters = [p.player_id for p in picks if p.is_starter]
     captain = next((p.player_id for p in picks if p.is_captain), None)
     vice = next((p.player_id for p in picks if getattr(p, "is_vice_captain", 0)), None)
@@ -883,9 +914,10 @@ def _squad_board_response(
             request.query_params.get("notice")
             or ("Transfer done." if request.query_params.get("ok") else None)
         )
-    return templates.TemplateResponse(
-        template_name,
-        _ctx(
+    with timed("team.player_count"):
+        player_count = db.query(Player).count()
+    with timed("team.ctx"):
+        ctx = _ctx(
             request,
             db,
             owned=owned,
@@ -922,13 +954,14 @@ def _squad_board_response(
                 "vice": vice,
                 "gw": gw.number,
             },
-            player_count=db.query(Player).count(),
+            player_count=player_count,
             ok=request.query_params.get("ok"),
             error=request.query_params.get("error") or request.query_params.get("chip_error"),
             notice=resolved_notice,
             **view,
-        ),
-    )
+        )
+    with timed("team.template_render"):
+        return templates.TemplateResponse(template_name, ctx)
 
 
 def _chip_state_payload(db: Session, manager_id: int, gw, *, cancelled_chip: str | None = None) -> dict:
@@ -1639,10 +1672,18 @@ def demo_live_stop(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/rules", response_class=HTMLResponse)
 def rules_page(request: Request, db: Session = Depends(get_db)):
-    manager = current_manager(request, db)
+    from app.perf_trace import attach_server_perf_header, perf_begin, timed
+
+    perf_begin()
+    with timed("rules.auth.current_manager"):
+        manager = current_manager(request, db)
     if not manager:
         return RedirectResponse("/login", status_code=303)
-    return templates.TemplateResponse("rules.html", _ctx(request, db))
+    with timed("rules.ctx"):
+        ctx = _ctx(request, db)
+    with timed("rules.template_render"):
+        resp = templates.TemplateResponse("rules.html", ctx)
+    return attach_server_perf_header(resp, path="/rules")
 
 
 @router.get("/fixtures", response_class=HTMLResponse)
