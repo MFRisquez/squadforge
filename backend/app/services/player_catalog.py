@@ -11,7 +11,12 @@ from sqlalchemy.orm import Session
 from app.models import Club, Gameweek, Player
 from app.perf_trace import record_perf_event
 
+# (monotonic_ts, version, players)
 _CACHE: tuple[float, str, list[dict[str, Any]]] | None = None
+# (monotonic_ts, version, current_gw_number)
+_VERSION_CACHE: tuple[float, str, int] | None = None
+# (monotonic_ts, from_gw, fdr_by_club)
+_FDR_CACHE: tuple[float, int, dict[str, dict[str, Any]]] | None = None
 _CACHE_TTL = 60.0
 
 
@@ -45,27 +50,75 @@ def _season_kpis(player: Player) -> dict[str, Any]:
 
 
 def catalog_version(db: Session) -> str:
-    """Cheap fingerprint for client / HTTP cache."""
+    """Fingerprint for client / HTTP cache (TTL-cached in-process)."""
+    global _VERSION_CACHE
+    now = time.monotonic()
+    if _VERSION_CACHE is not None and (now - _VERSION_CACHE[0]) < _CACHE_TTL:
+        return _VERSION_CACHE[1]
     count = db.query(Player).count()
     current = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
     gw = current.number if current else 0
-    return f"{count}-{gw}"
+    version = f"{count}-{gw}"
+    _VERSION_CACHE = (now, version, gw or 1)
+    return version
 
 
-def build_players_catalog(db: Session, *, force: bool = False) -> tuple[list[dict[str, Any]], str]:
-    """Return (players, version). In-process cache for ~60s."""
-    global _CACHE
-    t_all = time.perf_counter()
-    t0 = time.perf_counter()
-    version = catalog_version(db)
-    version_ms = (time.perf_counter() - t0) * 1000.0
+def _resolve_from_gw(db: Session, *, force: bool = False) -> tuple[int, float]:
+    """Current GW number for FDR/version — prefer version cache, else one SELECT."""
+    global _VERSION_CACHE
     now = time.monotonic()
     if (
         not force
-        and _CACHE is not None
-        and _CACHE[1] == version
-        and (now - _CACHE[0]) < _CACHE_TTL
+        and _VERSION_CACHE is not None
+        and (now - _VERSION_CACHE[0]) < _CACHE_TTL
     ):
+        return _VERSION_CACHE[2], 0.0
+    t0 = time.perf_counter()
+    current = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
+    from_gw = current.number if current else 1
+    ms = (time.perf_counter() - t0) * 1000.0
+    return from_gw, ms
+
+
+def _cached_fdr_map(
+    db: Session,
+    *,
+    from_gw: int,
+    clubs: dict[str, Club] | None = None,
+    force: bool = False,
+) -> tuple[dict[str, dict[str, Any]], float]:
+    """club_next_fdr_map with in-process TTL cache; reuse clubs when provided."""
+    global _FDR_CACHE
+    now = time.monotonic()
+    if (
+        not force
+        and _FDR_CACHE is not None
+        and _FDR_CACHE[1] == from_gw
+        and (now - _FDR_CACHE[0]) < _CACHE_TTL
+    ):
+        return _FDR_CACHE[2], 0.0
+
+    from app.services import fixtures as fixtures_svc
+
+    t0 = time.perf_counter()
+    fdr_by_club = fixtures_svc.club_next_fdr_map(db, from_gw=from_gw, clubs=clubs)
+    ms = (time.perf_counter() - t0) * 1000.0
+    _FDR_CACHE = (now, from_gw, fdr_by_club)
+    return fdr_by_club, ms
+
+
+def build_players_catalog(db: Session, *, force: bool = False) -> tuple[list[dict[str, Any]], str]:
+    """Return (players, version). In-process cache for ~60s.
+
+    Warm path: no DB (TTL hit). Cold rebuild: skip Player.COUNT — version uses
+    ``len(players)``; FDR map is TTL-cached and reuses the clubs query.
+    """
+    global _CACHE, _VERSION_CACHE
+    t_all = time.perf_counter()
+    now = time.monotonic()
+
+    # TTL-first: skip version DB hit entirely while the catalog is warm.
+    if not force and _CACHE is not None and (now - _CACHE[0]) < _CACHE_TTL:
         record_perf_event(
             {
                 "kind": "catalog",
@@ -74,16 +127,17 @@ def build_players_catalog(db: Session, *, force: bool = False) -> tuple[list[dic
                 "player_count": len(_CACHE[2]),
                 "server_ms": round((time.perf_counter() - t_all) * 1000.0, 1),
                 "spans": [
-                    {"name": "catalog.version", "ms": round(version_ms, 1)},
+                    {"name": "catalog.version", "ms": 0.0},
                     {"name": "catalog.cache_hit", "ms": 0.0},
                 ],
             }
         )
-        return _CACHE[2], version
+        return _CACHE[2], _CACHE[1]
 
     from app.kits import kit_for
-    from app.services import fixtures as fixtures_svc
     from app.services.fpl_sync import availability_flag
+
+    from_gw, version_ms = _resolve_from_gw(db, force=force)
 
     t0 = time.perf_counter()
     clubs = {c.code: c for c in db.query(Club).all()}
@@ -94,11 +148,10 @@ def build_players_catalog(db: Session, *, force: bool = False) -> tuple[list[dic
     players_query_ms = (time.perf_counter() - t0) * 1000.0
     player_count = len(players)
 
-    t0 = time.perf_counter()
-    current = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
-    from_gw = current.number if current else 1
-    fdr_by_club = fixtures_svc.club_next_fdr_map(db, from_gw=from_gw)
-    fdr_ms = (time.perf_counter() - t0) * 1000.0
+    version = f"{player_count}-{from_gw}"
+    _VERSION_CACHE = (now, version, from_gw)
+
+    fdr_by_club, fdr_ms = _cached_fdr_map(db, from_gw=from_gw, clubs=clubs, force=force)
 
     t0 = time.perf_counter()
     payload = [
@@ -157,5 +210,7 @@ def build_players_catalog(db: Session, *, force: bool = False) -> tuple[list[dic
 
 
 def clear_players_catalog_cache() -> None:
-    global _CACHE
+    global _CACHE, _VERSION_CACHE, _FDR_CACHE
     _CACHE = None
+    _VERSION_CACHE = None
+    _FDR_CACHE = None

@@ -82,6 +82,14 @@ def test_catalog_exposes_radar_axes(db):
     assert row["cbi"] == 12
 
 
+def test_catalog_ttl_skips_db_on_warm_hit(db):
+    clear_players_catalog_cache()
+    first, v1 = build_players_catalog(db, force=True)
+    second, v2 = build_players_catalog(db, force=False)
+    assert v1 == v2
+    assert second is first  # same cached list object — no rebuild
+
+
 def test_awards_streak_and_chip(db):
     a, b = _two_managers(db)
     league = league_svc.create_league(db, "Awards Cup", a)
