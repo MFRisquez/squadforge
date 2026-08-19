@@ -4159,6 +4159,10 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   .desk-side-left {
     gap: 0.65rem;
     padding: 0.55rem 0.55rem 0.65rem;
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
   }
   .desk-side-top-row {
     display: grid;
@@ -4166,6 +4170,7 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     gap: 0.55rem;
     align-items: start;
     min-width: 0;
+    flex: 0 0 auto;
   }
   .desk-side-top-row > .desk-side-block {
     min-width: 0;
@@ -4249,9 +4254,15 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   }
   .desk-side-top-scorers {
     text-align: center;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
   }
   .desk-side-top-scorers > .desk-rail-head {
     text-align: center;
+    flex: 0 0 auto;
   }
   .desk-side-top-scorers > .muted {
     text-align: center;
@@ -4261,75 +4272,190 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     margin: 0 auto;
     padding: 0;
     display: grid;
-    gap: 0.22rem;
-    width: fit-content;
+    gap: 0.38rem;
+    width: 100%;
     max-width: 100%;
     justify-items: stretch;
     text-align: center;
+    flex: 0 0 auto;
   }
   .desk-side-scorer-list li {
     display: grid;
-    grid-template-columns: 1.1rem minmax(0, 1fr) auto;
-    gap: 0.35rem;
+    grid-template-columns: 1.6rem minmax(0, 1fr) 3.6rem;
+    column-gap: 0.85rem;
     align-items: center;
-    font-size: 0.95rem;
-    text-align: center;
+    font-size: 1.08rem;
+    text-align: left;
+    padding: 0.1rem 0.15rem;
   }
   .desk-side-scorer-rank {
     color: var(--muted);
     font-weight: 800;
-    font-size: 0.8rem;
+    font-size: 1rem;
+    text-align: center;
   }
   .desk-side-scorer-list strong {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: 1.08rem;
+    font-weight: 750;
   }
   .desk-side-scorer-list span:last-child {
     font-weight: 800;
     white-space: nowrap;
+    font-size: 1.05rem;
+    text-align: right;
   }
   .desk-side-rank-spark {
-    margin-top: 0.55rem;
+    margin-top: 0.35rem;
     padding-top: 0.45rem;
     border-top: 1px solid var(--line);
     text-align: center;
-    display: grid;
-    gap: 0.3rem;
-    justify-items: center;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    color: var(--accent, #c0ff00);
   }
   .desk-side-rank-spark-head {
     display: grid;
-    gap: 0.08rem;
-    justify-items: center;
+    gap: 0.28rem;
+    justify-items: stretch;
+    flex: 0 0 auto;
+    width: 100%;
   }
   .desk-side-rank-spark-head .eyebrow {
     margin: 0;
+    font-size: 1rem;
+    letter-spacing: 0.06em;
+    font-weight: 800;
   }
   .desk-side-rank-spark-head strong {
-    font-size: 0.92rem;
+    font-size: 1.05rem;
+  }
+  .desk-side-rank-switch {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    justify-content: center;
+  }
+  .desk-side-rank-switch-btn {
+    appearance: none;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 750;
+    letter-spacing: 0.01em;
+    padding: 0.28rem 0.55rem;
+    border-radius: 0.4rem;
+    cursor: pointer;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .desk-side-rank-switch-btn.is-active {
+    border-color: var(--accent, #c0ff00);
+    color: var(--ink);
+    box-shadow: inset 0 -2px 0 var(--accent, #c0ff00);
+  }
+  .desk-side-rank-panel {
+    display: none;
+    flex-direction: column;
+    gap: 0.28rem;
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+  }
+  .desk-side-rank-panel.is-active {
+    display: flex;
+  }
+  .desk-side-rank-meta {
+    display: grid;
+    gap: 0.12rem;
+    justify-items: center;
+    flex: 0 0 auto;
+  }
+  .desk-side-rank-meta strong {
+    font-size: 0.98rem;
+  }
+  .desk-side-rank-spark .desk-side-preview-mark {
+    margin: 0;
+    font-size: 0.68rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    font-weight: 750;
+    color: var(--muted);
   }
   .desk-side-rank-spark-chart {
     width: 100%;
-    max-width: 16rem;
+    max-width: none;
+    flex: 1 1 auto;
+    min-height: 9rem;
+    display: flex;
   }
   .desk-side-rank-spark-svg {
     display: block;
     width: 100%;
-    height: auto;
-    max-height: 5.5rem;
+    height: 100%;
+    max-height: none;
+    min-height: 9rem;
+  }
+  .desk-side-rank-spark .rank-plot-bg {
+    fill: rgba(0, 0, 0, 0.04);
   }
   .desk-side-rank-spark .rank-grid {
-    stroke: rgba(255, 255, 255, 0.12);
+    stroke: rgba(0, 0, 0, 0.1);
     stroke-width: 1;
   }
   .desk-side-rank-spark .rank-axis {
     fill: var(--muted);
-    font-size: 9px;
+    font-size: 11px;
+    font-weight: 650;
+  }
+  .desk-side-rank-spark .rank-axis-y {
+    text-anchor: end;
+  }
+  .desk-side-rank-spark .rank-axis.gw {
+    text-anchor: middle;
+  }
+  .desk-side-rank-spark .rank-area.is-me {
+    fill: var(--accent, #c0ff00);
+    opacity: 0.16;
+  }
+  .desk-side-rank-spark .rank-line:not(.is-me) {
+    opacity: 0.42;
   }
   .desk-side-rank-spark .rank-line.is-me {
-    stroke: var(--accent, #c0ff00);
+    stroke: var(--accent, #c0ff00) !important;
+  }
+  .desk-side-rank-spark .rank-dot:not(.is-me) {
+    opacity: 0.55;
+  }
+  .desk-side-rank-spark .rank-dot.is-me {
+    fill: var(--accent, #c0ff00) !important;
+    stroke: #fff;
+  }
+  html[data-theme="dark"] .desk-side-rank-spark .rank-plot-bg {
+    fill: rgba(255, 255, 255, 0.04);
+  }
+  html[data-theme="dark"] .desk-side-rank-spark .rank-grid {
+    stroke: rgba(255, 255, 255, 0.12);
+  }
+  html[data-theme="dark"] .desk-side-rank-spark .rank-line:not(.is-me) {
+    stroke: rgba(255, 255, 255, 0.32) !important;
+  }
+  html[data-theme="dark"] .desk-side-rank-spark .rank-dot:not(.is-me) {
+    fill: rgba(255, 255, 255, 0.42) !important;
+  }
+  html[data-theme="light"] .desk-side-rank-switch-btn {
+    background: rgba(0, 0, 0, 0.03);
   }
   .desk-side-xfer-trends {
     display: grid;
@@ -8209,6 +8335,13 @@ html[data-theme="light"] body.page-auth .auth-text-link {
 .home-card-head h2 {
   margin: 0 0 0.45rem;
   font-size: 0.95rem;
+}
+.home-team-hint {
+  margin: 0.35rem 0 0;
+}
+.home-team-locked {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 .compact-list li {
   padding: 0.4rem 0;

@@ -53,6 +53,31 @@ def can_edit_captain(gw: Gameweek) -> bool:
     return deadline_passed(gw)
 
 
+def team_name_editable(db: Session) -> bool:
+    """Team name can change only until the first GW1 fixture has started."""
+    from sqlalchemy import or_
+
+    from app.models import Fixture
+    from app.services import squad as squad_svc
+
+    try:
+        current = squad_svc.current_gameweek(db)
+        if current is not None and int(current.number) > 1:
+            return False
+    except Exception:
+        pass
+
+    started = (
+        db.query(Fixture.id)
+        .filter(
+            Fixture.gameweek_number == 1,
+            or_(Fixture.started == 1, Fixture.finished == 1),
+        )
+        .first()
+    )
+    return started is None
+
+
 def deadline_label(gw: Gameweek) -> str:
     dl = parse_deadline(gw)
     if not dl:

@@ -391,12 +391,48 @@ def test_manager_rank_spark_uses_standings_history():
         assert spark is not None
         assert spark["league_id"] == league.id
         assert spark["empty"] is False
+        assert spark["preview"] is False
         assert len(spark["gw_numbers"]) >= 2
-        assert spark["series"] and spark["series"][0]["is_me"] is True
+        assert spark["series"] and any(s.get("is_me") for s in spark["series"])
         payload = desk_side_svc.xi_side_left_payload(
             db, manager_id=mid, gw=g2, leagues=[league]
         )
         assert payload.get("rank_spark")
-        assert payload["rank_spark"]["league_name"] == league.name
+        assert payload["rank_spark"]["count"] == 1
+        assert payload["rank_spark"]["charts"][0]["league_name"] == league.name
+    finally:
+        db.close()
+
+
+def test_manager_rank_spark_preview_before_two_gws():
+    db, league, managers, gw = _league_with_scores(3, tag="prev")
+    try:
+        mid = managers[0].id
+        spark = desk_side_svc.manager_rank_spark(
+            db, manager_id=mid, gw=gw, leagues=[league]
+        )
+        assert spark is not None
+        assert spark["preview"] is True
+        assert spark["empty"] is False
+        assert len(spark["gw_numbers"]) >= 2
+        assert any(s.get("is_me") and s.get("area_path") for s in spark["series"])
+    finally:
+        db.close()
+
+
+def test_manager_rank_sparks_switchable_for_two_leagues():
+    db, league_a, managers, gw = _league_with_scores(3, tag="swA")
+    try:
+        league_b = league_svc.create_league(db, "Side League swB", managers[0])
+        for m in managers[1:]:
+            league_svc.join_league(db, league_b.invite_code, m)
+        mid = managers[0].id
+        bundle = desk_side_svc.manager_rank_sparks(
+            db, manager_id=mid, gw=gw, leagues=[league_a, league_b]
+        )
+        assert bundle is not None
+        assert bundle["count"] == 2
+        assert {c["league_id"] for c in bundle["charts"]} == {league_a.id, league_b.id}
+        assert all(c["preview"] for c in bundle["charts"])
     finally:
         db.close()

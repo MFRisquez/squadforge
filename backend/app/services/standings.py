@@ -623,9 +623,23 @@ def _rank_polyline(
     width: float = 360,
     height: float = 140,
     pad: float = 10,
+    pad_left: float | None = None,
+    pad_right: float | None = None,
+    pad_top: float | None = None,
+    pad_bottom: float | None = None,
 ) -> str:
     """SVG polyline for rank-over-time. Rank 1 sits at the top of the chart."""
-    pts = _rank_points(ranks, max_rank=max_rank, width=width, height=height, pad=pad)
+    pts = _rank_points(
+        ranks,
+        max_rank=max_rank,
+        width=width,
+        height=height,
+        pad=pad,
+        pad_left=pad_left,
+        pad_right=pad_right,
+        pad_top=pad_top,
+        pad_bottom=pad_bottom,
+    )
     return " ".join(f"{p['x']:.1f},{p['y']:.1f}" for p in pts)
 
 
@@ -636,18 +650,63 @@ def _rank_points(
     width: float = 360,
     height: float = 140,
     pad: float = 10,
+    pad_left: float | None = None,
+    pad_right: float | None = None,
+    pad_top: float | None = None,
+    pad_bottom: float | None = None,
 ) -> list[dict]:
     """SVG point coords for rank-over-time. Rank 1 sits at the top of the chart."""
     if len(ranks) < 2 or max_rank < 1:
         return []
+    pl = float(pad if pad_left is None else pad_left)
+    pr = float(pad if pad_right is None else pad_right)
+    pt = float(pad if pad_top is None else pad_top)
+    pb = float(pad if pad_bottom is None else pad_bottom)
     n = len(ranks)
     span = float(max(1, max_rank - 1))
+    usable_w = max(1.0, width - pl - pr)
+    usable_h = max(1.0, height - pt - pb)
     pts: list[dict] = []
     for i, rank in enumerate(ranks):
-        x = pad + (width - 2 * pad) * (i / (n - 1))
-        y = pad + (height - 2 * pad) * ((float(rank) - 1.0) / span)
+        x = pl + usable_w * (i / (n - 1))
+        y = pt + usable_h * ((float(rank) - 1.0) / span)
         pts.append({"x": round(x, 1), "y": round(y, 1), "rank": int(rank)})
     return pts
+
+
+def _rank_area_path(
+    ranks: list[int],
+    *,
+    max_rank: int,
+    width: float,
+    height: float,
+    pad: float = 10,
+    pad_left: float | None = None,
+    pad_right: float | None = None,
+    pad_top: float | None = None,
+    pad_bottom: float | None = None,
+) -> str:
+    """Closed SVG path under the rank line down to the chart baseline."""
+    pts = _rank_points(
+        ranks,
+        max_rank=max_rank,
+        width=width,
+        height=height,
+        pad=pad,
+        pad_left=pad_left,
+        pad_right=pad_right,
+        pad_top=pad_top,
+        pad_bottom=pad_bottom,
+    )
+    if not pts:
+        return ""
+    pb = float(pad if pad_bottom is None else pad_bottom)
+    baseline = height - pb
+    parts = [f"M{pts[0]['x']:.1f},{baseline:.1f}"]
+    for p in pts:
+        parts.append(f"L{p['x']:.1f},{p['y']:.1f}")
+    parts.append(f"L{pts[-1]['x']:.1f},{baseline:.1f} Z")
+    return " ".join(parts)
 
 
 # Distinct strokes for timeline lines (avoid purple/indigo cluster).
@@ -732,15 +791,15 @@ def rank_history(db: Session, league: League, through_gw) -> dict:
     }
 
 
-def _empty_rank_chart(*, max_rank: int = 0) -> dict:
+def _empty_rank_chart(*, max_rank: int = 0, chart_width: int = 360, chart_height: int = 140) -> dict:
     return {
         "gw_numbers": [],
         "series": [],
         "max_rank": max_rank,
         "gw_labels": [],
         "grid": [],
-        "chart_width": 360,
-        "chart_height": 140,
+        "chart_width": chart_width,
+        "chart_height": chart_height,
     }
 
 
@@ -748,26 +807,41 @@ def _chart_from_rank_history(
     raw: dict,
     *,
     me_id: int | None = None,
+    chart_width: float = 360.0,
+    chart_height: float = 140.0,
+    pad: float = 10.0,
+    pad_left: float | None = None,
+    pad_right: float | None = None,
+    pad_top: float | None = None,
+    pad_bottom: float | None = None,
+    include_area: bool = False,
 ) -> dict:
     """Turn ``rank_history`` / ``h2h_rank_history`` raw payload into SVG chart data."""
     gameweeks = raw["gameweeks"]
     managers_raw = raw["managers"]
     max_rank = len(managers_raw)
+    cw = float(chart_width)
+    ch = float(chart_height)
     if not gameweeks or not managers_raw:
-        return _empty_rank_chart(max_rank=max_rank)
+        return _empty_rank_chart(
+            max_rank=max_rank, chart_width=int(cw), chart_height=int(ch)
+        )
 
-    chart_width = 360.0
-    chart_height = 140.0
-    pad = 10.0
+    pl = float(pad if pad_left is None else pad_left)
+    pr = float(pad if pad_right is None else pad_right)
+    pt = float(pad if pad_top is None else pad_top)
+    pb = float(pad if pad_bottom is None else pad_bottom)
     span = float(max(1, max_rank - 1))
+    usable_h = max(1.0, ch - pt - pb)
+    usable_w = max(1.0, cw - pl - pr)
     grid = []
     for tick in range(1, max_rank + 1):
-        y = pad + (chart_height - 2 * pad) * ((float(tick) - 1.0) / span)
+        y = pt + usable_h * ((float(tick) - 1.0) / span)
         grid.append({"rank": tick, "y": round(y, 1)})
     gw_labels = []
     n_gw = len(gameweeks)
     for i, n in enumerate(gameweeks):
-        x = pad if n_gw == 1 else pad + (chart_width - 2 * pad) * (i / (n_gw - 1))
+        x = pl if n_gw == 1 else pl + usable_w * (i / (n_gw - 1))
         gw_labels.append({"number": n, "x": round(x, 1)})
 
     ordered = sorted(
@@ -786,39 +860,70 @@ def _chart_from_rank_history(
         if me_id is not None and manager["manager_id"] == me_id:
             color = "#111111"
         pts = _rank_points(
-            ranks, max_rank=max_rank, width=chart_width, height=chart_height, pad=pad
+            ranks,
+            max_rank=max_rank,
+            width=cw,
+            height=ch,
+            pad=pad,
+            pad_left=pl,
+            pad_right=pr,
+            pad_top=pt,
+            pad_bottom=pb,
         )
         points = []
-        for j, pt in enumerate(pts):
+        for j, pt_row in enumerate(pts):
             gw_n = gameweeks[j]
             points.append(
                 {
-                    **pt,
+                    **pt_row,
                     "gw": gw_n,
-                    "title": f"{manager['name']} · GW{gw_n} · #{pt['rank']}",
+                    "title": f"{manager['name']} · GW{gw_n} · #{pt_row['rank']}",
                 }
             )
-        series.append(
-            {
-                "manager_id": manager["manager_id"],
-                "team_name": manager["name"],
-                "is_me": me_id is not None and manager["manager_id"] == me_id,
-                "color": color,
-                "ranks": ranks,
-                "polyline": _rank_polyline(
-                    ranks, max_rank=max_rank, width=chart_width, height=chart_height, pad=pad
-                ),
-                "points": points,
-            }
-        )
+        entry = {
+            "manager_id": manager["manager_id"],
+            "team_name": manager["name"],
+            "is_me": me_id is not None and manager["manager_id"] == me_id,
+            "color": color,
+            "ranks": ranks,
+            "polyline": _rank_polyline(
+                ranks,
+                max_rank=max_rank,
+                width=cw,
+                height=ch,
+                pad=pad,
+                pad_left=pl,
+                pad_right=pr,
+                pad_top=pt,
+                pad_bottom=pb,
+            ),
+            "points": points,
+        }
+        if include_area:
+            entry["area_path"] = _rank_area_path(
+                ranks,
+                max_rank=max_rank,
+                width=cw,
+                height=ch,
+                pad=pad,
+                pad_left=pl,
+                pad_right=pr,
+                pad_top=pt,
+                pad_bottom=pb,
+            )
+        series.append(entry)
     return {
         "gw_numbers": gameweeks,
         "gw_labels": gw_labels,
         "grid": grid,
         "series": series,
         "max_rank": max_rank,
-        "chart_width": int(chart_width),
-        "chart_height": int(chart_height),
+        "chart_width": int(cw),
+        "chart_height": int(ch),
+        "plot_left": round(pl, 1),
+        "plot_right": round(cw - pr, 1),
+        "plot_top": round(pt, 1),
+        "plot_bottom": round(ch - pb, 1),
     }
 
 
@@ -918,10 +1023,29 @@ def league_rank_history(
     through_gw,
     *,
     me_id: int | None = None,
+    chart_width: float = 360.0,
+    chart_height: float = 140.0,
+    pad: float = 10.0,
+    pad_left: float | None = None,
+    pad_right: float | None = None,
+    pad_top: float | None = None,
+    pad_bottom: float | None = None,
+    include_area: bool = False,
 ) -> dict:
     """Position timeline for Classic (total points) or H2H (table after each GW)."""
     if getattr(league, "league_type", "classic") == "h2h":
         raw = h2h_rank_history(db, league, through_gw)
     else:
         raw = rank_history(db, league, through_gw)
-    return _chart_from_rank_history(raw, me_id=me_id)
+    return _chart_from_rank_history(
+        raw,
+        me_id=me_id,
+        chart_width=chart_width,
+        chart_height=chart_height,
+        pad=pad,
+        pad_left=pad_left,
+        pad_right=pad_right,
+        pad_top=pad_top,
+        pad_bottom=pad_bottom,
+        include_area=include_area,
+    )
