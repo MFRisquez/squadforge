@@ -9,13 +9,14 @@ You may not pick the same club twice in a row.
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Mapping, Optional
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.kits import badge_url
-from app.models import Club, ClubResult, TechnicalDirectorPick
+from app.models import Club, ClubResult, Fixture, TechnicalDirectorPick
 from app.services import deadline as deadline_svc
 
 TD_POINTS = {"W": 3.0, "D": 1.0, "L": -1.0}
@@ -65,16 +66,26 @@ def can_select_td(db: Session, manager_id: int, gw_number: int) -> bool:
     return active_td(db, manager_id, gw_number) is None
 
 
-def can_change_td(db: Session, manager_id: int, gw) -> bool:
+def can_change_td(
+    db: Session,
+    manager_id: int,
+    gw,
+    *,
+    active: Optional[TechnicalDirectorPick] = None,
+) -> bool:
     """
     Can pick or re-pick TD.
     - No active window → can select
     - Active window starting this GW and deadline not passed → can change club
+
+    Pass ``active`` when the caller already loaded the current pick (avoids a
+    duplicate SELECT on /team).
     """
     from app.models import Gameweek
 
     gw_number = gw.number if isinstance(gw, Gameweek) else int(gw)
-    active = active_td(db, manager_id, gw_number)
+    if active is None:
+        active = active_td(db, manager_id, gw_number)
     if active is None:
         return True
     if active.start_gw != gw_number:
@@ -125,8 +136,7 @@ def set_td_pick(db: Session, *, manager_id: int, club_code: str, gw_number: int)
     return pick
 
 
-def td_points_for_gw(db: Session, *, manager_id: int, gw_number: int, gameweek_id: int) -> float:
-    pick = active_td(db, manager_id, gw_number)
+def td_points_for_pick(db: Session, pick: TechnicalDirectorPick | None, gameweek_id: int) -> float:
     if not pick:
         return 0.0
     results = (
@@ -137,35 +147,87 @@ def td_points_for_gw(db: Session, *, manager_id: int, gw_number: int, gameweek_i
     return sum(TD_POINTS.get(r.result, 0.0) for r in results)
 
 
-def td_view(db: Session, manager_id: int, gw_number: int, *, gameweek_id: int | None = None) -> dict:
-    """Template/API helper for Squad/XI pitch TD corner."""
-    from app.services import fixtures as fixtures_svc
-
+def td_points_for_gw(db: Session, *, manager_id: int, gw_number: int, gameweek_id: int) -> float:
     pick = active_td(db, manager_id, gw_number)
+    return td_points_for_pick(db, pick, gameweek_id)
+
+
+def _td_fixture_line(
+    db: Session,
+    *,
+    gw_number: int,
+    club_code: str,
+) -> tuple[str | None, int | None]:
+    """Single Fixture SELECT for the TD club (no full-GW fixtures + clubs pull)."""
+    from app.services.fixtures import map_fdr
+
+    fx = (
+        db.query(Fixture)
+        .filter(
+            Fixture.gameweek_number == gw_number,
+            or_(
+                Fixture.home_club_code == club_code,
+                Fixture.away_club_code == club_code,
+            ),
+        )
+        .order_by(Fixture.kickoff_at.asc(), Fixture.fpl_id.asc())
+        .first()
+    )
+    if not fx:
+        return None, None
+    if fx.home_club_code == club_code:
+        return f"{fx.away_club_code} (H)", map_fdr(fx.home_difficulty)
+    return f"{fx.home_club_code} (A)", map_fdr(fx.away_difficulty)
+
+
+def td_view(
+    db: Session,
+    manager_id: int,
+    gw_number: int,
+    *,
+    gameweek_id: int | None = None,
+    clubs_by_code: Mapping[str, Club] | None = None,
+) -> dict:
+    """Template/API helper for Squad/XI pitch TD corner.
+
+    Loads all TD picks for the manager in one query (active + banned), resolves
+    club from ``clubs_by_code`` when provided, and fetches at most one fixture
+    + ClubResult row set — typically 1–3 RTTs instead of ~8.
+    """
+    picks = (
+        db.query(TechnicalDirectorPick)
+        .filter(TechnicalDirectorPick.manager_id == manager_id)
+        .order_by(TechnicalDirectorPick.end_gw.desc())
+        .all()
+    )
+    pick = next(
+        (p for p in picks if p.start_gw <= gw_number <= p.end_gw),
+        None,
+    )
+    banned = None
+    for prev in picks:
+        if pick is not None and prev.id == pick.id:
+            continue
+        banned = prev.club_code
+        break
+
     club = None
     if pick:
-        club = db.query(Club).filter(Club.code == pick.club_code).one_or_none()
-    banned = previous_td_club(db, manager_id, exclude_id=pick.id if pick else None)
+        if clubs_by_code is not None:
+            club = clubs_by_code.get(pick.club_code)
+        else:
+            club = db.query(Club).filter(Club.code == pick.club_code).one_or_none()
 
     fixture_line = None
     fixture_fdr = None
     if pick:
-        matches = fixtures_svc.fixtures_for_gameweek(db, gw_number=gw_number)
-        for m in matches:
-            if m["home"]["code"] == pick.club_code:
-                fixture_line = f"{m['away']['code']} (H)"
-                fixture_fdr = m["home"]["difficulty"]
-                break
-            if m["away"]["code"] == pick.club_code:
-                fixture_line = f"{m['home']['code']} (A)"
-                fixture_fdr = m["away"]["difficulty"]
-                break
+        fixture_line, fixture_fdr = _td_fixture_line(
+            db, gw_number=gw_number, club_code=pick.club_code
+        )
 
     points = None
     if pick and gameweek_id is not None:
-        points = td_points_for_gw(
-            db, manager_id=manager_id, gw_number=gw_number, gameweek_id=gameweek_id
-        )
+        points = td_points_for_pick(db, pick, gameweek_id)
 
     return {
         "pick": pick,

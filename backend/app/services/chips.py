@@ -234,21 +234,22 @@ def cancel_chip(db: Session, *, manager_id: int, gameweek_id: int) -> None:
 
 def restore_free_hits_if_needed(db: Session, *, manager_id: int, current_gw: Gameweek) -> int:
     """After a Free Hit GW ends, put the original 15 back (FPL-style)."""
+    # Join Gameweek once — avoid per-play Gameweek SELECT (was ~N RTTs on /team).
     plays = (
-        db.query(ChipPlay)
+        db.query(ChipPlay, Gameweek)
+        .join(Gameweek, Gameweek.id == ChipPlay.gameweek_id)
         .filter(ChipPlay.manager_id == manager_id, ChipPlay.chip == "free_hit")
         .all()
     )
     restored_n = 0
-    for play in plays:
+    for play, play_gw in plays:
         try:
             meta = json.loads(play.meta_json or "{}")
         except json.JSONDecodeError:
             meta = {}
         if meta.get("restored"):
             continue
-        play_gw = db.query(Gameweek).filter(Gameweek.id == play.gameweek_id).one_or_none()
-        if not play_gw or play_gw.number >= current_gw.number:
+        if play_gw.number >= current_gw.number:
             continue
         snapshot = meta.get("snapshot") or []
         if not snapshot:

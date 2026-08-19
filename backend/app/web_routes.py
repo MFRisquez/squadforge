@@ -854,7 +854,6 @@ def _squad_board_response(
     template_name: str,
     notice: str | None = None,
 ):
-    from app.models import TransferLog
     from app.services import chips as chips_svc
     from app.services import td as td_svc
     from app.services.captain_success import captain_success_for_manager
@@ -864,12 +863,18 @@ def _squad_board_response(
     with timed("team.resolve_gw"):
         view = _resolve_gw(request, db)
     gw = view["gw"]
+    current_gw = view["current_gw"]
     with timed("team.captain_success"):
         captain_success = captain_success_for_manager(db, manager.id)
     with timed("team.bank_free_transfers"):
-        ft_state = squad_svc.bank_free_transfers(db, manager.id, view["current_gw"].number)
-    with timed("team.restore_free_hits"):
-        chips_svc.restore_free_hits_if_needed(db, manager_id=manager.id, current_gw=view["current_gw"])
+        ft_state = squad_svc.bank_free_transfers(db, manager.id, current_gw.number)
+    # bank_free_transfers already restores FH when current_gw > 1; GW1 early-returns
+    # without restore, so run it once here only in that case (avoid duplicate ~250ms).
+    if current_gw.number <= 1:
+        with timed("team.restore_free_hits"):
+            chips_svc.restore_free_hits_if_needed(
+                db, manager_id=manager.id, current_gw=current_gw
+            )
     with timed("team.owned_players"):
         owned = squad_svc.owned_players(db, manager.id)
     spend = squad_svc.squad_spend(owned)
@@ -888,22 +893,36 @@ def _squad_board_response(
     with timed("team.chip_state"):
         chips = chips_svc.ensure_chip_state(db, manager.id)
         active_chip = chips_svc.active_chip(db, manager.id, gw.id)
-    with timed("team.td_view"):
-        td_info = td_svc.td_view(db, manager.id, gw.number, gameweek_id=gw.id)
-        can_set_td = td_svc.can_change_td(db, manager.id, gw)
     with timed("team.clubs_query"):
         clubs = db.query(Club).order_by(Club.name).all()
+    clubs_by_code = {c.code: c for c in clubs}
+    with timed("team.td_view"):
+        td_info = td_svc.td_view(
+            db,
+            manager.id,
+            gw.number,
+            gameweek_id=gw.id,
+            clubs_by_code=clubs_by_code,
+        )
+        can_set_td = td_svc.can_change_td(db, manager.id, gw, active=td_info.get("pick"))
     td_club_choices = [c for c in clubs if c.code != td_info.get("banned_club")]
     with timed("team.transfers_unlimited"):
-        unlimited = squad_svc.transfers_are_unlimited(db, manager.id, view["current_gw"])
-    with timed("team.transfer_log_count"):
-        transfers_gw = (
-            db.query(TransferLog)
-            .filter(TransferLog.manager_id == manager.id, TransferLog.gameweek_id == gw.id)
-            .count()
-        )
-    with timed("team.hits_this_gw"):
-        hits_gw = squad_svc.hit_transfers_this_gw(db, manager.id, gw.id)
+        # Reuse TransferState from bank; reuse active chip when viewing current GW.
+        if gw.id == current_gw.id:
+            unlimited = squad_svc.transfers_are_unlimited(
+                db,
+                manager.id,
+                current_gw,
+                state=ft_state,
+                active_chip=active_chip,
+                active_chip_loaded=True,
+            )
+        else:
+            unlimited = squad_svc.transfers_are_unlimited(
+                db, manager.id, current_gw, state=ft_state
+            )
+    with timed("team.transfer_counts"):
+        transfers_gw, hits_gw = squad_svc.transfer_counts_this_gw(db, manager.id, gw.id)
     starters = [p.player_id for p in picks if p.is_starter]
     captain = next((p.player_id for p in picks if p.is_captain), None)
     vice = next((p.player_id for p in picks if getattr(p, "is_vice_captain", 0)), None)
@@ -945,8 +964,11 @@ def _squad_board_response(
             request.query_params.get("notice")
             or ("Transfer done." if request.query_params.get("ok") else None)
         )
-    with timed("team.player_count"):
-        player_count = db.query(Player).count()
+    # Only onboard shows "N players in DB"; skip the COUNT on /team (~63ms).
+    player_count = 0
+    if template_name == "onboard.html":
+        with timed("team.player_count"):
+            player_count = db.query(Player).count()
     # Reuse auth manager + resolve_gw current_gw + known squad completeness —
     # do not re-run those queries inside _ctx (was ~186ms of duplicate RTT).
     squad_complete = template_name != "onboard.html"
