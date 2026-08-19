@@ -136,7 +136,7 @@ def test_transfer_rail_hidden_on_phone_page_fit():
     assert "isBadgeCdn" in sw
     assert "isStatic || isCatalog || isBadgeCdn" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=124" in base
+    assert "sw.js?v=125" in base
 
     squad = (STATIC / "squadboard.js").read_text(encoding="utf-8")
     assert "ff-players-updated" in squad
