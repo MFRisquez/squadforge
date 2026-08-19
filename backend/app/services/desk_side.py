@@ -52,7 +52,7 @@ _DESK_CHART_H = 280.0
 _DESK_PAD_L = 78.0
 _DESK_PAD_R = 22.0
 _DESK_PAD_T = 16.0
-_DESK_PAD_B = 24.0
+_DESK_PAD_B = 32.0  # room for GW labels under the plot
 _DESK_WINDOW_GWS = 5
 _DESK_NAME_MAX = 9
 _DESK_NAME_GAP = 12.0
@@ -122,6 +122,21 @@ def ownership_by_gw_number(db: Session, manager_id: int) -> dict[int, set[int]]:
     return owned
 
 
+def _gw_numbers_with_started_fixtures(db: Session) -> set[int]:
+    """Gameweek numbers where at least one PL fixture has kicked off / finished."""
+    from sqlalchemy import or_
+
+    from app.models import Fixture
+
+    rows = (
+        db.query(Fixture.gameweek_number)
+        .filter(or_(Fixture.started == 1, Fixture.finished == 1))
+        .distinct()
+        .all()
+    )
+    return {int(n) for (n,) in rows if n}
+
+
 def manager_top_scorers_while_owned(
     db: Session,
     *,
@@ -131,7 +146,9 @@ def manager_top_scorers_while_owned(
 ) -> list[dict[str, Any]]:
     """Top players by points contributed to this manager while owned (TTL-cached).
 
-    Also returns starter appearances (APP) and while-owned G / A / CS counts.
+    Only counts gameweeks that have actually started (fixture kickoff). Empty
+    before the season begins. APP = starter picks in those started GWs; G/A/CS
+    from MatchEvents while owned.
     """
     from app.models import MatchEvent
 
@@ -140,6 +157,11 @@ def manager_top_scorers_while_owned(
     hit = _TOP_SCORERS_CACHE.get(key)
     if hit is not None and (now - hit[0]) < _TOP_SCORERS_TTL:
         return hit[1]
+
+    started_nums = _gw_numbers_with_started_fixtures(db)
+    if not started_nums:
+        _TOP_SCORERS_CACHE[key] = (now, [])
+        return []
 
     owned_by_num = ownership_by_gw_number(db, manager_id)
     if not owned_by_num:
@@ -155,8 +177,11 @@ def manager_top_scorers_while_owned(
     totals: dict[int, float] = defaultdict(float)
     scored_nums: set[int] = set()
     for row, num, _gid in scores:
-        scored_nums.add(int(num))
-        owned = owned_by_num.get(int(num)) or set()
+        n = int(num)
+        if n not in started_nums:
+            continue
+        scored_nums.add(n)
+        owned = owned_by_num.get(n) or set()
         if not owned:
             continue
         bd = _parse_breakdown(row.breakdown_json)
@@ -169,7 +194,12 @@ def manager_top_scorers_while_owned(
             pid_i = int(pid)
             if pid_i not in owned:
                 continue
-            totals[pid_i] += float(line.get("points") or 0)
+            pts = float(line.get("points") or 0)
+            if pts == 0.0:
+                # Still track ownership for APP once the GW has kicked off, but
+                # ranking is by points — zeros only appear if they also started.
+                continue
+            totals[pid_i] += pts
 
     if not totals:
         _TOP_SCORERS_CACHE[key] = (now, [])

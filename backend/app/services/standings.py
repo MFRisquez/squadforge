@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.models import (
     ChipPlay,
+    Fixture,
     Gameweek,
     H2HMatch,
     League,
@@ -293,7 +294,24 @@ def ensure_h2h_pairings(db: Session, league: League, gw) -> list[H2HMatch]:
 
 
 def h2h_standings(db: Session, league: League, gw) -> tuple[list[dict], list[dict]]:
-    """Return (table_rows, this_week_fixtures)."""
+    """Return (table_rows, this_week_fixtures).
+
+    Only settled matches from gameweeks that have actually kicked off count
+    toward W–D–L (avoids pre-season 0–0 draws).
+    """
+    from sqlalchemy import or_
+
+    started_gw_ids = {
+        int(gid)
+        for (gid,) in (
+            db.query(Gameweek.id)
+            .join(Fixture, Fixture.gameweek_number == Gameweek.number)
+            .filter(or_(Fixture.started == 1, Fixture.finished == 1))
+            .distinct()
+            .all()
+        )
+    }
+
     members = [m.manager for m in db.query(Membership).filter(Membership.league_id == league.id).all()]
     base_rows = _batch_manager_row_bases(db, members, gw)
     stats = {}
@@ -314,6 +332,8 @@ def h2h_standings(db: Session, league: League, gw) -> tuple[list[dict], list[dic
     all_matches = db.query(H2HMatch).filter(H2HMatch.league_id == league.id).all()
     for match in all_matches:
         if match.result == "pending":
+            continue
+        if int(match.gameweek_id) not in started_gw_ids:
             continue
         home = stats.get(match.home_manager_id)
         away = stats.get(match.away_manager_id)
@@ -840,9 +860,11 @@ def _chart_from_rank_history(
         grid.append({"rank": tick, "y": round(y, 1)})
     gw_labels = []
     n_gw = len(gameweeks)
+    # Hanging baseline: y is the top of the label, just under the plot.
+    label_y = round(min(ch - 18.0, ch - pb + 6.0), 1)
     for i, n in enumerate(gameweeks):
         x = pl if n_gw == 1 else pl + usable_w * (i / (n_gw - 1))
-        gw_labels.append({"number": n, "x": round(x, 1)})
+        gw_labels.append({"number": n, "x": round(x, 1), "y": label_y})
 
     ordered = sorted(
         managers_raw,

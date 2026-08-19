@@ -592,11 +592,36 @@ def score_managers(db: Session, gw: Gameweek) -> int:
 
 
 def resolve_h2h(db: Session, gw: Gameweek) -> int:
+    """Settle H2H results for ``gw``.
+
+    Stays ``pending`` until at least one PL fixture in the GW has started —
+    otherwise 0–0 before kickoff was incorrectly recorded as a draw.
+    """
+    from sqlalchemy import or_
+
+    from app.models import Fixture
+
+    any_started = (
+        db.query(Fixture.id)
+        .filter(
+            Fixture.gameweek_number == int(gw.number),
+            or_(Fixture.started == 1, Fixture.finished == 1),
+        )
+        .first()
+    )
     leagues = db.query(League).filter(League.league_type == "h2h").all()
     updated = 0
     for league in leagues:
         matches = standings_svc.ensure_h2h_pairings(db, league, gw)
         for match in matches:
+            if not any_started:
+                # Undo premature settlements (e.g. 0–0 draw after deadline, pre-kickoff).
+                if match.result != "pending" or match.home_points or match.away_points:
+                    match.home_points = 0.0
+                    match.away_points = 0.0
+                    match.result = "pending"
+                    updated += 1
+                continue
             home = (
                 db.query(ManagerGameweekScore)
                 .filter(
@@ -613,8 +638,8 @@ def resolve_h2h(db: Session, gw: Gameweek) -> int:
                 )
                 .one_or_none()
             )
-            hp = home.total if home else 0.0
-            ap = away.total if away else 0.0
+            hp = float(home.total) if home else 0.0
+            ap = float(away.total) if away else 0.0
             match.home_points = hp
             match.away_points = ap
             if hp > ap:
