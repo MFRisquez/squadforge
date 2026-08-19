@@ -2668,9 +2668,10 @@ body.picker-open {
   border: 0;
   background: transparent;
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  /* Name | Team | Availability | Club count | Price  (+ info btn outside wrap) */
+  grid-template-columns: minmax(0, 1.35fr) 2.6rem 4.4rem 2.6rem 3.1rem;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.35rem;
   padding: 0.42rem 0.55rem;
   cursor: pointer;
   font: inherit;
@@ -2686,9 +2687,7 @@ body.picker-open {
   min-width: 0;
 }
 .pick-radar {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
+  display: none; /* was mistaken for a doubt warning triangle on every row */
 }
 .mini-radar {
   display: block;
@@ -2720,6 +2719,35 @@ body.picker-open {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+}
+.pick-team {
+  font-size: 0.72rem;
+  font-weight: 750;
+  color: #44566f;
+  white-space: nowrap;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+.pick-avail {
+  font-size: 0.68rem;
+  font-weight: 800;
+  white-space: nowrap;
+  text-align: left;
+  letter-spacing: 0.01em;
+}
+.pick-club {
+  font-size: 0.72rem;
+  font-weight: 750;
+  color: #44566f;
+  white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.pick-club.is-limit,
+.pick-club.is-budget {
+  color: #c62828;
+  font-weight: 800;
 }
 .pick-sub {
   font-size: 0.72rem;
@@ -2736,6 +2764,8 @@ body.picker-open {
   color: #000000;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+  text-align: right;
+  justify-self: end;
 }
 .empty-pick {
   padding: 0.85rem 0.7rem;
@@ -3501,9 +3531,15 @@ body.picker-open {
 }
 .pick-row.is-blocked .pick-name,
 .pick-row.is-blocked .pick-sub,
+.pick-row.is-blocked .pick-team,
+.pick-row.is-blocked .pick-avail,
+.pick-row.is-blocked .pick-club,
 .pick-row.is-blocked .pick-price,
 .pick-row:disabled .pick-name,
 .pick-row:disabled .pick-sub,
+.pick-row:disabled .pick-team,
+.pick-row:disabled .pick-avail,
+.pick-row:disabled .pick-club,
 .pick-row:disabled .pick-price {
   color: #333333 !important;
 }
@@ -3539,9 +3575,15 @@ html[data-theme="dark"] .pick-row:disabled {
 }
 html[data-theme="dark"] .pick-row.is-blocked .pick-name,
 html[data-theme="dark"] .pick-row.is-blocked .pick-sub,
+html[data-theme="dark"] .pick-row.is-blocked .pick-team,
+html[data-theme="dark"] .pick-row.is-blocked .pick-avail,
+html[data-theme="dark"] .pick-row.is-blocked .pick-club,
 html[data-theme="dark"] .pick-row.is-blocked .pick-price,
 html[data-theme="dark"] .pick-row:disabled .pick-name,
 html[data-theme="dark"] .pick-row:disabled .pick-sub,
+html[data-theme="dark"] .pick-row:disabled .pick-team,
+html[data-theme="dark"] .pick-row:disabled .pick-avail,
+html[data-theme="dark"] .pick-row:disabled .pick-club,
 html[data-theme="dark"] .pick-row:disabled .pick-price {
   color: #d0d5e0 !important;
 }
@@ -3627,11 +3669,15 @@ html[data-theme="dark"] .pick-row:disabled .club-limit.is-budget {
 /* Match desktop transfer-rail warning ink on every child text node */
 .pick-row.avail-doubt .pick-name,
 .pick-row.avail-doubt .pick-sub,
+.pick-row.avail-doubt .pick-team,
+.pick-row.avail-doubt .pick-club,
 .pick-row.avail-doubt .pick-price,
 .pick-row.avail-doubt .grow strong,
 .pick-row.avail-doubt .grow .muted,
 html[data-theme="dark"] .pick-row.avail-doubt .pick-name,
 html[data-theme="dark"] .pick-row.avail-doubt .pick-sub,
+html[data-theme="dark"] .pick-row.avail-doubt .pick-team,
+html[data-theme="dark"] .pick-row.avail-doubt .pick-club,
 html[data-theme="dark"] .pick-row.avail-doubt .pick-price,
 html[data-theme="dark"] .pick-row.avail-doubt .grow strong,
 html[data-theme="dark"] .pick-row.avail-doubt .grow .muted {
@@ -3640,11 +3686,15 @@ html[data-theme="dark"] .pick-row.avail-doubt .grow .muted {
 }
 .pick-row.avail-out .pick-name,
 .pick-row.avail-out .pick-sub,
+.pick-row.avail-out .pick-team,
+.pick-row.avail-out .pick-club,
 .pick-row.avail-out .pick-price,
 .pick-row.avail-out .grow strong,
 .pick-row.avail-out .grow .muted,
 html[data-theme="dark"] .pick-row.avail-out .pick-name,
 html[data-theme="dark"] .pick-row.avail-out .pick-sub,
+html[data-theme="dark"] .pick-row.avail-out .pick-team,
+html[data-theme="dark"] .pick-row.avail-out .pick-club,
 html[data-theme="dark"] .pick-row.avail-out .pick-price,
 html[data-theme="dark"] .pick-row.avail-out .grow strong,
 html[data-theme="dark"] .pick-row.avail-out .grow .muted {
@@ -6969,39 +7019,39 @@ html.is-standalone body::after {
   .xi-bench-wrap .shirt-nameplate { font-size: 0.48rem; }
   .xi-bench-wrap .shirt-foot { font-size: 0.44rem; }
   .picker-card { max-height: min(54vh, 24rem); }
-  /* Mobile picker: one horizontal row — name | team | radar | price */
+  /* Mobile picker: Name | Team | Avail | Club | Price (+ ⓘ) */
   .pick-row {
-    padding: 0.4rem 0.5rem;
-    gap: 0.35rem;
-    min-height: 2.3rem;
+    padding: 0.4rem 0.4rem;
+    gap: 0.28rem;
+    min-height: 2.35rem;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1.2fr) 2.35rem 3.9rem 2.35rem 2.85rem;
     align-items: center;
     text-align: left;
   }
   .pick-main {
-    display: flex;
-    flex-direction: row;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 0.45rem;
-    min-width: 0;
-    text-align: left;
+    display: contents;
   }
   .pick-name {
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     text-align: left;
-    flex: 1 1 auto;
     min-width: 0;
+  }
+  .pick-team {
+    font-size: 0.68rem;
+  }
+  .pick-avail {
+    font-size: 0.62rem;
+  }
+  .pick-club {
+    font-size: 0.68rem;
   }
   .pick-sub {
     font-size: 0.7rem;
-    text-align: right;
-    flex: 0 1 auto;
-    max-width: 46%;
+    text-align: left;
   }
   .pick-price {
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     text-align: right;
     justify-self: end;
   }
@@ -8479,6 +8529,8 @@ html[data-theme="dark"] .pick-name {
   color: #fff;
 }
 html[data-theme="dark"] .pick-sub,
+html[data-theme="dark"] .pick-team,
+html[data-theme="dark"] .pick-club,
 html[data-theme="dark"] .picker-card .muted {
   color: #a8a8a8;
 }

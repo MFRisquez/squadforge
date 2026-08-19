@@ -1305,22 +1305,25 @@
       const li = document.createElement("li");
       const avail = p.availability || "ok";
       li.className = `pick-row-wrap avail-${avail}${blocked ? " is-blocked" : ""}`;
-      let limitNote = "";
+      const availLabel =
+        avail === "out" ? "Out" : avail === "doubt" ? "Doubt" : "Available";
+      let clubLabel = `${clubN}/${MAX_CLUB}`;
+      let clubClass = "pick-club";
       if (clubBlocked) {
-        limitNote = `<span class="club-limit">3/${MAX_CLUB} club</span>`;
+        clubLabel = `${MAX_CLUB}/${MAX_CLUB}`;
+        clubClass = "pick-club is-limit";
       } else if (budgetBlocked) {
-        limitNote = `<span class="club-limit is-budget">Over budget</span>`;
-      } else if (clubN > 0) {
-        limitNote = `<span class="muted tiny"> · ${clubN}/${MAX_CLUB}</span>`;
+        clubLabel = "Over £";
+        clubClass = "pick-club is-budget";
+      } else if (clubN === 0) {
+        clubLabel = "—";
       }
-      const flag = avail === "out" ? "OUT" : avail === "doubt" ? "DOUBT" : "";
       li.innerHTML = `
         <button type="button" class="pick-row avail-${avail}${blocked ? " is-blocked" : ""}" ${blocked ? "disabled" : ""}>
-          <span class="pick-main">
-            <span class="pick-name">${p.name}</span>
-            <span class="pick-sub">${p.team}${flag ? ` · ${flag}` : ""}${limitNote}</span>
-          </span>
-          <span class="pick-radar" title="Threat · Creativity · CBI vs ${p.position} max">${miniRadarSvg(p)}</span>
+          <span class="pick-name">${p.name}</span>
+          <span class="pick-team">${p.team}</span>
+          <span class="pick-avail avail-text-${avail === "ok" ? "ok" : avail}">${availLabel}</span>
+          <span class="${clubClass}">${clubLabel}</span>
           <span class="pick-price">£${p.price.toFixed(1)}</span>
         </button>
         <button type="button" class="pick-info-btn" aria-label="Player info">ⓘ</button>
