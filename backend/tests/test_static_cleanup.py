@@ -245,6 +245,15 @@ def test_appshell_softnav_perf_instrumentation():
     assert "manager=manager," in routes
     assert 'gw=view["current_gw"]' in routes
     assert "has_complete_squad=squad_complete" in routes
+    assert "manager_leagues_and_owned_count" in (
+        Path(__file__).resolve().parents[1] / "app" / "services" / "league.py"
+    ).read_text(encoding="utf-8")
+    assert "ctx.leagues_and_owned" in routes
+    assert "_ctx(request, db, manager=manager)" in routes
+    live = (
+        Path(__file__).resolve().parents[1] / "app" / "services" / "live_scoring.py"
+    ).read_text(encoding="utf-8")
+    assert "is_live_demo_active(db, gw)" in live
     catalog = (
         Path(__file__).resolve().parents[1] / "app" / "services" / "player_catalog.py"
     ).read_text(encoding="utf-8")

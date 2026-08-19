@@ -217,6 +217,41 @@ def manager_leagues(db: Session, manager_id: int) -> list[League]:
     return rows
 
 
+def manager_leagues_and_owned_count(db: Session, manager_id: int) -> tuple[list[League], int]:
+    """Leagues + owned-player count in one round-trip when the manager has leagues.
+
+    Uses a scalar subquery for owned_count on the leagues SELECT so Postgres/SQLite
+    pay a single RTT. If there are no memberships, falls back to one COUNT query.
+    """
+    from sqlalchemy import func, select
+
+    from app.models import OwnedPlayer
+
+    owned_sq = (
+        select(func.count())
+        .select_from(OwnedPlayer)
+        .where(OwnedPlayer.manager_id == manager_id)
+        .scalar_subquery()
+    )
+    rows = (
+        db.query(League, owned_sq.label("owned_n"))
+        .join(Membership, Membership.league_id == League.id)
+        .filter(Membership.manager_id == manager_id)
+        .all()
+    )
+    if rows:
+        leagues = [row[0] for row in rows]
+        owned_n = int(rows[0][1] or 0)
+        return leagues, owned_n
+    owned_n = (
+        db.query(func.count(OwnedPlayer.id))
+        .filter(OwnedPlayer.manager_id == manager_id)
+        .scalar()
+        or 0
+    )
+    return [], int(owned_n)
+
+
 def backfill_null_league_owners(db: Session) -> int:
     """Assign owner_id on legacy leagues where it is NULL.
 

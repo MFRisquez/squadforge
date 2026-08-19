@@ -206,17 +206,25 @@ def _ctx(request: Request, db: Session, **extra):
         except Exception:
             pass
 
-    if "nav_leagues" in extra:
+    if "nav_leagues" in extra and "has_complete_squad" in extra:
         leagues = extra["nav_leagues"]
-    else:
-        with timed("ctx.manager_leagues"):
-            leagues = league_svc.manager_leagues(db, manager.id) if manager else []
-
-    if "has_complete_squad" in extra:
         has_squad = bool(extra["has_complete_squad"])
-    else:
+    elif "nav_leagues" in extra:
+        leagues = extra["nav_leagues"]
         with timed("ctx.has_complete_squad"):
             has_squad = bool(manager and manager_has_complete_squad(db, manager.id))
+    elif "has_complete_squad" in extra:
+        has_squad = bool(extra["has_complete_squad"])
+        with timed("ctx.manager_leagues"):
+            leagues = league_svc.manager_leagues(db, manager.id) if manager else []
+    else:
+        if manager:
+            with timed("ctx.leagues_and_owned"):
+                leagues, owned_n = league_svc.manager_leagues_and_owned_count(db, manager.id)
+            has_squad = owned_n >= settings.squad_size
+        else:
+            leagues = []
+            has_squad = False
 
     if "demo_data_active" in extra:
         demo_data_active = bool(extra["demo_data_active"])
@@ -1718,7 +1726,8 @@ def rules_page(request: Request, db: Session = Depends(get_db)):
     if not manager:
         return RedirectResponse("/login", status_code=303)
     with timed("rules.ctx"):
-        ctx = _ctx(request, db)
+        # Reuse auth manager — do not pay a second current_manager RTT inside _ctx.
+        ctx = _ctx(request, db, manager=manager)
     with timed("rules.template_render"):
         resp = templates.TemplateResponse("rules.html", ctx)
     return attach_server_perf_header(resp, path="/rules")

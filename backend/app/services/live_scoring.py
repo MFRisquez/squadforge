@@ -733,18 +733,19 @@ def clear_demo_scoring_data(db: Session, *, gameweek_id: int | None = None) -> d
 
 def is_demo_scoring_active(db: Session, gw: Gameweek | None = None) -> bool:
     """True when demo_sim MatchEvents exist for the GW (or a live demo session is on)."""
-    try:
-        from app.services import demo_live as demo_svc
-
-        if demo_svc.is_live_demo_active(db):
-            return True
-    except Exception:
-        pass
     if gw is None:
         try:
             gw = squad_svc.current_gameweek(db)
         except Exception:
             return False
+    try:
+        from app.services import demo_live as demo_svc
+
+        # Pass gw so is_live_demo_active does not re-query current_gameweek (~62ms).
+        if demo_svc.is_live_demo_active(db, gw):
+            return True
+    except Exception:
+        pass
     return (
         db.query(MatchEvent.id)
         .filter(MatchEvent.gameweek_id == gw.id, MatchEvent.source == "demo_sim")
