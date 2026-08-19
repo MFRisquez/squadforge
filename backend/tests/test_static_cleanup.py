@@ -124,20 +124,20 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS / catalog that showed wrong avail flags
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v147"' in sw
+    assert 'CACHE = "futfantasy-v148"' in sw
     assert "if (isStatic || isBadgeCdn) return cached || fetched" in sw
     assert "CSS is network-first" in sw
     # Must not cache-first the catalog (stale availability after FPL sync).
     assert "if (isStatic || isCatalog || isBadgeCdn) return cached || fetched" not in sw
-    assert "/static/styles.css?v=146" in sw
+    assert "/static/styles.css?v=147" in sw
     assert "/static/league_h2h.js" in sw
     assert "/static/club-sheet.js" in sw
     assert 'BADGE_CDN_HOST = "resources.premierleague.com"' in sw
     assert "isBadgeCdn" in sw
     assert "isStatic || isCatalog || isBadgeCdn" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=146" in base
-    assert "styles.css?v=146" in base
+    assert "sw.js?v=147" in base
+    assert "styles.css?v=147" in base
 
     squad = (STATIC / "squadboard.js").read_text(encoding="utf-8")
     assert "ff-players-updated" in squad
@@ -196,11 +196,14 @@ def test_desk_side_left_layout_phase0():
     assert "--desk-side-w: 20rem" in css
     assert css.count("--desk-side-w: 20rem") >= 2
     assert "--desk-side-w: 19.5rem" not in css
-    # XI desktop reorder: pitch | bench | DT (order + remapped tracks; Transfers unchanged)
+    # XI desktop reorder: pitch | bench | DT (order + remapped tracks)
     assert "XI desktop column reorder" in css
     assert ".desk-xi > .desk-main.desk-xi-main" in css
     assert "order: 1" in css and "order: 2" in css and "order: 3" in css
-    # Transfers still uses side | pitch | side (shared rule before XI override)
+    # Transfers desktop reorder: pitch | Free Agents | left panel (.desk-squad only)
+    assert "Transfers desktop column reorder" in css
+    assert ".desk-squad > .transfer-rail" in css
+    assert "XI untouched" in css
     assert ".desk-squad:has(> .desk-side-left)" in css
     assert "body.page-xi:not(.page-opponent).page-fit .shell" in css
     assert "width: 100%" in css

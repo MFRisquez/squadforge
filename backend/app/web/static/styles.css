@@ -4732,7 +4732,7 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     overflow: hidden;
   }
   /*
-   * XI desktop column reorder (Transfers untouched).
+   * XI desktop column reorder (Transfers has its own .desk-squad block).
    * Visual: pitch+chips | bench+live | DT/leagues/scorers.
    * Tracks remapped so each panel keeps its prior width:
    *   pitch → minmax(0, --desk-pitch-col), sides → minmax(--desk-side-w, 1fr).
@@ -8905,6 +8905,46 @@ body > .chip-tip.is-open-tip {
   }
   .desk-squad:not(:has(> .desk-side-left)) > .transfer-rail {
     grid-column: 2;
+  }
+  /*
+   * Transfers desktop column reorder (XI untouched — uses .desk-squad only).
+   * Visual: pitch+chips/stats | Free Agents (+ watch list) | trends/history panel.
+   * Tracks remapped so each panel keeps its prior width:
+   *   pitch → minmax(0, --desk-pitch-col), sides → minmax(--desk-side-w, 1fr).
+   * Rows preserved: main-top + alerts on row 1; pitch + FA on row 2;
+   * side panel still spans both rows (now on the right).
+   * Rollback: delete this block only (HTML unchanged).
+   */
+  .desk-squad:has(> .desk-side-left) {
+    grid-template-columns:
+      minmax(0, var(--desk-pitch-col))
+      minmax(var(--desk-side-w), 1fr)
+      minmax(var(--desk-side-w), 1fr);
+  }
+  .desk-squad > .desk-main-top {
+    order: 1;
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .desk-squad > .desk-main {
+    order: 2;
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .desk-squad > .squad-alerts.desk-only {
+    order: 3;
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .desk-squad > .transfer-rail {
+    order: 4;
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .desk-squad > .desk-side-left {
+    order: 5;
+    grid-column: 3;
+    grid-row: 1 / -1;
   }
 }
 
