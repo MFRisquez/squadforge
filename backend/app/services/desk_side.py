@@ -275,6 +275,48 @@ def xi_side_left_payload(
         "top_scorers": manager_top_scorers_while_owned(
             db, manager_id=manager_id, current_gw_id=int(gw.id)
         ),
+        "rank_spark": manager_rank_spark(
+            db, manager_id=manager_id, gw=gw, leagues=leagues
+        ),
+    }
+
+
+def manager_rank_spark(
+    db: Session,
+    *,
+    manager_id: int,
+    gw,
+    leagues: list[League],
+) -> dict[str, Any] | None:
+    """Mini position timeline for the first league (reuses standings_svc.rank_history)."""
+    if not leagues:
+        return None
+    league = leagues[0]
+    hist = standings_svc.league_rank_history(db, league, gw, me_id=manager_id)
+    gw_numbers = hist.get("gw_numbers") or []
+    if len(gw_numbers) < 2:
+        return {
+            "league_id": int(league.id),
+            "league_name": league.name,
+            "empty": True,
+            "reason": "Need 2+ scored gameweeks",
+        }
+    me = next((s for s in (hist.get("series") or []) if s.get("is_me")), None)
+    if not me:
+        return None
+    ranks = me.get("ranks") or []
+    return {
+        "league_id": int(league.id),
+        "league_name": league.name,
+        "empty": False,
+        "gw_numbers": gw_numbers,
+        "gw_labels": hist.get("gw_labels") or [],
+        "grid": hist.get("grid") or [],
+        "series": [me],
+        "chart_width": hist.get("chart_width") or 360,
+        "chart_height": hist.get("chart_height") or 140,
+        "max_rank": hist.get("max_rank"),
+        "current_rank": ranks[-1] if ranks else None,
     }
 
 

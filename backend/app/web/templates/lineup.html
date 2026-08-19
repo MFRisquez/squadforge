@@ -16,6 +16,7 @@
   <aside class="desk-rail desk-side-left" id="xiSideLeft" aria-label="DT and leagues">
     {% set side = xi_side_left or {} %}
     {% set td_side = side.td or {} %}
+    <div class="desk-side-top-row">
     <section class="desk-side-block desk-side-td">
       <header class="desk-rail-head">
         <p class="eyebrow">Technical Director</p>
@@ -63,6 +64,7 @@
       <p class="muted tiny">Join or create a league to track your rank here.</p>
       {% endif %}
     </section>
+    </div>
     <section class="desk-side-block desk-side-top-scorers">
       <header class="desk-rail-head">
         <p class="eyebrow">All time</p>
@@ -81,6 +83,52 @@
       </ol>
       {% else %}
       <p class="muted tiny">Points while you owned them show up after scored gameweeks.</p>
+      {% endif %}
+      {% set spark = side.rank_spark %}
+      {% if spark %}
+      <div class="desk-side-rank-spark" aria-label="Position trend">
+        <header class="desk-side-rank-spark-head">
+          <p class="eyebrow">Position</p>
+          <strong>{{ spark.league_name }}{% if spark.current_rank %} · #{{ spark.current_rank }}{% endif %}</strong>
+        </header>
+        {% if spark.empty %}
+        <p class="muted tiny">{{ spark.reason or "Trend unlocks after 2 scored GWs." }}</p>
+        {% else %}
+        <div class="desk-side-rank-spark-chart">
+          <svg
+            class="desk-side-rank-spark-svg"
+            viewBox="0 0 {{ spark.chart_width }} {{ spark.chart_height }}"
+            role="img"
+            aria-label="Your rank by gameweek in {{ spark.league_name }}"
+          >
+            {% for g in spark.grid %}
+              <line class="rank-grid" x1="10" y1="{{ g.y }}" x2="{{ spark.chart_width - 10 }}" y2="{{ g.y }}" />
+            {% endfor %}
+            {% for g in spark.gw_labels %}
+              <text class="rank-axis gw" x="{{ g.x }}" y="{{ spark.chart_height - 1 }}">{{ g.number }}</text>
+            {% endfor %}
+            {% for s in spark.series %}
+              {% if s.polyline %}
+              <polyline
+                class="rank-line is-me"
+                fill="none"
+                stroke="{{ s.color }}"
+                stroke-width="2.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                points="{{ s.polyline }}"
+              ></polyline>
+              {% for p in s.points %}
+              <circle class="rank-dot is-me" cx="{{ p.x }}" cy="{{ p.y }}" r="3.2" fill="{{ s.color }}" stroke="#fff" stroke-width="0.8">
+                <title>{{ p.title }}</title>
+              </circle>
+              {% endfor %}
+              {% endif %}
+            {% endfor %}
+          </svg>
+        </div>
+        {% endif %}
+      </div>
       {% endif %}
     </section>
   </aside>

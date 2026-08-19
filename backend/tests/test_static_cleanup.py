@@ -124,20 +124,20 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS / catalog that showed wrong avail flags
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v138"' in sw
+    assert 'CACHE = "futfantasy-v139"' in sw
     assert "if (isStatic || isBadgeCdn) return cached || fetched" in sw
     assert "CSS is network-first" in sw
     # Must not cache-first the catalog (stale availability after FPL sync).
     assert "if (isStatic || isCatalog || isBadgeCdn) return cached || fetched" not in sw
-    assert "/static/styles.css?v=137" in sw
+    assert "/static/styles.css?v=138" in sw
     assert "/static/league_h2h.js" in sw
     assert "/static/club-sheet.js" in sw
     assert 'BADGE_CDN_HOST = "resources.premierleague.com"' in sw
     assert "isBadgeCdn" in sw
     assert "isStatic || isCatalog || isBadgeCdn" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=137" in base
-    assert "styles.css?v=137" in base
+    assert "sw.js?v=138" in base
+    assert "styles.css?v=138" in base
 
     squad = (STATIC / "squadboard.js").read_text(encoding="utf-8")
     assert "ff-players-updated" in squad
@@ -201,12 +201,13 @@ def test_desk_side_left_layout_phase0():
     assert "max-width: none" in css
     assert "--desk-pitch-col: 45.6rem" in css
     assert "--desk-pitch-col: 38rem" not in css
-    # Pitch tokens: XI 5.4rem; Transfers −20% → 4.32rem; bench −30% → 3.78rem
+    # Pitch tokens: XI 5.4rem; Transfers −20% → 4.32rem; bench −10% more → 3.4rem
     assert "--pitch-token-w: 5.4rem" in css
     assert "--pitch-token-w: 4.32rem" in css
-    assert "--bench-token-w: 3.78rem" in css
+    assert "--bench-token-w: 3.4rem" in css
     assert "body.page-xi .xi-bench-stack .xi-shirt" in css
-    assert "width: var(--bench-token-w, 3.78rem) !important" in css
+    assert "width: var(--bench-token-w, 3.4rem) !important" in css
+    assert "max-width: none" in css  # bench rows must not inherit pitch-token max-width
     assert "width: var(--pitch-token-w, 5.4rem) !important" not in css
     assert "width: 2.55rem !important" not in css
     # Name + fixture type bumped on both pitches
@@ -214,6 +215,12 @@ def test_desk_side_left_layout_phase0():
     assert "font-size: 0.78rem" in css
     assert "body.page-xi .xi-pitch-wrap .shirt-foot" in css
     assert "font-size: 0.70rem" in css
+    # Phase 2 left rail: DT + leagues side-by-side, centered scorers, rank spark
+    assert "desk-side-top-row" in css
+    assert "desk-side-rank-spark" in css
+    assert "desk-side-top-row" in lineup
+    assert "desk-side-rank-spark" in lineup
+    assert "rank_spark" in lineup or "side.rank_spark" in lineup
     assert "desk-xi-chips" in css
     assert 'class="desk-main desk-xi-main"' in lineup
     assert "desk-xi-chips" in lineup
