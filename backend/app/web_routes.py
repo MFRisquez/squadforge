@@ -238,6 +238,19 @@ def _ctx(request: Request, db: Session, **extra):
         except Exception:
             demo_data_active = False
 
+    if "team_name_editable" in extra:
+        team_name_editable = bool(extra["team_name_editable"])
+    else:
+        team_name_editable = True
+        if manager:
+            try:
+                from app.services import deadline as deadline_svc
+
+                with timed("ctx.team_name_editable"):
+                    team_name_editable = deadline_svc.team_name_editable(db)
+            except Exception:
+                team_name_editable = True
+
     data = {
         "request": request,
         "app_name": settings.app_name,
@@ -247,6 +260,7 @@ def _ctx(request: Request, db: Session, **extra):
         "nav_leagues": leagues,
         "has_complete_squad": has_squad,
         "demo_data_active": demo_data_active,
+        "team_name_editable": team_name_editable,
         "debug": settings.debug,
         "error": None,
         "notice": None,
@@ -318,6 +332,7 @@ def _owned_payload(
 
 @router.get("/", response_class=HTMLResponse)
 def home(request: Request, db: Session = Depends(get_db)):
+    from app.services import deadline as deadline_svc
     from app.services import demo_live as demo_svc
     from app.services import td as td_svc
 
@@ -355,9 +370,36 @@ def home(request: Request, db: Session = Depends(get_db)):
             formula_version=settings.formula_version,
             live_demo_active=live_demo,
             td_banner=td_banner,
+            team_name_editable=deadline_svc.team_name_editable(db),
             notice=request.query_params.get("notice"),
             error=request.query_params.get("error"),
         ),
+    )
+
+
+@router.post("/team-name")
+def update_team_name(
+    request: Request,
+    team_name: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    from app.services import deadline as deadline_svc
+
+    manager = current_manager(request, db)
+    if not manager:
+        return RedirectResponse("/login", status_code=303)
+    if not deadline_svc.team_name_editable(db):
+        return RedirectResponse(
+            f"/?error={quote('Team name locks once GW1 starts.')}",
+            status_code=303,
+        )
+    try:
+        league_svc.update_team_name(db, manager, team_name)
+    except league_svc.LeagueError as exc:
+        return RedirectResponse(f"/?error={quote(str(exc))}", status_code=303)
+    return RedirectResponse(
+        f"/?notice={quote('Team name updated.')}",
+        status_code=303,
     )
 
 

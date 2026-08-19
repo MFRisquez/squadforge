@@ -136,6 +136,19 @@ def reset_password_with_token(db: Session, *, token: str, new_password: str) -> 
     return manager
 
 
+def update_team_name(db: Session, manager: Manager, team_name: str) -> Manager:
+    """Rename the fantasy team (caller must enforce GW1 lock)."""
+    team = (team_name or "").strip()
+    if len(team) < 2:
+        raise LeagueError("Team name needs at least 2 characters.")
+    if len(team) > 80:
+        raise LeagueError("Team name is too long (80 max).")
+    manager.team_name = team
+    db.commit()
+    db.refresh(manager)
+    return manager
+
+
 def get_or_create_manager(db: Session, display_name: str, pin: str, team_name: str = "") -> Manager:
     """Backward-compatible helper for older tests — prefer register/authenticate."""
     name = display_name.strip()

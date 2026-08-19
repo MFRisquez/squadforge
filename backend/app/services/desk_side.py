@@ -43,6 +43,15 @@ _LEAGUE_XI_CACHE: dict[tuple[int, int, str], tuple[float, Any]] = {}
 MIN_MANAGERS_FOR_TOP_TRANSFERS = 4
 
 PREVIEW_WATERMARK = "Preview — real data after deadline"
+RANK_PREVIEW_WATERMARK = "Preview — real ranks after GW2"
+
+# Desktop position chart geometry (taller so the left rail can fill pitch height).
+_DESK_CHART_W = 400.0
+_DESK_CHART_H = 280.0
+_DESK_PAD_L = 28.0
+_DESK_PAD_R = 14.0
+_DESK_PAD_T = 16.0
+_DESK_PAD_B = 24.0
 
 
 def clear_desk_side_caches() -> None:
@@ -275,9 +284,95 @@ def xi_side_left_payload(
         "top_scorers": manager_top_scorers_while_owned(
             db, manager_id=manager_id, current_gw_id=int(gw.id)
         ),
-        "rank_spark": manager_rank_spark(
+        "rank_spark": manager_rank_sparks(
             db, manager_id=manager_id, gw=gw, leagues=leagues
         ),
+    }
+
+
+def _desk_chart_kwargs() -> dict[str, Any]:
+    return {
+        "chart_width": _DESK_CHART_W,
+        "chart_height": _DESK_CHART_H,
+        "pad_left": _DESK_PAD_L,
+        "pad_right": _DESK_PAD_R,
+        "pad_top": _DESK_PAD_T,
+        "pad_bottom": _DESK_PAD_B,
+        "include_area": True,
+    }
+
+
+def _preview_rank_raw(
+    *,
+    manager_id: int,
+    team_name: str,
+    member_count: int,
+    league_id: int,
+) -> dict[str, Any]:
+    """Synthetic GW ranks so the Position chart can be designed before GW2."""
+    n = max(4, int(member_count) or 4)
+    gameweeks = [1, 2, 3, 4, 5]
+    seed = int(league_id) % 3
+    me_patterns = (
+        [n, max(1, n - 1), max(1, n // 2), 2, 1],
+        [max(1, n // 2), n - 1, 3, 2, 1],
+        [3, 2, max(1, n // 2), max(1, n - 1), n],
+    )
+    me_ranks = [max(1, min(n, r)) for r in me_patterns[seed]]
+    managers = [
+        {
+            "manager_id": int(manager_id),
+            "name": team_name,
+            "ranks": me_ranks,
+        }
+    ]
+    # Ghost rivals for scale / professional density (not real people).
+    for i in range(1, n):
+        base = i + 1
+        wave = [
+            max(1, min(n, base + ((i + g) % 3) - 1))
+            for g in range(5)
+        ]
+        # Keep "me" unique on the last GW when possible
+        if wave[-1] == me_ranks[-1]:
+            wave[-1] = 1 if me_ranks[-1] != 1 else min(n, 2)
+        managers.append(
+            {
+                "manager_id": -(i),
+                "name": f"Rival {i}",
+                "ranks": wave,
+            }
+        )
+    return {"gameweeks": gameweeks, "managers": managers}
+
+
+def _spark_payload_from_chart(
+    chart: dict[str, Any],
+    *,
+    league: League,
+    preview: bool,
+) -> dict[str, Any]:
+    me = next((s for s in (chart.get("series") or []) if s.get("is_me")), None)
+    ranks = (me or {}).get("ranks") or []
+    return {
+        "league_id": int(league.id),
+        "league_name": league.name,
+        "league_type": getattr(league, "league_type", "classic") or "classic",
+        "empty": False,
+        "preview": preview,
+        "watermark": RANK_PREVIEW_WATERMARK if preview else None,
+        "gw_numbers": chart.get("gw_numbers") or [],
+        "gw_labels": chart.get("gw_labels") or [],
+        "grid": chart.get("grid") or [],
+        "series": chart.get("series") or [],
+        "chart_width": chart.get("chart_width") or int(_DESK_CHART_W),
+        "chart_height": chart.get("chart_height") or int(_DESK_CHART_H),
+        "plot_left": chart.get("plot_left"),
+        "plot_right": chart.get("plot_right"),
+        "plot_top": chart.get("plot_top"),
+        "plot_bottom": chart.get("plot_bottom"),
+        "max_rank": chart.get("max_rank"),
+        "current_rank": ranks[-1] if ranks else None,
     }
 
 
@@ -288,36 +383,64 @@ def manager_rank_spark(
     gw,
     leagues: list[League],
 ) -> dict[str, Any] | None:
-    """Mini position timeline for the first league (reuses standings_svc.rank_history)."""
+    """Position timeline for the first league (preview until 2+ scored GWs)."""
+    sparks = manager_rank_sparks(db, manager_id=manager_id, gw=gw, leagues=leagues)
+    charts = (sparks or {}).get("charts") or []
+    return charts[0] if charts else None
+
+
+def manager_rank_sparks(
+    db: Session,
+    *,
+    manager_id: int,
+    gw,
+    leagues: list[League],
+) -> dict[str, Any] | None:
+    """Position charts for every league the manager is in (switchable on desk)."""
     if not leagues:
         return None
-    league = leagues[0]
-    hist = standings_svc.league_rank_history(db, league, gw, me_id=manager_id)
-    gw_numbers = hist.get("gw_numbers") or []
-    if len(gw_numbers) < 2:
-        return {
-            "league_id": int(league.id),
-            "league_name": league.name,
-            "empty": True,
-            "reason": "Need 2+ scored gameweeks",
-        }
-    me = next((s for s in (hist.get("series") or []) if s.get("is_me")), None)
-    if not me:
-        return None
-    ranks = me.get("ranks") or []
-    return {
-        "league_id": int(league.id),
-        "league_name": league.name,
-        "empty": False,
-        "gw_numbers": gw_numbers,
-        "gw_labels": hist.get("gw_labels") or [],
-        "grid": hist.get("grid") or [],
-        "series": [me],
-        "chart_width": hist.get("chart_width") or 360,
-        "chart_height": hist.get("chart_height") or 140,
-        "max_rank": hist.get("max_rank"),
-        "current_rank": ranks[-1] if ranks else None,
-    }
+
+    from app.models import Manager
+
+    manager = db.query(Manager).filter(Manager.id == manager_id).one_or_none()
+    team_name = (
+        ((manager.team_name if manager else "") or "").strip()
+        or ((manager.display_name if manager else "") or "You")
+    )
+
+    charts: list[dict[str, Any]] = []
+    kwargs = _desk_chart_kwargs()
+    for league in leagues:
+        member_count = (
+            db.query(func.count(Membership.id))
+            .filter(Membership.league_id == int(league.id))
+            .scalar()
+            or 0
+        )
+        hist = standings_svc.league_rank_history(
+            db, league, gw, me_id=manager_id, **kwargs
+        )
+        gw_numbers = hist.get("gw_numbers") or []
+        if len(gw_numbers) >= 2 and hist.get("series"):
+            charts.append(
+                _spark_payload_from_chart(hist, league=league, preview=False)
+            )
+            continue
+
+        raw = _preview_rank_raw(
+            manager_id=manager_id,
+            team_name=team_name,
+            member_count=int(member_count),
+            league_id=int(league.id),
+        )
+        preview_chart = standings_svc._chart_from_rank_history(
+            raw, me_id=manager_id, **kwargs
+        )
+        charts.append(
+            _spark_payload_from_chart(preview_chart, league=league, preview=True)
+        )
+
+    return {"charts": charts, "count": len(charts)}
 
 
 def _member_ids(db: Session, league_id: int) -> list[int]:

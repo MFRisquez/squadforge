@@ -25,6 +25,31 @@
     </section>
     {% endif %}
 
+    <section class="home-card home-team-card">
+      <header class="home-card-head">
+        <h2>Your team</h2>
+      </header>
+      <form class="home-inline-form" method="post" action="/team-name">
+        <input
+          name="team_name"
+          value="{{ manager.team_name or '' }}"
+          placeholder="Team name"
+          maxlength="80"
+          autocomplete="organization"
+          {% if not team_name_editable %}disabled{% endif %}
+          required
+        />
+        {% if team_name_editable %}
+        <button class="btn mini-btn" type="submit">Save</button>
+        {% else %}
+        <span class="muted tiny home-team-locked">Locked after GW1 starts</span>
+        {% endif %}
+      </form>
+      {% if team_name_editable %}
+      <p class="muted tiny home-team-hint">You can rename until the first GW1 fixture kicks off.</p>
+      {% endif %}
+    </section>
+
     {% if td_banner %}
     <section class="home-card td-banner is-{{ td_banner.level }}" role="status">
       <p class="td-banner-kicker">{% if td_banner.level == 'urgent' %}DT expired{% else %}DT window{% endif %}</p>
