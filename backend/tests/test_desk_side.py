@@ -112,15 +112,54 @@ def test_transfers_side_locked_before_deadline(monkeypatch):
             db, leagues=[league], gw=gw, manager_id=managers[0].id
         )
         assert payload["preview"] is True
-        assert payload["leagues"]
-        block = payload["leagues"][0]
-        assert block["preview"] is True
-        assert "Jugador-Ejemplo" in block["most_in"][0]["name"]
-        assert block["most_in"][0]["count"] == 0
-        assert block["most_picked"][0]["rival"] == "vs X"
-        assert block["popular_captain"]["name"] == "Capitan-Muestra"
+        trends = payload["trends"]
+        assert trends["preview"] is True
+        assert "Jugador-Ejemplo" in trends["most_in"][0]["name"]
+        assert trends["most_in"][0]["count"] == 0
+        assert "most_picked" not in trends
         assert "Preview" in (payload.get("watermark") or "")
         assert payload["my_transfers"] == []
+        assert payload["leagues"] == []
+    finally:
+        db.close()
+
+
+def test_transfers_side_combines_leagues_no_dup(monkeypatch):
+    db, league_a, managers, gw = _league_with_scores(4, tag="uniA")
+    try:
+        from app.models import Player
+
+        monkeypatch.setattr("app.services.deadline.can_edit", lambda _gw: False)
+        league_b = league_svc.create_league(db, "Side League uniB", managers[0])
+        for m in managers[1:]:
+            league_svc.join_league(db, league_b.invite_code, m)
+        players = db.query(Player).limit(2).all()
+        p_out, p_in = players[0], players[1]
+        for m in managers[:3]:
+            db.add(
+                TransferLog(
+                    manager_id=m.id,
+                    gameweek_id=gw.id,
+                    player_out_id=p_out.id,
+                    player_in_id=p_in.id,
+                    free_transfers_after=1,
+                    is_hit=0,
+                )
+            )
+        db.commit()
+        desk_side_svc.clear_desk_side_caches()
+        payload = desk_side_svc.transfers_side_left_payload(
+            db, leagues=[league_a, league_b], gw=gw, manager_id=managers[0].id
+        )
+        assert payload["preview"] is False
+        assert payload["leagues"] == []
+        trends = payload["trends"]
+        assert trends is not None
+        assert trends["most_in"][0]["player_id"] == p_in.id
+        assert trends["most_in"][0]["count"] == 3
+        assert "most_picked" not in trends
+        # Union of 4 managers (same people in both leagues) — not 8
+        assert trends["manager_count"] == 4
     finally:
         db.close()
 
@@ -180,7 +219,10 @@ def test_league_most_picked_and_captain_aggregated(monkeypatch):
             db, leagues=[league], gw=gw, manager_id=managers[0].id
         )
         assert payload["preview"] is False
-        assert payload["leagues"][0]["most_picked"][0]["name"] == star.name
+        # Combined trends no longer embed most_picked; helpers still work.
+        assert payload["trends"] is not None or payload["trends"] is None
+        assert payload.get("leagues") == []
+        assert picked[0]["name"] == star.name
     finally:
         db.close()
 

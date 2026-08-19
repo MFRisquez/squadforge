@@ -329,18 +329,28 @@ def _member_ids(db: Session, league_id: int) -> list[int]:
     ]
 
 
-def league_top_transfers(
+def _union_member_ids(db: Session, leagues: list[League]) -> list[int]:
+    """Deduped manager ids across every league the user is in."""
+    seen: set[int] = set()
+    out: list[int] = []
+    for league in leagues:
+        for mid in _member_ids(db, int(league.id)):
+            if mid in seen:
+                continue
+            seen.add(mid)
+            out.append(mid)
+    return out
+
+
+def top_transfers_for_managers(
     db: Session,
     *,
-    league_id: int,
+    manager_ids: list[int],
     gameweek_id: int,
     limit: int = 3,
 ) -> dict[str, Any] | None:
-    """One aggregated query path for top IN / OUT in a league this GW.
-
-    Returns None when the league is too small for a meaningful top list.
-    """
-    mids = _member_ids(db, league_id)
+    """Aggregated Most IN / OUT for a manager set (union of leagues)."""
+    mids = [int(m) for m in manager_ids]
     if len(mids) < MIN_MANAGERS_FOR_TOP_TRANSFERS:
         return None
 
@@ -392,6 +402,25 @@ def league_top_transfers(
         "most_out": _rows(outs),
         "manager_count": len(mids),
     }
+
+
+def league_top_transfers(
+    db: Session,
+    *,
+    league_id: int,
+    gameweek_id: int,
+    limit: int = 3,
+) -> dict[str, Any] | None:
+    """One aggregated query path for top IN / OUT in a league this GW.
+
+    Returns None when the league is too small for a meaningful top list.
+    """
+    return top_transfers_for_managers(
+        db,
+        manager_ids=_member_ids(db, league_id),
+        gameweek_id=gameweek_id,
+        limit=limit,
+    )
 
 
 def manager_gw_transfer_rows(
@@ -483,17 +512,14 @@ def _preview_popular_captain() -> dict[str, Any]:
     }
 
 
-def _preview_league_block(league: League | None) -> dict[str, Any]:
+def _preview_trends_block() -> dict[str, Any]:
+    """Single combined preview (not per-league) for League Transfer Trends."""
     return {
-        "id": league.id if league else 0,
-        "name": league.name if league else "Your league",
         "preview": True,
         "watermark": PREVIEW_WATERMARK,
         "empty": False,
         "most_in": _preview_most_xfer_rows(),
         "most_out": _preview_most_xfer_rows(),
-        "most_picked": _preview_most_picked_rows(),
-        "popular_captain": _preview_popular_captain(),
         "manager_count": 0,
     }
 
@@ -655,10 +681,13 @@ def transfers_side_left_payload(
     gw,
     manager_id: int | None = None,
 ) -> dict[str, Any]:
-    """League transfer trends + my GW history.
+    """Combined League Transfer Trends + my GW history.
+
+    One view across the union of managers in all of the user's leagues
+    (deduped) — never a repeated block per league.
 
     Before deadline (``can_edit``): sample preview tables (never mixed with real).
-    After deadline: real aggregated Most IN/OUT, most-picked XI, popular captain.
+    After deadline: real aggregated Most IN / Most OUT.
     """
     my_rows: list[dict[str, Any]] = []
     if manager_id is not None:
@@ -667,58 +696,42 @@ def transfers_side_left_payload(
         )
 
     if deadline_svc.can_edit(gw):
-        blocks = [_preview_league_block(lg) for lg in leagues] or [_preview_league_block(None)]
+        trends = _preview_trends_block()
         return {
             "locked": False,
             "preview": True,
             "watermark": PREVIEW_WATERMARK,
             "message": None,
-            "leagues": blocks,
+            "trends": trends,
+            # Legacy key kept empty so old callers don't loop per-league.
+            "leagues": [],
             "min_managers": MIN_MANAGERS_FOR_TOP_TRANSFERS,
             "my_transfers": my_rows,
         }
 
-    blocks: list[dict[str, Any]] = []
-    for league in leagues:
-        top = league_top_transfers(db, league_id=league.id, gameweek_id=gw.id)
-        picked = league_most_picked_xi(
-            db,
-            league_id=league.id,
-            gameweek_id=gw.id,
-            gw_number=int(gw.number),
-        )
-        captain = league_popular_captain(
-            db,
-            league_id=league.id,
-            gameweek_id=gw.id,
-            gw_number=int(gw.number),
-        )
-        if top is None and picked is None and captain is None:
-            continue
-        most_in = (top or {}).get("most_in") or []
-        most_out = (top or {}).get("most_out") or []
-        empty = not most_in and not most_out and not picked and not captain
-        blocks.append(
-            {
-                "id": league.id,
-                "name": league.name,
-                "preview": False,
-                "watermark": None,
-                "empty": empty,
-                "most_in": most_in,
-                "most_out": most_out,
-                "most_picked": picked or [],
-                "popular_captain": captain,
-                "manager_count": (top or {}).get("manager_count") or len(_member_ids(db, league.id)),
-            }
-        )
+    mids = _union_member_ids(db, leagues)
+    top = top_transfers_for_managers(db, manager_ids=mids, gameweek_id=int(gw.id))
+    if top is None:
+        trends = None
+    else:
+        most_in = top.get("most_in") or []
+        most_out = top.get("most_out") or []
+        trends = {
+            "preview": False,
+            "watermark": None,
+            "empty": not most_in and not most_out,
+            "most_in": most_in,
+            "most_out": most_out,
+            "manager_count": top.get("manager_count") or len(mids),
+        }
 
     return {
         "locked": False,
         "preview": False,
         "watermark": None,
         "message": None,
-        "leagues": blocks,
+        "trends": trends,
+        "leagues": [],
         "min_managers": MIN_MANAGERS_FOR_TOP_TRANSFERS,
         "my_transfers": my_rows,
     }
