@@ -4081,7 +4081,9 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   .player-detail-actions .btn { font-size: 0.95rem; }
 
   /* Align with stat strip: pitch | right rail (default 2-col).
-     Boards with .desk-side-left become 3-col — equal sides keep pitch centered. */
+     Boards with .desk-side-left become 3-col — equal sides keep pitch centered.
+     Sides MUST be fr tracks (not fixed rem): fixed rem left/right dumps all
+     extra shell width into the center, so rails never grow toward the edges. */
   .desk-board,
   .desk-squad,
   .desk-xi {
@@ -4091,10 +4093,15 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     align-items: stretch;
     min-height: 0;
     --desk-side-w: 20rem;
+    /* Cap the pitch column so leftover width goes to the side rails. */
+    --desk-pitch-col: 38rem;
   }
   .desk-xi:has(> .desk-side-left),
   .desk-squad:has(> .desk-side-left) {
-    grid-template-columns: var(--desk-side-w) minmax(0, 1fr) var(--desk-side-w);
+    grid-template-columns:
+      minmax(var(--desk-side-w), 1fr)
+      minmax(0, var(--desk-pitch-col))
+      minmax(var(--desk-side-w), 1fr);
   }
   .desk-xi {
     grid-template-rows: minmax(0, 1fr);
@@ -4117,7 +4124,9 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   body.page-fixtures .desk-board.desk-page > .desk-main {
     max-width: none;
   }
-  /* Widen shell so left rail does not steal pitch / FA width; GW bar follows shell. */
+  /* Pitch pages use full viewport width; side rails absorb the extra via fr tracks.
+     NOTE: a later `body.page-fit .shell { width: min(72rem) }` exists in this same
+     media block — this selector must stay more specific so it keeps winning. */
   body.page-xi:not(.page-opponent).page-fit .shell,
   body.page-squad:not(.page-onboard).page-fit .shell {
     width: 100%;
@@ -8339,9 +8348,13 @@ body > .chip-tip.is-open-tip {
     min-height: 0;
     overflow: hidden;
     --desk-side-w: 20rem;
+    --desk-pitch-col: 38rem;
   }
   .desk-squad:has(> .desk-side-left) {
-    grid-template-columns: var(--desk-side-w) minmax(0, 1fr) var(--desk-side-w);
+    grid-template-columns:
+      minmax(var(--desk-side-w), 1fr)
+      minmax(0, var(--desk-pitch-col))
+      minmax(var(--desk-side-w), 1fr);
   }
   .desk-xi {
     min-height: 0;
