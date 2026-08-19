@@ -46,14 +46,15 @@ PREVIEW_WATERMARK = "Preview — real data after deadline"
 RANK_PREVIEW_WATERMARK = "Preview — real ranks after GW2"
 
 # Desktop position chart geometry (taller so the left rail can fill pitch height).
+# Left pad holds truncated team names; keep L/R closer so the plot reads centered.
 _DESK_CHART_W = 400.0
 _DESK_CHART_H = 280.0
-_DESK_PAD_L = 100.0  # room for team-name labels on the left
-_DESK_PAD_R = 14.0
+_DESK_PAD_L = 78.0
+_DESK_PAD_R = 22.0
 _DESK_PAD_T = 16.0
 _DESK_PAD_B = 24.0
 _DESK_WINDOW_GWS = 5
-_DESK_NAME_MAX = 10
+_DESK_NAME_MAX = 9
 _DESK_NAME_GAP = 12.0
 
 
@@ -577,8 +578,21 @@ def manager_rank_sparks(
     gw,
     leagues: list[League],
 ) -> dict[str, Any] | None:
-    """Position charts for every league the manager is in (switchable on desk)."""
-    if not leagues:
+    """Position charts for every league the manager is in (switchable on desk).
+
+    Only membership leagues are included (deduped). One league → one chart,
+    no switcher payload.
+    """
+    # Dedupe while preserving order — never invent charts for other leagues.
+    seen: set[int] = set()
+    unique: list[League] = []
+    for league in leagues or []:
+        lid = int(league.id)
+        if lid in seen:
+            continue
+        seen.add(lid)
+        unique.append(league)
+    if not unique:
         return None
 
     from app.models import Manager
@@ -591,7 +605,7 @@ def manager_rank_sparks(
 
     charts: list[dict[str, Any]] = []
     kwargs = _desk_chart_kwargs()
-    for league in leagues:
+    for league in unique:
         member_count = (
             db.query(func.count(Membership.id))
             .filter(Membership.league_id == int(league.id))
@@ -991,18 +1005,28 @@ def transfers_side_left_payload(
 ) -> dict[str, Any]:
     """Combined League Transfer Trends + my GW history.
 
-    One view across the union of managers in all of the user's leagues
-    (deduped) — never a repeated block per league.
+    Scoped to the manager's leagues only (deduped). One league → trends for
+    that league alone; never invents a second league block.
 
     Before deadline (``can_edit``): sample preview tables (never mixed with real).
     After deadline: real aggregated Most IN / Most OUT.
     """
+    seen: set[int] = set()
+    unique: list[League] = []
+    for league in leagues or []:
+        lid = int(league.id)
+        if lid in seen:
+            continue
+        seen.add(lid)
+        unique.append(league)
+
     my_rows: list[dict[str, Any]] = []
     if manager_id is not None:
         my_rows = manager_gw_transfer_rows(
             db, manager_id=int(manager_id), gameweek_id=int(gw.id)
         )
 
+    league_count = len(unique)
     if deadline_svc.can_edit(gw):
         trends = _preview_trends_block()
         return {
@@ -1013,11 +1037,12 @@ def transfers_side_left_payload(
             "trends": trends,
             # Legacy key kept empty so old callers don't loop per-league.
             "leagues": [],
+            "league_count": league_count,
             "min_managers": MIN_MANAGERS_FOR_TOP_TRANSFERS,
             "my_transfers": my_rows,
         }
 
-    mids = _union_member_ids(db, leagues)
+    mids = _union_member_ids(db, unique)
     top = top_transfers_for_managers(db, manager_ids=mids, gameweek_id=int(gw.id))
     if top is None:
         trends = None
@@ -1040,6 +1065,7 @@ def transfers_side_left_payload(
         "message": None,
         "trends": trends,
         "leagues": [],
+        "league_count": league_count,
         "min_managers": MIN_MANAGERS_FOR_TOP_TRANSFERS,
         "my_transfers": my_rows,
     }
