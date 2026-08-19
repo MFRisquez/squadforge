@@ -17,6 +17,7 @@ from app.models import (
     Membership,
     OwnedPlayer,
     Player,
+    SquadPick,
     TransferLog,
 )
 from app.services import deadline as deadline_svc
@@ -33,13 +34,21 @@ _TOP_SCORERS_TTL = 180.0
 # (manager_id, current_gw_id) -> (monotonic_ts, top rows)
 _TOP_SCORERS_CACHE: dict[tuple[int, int], tuple[float, list[dict[str, Any]]]] = {}
 
+# League XI share / captain aggregates — same TTL window as ranks.
+_LEAGUE_XI_TTL = 45.0
+# (league_id, gw_id, kind) -> (monotonic_ts, payload)
+_LEAGUE_XI_CACHE: dict[tuple[int, int, str], tuple[float, Any]] = {}
+
 # Minimum active managers before "top transfers" is meaningful.
 MIN_MANAGERS_FOR_TOP_TRANSFERS = 4
+
+PREVIEW_WATERMARK = "Preview — real data after deadline"
 
 
 def clear_desk_side_caches() -> None:
     _RANK_CACHE.clear()
     _TOP_SCORERS_CACHE.clear()
+    _LEAGUE_XI_CACHE.clear()
 
 
 def _parse_breakdown(raw: str | None) -> dict[str, Any]:
@@ -349,14 +358,18 @@ def manager_gw_transfer_rows(
     manager_id: int,
     gameweek_id: int,
 ) -> list[dict[str, Any]]:
-    """This manager's TransferLog rows for the GW (out → in), oldest first."""
+    """This manager's TransferLog rows for the GW (out → in), newest first.
+
+    Always filtered to ``gameweek_id`` so the list clears automatically when a
+    new GW starts (no manual wipe).
+    """
     logs = (
         db.query(TransferLog)
         .filter(
             TransferLog.manager_id == manager_id,
             TransferLog.gameweek_id == gameweek_id,
         )
-        .order_by(TransferLog.id.asc())
+        .order_by(TransferLog.id.desc())
         .all()
     )
     if not logs:
@@ -384,6 +397,215 @@ def manager_gw_transfer_rows(
     return rows
 
 
+def _preview_most_xfer_rows() -> list[dict[str, Any]]:
+    return [
+        {"player_id": 0, "name": "Jugador-Ejemplo", "count": 0},
+        {"player_id": 0, "name": "Nombre-Muestra", "count": 0},
+        {"player_id": 0, "name": "Plantilla-Demo", "count": 0},
+    ]
+
+
+def _preview_most_picked_rows() -> list[dict[str, Any]]:
+    return [
+        {
+            "player_id": 0,
+            "name": "Jugador-Ejemplo",
+            "points": 0,
+            "pct": 0,
+            "rival": "vs X",
+        },
+        {
+            "player_id": 0,
+            "name": "Nombre-Muestra",
+            "points": 0,
+            "pct": 0,
+            "rival": "vs X",
+        },
+        {
+            "player_id": 0,
+            "name": "Plantilla-Demo",
+            "points": 0,
+            "pct": 0,
+            "rival": "vs X",
+        },
+    ]
+
+
+def _preview_popular_captain() -> dict[str, Any]:
+    return {
+        "player_id": 0,
+        "name": "Capitan-Muestra",
+        "points": 0,
+        "pct": 0,
+        "rival": "vs X",
+    }
+
+
+def _preview_league_block(league: League | None) -> dict[str, Any]:
+    return {
+        "id": league.id if league else 0,
+        "name": league.name if league else "Your league",
+        "preview": True,
+        "watermark": PREVIEW_WATERMARK,
+        "empty": False,
+        "most_in": _preview_most_xfer_rows(),
+        "most_out": _preview_most_xfer_rows(),
+        "most_picked": _preview_most_picked_rows(),
+        "popular_captain": _preview_popular_captain(),
+        "manager_count": 0,
+    }
+
+
+def _season_points_map(db: Session, pids: set[int]) -> dict[int, float]:
+    out: dict[int, float] = {}
+    if not pids:
+        return out
+    for row in db.query(Player.id, Player.season_stats_json).filter(Player.id.in_(pids)).all():
+        try:
+            stats = json.loads(row[1] or "{}")
+        except json.JSONDecodeError:
+            stats = {}
+        out[int(row[0])] = float((stats or {}).get("total_points") or 0)
+    return out
+
+
+def _rival_line(db: Session, *, team_code: str | None, gw_number: int) -> str:
+    if not team_code:
+        return "vs —"
+    from app.services import fixtures as fixtures_svc
+
+    upcoming = fixtures_svc.next_fixtures_for_club(
+        db, club_code=team_code, from_gw=int(gw_number), limit=1
+    )
+    if not upcoming:
+        return "vs —"
+    fx = upcoming[0]
+    opp = fx.get("opponent") or "—"
+    venue = "H" if fx.get("home") else "A"
+    return f"vs {opp} ({venue})"
+
+
+def league_most_picked_xi(
+    db: Session,
+    *,
+    league_id: int,
+    gameweek_id: int,
+    gw_number: int,
+    limit: int = 5,
+) -> list[dict[str, Any]] | None:
+    """Share of league managers with each player in their starter XI this GW."""
+    key = (int(league_id), int(gameweek_id), "picked")
+    now = time.monotonic()
+    hit = _LEAGUE_XI_CACHE.get(key)
+    if hit is not None and (now - hit[0]) < _LEAGUE_XI_TTL:
+        return hit[1]
+
+    mids = _member_ids(db, league_id)
+    if len(mids) < MIN_MANAGERS_FOR_TOP_TRANSFERS:
+        _LEAGUE_XI_CACHE[key] = (now, None)
+        return None
+
+    rows = (
+        db.query(SquadPick.player_id, func.count().label("n"))
+        .filter(
+            SquadPick.gameweek_id == gameweek_id,
+            SquadPick.manager_id.in_(mids),
+            SquadPick.is_starter == 1,
+        )
+        .group_by(SquadPick.player_id)
+        .order_by(func.count().desc(), SquadPick.player_id.asc())
+        .limit(limit)
+        .all()
+    )
+    pids = {int(r[0]) for r in rows if r[0]}
+    names: dict[int, str] = {}
+    teams: dict[int, str] = {}
+    if pids:
+        for row in (
+            db.query(Player.id, Player.name, Player.team_code)
+            .filter(Player.id.in_(pids))
+            .all()
+        ):
+            names[int(row[0])] = row[1]
+            teams[int(row[0])] = row[2] or ""
+    pts = _season_points_map(db, pids)
+    total = float(len(mids))
+    out: list[dict[str, Any]] = []
+    for pid, n in rows:
+        if not pid:
+            continue
+        pid_i = int(pid)
+        out.append(
+            {
+                "player_id": pid_i,
+                "name": names.get(pid_i, f"#{pid_i}"),
+                "points": round(pts.get(pid_i, 0.0), 1),
+                "pct": round((float(n) / total) * 100.0, 1) if total else 0.0,
+                "count": int(n),
+                "rival": _rival_line(db, team_code=teams.get(pid_i), gw_number=gw_number),
+            }
+        )
+    _LEAGUE_XI_CACHE[key] = (now, out)
+    return out
+
+
+def league_popular_captain(
+    db: Session,
+    *,
+    league_id: int,
+    gameweek_id: int,
+    gw_number: int,
+) -> dict[str, Any] | None:
+    """Most-captained player among league managers this GW (one row)."""
+    key = (int(league_id), int(gameweek_id), "captain")
+    now = time.monotonic()
+    hit = _LEAGUE_XI_CACHE.get(key)
+    if hit is not None and (now - hit[0]) < _LEAGUE_XI_TTL:
+        return hit[1]
+
+    mids = _member_ids(db, league_id)
+    if len(mids) < MIN_MANAGERS_FOR_TOP_TRANSFERS:
+        _LEAGUE_XI_CACHE[key] = (now, None)
+        return None
+
+    row = (
+        db.query(SquadPick.player_id, func.count().label("n"))
+        .filter(
+            SquadPick.gameweek_id == gameweek_id,
+            SquadPick.manager_id.in_(mids),
+            SquadPick.is_captain == 1,
+        )
+        .group_by(SquadPick.player_id)
+        .order_by(func.count().desc(), SquadPick.player_id.asc())
+        .limit(1)
+        .first()
+    )
+    if not row or not row[0]:
+        empty: dict[str, Any] | None = None
+        _LEAGUE_XI_CACHE[key] = (now, empty)
+        return None
+
+    pid_i = int(row[0])
+    n = int(row[1])
+    player = db.query(Player).filter(Player.id == pid_i).one_or_none()
+    pts = _season_points_map(db, {pid_i}).get(pid_i, 0.0)
+    total = float(len(mids))
+    payload = {
+        "player_id": pid_i,
+        "name": player.name if player else f"#{pid_i}",
+        "points": round(pts, 1),
+        "pct": round((float(n) / total) * 100.0, 1) if total else 0.0,
+        "count": n,
+        "rival": _rival_line(
+            db,
+            team_code=player.team_code if player else None,
+            gw_number=gw_number,
+        ),
+    }
+    _LEAGUE_XI_CACHE[key] = (now, payload)
+    return payload
+
+
 def transfers_side_left_payload(
     db: Session,
     *,
@@ -391,7 +613,11 @@ def transfers_side_left_payload(
     gw,
     manager_id: int | None = None,
 ) -> dict[str, Any]:
-    """Top transfers rail + this manager's GW history (always)."""
+    """League transfer trends + my GW history.
+
+    Before deadline (``can_edit``): sample preview tables (never mixed with real).
+    After deadline: real aggregated Most IN/OUT, most-picked XI, popular captain.
+    """
     my_rows: list[dict[str, Any]] = []
     if manager_id is not None:
         my_rows = manager_gw_transfer_rows(
@@ -399,10 +625,13 @@ def transfers_side_left_payload(
         )
 
     if deadline_svc.can_edit(gw):
+        blocks = [_preview_league_block(lg) for lg in leagues] or [_preview_league_block(None)]
         return {
-            "locked": True,
-            "message": "Se revela cuando cierre el mercado",
-            "leagues": [],
+            "locked": False,
+            "preview": True,
+            "watermark": PREVIEW_WATERMARK,
+            "message": None,
+            "leagues": blocks,
             "min_managers": MIN_MANAGERS_FOR_TOP_TRANSFERS,
             "my_transfers": my_rows,
         }
@@ -410,30 +639,42 @@ def transfers_side_left_payload(
     blocks: list[dict[str, Any]] = []
     for league in leagues:
         top = league_top_transfers(db, league_id=league.id, gameweek_id=gw.id)
-        if top is None:
+        picked = league_most_picked_xi(
+            db,
+            league_id=league.id,
+            gameweek_id=gw.id,
+            gw_number=int(gw.number),
+        )
+        captain = league_popular_captain(
+            db,
+            league_id=league.id,
+            gameweek_id=gw.id,
+            gw_number=int(gw.number),
+        )
+        if top is None and picked is None and captain is None:
             continue
-        if not top["most_in"] and not top["most_out"]:
-            blocks.append(
-                {
-                    "id": league.id,
-                    "name": league.name,
-                    "empty": True,
-                    "most_in": [],
-                    "most_out": [],
-                }
-            )
-            continue
+        most_in = (top or {}).get("most_in") or []
+        most_out = (top or {}).get("most_out") or []
+        empty = not most_in and not most_out and not picked and not captain
         blocks.append(
             {
                 "id": league.id,
                 "name": league.name,
-                "empty": False,
-                **top,
+                "preview": False,
+                "watermark": None,
+                "empty": empty,
+                "most_in": most_in,
+                "most_out": most_out,
+                "most_picked": picked or [],
+                "popular_captain": captain,
+                "manager_count": (top or {}).get("manager_count") or len(_member_ids(db, league.id)),
             }
         )
 
     return {
         "locked": False,
+        "preview": False,
+        "watermark": None,
         "message": None,
         "leagues": blocks,
         "min_managers": MIN_MANAGERS_FOR_TOP_TRANSFERS,

@@ -111,9 +111,76 @@ def test_transfers_side_locked_before_deadline(monkeypatch):
         payload = desk_side_svc.transfers_side_left_payload(
             db, leagues=[league], gw=gw, manager_id=managers[0].id
         )
-        assert payload["locked"] is True
-        assert payload["leagues"] == []
+        assert payload["preview"] is True
+        assert payload["leagues"]
+        block = payload["leagues"][0]
+        assert block["preview"] is True
+        assert "Jugador-Ejemplo" in block["most_in"][0]["name"]
+        assert block["most_in"][0]["count"] == 0
+        assert block["most_picked"][0]["rival"] == "vs X"
+        assert block["popular_captain"]["name"] == "Capitan-Muestra"
+        assert "Preview" in (payload.get("watermark") or "")
         assert payload["my_transfers"] == []
+    finally:
+        db.close()
+
+
+def test_league_most_picked_and_captain_aggregated(monkeypatch):
+    db, league, managers, gw = _league_with_scores(4, tag="pick")
+    try:
+        from app.models import OwnedPlayer, Player, SquadPick
+
+        monkeypatch.setattr("app.services.deadline.can_edit", lambda _gw: False)
+        players = db.query(Player).limit(3).all()
+        assert len(players) >= 3
+        star, other, third = players[0], players[1], players[2]
+        # 3 of 4 managers start star; 2 captain star
+        for i, m in enumerate(managers):
+            db.add(OwnedPlayer(manager_id=m.id, player_id=star.id))
+            db.add(
+                SquadPick(
+                    manager_id=m.id,
+                    gameweek_id=gw.id,
+                    player_id=star.id if i < 3 else other.id,
+                    is_starter=1,
+                    is_captain=1 if i < 2 else 0,
+                    is_vice_captain=0,
+                    bench_order=0,
+                )
+            )
+            if i >= 2:
+                db.add(
+                    SquadPick(
+                        manager_id=m.id,
+                        gameweek_id=gw.id,
+                        player_id=third.id,
+                        is_starter=1,
+                        is_captain=1 if i == 2 else 0,
+                        is_vice_captain=0,
+                        bench_order=0,
+                    )
+                )
+        star.season_stats_json = '{"total_points": 42}'
+        db.commit()
+        desk_side_svc.clear_desk_side_caches()
+        picked = desk_side_svc.league_most_picked_xi(
+            db, league_id=league.id, gameweek_id=gw.id, gw_number=gw.number
+        )
+        assert picked is not None
+        assert picked[0]["player_id"] == star.id
+        assert picked[0]["pct"] == 75.0  # 3/4
+        assert picked[0]["points"] == 42.0
+        cap = desk_side_svc.league_popular_captain(
+            db, league_id=league.id, gameweek_id=gw.id, gw_number=gw.number
+        )
+        assert cap is not None
+        assert cap["player_id"] == star.id
+        assert cap["pct"] == 50.0  # 2/4
+        payload = desk_side_svc.transfers_side_left_payload(
+            db, leagues=[league], gw=gw, manager_id=managers[0].id
+        )
+        assert payload["preview"] is False
+        assert payload["leagues"][0]["most_picked"][0]["name"] == star.name
     finally:
         db.close()
 
@@ -121,11 +188,12 @@ def test_transfers_side_locked_before_deadline(monkeypatch):
 def test_manager_gw_transfer_rows_listed():
     db, league, managers, gw = _league_with_scores(4, tag="mine")
     try:
-        from app.models import Player
+        from app.models import Gameweek, Player
 
-        players = db.query(Player).limit(2).all()
-        assert len(players) >= 2
+        players = db.query(Player).limit(4).all()
+        assert len(players) >= 4
         p_out, p_in = players[0], players[1]
+        p_out2, p_in2 = players[2], players[3]
         db.add(
             TransferLog(
                 manager_id=managers[0].id,
@@ -136,17 +204,35 @@ def test_manager_gw_transfer_rows_listed():
                 is_hit=0,
             )
         )
+        db.add(
+            TransferLog(
+                manager_id=managers[0].id,
+                gameweek_id=gw.id,
+                player_out_id=p_out2.id,
+                player_in_id=p_in2.id,
+                free_transfers_after=1,
+                is_hit=1,
+            )
+        )
         db.commit()
         rows = desk_side_svc.manager_gw_transfer_rows(
             db, manager_id=managers[0].id, gameweek_id=gw.id
         )
-        assert len(rows) == 1
-        assert rows[0]["out"] == p_out.name
-        assert rows[0]["in"] == p_in.name
+        assert len(rows) == 2
+        assert rows[0]["out"] == p_out2.name  # newest first
+        assert rows[1]["out"] == p_out.name
+        other = db.query(Gameweek).filter(Gameweek.id != gw.id).order_by(Gameweek.number).first()
+        assert other is not None
+        assert (
+            desk_side_svc.manager_gw_transfer_rows(
+                db, manager_id=managers[0].id, gameweek_id=other.id
+            )
+            == []
+        )
         payload = desk_side_svc.transfers_side_left_payload(
             db, leagues=[league], gw=gw, manager_id=managers[0].id
         )
-        assert payload["my_transfers"][0]["out_id"] == p_out.id
+        assert payload["my_transfers"][0]["out_id"] == p_out2.id
     finally:
         db.close()
 

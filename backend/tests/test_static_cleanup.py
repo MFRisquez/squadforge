@@ -124,20 +124,20 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS / catalog that showed wrong avail flags
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v133"' in sw
+    assert 'CACHE = "futfantasy-v135"' in sw
     assert "if (isStatic || isBadgeCdn) return cached || fetched" in sw
     assert "CSS is network-first" in sw
     # Must not cache-first the catalog (stale availability after FPL sync).
     assert "if (isStatic || isCatalog || isBadgeCdn) return cached || fetched" not in sw
-    assert "/static/styles.css?v=133" in sw
+    assert "/static/styles.css?v=134" in sw
     assert "/static/league_h2h.js" in sw
     assert "/static/club-sheet.js" in sw
     assert 'BADGE_CDN_HOST = "resources.premierleague.com"' in sw
     assert "isBadgeCdn" in sw
     assert "isStatic || isCatalog || isBadgeCdn" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=133" in base
-    assert "styles.css?v=133" in base
+    assert "sw.js?v=134" in base
+    assert "styles.css?v=134" in base
 
     squad = (STATIC / "squadboard.js").read_text(encoding="utf-8")
     assert "ff-players-updated" in squad
@@ -189,12 +189,22 @@ def test_desk_side_left_layout_phase0():
     assert ".desk-xi:has(> .desk-side-left)" in css
     assert ".desk-squad:has(> .desk-side-left)" in css
     assert "grid-template-columns: var(--desk-side-w) minmax(0, 1fr) var(--desk-side-w)" in css
-    assert "--desk-side-w: 17.25rem" in css
-    assert "--desk-side-w: 16.75rem" in css
+    assert "--desk-side-w: 20rem" in css
+    assert css.count("--desk-side-w: 20rem") >= 2
+    assert "--desk-side-w: 19.5rem" not in css
     assert "body.page-xi:not(.page-opponent).page-fit .shell" in css
-    assert "width: min(94rem, 100%)" in css
-    # Pitch token size for denser desk composition
+    assert "width: 100%" in css
+    assert "max-width: none" in css
+    # Pitch token size unchanged (do not grow shirts when widening rails)
     assert "--pitch-token-w: 4.9rem" in css
+    assert "desk-xi-chips" in css
+    assert 'class="desk-main desk-xi-main"' in lineup
+    assert "desk-xi-chips" in lineup
+    # Chips live inside the pitch column (desk-xi-chips), not above the full board
+    assert "desk-xi-chips" in lineup
+    chips_block = lineup[lineup.find("desk-xi-chips") : lineup.find("lineupForm")]
+    assert "chip_strip" in chips_block
+    assert lineup.find('id="xiSideLeft"') < lineup.find("desk-xi-chips")
     # Fase 1–2 side panel chrome present
     assert "desk-side-league-list" in css
     assert "desk-side-xfer-list" in css
@@ -203,6 +213,10 @@ def test_desk_side_left_layout_phase0():
     assert "desk-side-scorer-list" in css
     assert "Most transferred IN" in team
     assert "Most transferred OUT" in team
+    assert "Most picked in XI" in team
+    assert "Most popular captain" in team
+    assert "Preview — real data after deadline" in team
+    assert "desk-side-preview-mark" in css
     assert 'id="myGwTransfers"' in team
     assert "Your top scorers" in (TEMPLATES / "lineup.html").read_text(encoding="utf-8")
     assert 'id="saveConfirm"' not in team
