@@ -124,20 +124,20 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS / catalog that showed wrong avail flags
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v128"' in sw
+    assert 'CACHE = "futfantasy-v129"' in sw
     assert "if (isStatic || isBadgeCdn) return cached || fetched" in sw
     assert "CSS is network-first" in sw
     # Must not cache-first the catalog (stale availability after FPL sync).
     assert "if (isStatic || isCatalog || isBadgeCdn) return cached || fetched" not in sw
-    assert "/static/styles.css?v=128" in sw
+    assert "/static/styles.css?v=129" in sw
     assert "/static/league_h2h.js" in sw
     assert "/static/club-sheet.js" in sw
     assert 'BADGE_CDN_HOST = "resources.premierleague.com"' in sw
     assert "isBadgeCdn" in sw
     assert "isStatic || isCatalog || isBadgeCdn" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=128" in base
-    assert "styles.css?v=128" in base
+    assert "sw.js?v=129" in base
+    assert "styles.css?v=129" in base
 
     squad = (STATIC / "squadboard.js").read_text(encoding="utf-8")
     assert "ff-players-updated" in squad
@@ -156,6 +156,20 @@ def test_transfer_rail_hidden_on_phone_page_fit():
     assert "body.page-squad .squad-pitch .pitch-row { gap: 1.15rem; }" in css
     assert css.count("--pitch-token-w: 5.45rem") == 0
     assert "width: var(--pitch-token-w, 3.7rem)" in css
+
+    # Fixtures desk detail: stack sections by content (no stretch to list height).
+    panel_idx = css.find("body.page-fixtures .fixture-detail-panel {")
+    assert panel_idx >= 0
+    panel_chunk = css[panel_idx : panel_idx + 420]
+    assert "height: auto" in panel_chunk
+    assert "align-self: start" in panel_chunk
+    assert "height: 100%" not in panel_chunk
+    body_idx = css.find("body.page-fixtures .fixture-detail-panel .match-detail-body {")
+    assert body_idx >= 0
+    body_chunk = css[body_idx : body_idx + 380]
+    assert "flex: 0 0 auto" in body_chunk
+    assert "align-content: start" in body_chunk
+    assert "flex: 1 1 auto" not in body_chunk
 
 
 def test_transfers_pitch_price_frame_and_pending_white_border():
