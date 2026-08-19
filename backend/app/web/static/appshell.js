@@ -192,12 +192,22 @@
   }
 
   /** Soft-nav timing (kept on for real-device measurement). */
-  function reportSoftNavTiming({ url, fetchMs, scriptsMs, totalMs, fromCache }) {
+  function reportSoftNavTiming({ url, fetchMs, scriptsMs, totalMs, fromCache, serverPerf }) {
     const fetchR = Math.round(fetchMs);
     const scriptsR = Math.round(scriptsMs);
     const totalR = Math.round(totalMs);
     const cacheTag = fromCache ? " cache" : "";
-    console.log(`nav ${url}: fetch=${fetchR}ms, scripts=${scriptsR}ms, total=${totalR}ms${cacheTag}`);
+    const serverTag =
+      serverPerf && serverPerf.server_ms != null ? ` server=${Math.round(serverPerf.server_ms)}ms` : "";
+    console.log(
+      `nav ${url}: fetch=${fetchR}ms, scripts=${scriptsR}ms, total=${totalR}ms${cacheTag}${serverTag}`
+    );
+    if (serverPerf && Array.isArray(serverPerf.spans)) {
+      console.log(
+        `nav ${url} server spans:`,
+        serverPerf.spans.map((s) => `${s.name}=${s.ms}ms`).join(", ")
+      );
+    }
     try {
       fetch("/api/client-perf", {
         method: "POST",
@@ -210,9 +220,20 @@
           scripts_ms: Math.round(scriptsMs * 10) / 10,
           total_ms: Math.round(totalMs * 10) / 10,
           from_cache: Boolean(fromCache),
+          server_perf: serverPerf || null,
         }),
       }).catch(() => {});
     } catch (_) {}
+  }
+
+  function readServerPerfHeader(res) {
+    try {
+      const raw = res.headers.get("X-FF-Server-Perf");
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (_) {
+      return null;
+    }
   }
 
   async function fetchPageHtml(path) {
@@ -229,10 +250,14 @@
         })
           .then(async (res) => {
             if (!res.ok) return;
-            pageCache.set(key, { html: await res.text(), at: Date.now() });
+            pageCache.set(key, {
+              html: await res.text(),
+              at: Date.now(),
+              serverPerf: readServerPerfHeader(res),
+            });
           })
           .catch(() => {});
-        return { html: hit.html, fromCache: true };
+        return { html: hit.html, fromCache: true, serverPerf: hit.serverPerf || null };
       }
     }
     const res = await fetch(path, {
@@ -248,9 +273,10 @@
         return null;
       }
     }
+    const serverPerf = readServerPerfHeader(res);
     const html = await res.text();
-    pageCache.set(key, { html, at: Date.now() });
-    return { html, fromCache: false };
+    pageCache.set(key, { html, at: Date.now(), serverPerf });
+    return { html, fromCache: false, serverPerf };
   }
 
   async function softNavigate(path, { push = true } = {}) {
@@ -300,6 +326,7 @@
         scriptsMs: t3 - t2,
         totalMs: t3 - t1,
         fromCache: Boolean(fetched.fromCache),
+        serverPerf: fetched.serverPerf || null,
       });
       bindGwPicker(nextMain);
       window.scrollTo(0, 0);
