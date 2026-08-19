@@ -1324,11 +1324,11 @@ body.chip-bb-on .xi-bench-panel .desk-rail-head h2 {
 .xi-pitch { padding-top: 2.55rem; }
 .squad-pitch { padding-top: 2.4rem; }
 .xi-header { display: none; }
-/* Slim FPL-like player tokens: +10% size, taller nameplates */
-.xi-card { width: 3.7rem; }
+/* Slim FPL-like player tokens — width from --pitch-token-w (mobile 3.7 / desk 4.6) */
+.xi-card { width: var(--pitch-token-w, 3.7rem); }
 .xi-shirt,
 .shirt.filled.jersey.xi-shirt {
-  width: 3.7rem;
+  width: var(--pitch-token-w, 3.7rem);
   min-height: 0;
   padding: 0;
   gap: 0;
@@ -4418,8 +4418,11 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   .xi-pitch-wrap,
   .squad-pitch-wrap,
   .desk-board .xi-pitch-wrap,
-  .desk-board .squad-pitch-wrap {
-    --pitch-token-w: 5.45rem;
+  .desk-board .squad-pitch-wrap,
+  body.page-squad .squad-pitch-wrap,
+  body.page-xi .xi-pitch-wrap {
+    /* Midpoint between old XI lock (3.7rem) and Transfers card (5.45rem) */
+    --pitch-token-w: 4.6rem;
     width: 100%;
     max-width: none;
     margin-left: 0;
@@ -4434,7 +4437,7 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     padding-top: 2.85rem;
   }
 
-  /* Desktop pitch tokens — fixed width so 5-across rows match 1–3 player rows */
+  /* Desktop pitch tokens — one width for XI + Squad/Transfers (incl. filled buttons) */
   .desk-board .xi-card,
   .desk-board .xi-shirt,
   .desk-board .squad-card,
@@ -4443,35 +4446,44 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   .squad-pitch-wrap .squad-shirt,
   .xi-pitch-wrap .xi-card,
   .xi-pitch-wrap .xi-shirt,
+  body.page-squad .squad-pitch .squad-shirt.filled,
+  body.page-xi .xi-pitch .shirt.filled.jersey.xi-shirt,
   .xi-card,
-  .xi-shirt {
-    width: var(--pitch-token-w, 5.45rem);
+  .xi-shirt,
+  .shirt.filled.jersey.xi-shirt {
+    width: var(--pitch-token-w);
+    max-width: var(--pitch-token-w);
   }
   .desk-board .xi-bench-wrap .xi-card,
   .desk-board .xi-bench-wrap .xi-shirt,
   .xi-bench-wrap .xi-card,
   .xi-bench-wrap .xi-shirt {
-    width: 5.45rem;
+    width: var(--pitch-token-w);
   }
   .desk-board .jersey-img,
   .desk-board .xi-bench-wrap .jersey-img,
   .squad-pitch-wrap .jersey-img,
   .xi-pitch-wrap .jersey-img,
   .xi-bench-wrap .jersey-img,
-  .xi-shirt .jersey-img {
-    width: 4.35rem;
+  .xi-shirt .jersey-img,
+  body.page-squad .squad-pitch .squad-shirt.filled .jersey-img,
+  body.page-squad .squad-pitch-wrap .squad-shirt.filled .jersey-img {
+    width: 3.7rem;
+    max-width: 100%;
   }
   .desk-board .xi-shirt .shirt-kit,
   .desk-board .squad-shirt .shirt-kit,
   .desk-board .xi-bench-wrap .xi-shirt .shirt-kit,
   .xi-shirt .shirt-kit,
   .xi-bench-wrap .xi-shirt .shirt-kit {
-    min-height: 6.55rem;
+    min-height: 5.55rem;
   }
   .desk-board .shirt-overlay,
   .xi-shirt .shirt-overlay,
-  .xi-bench-wrap .shirt-overlay {
-    width: 4.55rem;
+  .xi-bench-wrap .shirt-overlay,
+  body.page-squad .squad-pitch .squad-shirt.filled .shirt-overlay,
+  body.page-squad .squad-pitch-wrap .squad-shirt.filled .shirt-overlay {
+    width: 3.85rem;
   }
   .desk-board .shirt-nameplate,
   .xi-shirt .shirt-nameplate,
@@ -5110,42 +5122,17 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     min-width: var(--pitch-token-w);
     max-width: var(--pitch-token-w);
   }
-  body.page-squad .squad-pitch-wrap,
-  body.page-xi .xi-pitch-wrap {
-    --pitch-token-w: 5.45rem;
-  }
-  body.page-squad .squad-pitch-wrap .squad-card,
-  body.page-squad .squad-pitch-wrap .squad-shirt,
-  body.page-xi .xi-pitch-wrap .xi-card,
-  body.page-xi .xi-pitch-wrap .xi-shirt {
-    width: var(--pitch-token-w);
-  }
-  body.page-squad .squad-pitch-wrap .jersey-img,
-  body.page-xi .xi-pitch-wrap .jersey-img {
-    width: 4.35rem;
-  }
-  body.page-squad .squad-pitch-wrap .squad-shirt .shirt-kit,
-  body.page-xi .xi-pitch-wrap .xi-shirt .shirt-kit {
-    min-height: 6.55rem;
-  }
+  /* --pitch-token-w / jersey sizes: single desktop block above (4.6rem). */
   body.page-squad .squad-pitch-wrap .squad-shirt.filled .shirt-kit {
     min-height: 0;
   }
-  body.page-squad .squad-pitch-wrap .squad-shirt.filled .jersey-img {
-    width: 90%;
-  }
   body.page-squad .squad-pitch-wrap .squad-shirt.filled .shirt-overlay {
-    width: 100%;
     margin-top: -0.35rem;
   }
   body.page-squad .squad-pitch-wrap .squad-shirt.filled > .shirt-price {
     font-size: 0.7rem;
     margin-top: 0.22rem;
     padding: 0.08rem 0.1rem 0.06rem;
-  }
-  body.page-squad .squad-pitch-wrap .shirt-overlay,
-  body.page-xi .xi-pitch-wrap .shirt-overlay {
-    width: 4.55rem;
   }
   body.page-squad .squad-pitch-wrap .shirt-nameplate,
   body.page-xi .xi-pitch-wrap .shirt-nameplate {
