@@ -65,7 +65,7 @@
     const left = Number(view.plot_left != null ? view.plot_left : 78);
     const right = Number(view.plot_right != null ? view.plot_right : w - 22);
     const top = Number(view.plot_top != null ? view.plot_top : 16);
-    const bottom = Number(view.plot_bottom != null ? view.plot_bottom : h - 24);
+    const bottom = Number(view.plot_bottom != null ? view.plot_bottom : h - 32);
     return { w, h, left, right, top, bottom };
   }
 
@@ -75,9 +75,6 @@
     const showNames = opts.showNames !== false;
     const interactive = !!opts.interactive;
     const parts = [];
-    parts.push(
-      `<svg class="desk-side-rank-spark-svg" viewBox="0 0 ${g.w} ${g.h}" preserveAspectRatio="none" role="img">`
-    );
     parts.push(
       `<rect class="rank-plot-bg" x="${g.left}" y="${g.top}" width="${Math.max(
         0,
@@ -107,8 +104,9 @@
       });
     }
     (view.gw_labels || []).forEach((lab) => {
+      const y = lab.y != null ? Number(lab.y) : g.bottom + 6;
       parts.push(
-        `<text class="rank-axis gw" x="${lab.x}" y="${g.h - 6}">GW${esc(
+        `<text class="rank-axis gw" x="${lab.x}" y="${y}" dominant-baseline="hanging">GW${esc(
           lab.number
         )}</text>`
       );
@@ -137,13 +135,17 @@
         );
       });
     });
-    parts.push("</svg>");
     const wrapClass = interactive
       ? "desk-side-rank-spark-chart is-clickable"
       : "desk-side-rank-spark-chart";
-    return `<div class="${wrapClass}" ${
-      interactive ? 'role="button" tabindex="0" data-rank-open' : ""
-    }>${parts.join("")}</div>`;
+    return (
+      `<div class="${wrapClass}" ${
+        interactive ? 'role="button" tabindex="0" data-rank-open' : ""
+      }>` +
+      `<svg class="desk-side-rank-spark-svg" viewBox="0 0 ${g.w} ${g.h}" preserveAspectRatio="xMidYMid meet" role="img">` +
+      parts.join("") +
+      `</svg></div>`
+    );
   }
 
   function bindSwitch(rootEl) {

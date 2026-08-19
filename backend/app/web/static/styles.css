@@ -4439,9 +4439,11 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     flex: 1 1 auto;
     min-height: 9rem;
     display: flex;
+    align-items: stretch;
     /* Nudge plot slightly left so names + series read more centered in the rail */
     margin-left: -0.15rem;
     margin-right: 0.1rem;
+    overflow: visible;
   }
   .desk-side-rank-spark-chart.is-clickable {
     cursor: zoom-in;
@@ -4452,6 +4454,7 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     height: 100%;
     max-height: none;
     min-height: 9rem;
+    overflow: visible;
   }
   .desk-side-rank-spark .rank-plot-bg {
     fill: rgba(0, 0, 0, 0.04);
@@ -4462,14 +4465,23 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   }
   .desk-side-rank-spark .rank-axis {
     fill: var(--muted);
-    font-size: 11px;
-    font-weight: 650;
+    font-size: 12px;
+    font-weight: 700;
   }
   .desk-side-rank-spark .rank-axis-y {
     text-anchor: end;
   }
   .desk-side-rank-spark .rank-axis.gw {
     text-anchor: middle;
+    dominant-baseline: hanging;
+    fill: var(--ink);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    opacity: 0.9;
+  }
+  html[data-theme="dark"] .desk-side-rank-spark .rank-axis.gw {
+    fill: rgba(255, 255, 255, 0.88);
   }
   .desk-side-rank-spark .rank-name-label {
     fill: var(--muted);

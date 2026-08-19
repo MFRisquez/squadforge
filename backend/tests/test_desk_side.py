@@ -339,6 +339,25 @@ def test_top_scorers_sum_across_rebuys():
         _score(g1, [{"player_id": star.id, "points": 10}, {"player_id": filler.id, "points": 2}])
         _score(g2, [{"player_id": temp.id, "points": 5}, {"player_id": filler.id, "points": 1}])
         _score(g3, [{"player_id": star.id, "points": 7}, {"player_id": filler.id, "points": 3}])
+        # Top scorers only count GWs that have kicked off.
+        from app.models import Fixture
+
+        for n in (g1.number, g2.number, g3.number):
+            fx = db.query(Fixture).filter(Fixture.gameweek_number == n).first()
+            if fx is None:
+                db.add(
+                    Fixture(
+                        fpl_id=920000 + int(n),
+                        gameweek_number=int(n),
+                        home_club_code="ARS",
+                        away_club_code="AVL",
+                        started=1,
+                        finished=1,
+                    )
+                )
+            else:
+                fx.started = 1
+                fx.finished = 1
         db.commit()
 
         desk_side_svc.clear_desk_side_caches()
@@ -426,6 +445,29 @@ def test_manager_rank_spark_preview_before_two_gws():
         assert any(s.get("is_me") and s.get("area_path") for s in spark["series"])
         assert spark.get("name_labels")
         assert len(spark["gw_numbers"]) <= 5
+        labels = spark.get("gw_labels") or []
+        assert len(labels) == len(spark["gw_numbers"])
+        assert all("x" in lab and "y" in lab and "number" in lab for lab in labels)
+        assert labels[0]["y"] < float(spark["chart_height"])
+    finally:
+        db.close()
+
+
+def test_top_scorers_empty_before_any_fixture_starts():
+    db, league, managers, gw = _league_with_scores(2, tag="prepts")
+    try:
+        from app.models import Fixture
+
+        mid = managers[0].id
+        db.query(Fixture).filter(Fixture.gameweek_number == gw.number).update(
+            {"started": 0, "finished": 0}
+        )
+        db.commit()
+        desk_side_svc.clear_desk_side_caches()
+        top = desk_side_svc.manager_top_scorers_while_owned(
+            db, manager_id=mid, current_gw_id=gw.id, limit=5
+        )
+        assert top == []
     finally:
         db.close()
 
