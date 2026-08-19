@@ -4421,12 +4421,20 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   .desk-board .squad-pitch-wrap,
   body.page-squad .squad-pitch-wrap,
   body.page-xi .xi-pitch-wrap {
-    /* Midpoint between old XI lock (3.7rem) and Transfers card (5.45rem) */
-    --pitch-token-w: 4.6rem;
     width: 100%;
     max-width: none;
     margin-left: 0;
     margin-right: 0;
+  }
+  /* XI pitch is wider (narrow rail) — larger tokens fill the green.
+     Transfers packs 15 + price frame — slightly smaller/shorter tokens. */
+  body.page-xi .xi-pitch-wrap,
+  .desk-board.desk-xi .xi-pitch-wrap {
+    --pitch-token-w: 5.4rem;
+  }
+  body.page-squad .squad-pitch-wrap,
+  .desk-board.desk-squad .squad-pitch-wrap {
+    --pitch-token-w: 4.25rem;
   }
   .xi-pitch,
   .squad-pitch {
@@ -4437,7 +4445,7 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     padding-top: 2.85rem;
   }
 
-  /* Desktop pitch tokens — one width for XI + Squad/Transfers (incl. filled buttons) */
+  /* Desktop pitch tokens — width from page token; jersey scales with card */
   .desk-board .xi-card,
   .desk-board .xi-shirt,
   .desk-board .squad-card,
@@ -4461,29 +4469,40 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     width: var(--pitch-token-w);
   }
   .desk-board .jersey-img,
-  .desk-board .xi-bench-wrap .jersey-img,
   .squad-pitch-wrap .jersey-img,
   .xi-pitch-wrap .jersey-img,
-  .xi-bench-wrap .jersey-img,
   .xi-shirt .jersey-img,
   body.page-squad .squad-pitch .squad-shirt.filled .jersey-img,
   body.page-squad .squad-pitch-wrap .squad-shirt.filled .jersey-img {
-    width: 3.7rem;
+    width: 92%;
     max-width: 100%;
+    height: auto;
   }
+  /* Kit height from jersey — no fixed tall empty box on XI */
   .desk-board .xi-shirt .shirt-kit,
   .desk-board .squad-shirt .shirt-kit,
-  .desk-board .xi-bench-wrap .xi-shirt .shirt-kit,
-  .xi-shirt .shirt-kit,
-  .xi-bench-wrap .xi-shirt .shirt-kit {
-    min-height: 5.55rem;
+  .xi-shirt .shirt-kit {
+    min-height: 0;
   }
   .desk-board .shirt-overlay,
   .xi-shirt .shirt-overlay,
-  .xi-bench-wrap .shirt-overlay,
   body.page-squad .squad-pitch .squad-shirt.filled .shirt-overlay,
   body.page-squad .squad-pitch-wrap .squad-shirt.filled .shirt-overlay {
-    width: 3.85rem;
+    width: 92%;
+    max-width: 100%;
+  }
+  /* Transfers: tighten price so the gray frame is less tall */
+  body.page-squad .squad-pitch .squad-shirt.filled {
+    padding: 0.04rem 0.12rem 0.14rem;
+  }
+  body.page-squad .squad-pitch .squad-shirt.filled > .shirt-price {
+    font-size: 0.58rem;
+    margin-top: 0.06rem;
+    margin-bottom: 0;
+    padding: 0.02rem 0.04rem;
+  }
+  body.page-squad .squad-pitch-wrap .squad-shirt.filled .shirt-overlay {
+    margin-top: -0.4rem;
   }
   .desk-board .shirt-nameplate,
   .xi-shirt .shirt-nameplate,
@@ -5122,17 +5141,9 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     min-width: var(--pitch-token-w);
     max-width: var(--pitch-token-w);
   }
-  /* --pitch-token-w / jersey sizes: single desktop block above (4.6rem). */
+  /* --pitch-token-w / jersey sizes: page-specific desktop block above. */
   body.page-squad .squad-pitch-wrap .squad-shirt.filled .shirt-kit {
     min-height: 0;
-  }
-  body.page-squad .squad-pitch-wrap .squad-shirt.filled .shirt-overlay {
-    margin-top: -0.35rem;
-  }
-  body.page-squad .squad-pitch-wrap .squad-shirt.filled > .shirt-price {
-    font-size: 0.7rem;
-    margin-top: 0.22rem;
-    padding: 0.08rem 0.1rem 0.06rem;
   }
   body.page-squad .squad-pitch-wrap .shirt-nameplate,
   body.page-xi .xi-pitch-wrap .shirt-nameplate {
