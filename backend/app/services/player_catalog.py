@@ -148,40 +148,49 @@ def build_players_catalog(db: Session, *, force: bool = False) -> tuple[list[dic
     players_query_ms = (time.perf_counter() - t0) * 1000.0
     player_count = len(players)
 
-    version = f"{player_count}-{from_gw}"
-    _VERSION_CACHE = (now, version, from_gw)
-
     fdr_by_club, fdr_ms = _cached_fdr_map(db, from_gw=from_gw, clubs=clubs, force=force)
 
     t0 = time.perf_counter()
-    payload = [
-        {
-            "id": p.id,
-            "name": p.name,
-            "position": p.position,
-            "team": p.team_code,
-            "club": getattr(clubs.get(p.team_code), "name", None) or p.team_code,
-            "price": p.price,
-            "status": getattr(p, "status", "a") or "a",
-            "chance": getattr(p, "chance_of_playing", None),
-            "news": getattr(p, "news", "") or "",
-            "availability": availability_flag(
-                getattr(p, "status", "a") or "a",
-                getattr(p, "chance_of_playing", None),
-            ),
-            "fdr": fdr_by_club.get(p.team_code),
-            **_season_kpis(p),
-            **kit_for(
-                p.team_code,
-                position=p.position,
-                kit_code=getattr(clubs.get(p.team_code), "kit_code", None),
-                photo=getattr(p, "photo", "") or "",
-                player_id=p.id,
-            ),
-        }
-        for p in players
-    ]
+    payload = []
+    n_doubt = 0
+    n_out = 0
+    for p in players:
+        avail = availability_flag(
+            getattr(p, "status", "a") or "a",
+            getattr(p, "chance_of_playing", None),
+        )
+        if avail == "doubt":
+            n_doubt += 1
+        elif avail == "out":
+            n_out += 1
+        payload.append(
+            {
+                "id": p.id,
+                "name": p.name,
+                "position": p.position,
+                "team": p.team_code,
+                "club": getattr(clubs.get(p.team_code), "name", None) or p.team_code,
+                "price": p.price,
+                "status": getattr(p, "status", "a") or "a",
+                "chance": getattr(p, "chance_of_playing", None),
+                "news": getattr(p, "news", "") or "",
+                "availability": avail,
+                "fdr": fdr_by_club.get(p.team_code),
+                **_season_kpis(p),
+                **kit_for(
+                    p.team_code,
+                    position=p.position,
+                    kit_code=getattr(clubs.get(p.team_code), "kit_code", None),
+                    photo=getattr(p, "photo", "") or "",
+                    player_id=p.id,
+                ),
+            }
+        )
     build_loop_ms = (time.perf_counter() - t0) * 1000.0
+    # Fingerprint availability so SW/clients invalidate after FPL sync even when
+    # player count + current GW are unchanged (was stuck on e.g. "581-1").
+    version = f"{player_count}-{from_gw}-d{n_doubt}-o{n_out}"
+    _VERSION_CACHE = (now, version, from_gw)
     _CACHE = (now, version, payload)
     total_ms = (time.perf_counter() - t_all) * 1000.0
     spans = [

@@ -88,6 +88,8 @@ def test_catalog_ttl_skips_db_on_warm_hit(db):
     second, v2 = build_players_catalog(db, force=False)
     assert v1 == v2
     assert second is first  # same cached list object — no rebuild
+    # Version fingerprints availability so clients invalidate after FPL sync.
+    assert "-d" in v1 and "-o" in v1
 
 
 def test_awards_streak_and_chip(db):

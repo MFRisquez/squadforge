@@ -1,6 +1,6 @@
 (async () => {
-  const CATALOG_KEY = "ff_players_catalog_v2";
-  const CATALOG_META = "ff_players_catalog_meta_v2";
+  const CATALOG_KEY = "ff_players_catalog_v3";
+  const CATALOG_META = "ff_players_catalog_meta_v3";
 
   function paintRailSkeleton(count = 6) {
     const list = document.getElementById("transferRailList");
@@ -49,15 +49,16 @@
       const meta = JSON.parse(sessionStorage.getItem(CATALOG_META) || "null");
       if (Array.isArray(cached) && cached.length) {
         // Revalidate in background; paint from cache immediately.
-        fetchPlayersCatalog(meta && meta.version).catch(() => {});
+        fetchPlayersCatalog(meta && meta.version, { notify: true }).catch(() => {});
         return cached;
       }
     } catch (_) {}
 
-    return fetchPlayersCatalog();
+    // Initial network load assigns PLAYERS from the return value — no event needed.
+    return fetchPlayersCatalog(null, { notify: false });
   }
 
-  async function fetchPlayersCatalog(knownVersion) {
+  async function fetchPlayersCatalog(knownVersion, { notify = false } = {}) {
     const res = await fetch("/api/players/catalog", {
       credentials: "same-origin",
       headers: { Accept: "application/json" },
@@ -74,9 +75,14 @@
     } catch (_) {
       /* quota / private mode */
     }
-    if (knownVersion && data.version && data.version !== knownVersion) {
-      // Newer catalog arrived after painting cache — soft refresh list if board is up.
-      window.dispatchEvent(new CustomEvent("ff-players-updated", { detail: { players } }));
+    if (notify) {
+      // Background revalidate after sessionStorage paint — swap board onto fresh
+      // availability (version used to stay "581-1" after FPL syncs).
+      window.dispatchEvent(
+        new CustomEvent("ff-players-updated", {
+          detail: { players, version: data.version || "", knownVersion: knownVersion || "" },
+        })
+      );
     }
     return players;
   }
@@ -158,7 +164,21 @@
   const HIT_COST = Number(INITIAL.hitCost || 4);
   const NEED = { GK: 2, DEF: 5, MID: 5, ATT: 3 };
   const ORDER = ["GK", "DEF", "MID", "ATT"];
-  const byId = Object.fromEntries(PLAYERS.map((p) => [p.id, p]));
+  let byId = Object.fromEntries(PLAYERS.map((p) => [p.id, p]));
+
+  function applyPlayersCatalog(list) {
+    if (!Array.isArray(list) || !list.length) return;
+    PLAYERS = list;
+    byId = Object.fromEntries(PLAYERS.map((p) => [p.id, p]));
+    rebuildRadarMaxima(PLAYERS);
+    // render is function-declared later in this IIFE (hoisted).
+    render();
+  }
+
+  window.addEventListener("ff-players-updated", (ev) => {
+    const next = ev && ev.detail && ev.detail.players;
+    applyPlayersCatalog(next);
+  });
 
   /** @type {Record<string, (number|null)[]>} */
   const slots = {

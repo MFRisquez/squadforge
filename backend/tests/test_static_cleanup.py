@@ -122,9 +122,13 @@ def test_transfer_rail_hidden_on_phone_page_fit():
     assert 'classList.remove("page-squad")' not in squad
     assert 'classList.remove("page-fit")' not in (STATIC / "appshell.js").read_text(encoding="utf-8")
 
-    # SW cache bump so phones drop stale CSS that still showed the rail
+    # SW cache bump so phones drop stale CSS / catalog that showed wrong avail flags
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v121"' in sw
+    assert 'CACHE = "futfantasy-v122"' in sw
+    assert "if (isStatic || isBadgeCdn) return cached || fetched" in sw
+    assert "Player catalog + shell HTML: network-first" in sw
+    # Must not cache-first the catalog (stale availability after FPL sync).
+    assert "if (isStatic || isCatalog || isBadgeCdn) return cached || fetched" not in sw
     assert "/static/styles.css" in sw
     assert "/static/league_h2h.js" in sw
     assert "/static/club-sheet.js" in sw
@@ -132,7 +136,12 @@ def test_transfer_rail_hidden_on_phone_page_fit():
     assert "isBadgeCdn" in sw
     assert "isStatic || isCatalog || isBadgeCdn" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=121" in base
+    assert "sw.js?v=122" in base
+
+    squad = (STATIC / "squadboard.js").read_text(encoding="utf-8")
+    assert "ff-players-updated" in squad
+    assert "function applyPlayersCatalog" in squad
+    assert "notify: true" in squad
 
 
 def test_transfers_pitch_price_frame_and_pending_white_border():
