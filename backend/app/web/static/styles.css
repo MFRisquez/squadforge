@@ -1717,6 +1717,10 @@ body.chip-bb-on .xi-bench-panel .desk-rail-head h2 {
   min-height: 0;
   -webkit-line-clamp: unset;
 }
+/* Mobile / default: keep stacked parts on one line with spaces */
+.chip-card-fpl .chip-name.chip-name-stack span + span::before {
+  content: " ";
+}
 .chip-card-fpl .chip-info-wrap {
   grid-column: 3;
   grid-row: 1;
@@ -4171,9 +4175,15 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     align-items: start;
     min-width: 0;
     flex: 0 0 auto;
+    padding-bottom: 0.55rem;
+    border-bottom: 1px solid var(--line);
   }
   .desk-side-top-row > .desk-side-block {
     min-width: 0;
+  }
+  .desk-side-top-row > .desk-side-td {
+    padding-right: 0.45rem;
+    border-right: 1px solid var(--line);
   }
   .desk-side-top-row > .desk-side-block + .desk-side-block {
     padding-top: 0;
@@ -4254,11 +4264,11 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   }
   .desk-side-top-scorers {
     text-align: center;
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: 0.35rem;
   }
   .desk-side-top-scorers > .desk-rail-head {
     text-align: center;
@@ -4267,31 +4277,47 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   .desk-side-top-scorers > .muted {
     text-align: center;
   }
+  .desk-side-kpi-slot.is-loading {
+    opacity: 0.72;
+  }
+  .desk-side-kpi-wait {
+    margin: 0.15rem 0 0;
+  }
   .desk-side-scorer-list {
     list-style: none;
-    margin: 0 auto;
+    margin: 0;
     padding: 0;
     display: grid;
-    gap: 0.38rem;
+    gap: 0.22rem;
     width: 100%;
     max-width: 100%;
     justify-items: stretch;
-    text-align: center;
+    text-align: left;
     flex: 0 0 auto;
   }
   .desk-side-scorer-list li {
     display: grid;
-    grid-template-columns: 1.6rem minmax(0, 1fr) 3.6rem;
-    column-gap: 0.85rem;
+    grid-template-columns: 1.15rem minmax(0, 1.35fr) repeat(5, minmax(1.35rem, 1fr));
+    column-gap: 0.28rem;
     align-items: center;
-    font-size: 1.08rem;
+    font-size: 0.82rem;
     text-align: left;
-    padding: 0.1rem 0.15rem;
+    padding: 0.08rem 0.05rem;
+  }
+  .desk-side-scorer-list .desk-side-scorer-head {
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .desk-side-scorer-list .desk-side-scorer-head span {
+    text-align: center;
   }
   .desk-side-scorer-rank {
     color: var(--muted);
     font-weight: 800;
-    font-size: 1rem;
+    font-size: 0.78rem;
     text-align: center;
   }
   .desk-side-scorer-list strong {
@@ -4299,19 +4325,30 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 1.08rem;
+    font-size: 0.86rem;
     font-weight: 750;
   }
-  .desk-side-scorer-list span:last-child {
+  .desk-side-scorer-list .sc-pts,
+  .desk-side-scorer-list .sc-app,
+  .desk-side-scorer-list .sc-g,
+  .desk-side-scorer-list .sc-a,
+  .desk-side-scorer-list .sc-cs {
     font-weight: 800;
     white-space: nowrap;
-    font-size: 1.05rem;
-    text-align: right;
+    font-size: 0.82rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  .desk-side-position {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
   }
   .desk-side-rank-spark {
-    margin-top: 0.35rem;
-    padding-top: 0.45rem;
-    border-top: 1px solid var(--line);
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
     text-align: center;
     display: flex;
     flex-direction: column;
@@ -4385,6 +4422,9 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   .desk-side-rank-meta strong {
     font-size: 0.98rem;
   }
+  .desk-side-rank-hint {
+    margin: 0;
+  }
   .desk-side-rank-spark .desk-side-preview-mark {
     margin: 0;
     font-size: 0.68rem;
@@ -4399,6 +4439,9 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     flex: 1 1 auto;
     min-height: 9rem;
     display: flex;
+  }
+  .desk-side-rank-spark-chart.is-clickable {
+    cursor: zoom-in;
   }
   .desk-side-rank-spark-svg {
     display: block;
@@ -4424,6 +4467,15 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   }
   .desk-side-rank-spark .rank-axis.gw {
     text-anchor: middle;
+  }
+  .desk-side-rank-spark .rank-name-label {
+    fill: var(--muted);
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .desk-side-rank-spark .rank-name-label.is-me {
+    fill: var(--ink);
+    font-weight: 800;
   }
   .desk-side-rank-spark .rank-area.is-me {
     fill: var(--accent, #c0ff00);
@@ -4457,6 +4509,33 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   html[data-theme="light"] .desk-side-rank-switch-btn {
     background: rgba(0, 0, 0, 0.03);
   }
+  .rank-history-sheet {
+    width: min(52rem, 96vw) !important;
+    max-height: min(85vh, 40rem) !important;
+  }
+  .rank-history-body {
+    padding: 0.55rem 0.75rem 0.85rem;
+    min-height: 14rem;
+  }
+  .rank-history-body .desk-side-rank-spark-chart {
+    min-height: 16rem;
+  }
+  .rank-history-body .desk-side-rank-spark-svg {
+    min-height: 16rem;
+    color: var(--accent, #c0ff00);
+  }
+  .rank-history-body .rank-plot-bg { fill: rgba(0, 0, 0, 0.04); }
+  .rank-history-body .rank-grid { stroke: rgba(0, 0, 0, 0.1); stroke-width: 1; }
+  .rank-history-body .rank-axis { fill: var(--muted); font-size: 11px; font-weight: 650; }
+  .rank-history-body .rank-axis-y { text-anchor: end; }
+  .rank-history-body .rank-axis.gw { text-anchor: middle; }
+  .rank-history-body .rank-name-label { fill: var(--muted); font-size: 10px; font-weight: 700; }
+  .rank-history-body .rank-name-label.is-me { fill: var(--ink); font-weight: 800; }
+  .rank-history-body .rank-area.is-me { fill: var(--accent, #c0ff00); opacity: 0.16; }
+  .rank-history-body .rank-line.is-me { stroke: var(--accent, #c0ff00) !important; }
+  .rank-history-body .rank-dot.is-me { fill: var(--accent, #c0ff00) !important; }
+  html[data-theme="dark"] .rank-history-body .rank-plot-bg { fill: rgba(255, 255, 255, 0.04); }
+  html[data-theme="dark"] .rank-history-body .rank-grid { stroke: rgba(255, 255, 255, 0.12); }
   .desk-side-xfer-trends {
     display: grid;
     gap: 0.35rem;
@@ -5423,6 +5502,28 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  /* Desktop XI: stack Bench/Boost, Triple/Captain, Super/Sub — box size unchanged */
+  body.page-xi .chip-card-fpl .chip-name.chip-name-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.02rem;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    font-size: 0.72rem;
+    line-height: 1.05;
+    letter-spacing: 0.01em;
+    font-weight: 800;
+  }
+  body.page-xi .chip-card-fpl .chip-name.chip-name-stack span {
+    display: block;
+    line-height: 1.05;
+  }
+  body.page-xi .chip-card-fpl .chip-name.chip-name-stack span + span::before {
+    content: none;
   }
   /* Info tip sits beside the chip title; On/Off stays right */
   body.page-xi .chip-card-fpl:not(.chip-card-ss) .chip-toggle,

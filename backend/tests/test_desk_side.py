@@ -395,11 +395,19 @@ def test_manager_rank_spark_uses_standings_history():
         assert len(spark["gw_numbers"]) >= 2
         assert spark["series"] and any(s.get("is_me") for s in spark["series"])
         payload = desk_side_svc.xi_side_left_payload(
-            db, manager_id=mid, gw=g2, leagues=[league]
+            db, manager_id=mid, gw=g2, leagues=[league], include_kpis=True
         )
         assert payload.get("rank_spark")
         assert payload["rank_spark"]["count"] == 1
         assert payload["rank_spark"]["charts"][0]["league_name"] == league.name
+        assert payload["rank_spark"]["charts"][0].get("name_labels")
+        assert payload["rank_spark"]["charts"][0].get("window")
+        assert payload["rank_spark"]["charts"][0].get("full")
+        light = desk_side_svc.xi_side_left_payload(
+            db, manager_id=mid, gw=g2, leagues=[league], include_kpis=False
+        )
+        assert light.get("kpis_deferred") is True
+        assert light.get("rank_spark") is None
     finally:
         db.close()
 
@@ -416,6 +424,8 @@ def test_manager_rank_spark_preview_before_two_gws():
         assert spark["empty"] is False
         assert len(spark["gw_numbers"]) >= 2
         assert any(s.get("is_me") and s.get("area_path") for s in spark["series"])
+        assert spark.get("name_labels")
+        assert len(spark["gw_numbers"]) <= 5
     finally:
         db.close()
 
