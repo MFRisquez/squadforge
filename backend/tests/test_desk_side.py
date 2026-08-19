@@ -323,3 +323,38 @@ def test_top_scorers_sum_across_rebuys():
         assert desk_side_svc._TOP_SCORERS_CACHE[key][0] == ts1
     finally:
         db.close()
+
+
+def test_manager_rank_spark_uses_standings_history():
+    db, league, managers, gw = _league_with_scores(3, tag="spark")
+    try:
+        from app.models import Gameweek
+
+        g2 = db.query(Gameweek).filter(Gameweek.number == 2).first()
+        if g2 is None:
+            g2 = Gameweek(number=2, name="GW2", deadline_at=gw.deadline_at, is_current=0)
+            db.add(g2)
+            db.flush()
+        for i, m in enumerate(managers):
+            db.add(
+                ManagerGameweekScore(
+                    manager_id=m.id, gameweek_id=g2.id, total=20 + i * 3
+                )
+            )
+        db.commit()
+        mid = managers[-1].id
+        spark = desk_side_svc.manager_rank_spark(
+            db, manager_id=mid, gw=g2, leagues=[league]
+        )
+        assert spark is not None
+        assert spark["league_id"] == league.id
+        assert spark["empty"] is False
+        assert len(spark["gw_numbers"]) >= 2
+        assert spark["series"] and spark["series"][0]["is_me"] is True
+        payload = desk_side_svc.xi_side_left_payload(
+            db, manager_id=mid, gw=g2, leagues=[league]
+        )
+        assert payload.get("rank_spark")
+        assert payload["rank_spark"]["league_name"] == league.name
+    finally:
+        db.close()
