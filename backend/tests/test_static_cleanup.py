@@ -124,20 +124,20 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS / catalog that showed wrong avail flags
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v134"' in sw
+    assert 'CACHE = "futfantasy-v135"' in sw
     assert "if (isStatic || isBadgeCdn) return cached || fetched" in sw
     assert "CSS is network-first" in sw
     # Must not cache-first the catalog (stale availability after FPL sync).
     assert "if (isStatic || isCatalog || isBadgeCdn) return cached || fetched" not in sw
-    assert "/static/styles.css?v=133" in sw
+    assert "/static/styles.css?v=134" in sw
     assert "/static/league_h2h.js" in sw
     assert "/static/club-sheet.js" in sw
     assert 'BADGE_CDN_HOST = "resources.premierleague.com"' in sw
     assert "isBadgeCdn" in sw
     assert "isStatic || isCatalog || isBadgeCdn" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=133" in base
-    assert "styles.css?v=133" in base
+    assert "sw.js?v=134" in base
+    assert "styles.css?v=134" in base
 
     squad = (STATIC / "squadboard.js").read_text(encoding="utf-8")
     assert "ff-players-updated" in squad
@@ -190,7 +190,8 @@ def test_desk_side_left_layout_phase0():
     assert ".desk-squad:has(> .desk-side-left)" in css
     assert "grid-template-columns: var(--desk-side-w) minmax(0, 1fr) var(--desk-side-w)" in css
     assert "--desk-side-w: 20rem" in css
-    assert "--desk-side-w: 19.5rem" in css
+    assert css.count("--desk-side-w: 20rem") >= 2
+    assert "--desk-side-w: 19.5rem" not in css
     assert "body.page-xi:not(.page-opponent).page-fit .shell" in css
     assert "width: 100%" in css
     assert "max-width: none" in css

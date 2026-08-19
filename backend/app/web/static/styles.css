@@ -4247,7 +4247,7 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   }
   .desk-side-xfer-league h3 {
     margin: 0;
-    font-size: 0.78rem;
+    font-size: 0.92rem;
   }
   .desk-side-xfer-tables {
     display: grid;
@@ -4263,7 +4263,7 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   }
   .desk-side-xfer-label {
     margin: 0;
-    font-size: 0.62rem;
+    font-size: 0.72rem;
     letter-spacing: 0.04em;
     text-transform: uppercase;
     font-weight: 800;
@@ -4280,7 +4280,7 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     display: flex;
     justify-content: space-between;
     gap: 0.35rem;
-    font-size: 0.78rem;
+    font-size: 0.9rem;
   }
   .desk-side-xfer-list span {
     color: var(--muted);
@@ -4318,19 +4318,19 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   .desk-side-picked-list li {
     display: grid;
     gap: 0.08rem;
-    font-size: 0.78rem;
+    font-size: 0.9rem;
   }
   .desk-side-picked-meta,
   .desk-side-captain-row span {
     color: var(--muted);
-    font-size: 0.68rem;
+    font-size: 0.78rem;
     font-weight: 700;
   }
   .desk-side-captain-row {
     margin: 0;
     display: grid;
     gap: 0.08rem;
-    font-size: 0.78rem;
+    font-size: 0.9rem;
   }
   .desk-side-my-xfers {
     min-height: 0;
@@ -8332,13 +8332,13 @@ body > .chip-tip.is-open-tip {
 @media (min-width: 900px) {
   .desk-squad {
     display: grid;
-    grid-template-columns: minmax(0, 1.7fr) minmax(19.5rem, 1fr);
+    grid-template-columns: minmax(0, 1.7fr) minmax(20rem, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
     gap: 0.45rem;
     align-items: stretch;
     min-height: 0;
     overflow: hidden;
-    --desk-side-w: 19.5rem;
+    --desk-side-w: 20rem;
   }
   .desk-squad:has(> .desk-side-left) {
     grid-template-columns: var(--desk-side-w) minmax(0, 1fr) var(--desk-side-w);
