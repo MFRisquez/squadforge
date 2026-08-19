@@ -28,29 +28,26 @@ def captain_success_for_manager(db: Session, manager_id: int) -> dict[str, Any]:
       Uses ManagerGameweekScore.breakdown_json player lines. GWs without a
       captain line or with fewer than 2 players are skipped.
     """
-    finished = (
-        db.query(Gameweek)
-        .filter(Gameweek.status == "finished")
-        .order_by(Gameweek.number.asc())
+    # Prefer finished GWs; one JOIN instead of finished-list + scores IN (...).
+    joined = (
+        db.query(ManagerGameweekScore, Gameweek)
+        .join(Gameweek, Gameweek.id == ManagerGameweekScore.gameweek_id)
+        .filter(
+            ManagerGameweekScore.manager_id == manager_id,
+            Gameweek.status == "finished",
+        )
         .all()
     )
-    if finished:
-        gw_ids = [g.id for g in finished]
-        gw_by_id = {g.id: g for g in finished}
-    else:
+    if not joined:
         # Demo / mid-season: any scored GW counts as evaluable.
-        rows = (
-            db.query(ManagerGameweekScore)
+        joined = (
+            db.query(ManagerGameweekScore, Gameweek)
+            .join(Gameweek, Gameweek.id == ManagerGameweekScore.gameweek_id)
             .filter(ManagerGameweekScore.manager_id == manager_id)
             .all()
         )
-        gw_ids = [r.gameweek_id for r in rows]
-        gw_by_id = {
-            g.id: g
-            for g in db.query(Gameweek).filter(Gameweek.id.in_(gw_ids)).all()
-        } if gw_ids else {}
 
-    if not gw_ids:
+    if not joined:
         return {
             "rate": None,
             "hits": 0,
@@ -62,14 +59,8 @@ def captain_success_for_manager(db: Session, manager_id: int) -> dict[str, Any]:
             ),
         }
 
-    scores = (
-        db.query(ManagerGameweekScore)
-        .filter(
-            ManagerGameweekScore.manager_id == manager_id,
-            ManagerGameweekScore.gameweek_id.in_(gw_ids),
-        )
-        .all()
-    )
+    gw_by_id = {g.id: g for _, g in joined}
+    scores = [row for row, _ in joined]
 
     hits = 0
     eligible = 0

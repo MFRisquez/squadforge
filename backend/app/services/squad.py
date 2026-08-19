@@ -70,23 +70,38 @@ def bank_free_transfers(db: Session, manager_id: int, gw_number: int) -> Transfe
     return state
 
 
-def transfers_are_unlimited(db: Session, manager_id: int, gw: Gameweek) -> bool:
-    """GW1 = unlimited. Wildcard/Free Hit active this GW = unlimited. No squad yet = unlimited build."""
-    state = get_transfer_state(db, manager_id)
+def transfers_are_unlimited(
+    db: Session,
+    manager_id: int,
+    gw: Gameweek,
+    *,
+    state: TransferState | None = None,
+    active_chip: ChipPlay | None = None,
+    active_chip_loaded: bool = False,
+) -> bool:
+    """GW1 = unlimited. Wildcard/Free Hit active this GW = unlimited. No squad yet = unlimited build.
+
+    Pass ``state`` / ``active_chip`` when the caller already loaded them to avoid
+    extra Supabase RTTs on /team.
+    """
+    state = state if state is not None else get_transfer_state(db, manager_id)
     if not state.has_squad:
         return True
     if gw.number <= 1:
         return True
-    chip = (
-        db.query(ChipPlay)
-        .filter(
-            ChipPlay.manager_id == manager_id,
-            ChipPlay.gameweek_id == gw.id,
-            ChipPlay.chip.in_(("wildcard", "free_hit")),
+    if active_chip_loaded:
+        chip = active_chip
+    else:
+        chip = (
+            db.query(ChipPlay)
+            .filter(
+                ChipPlay.manager_id == manager_id,
+                ChipPlay.gameweek_id == gw.id,
+                ChipPlay.chip.in_(("wildcard", "free_hit")),
+            )
+            .one_or_none()
         )
-        .one_or_none()
-    )
-    return chip is not None
+    return chip is not None and chip.chip in ("wildcard", "free_hit")
 
 
 def hit_transfers_this_gw(db: Session, manager_id: int, gameweek_id: int) -> int:
@@ -101,19 +116,40 @@ def hit_transfers_this_gw(db: Session, manager_id: int, gameweek_id: int) -> int
     )
 
 
+def transfer_counts_this_gw(
+    db: Session, manager_id: int, gameweek_id: int
+) -> tuple[int, int]:
+    """Return (total_transfers, hit_transfers) for this manager/GW in one query."""
+    from sqlalchemy import case, func
+
+    total, hits = (
+        db.query(
+            func.count(TransferLog.id),
+            func.coalesce(func.sum(case((TransferLog.is_hit == 1, 1), else_=0)), 0),
+        )
+        .filter(
+            TransferLog.manager_id == manager_id,
+            TransferLog.gameweek_id == gameweek_id,
+        )
+        .one()
+    )
+    return int(total or 0), int(hits or 0)
+
+
 def transfer_hit_points(db: Session, manager_id: int, gameweek_id: int) -> float:
     """Negative points from paid transfers this GW (−4 each)."""
     return float(-HIT_COST * hit_transfers_this_gw(db, manager_id, gameweek_id))
 
 
 def owned_players(db: Session, manager_id: int) -> list[Player]:
-    rows = db.query(OwnedPlayer).filter(OwnedPlayer.manager_id == manager_id).all()
-    if not rows:
-        return []
-    ids = [r.player_id for r in rows]
-    players = db.query(Player).filter(Player.id.in_(ids)).all()
-    order = {i: n for n, i in enumerate(ids)}
-    return sorted(players, key=lambda p: order.get(p.id, 0))
+    """One JOIN instead of OwnedPlayer SELECT + Player IN (...)."""
+    rows = (
+        db.query(OwnedPlayer, Player)
+        .join(Player, Player.id == OwnedPlayer.player_id)
+        .filter(OwnedPlayer.manager_id == manager_id)
+        .all()
+    )
+    return [player for _, player in rows]
 
 
 def validate_composition(players: list[Player]) -> None:
