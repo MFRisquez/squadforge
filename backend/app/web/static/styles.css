@@ -4289,6 +4289,49 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   }
   .desk-side-xfer-in li span { color: #2f6b00; }
   .desk-side-xfer-out li span { color: #9b1c1c; }
+  .desk-side-preview-mark {
+    margin: 0 0 0.35rem;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #7a4a00;
+    background: #fff3bf;
+    border: 1px dashed #d4a017;
+    border-radius: 0.35rem;
+    padding: 0.28rem 0.4rem;
+  }
+  .desk-side-preview-mark-sm {
+    font-size: 0.6rem;
+    margin-bottom: 0.25rem;
+  }
+  .desk-side-xfer-league.is-preview .desk-side-xfer-table {
+    opacity: 0.92;
+  }
+  .desk-side-picked-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.22rem;
+  }
+  .desk-side-picked-list li {
+    display: grid;
+    gap: 0.08rem;
+    font-size: 0.78rem;
+  }
+  .desk-side-picked-meta,
+  .desk-side-captain-row span {
+    color: var(--muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+  }
+  .desk-side-captain-row {
+    margin: 0;
+    display: grid;
+    gap: 0.08rem;
+    font-size: 0.78rem;
+  }
   .desk-side-my-xfers {
     min-height: 0;
     display: flex;

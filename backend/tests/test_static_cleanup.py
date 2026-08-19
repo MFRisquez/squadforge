@@ -212,6 +212,10 @@ def test_desk_side_left_layout_phase0():
     assert "desk-side-scorer-list" in css
     assert "Most transferred IN" in team
     assert "Most transferred OUT" in team
+    assert "Most picked in XI" in team
+    assert "Most popular captain" in team
+    assert "Preview — real data after deadline" in team
+    assert "desk-side-preview-mark" in css
     assert 'id="myGwTransfers"' in team
     assert "Your top scorers" in (TEMPLATES / "lineup.html").read_text(encoding="utf-8")
     assert 'id="saveConfirm"' not in team
