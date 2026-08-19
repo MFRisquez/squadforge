@@ -1,5 +1,5 @@
 /* FutFantasy phone app shell */
-const CACHE = "futfantasy-v121";
+const CACHE = "futfantasy-v122";
 const PRECACHE = [
   "/static/styles.css",
   "/static/ui.js",
@@ -66,6 +66,7 @@ self.addEventListener("fetch", (event) => {
           // Opaque cross-origin (no-cors <img>) has ok=false / status 0 — still cacheable.
           const okToCache =
             res && (res.ok || (isBadgeCdn && res.type === "opaque"));
+          // Catalog is network-first — still warm the cache for offline fallback only.
           if (okToCache && (isStatic || isCatalog || isBadgeCdn)) {
             const copy = res.clone();
             caches.open(CACHE).then((cache) => cache.put(req, copy));
@@ -74,11 +75,11 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(() => cached);
 
-      // Static + player catalog + FPL badge CDN: cache-first
-      if (isStatic || isCatalog || isBadgeCdn) return cached || fetched;
+      // Static + badge CDN: cache-first.
+      if (isStatic || isBadgeCdn) return cached || fetched;
 
-      // Shell HTML: always network-first so GW / standings / fixtures never paint stale.
-      // Do not put HTML into Cache Storage (query params like ?gw= must stay live).
+      // Player catalog + shell HTML: network-first so availability / GW stay live.
+      // Stale catalog was painting "doubt" flags for everyone after FPL syncs.
       return fetched.then((res) => res || cached);
     })
   );
