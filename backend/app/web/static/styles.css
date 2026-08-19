@@ -1717,6 +1717,10 @@ body.chip-bb-on .xi-bench-panel .desk-rail-head h2 {
   min-height: 0;
   -webkit-line-clamp: unset;
 }
+/* Mobile / default: keep stacked parts on one line with spaces */
+.chip-card-fpl .chip-name.chip-name-stack span + span::before {
+  content: " ";
+}
 .chip-card-fpl .chip-info-wrap {
   grid-column: 3;
   grid-row: 1;
@@ -5517,6 +5521,9 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   body.page-xi .chip-card-fpl .chip-name.chip-name-stack span {
     display: block;
     line-height: 1.05;
+  }
+  body.page-xi .chip-card-fpl .chip-name.chip-name-stack span + span::before {
+    content: none;
   }
   /* Info tip sits beside the chip title; On/Off stays right */
   body.page-xi .chip-card-fpl:not(.chip-card-ss) .chip-toggle,
