@@ -124,20 +124,20 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS / catalog that showed wrong avail flags
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v139"' in sw
+    assert 'CACHE = "futfantasy-v140"' in sw
     assert "if (isStatic || isBadgeCdn) return cached || fetched" in sw
     assert "CSS is network-first" in sw
     # Must not cache-first the catalog (stale availability after FPL sync).
     assert "if (isStatic || isCatalog || isBadgeCdn) return cached || fetched" not in sw
-    assert "/static/styles.css?v=138" in sw
+    assert "/static/styles.css?v=139" in sw
     assert "/static/league_h2h.js" in sw
     assert "/static/club-sheet.js" in sw
     assert 'BADGE_CDN_HOST = "resources.premierleague.com"' in sw
     assert "isBadgeCdn" in sw
     assert "isStatic || isCatalog || isBadgeCdn" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=138" in base
-    assert "styles.css?v=138" in base
+    assert "sw.js?v=139" in base
+    assert "styles.css?v=139" in base
 
     squad = (STATIC / "squadboard.js").read_text(encoding="utf-8")
     assert "ff-players-updated" in squad
@@ -235,10 +235,13 @@ def test_desk_side_left_layout_phase0():
     assert "desk-side-xfer-tables" in css
     assert "desk-side-my-xfer-list" in css
     assert "desk-side-scorer-list" in css
+    assert "League Transfer Trends" in team
     assert "Most transferred IN" in team
     assert "Most transferred OUT" in team
-    assert "Most picked in XI" in team
-    assert "Most popular captain" in team
+    assert "Most picked in XI" not in team
+    assert "Most popular captain" not in team
+    assert "rgba(255, 255, 255, 0.04)" in css
+    assert "overflow-y: auto" in css
     assert "Preview — real data after deadline" in team
     assert "desk-side-preview-mark" in css
     assert 'id="myGwTransfers"' in team
@@ -248,6 +251,8 @@ def test_desk_side_left_layout_phase0():
     assert "appendMyGwTransfers" in (STATIC / "squadboard.js").read_text(encoding="utf-8")
     assert "xi_side_left" in (TEMPLATES / "lineup.html").read_text(encoding="utf-8")
     assert "transfers_side_left" in (TEMPLATES / "team.html").read_text(encoding="utf-8")
+    assert "trends.most_in" in team
+    assert "{% for block in side.leagues %}" not in team
 
 
 def test_transfers_pitch_price_frame_and_pending_white_border():

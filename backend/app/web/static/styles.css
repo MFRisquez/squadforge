@@ -4319,14 +4319,10 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   .desk-side-rank-spark .rank-line.is-me {
     stroke: var(--accent, #c0ff00);
   }
-  .desk-side-xfer-league {
+  .desk-side-xfer-trends {
     display: grid;
     gap: 0.35rem;
-    margin-top: 0.4rem;
-  }
-  .desk-side-xfer-league h3 {
-    margin: 0;
-    font-size: 0.92rem;
+    margin-top: 0.15rem;
   }
   .desk-side-xfer-tables {
     display: grid;
@@ -4334,11 +4330,12 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
   }
   .desk-side-xfer-table {
     display: grid;
-    gap: 0.18rem;
-    padding: 0.35rem 0.4rem 0.4rem;
+    gap: 0.22rem;
+    padding: 0.4rem 0.45rem 0.45rem;
     border: 1px solid var(--line);
     border-radius: 0.45rem;
-    background: #fafafa;
+    background: rgba(255, 255, 255, 0.04);
+    text-align: center;
   }
   .desk-side-xfer-label {
     margin: 0;
@@ -4347,74 +4344,60 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     text-transform: uppercase;
     font-weight: 800;
     color: var(--muted);
+    text-align: center;
   }
   .desk-side-xfer-list {
     list-style: none;
     margin: 0;
     padding: 0;
     display: grid;
-    gap: 0.18rem;
+    gap: 0.2rem;
+    justify-items: center;
   }
   .desk-side-xfer-list li {
     display: flex;
-    justify-content: space-between;
-    gap: 0.35rem;
+    justify-content: center;
+    align-items: baseline;
+    gap: 0.45rem;
     font-size: 0.9rem;
+    width: 100%;
+    text-align: center;
+  }
+  .desk-side-xfer-list strong {
+    min-width: 0;
   }
   .desk-side-xfer-list span {
     color: var(--muted);
     white-space: nowrap;
     font-weight: 700;
   }
-  .desk-side-xfer-in li span { color: #2f6b00; }
-  .desk-side-xfer-out li span { color: #9b1c1c; }
+  .desk-side-xfer-in li span { color: #7dff7d; }
+  .desk-side-xfer-out li span { color: #ff8a8a; }
   .desk-side-preview-mark {
     margin: 0 0 0.35rem;
     font-size: 0.68rem;
     font-weight: 800;
     letter-spacing: 0.03em;
     text-transform: uppercase;
-    color: #7a4a00;
-    background: #fff3bf;
-    border: 1px dashed #d4a017;
+    color: #ffd28a;
+    background: rgba(255, 176, 32, 0.14);
+    border: 1px dashed rgba(255, 176, 32, 0.45);
     border-radius: 0.35rem;
     padding: 0.28rem 0.4rem;
+    text-align: center;
   }
   .desk-side-preview-mark-sm {
     font-size: 0.6rem;
     margin-bottom: 0.25rem;
   }
-  .desk-side-xfer-league.is-preview .desk-side-xfer-table {
+  .desk-side-xfer-trends.is-preview .desk-side-xfer-table {
     opacity: 0.92;
-  }
-  .desk-side-picked-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    gap: 0.22rem;
-  }
-  .desk-side-picked-list li {
-    display: grid;
-    gap: 0.08rem;
-    font-size: 0.9rem;
-  }
-  .desk-side-picked-meta,
-  .desk-side-captain-row span {
-    color: var(--muted);
-    font-size: 0.78rem;
-    font-weight: 700;
-  }
-  .desk-side-captain-row {
-    margin: 0;
-    display: grid;
-    gap: 0.08rem;
-    font-size: 0.9rem;
   }
   .desk-side-my-xfers {
     min-height: 0;
     display: flex;
     flex-direction: column;
+    flex: 1 1 auto;
   }
   .desk-side-my-xfer-list {
     list-style: none;
@@ -4422,9 +4405,11 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     padding: 0;
     display: grid;
     gap: 0.28rem;
-    overflow: auto;
-    max-height: min(28vh, 12rem);
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: min(32vh, 14rem);
     min-height: 0;
+    scrollbar-gutter: stable;
   }
   .desk-side-my-xfer-list li {
     display: grid;
@@ -4436,17 +4421,18 @@ html[data-theme="dark"] .pick-row.avail-out .grow .muted {
     padding: 0.28rem 0.32rem;
     border: 1px solid var(--line);
     border-radius: 0.4rem;
-    background: #fff;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--ink);
   }
-  .desk-side-my-xfer-list .sc-out { color: #9b1c1c; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .desk-side-my-xfer-list .sc-in { color: #2f6b00; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .desk-side-my-xfer-list .sc-out { color: #ff8a8a; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .desk-side-my-xfer-list .sc-in { color: #7dff7d; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .desk-side-my-xfer-list .sc-arrow { color: var(--muted); }
   .desk-side-my-xfer-list .sc-hit {
     font-size: 0.58rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #7a4a00;
-    background: #ffe8b8;
+    color: #ffd28a;
+    background: rgba(255, 176, 32, 0.16);
     border-radius: 0.25rem;
     padding: 0.08rem 0.28rem;
   }

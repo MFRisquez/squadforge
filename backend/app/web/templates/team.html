@@ -18,78 +18,45 @@
     <section class="desk-side-block desk-side-transfers">
       <header class="desk-rail-head">
         <p class="eyebrow">This GW</p>
-        <h2>League trends</h2>
+        <h2>League Transfer Trends</h2>
       </header>
+      {% set trends = side.trends %}
       {% if side.preview or side.watermark %}
       <p class="desk-side-preview-mark">{{ side.watermark or "Preview — real data after deadline" }}</p>
       {% endif %}
-      {% if not side.leagues %}
-      <p class="muted tiny">Need {{ side.min_managers or 4 }}+ managers in a league to show trends.</p>
+      {% if not trends %}
+      <p class="muted tiny">Need {{ side.min_managers or 4 }}+ managers across your leagues to show trends.</p>
+      {% elif trends.empty and not trends.preview %}
+      <p class="muted tiny">No trends logged yet this GW.</p>
       {% else %}
-        {% for block in side.leagues %}
-        <div class="desk-side-xfer-league{% if block.preview %} is-preview{% endif %}">
-          <h3>{{ block.name }}</h3>
-          {% if block.preview %}
-          <p class="desk-side-preview-mark desk-side-preview-mark-sm">{{ block.watermark or "Preview — real data after deadline" }}</p>
-          {% endif %}
-          {% if block.empty and not block.preview %}
-          <p class="muted tiny">No trends logged yet this GW.</p>
-          {% else %}
-          <div class="desk-side-xfer-tables">
-            <div class="desk-side-xfer-table" aria-label="Most transferred in">
-              <p class="desk-side-xfer-label">Most transferred IN</p>
-              {% if block.most_in %}
-              <ul class="desk-side-xfer-list desk-side-xfer-in">
-                {% for row in block.most_in %}
-                <li><strong>{{ row.name }}</strong><span>{{ row.count }}</span></li>
-                {% endfor %}
-              </ul>
-              {% else %}
-              <p class="muted tiny">—</p>
-              {% endif %}
-            </div>
-            <div class="desk-side-xfer-table" aria-label="Most transferred out">
-              <p class="desk-side-xfer-label">Most transferred OUT</p>
-              {% if block.most_out %}
-              <ul class="desk-side-xfer-list desk-side-xfer-out">
-                {% for row in block.most_out %}
-                <li><strong>{{ row.name }}</strong><span>{{ row.count }}</span></li>
-                {% endfor %}
-              </ul>
-              {% else %}
-              <p class="muted tiny">—</p>
-              {% endif %}
-            </div>
-          </div>
-          <div class="desk-side-xfer-table desk-side-picked" aria-label="Most picked in XI">
-            <p class="desk-side-xfer-label">Most picked in XI</p>
-            {% if block.most_picked %}
-            <ul class="desk-side-picked-list">
-              {% for row in block.most_picked %}
-              <li>
-                <strong>{{ row.name }}</strong>
-                <span class="desk-side-picked-meta">{{ row.points }} pts · {{ row.pct }}% · {{ row.rival }}</span>
-              </li>
+      <div class="desk-side-xfer-trends{% if trends.preview %} is-preview{% endif %}">
+        <div class="desk-side-xfer-tables">
+          <div class="desk-side-xfer-table" aria-label="Most transferred in">
+            <p class="desk-side-xfer-label">Most transferred IN</p>
+            {% if trends.most_in %}
+            <ul class="desk-side-xfer-list desk-side-xfer-in">
+              {% for row in trends.most_in %}
+              <li><strong>{{ row.name }}</strong><span>{{ row.count }}</span></li>
               {% endfor %}
             </ul>
             {% else %}
             <p class="muted tiny">—</p>
             {% endif %}
           </div>
-          <div class="desk-side-xfer-table desk-side-captain" aria-label="Most popular captain">
-            <p class="desk-side-xfer-label">Most popular captain</p>
-            {% if block.popular_captain %}
-            <p class="desk-side-captain-row">
-              <strong>{{ block.popular_captain.name }}</strong>
-              <span>{{ block.popular_captain.points }} pts · {{ block.popular_captain.pct }}% · {{ block.popular_captain.rival }}</span>
-            </p>
+          <div class="desk-side-xfer-table" aria-label="Most transferred out">
+            <p class="desk-side-xfer-label">Most transferred OUT</p>
+            {% if trends.most_out %}
+            <ul class="desk-side-xfer-list desk-side-xfer-out">
+              {% for row in trends.most_out %}
+              <li><strong>{{ row.name }}</strong><span>{{ row.count }}</span></li>
+              {% endfor %}
+            </ul>
             {% else %}
             <p class="muted tiny">—</p>
             {% endif %}
           </div>
-          {% endif %}
         </div>
-        {% endfor %}
+      </div>
       {% endif %}
     </section>
     <section class="desk-side-block desk-side-my-xfers" aria-label="Your transfers this GW">
