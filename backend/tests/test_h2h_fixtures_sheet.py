@@ -360,6 +360,7 @@ def test_league_chips_board_and_rival_snapshot_on_page():
         league = league_svc.create_league(db, "Chip Cup", a, league_type="h2h")
         league_svc.join_league(db, league.invite_code, b)
         gw = db.query(Gameweek).filter(Gameweek.number == 1).one()
+        db.query(Gameweek).update({"is_current": 0})
         gw.status = "live"
         gw.is_current = 1
         gw.deadline_at = (
