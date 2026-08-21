@@ -10228,7 +10228,7 @@ body.page-squad .stat-strip {
 
 /*
  * League desktop column layout (same order + track pattern as XI/Transfers).
- * Visual: standings | H2H fixtures | season awards.
+ * Visual: standings+fixtures | YOU VS RIVAL | chips+awards.
  * Rollback: delete this media block + restore single-column flow.
  */
 @media (min-width: 900px) {
