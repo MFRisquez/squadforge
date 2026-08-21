@@ -33,6 +33,22 @@ def maybe_score_locked_gw(*, force: bool = False) -> Optional[dict]:
             gw = squad_svc.current_gameweek(db)
             if not deadline_svc.deadline_passed(gw):
                 return None
+            # Keep Fixture.started/finished in sync with FPL every cycle — same
+            # cadence as player points. Do not let a fixture refresh failure
+            # block scoring (ingest also refreshes, but this makes the daemon
+            # path explicit and logs skip reasons like missing club FPL ids).
+            try:
+                from app.services import fixtures as fixtures_svc
+
+                fx_info = fixtures_svc.refresh_fixtures(db)
+                logger.info(
+                    "auto-score fixture sync GW%s · %s",
+                    gw.number,
+                    fx_info,
+                )
+            except Exception:
+                logger.exception("auto-score fixture sync failed (continuing)")
+
             summary = live_svc.run_gameweek_scoring(db, prefer_live=True, force_demo=False)
             # Never invent demo points in the background loop.
             if summary.get("ingest", {}).get("demo_skipped"):

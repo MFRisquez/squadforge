@@ -800,5 +800,14 @@ def fixture_sheet_preview(db: Session, *, fixture_id: int) -> dict[str, Any] | N
     }
 
 def refresh_fixtures(db: Session) -> dict[str, int]:
-    """Pull latest FPL fixtures (scores + stats)."""
-    return sync_fixtures(db)
+    """Pull latest FPL fixtures (scores + started/finished + stats).
+
+    If clubs lack ``fpl_team_id`` (common on older DBs), backfill via
+    ``ensure_fixtures_ready`` then retry — otherwise started/finished never
+    move off the seed snapshot.
+    """
+    info = sync_fixtures(db)
+    if info.get("reason") == "no_club_fpl_ids" or int(info.get("fixtures") or 0) == 0:
+        ensure_fixtures_ready(db)
+        info = sync_fixtures(db)
+    return info
