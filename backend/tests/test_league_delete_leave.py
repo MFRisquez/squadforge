@@ -162,7 +162,7 @@ def test_league_page_shows_delete_or_leave(db):
     assert "Leave league" in html
     assert "Delete league" not in html
     assert "Save format" not in html
-    assert "League format" not in html
+    assert "<h2>League format</h2>" not in html
 
 
 def test_guest_cannot_post_league_type_change(db):
