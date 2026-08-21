@@ -153,7 +153,9 @@ def test_league_page_shows_delete_or_leave(db):
     assert "This deletes the league for everyone" in html
     assert "Save format" in html
     assert "Classic ranks by total points all season" in html
-    assert "H2H pairs everyone weekly and ranks by wins" in html
+    assert "H2H pairs everyone weekly" in html
+    assert "rotating bye" in html
+    assert "ranks by wins" in html
 
     client.post("/login", data={"login": "Guest", "password": "secret12"}, follow_redirects=False)
     html = client.get(f"/league/{league.id}").text
