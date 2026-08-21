@@ -258,8 +258,57 @@ def classic_standings(db: Session, league: League, gw) -> list[dict]:
     return rows
 
 
+def h2h_circle_pairs(
+    manager_ids: list[int],
+    *,
+    round_index: int,
+) -> list[tuple[int, int]]:
+    """Circle-method round-robin pairs for one round (0-based).
+
+    Fixes the first id and rotates everyone else each round so that with an
+    even count of real managers, each opponent pairing appears exactly once
+    every ``N-1`` rounds before the cycle repeats.
+
+    Odd counts: a synthetic ``None`` bye is appended to complete the circle.
+    Whoever is paired with bye that round is omitted — they simply do not
+    play H2H that gameweek (no auto-draw; W–D–L / played are untouched).
+    """
+    ids = [int(mid) for mid in manager_ids]
+    if len(ids) < 2:
+        return []
+
+    has_bye = len(ids) % 2 == 1
+    circle: list[int | None] = list(ids)
+    if has_bye:
+        circle.append(None)
+
+    n = len(circle)
+    cycle = n - 1
+    r = int(round_index) % cycle
+
+    fixed = circle[0]
+    rest = circle[1:]
+    if r:
+        rest = rest[-r:] + rest[:-r]
+    arranged: list[int | None] = [fixed] + rest
+
+    pairs: list[tuple[int, int]] = []
+    for i in range(n // 2):
+        a = arranged[i]
+        b = arranged[n - 1 - i]
+        if a is None or b is None:
+            # Bye week: skip — no H2HMatch row, no record impact.
+            continue
+        pairs.append((int(a), int(b)))
+    return pairs
+
+
 def ensure_h2h_pairings(db: Session, league: League, gw) -> list[H2HMatch]:
-    """Pair managers for the current GW. Requires even count; stable shuffle by gw number."""
+    """Create H2H fixtures for ``gw`` via circle-method round-robin.
+
+    Idempotent: if matches already exist for this league+GW, return them
+    unchanged (legacy rows from the old rotator stay as-is until cleaned).
+    """
     existing = (
         db.query(H2HMatch)
         .filter(H2HMatch.league_id == league.id, H2HMatch.gameweek_id == gw.id)
@@ -268,17 +317,25 @@ def ensure_h2h_pairings(db: Session, league: League, gw) -> list[H2HMatch]:
     if existing:
         return existing
 
-    members = [m.manager for m in db.query(Membership).filter(Membership.league_id == league.id).all()]
-    if len(members) < 2 or len(members) % 2 != 0:
+    members = [
+        m.manager
+        for m in db.query(Membership).filter(Membership.league_id == league.id).all()
+    ]
+    if len(members) < 2:
         return []
 
-    ordered = sorted(members, key=lambda m: m.id)
-    # Rotate by gameweek so opponents change
-    rot = (gw.number - 1) % max(1, len(ordered))
-    ordered = ordered[rot:] + ordered[:rot]
-    matches = []
-    for i in range(0, len(ordered), 2):
-        home, away = ordered[i], ordered[i + 1]
+    ordered = sorted(members, key=lambda m: int(m.id))
+    ids = [int(m.id) for m in ordered]
+    by_id = {int(m.id): m for m in ordered}
+    # GW1 → round 0; cycle length is N-1 (even) or N (odd, with bye).
+    round_index = max(0, int(gw.number) - 1)
+    pairs = h2h_circle_pairs(ids, round_index=round_index)
+    if not pairs:
+        return []
+
+    matches: list[H2HMatch] = []
+    for home_id, away_id in pairs:
+        home, away = by_id[home_id], by_id[away_id]
         match = H2HMatch(
             league_id=league.id,
             gameweek_id=gw.id,

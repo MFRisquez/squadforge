@@ -194,8 +194,9 @@ def set_league_type(db: Session, league: League, league_type: str) -> League:
     if lt not in {"classic", "h2h"}:
         raise LeagueError("Choose Classic or Head-to-Head.")
     members = db.query(Membership).filter(Membership.league_id == league.id).count()
-    if lt == "h2h" and members % 2 != 0:
-        raise LeagueError("Head-to-Head needs an even number of managers (2, 4, 6…).")
+    if lt == "h2h" and members < 2:
+        raise LeagueError("Head-to-Head needs at least 2 managers.")
+    # Odd counts are OK: circle method gives one manager a bye each GW.
     league.league_type = lt
     db.commit()
     db.refresh(league)
