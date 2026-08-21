@@ -130,10 +130,8 @@ def test_league_page_shows_table_and_timeline():
     html = client.get(f"/league/{lid}").text
     assert "standings-board" in html or "League table" in html
     assert "standings-list" in html
-    assert "Position timeline" in html
-    assert "rank-timeline-chart" in html
-    assert "rank-dot" in html
-    assert "<title>" in html
+    assert "Position timeline" not in html
+    assert "rank-timeline-chart" not in html
     assert "Page Alpha" in html
     assert "Page Beta" in html
 
@@ -171,7 +169,7 @@ def test_unified_league_table_macro_for_h2h():
 
 
 def test_h2h_rank_history_and_league_page_timeline():
-    """H2H leagues get the same Position timeline (table rank after settled GWs)."""
+    """H2H rank history still computes; league home no longer renders the timeline."""
     from app.models import H2HMatch
 
     db = SessionLocal()
@@ -238,9 +236,11 @@ def test_h2h_rank_history_and_league_page_timeline():
     client = _client()
     client.post("/login", data={"login": "H2HHistA", "password": "secret12"}, follow_redirects=False)
     html = client.get(f"/league/{lid}").text
-    assert "Position timeline" in html
-    assert "rank-timeline-chart" in html
-    assert "H2H table rank" in html
+    assert "Position timeline" not in html
+    assert "rank-timeline-chart" not in html
+    assert "standings-board" in html
+    assert "H2H Alpha" in html
+    assert "H2H Beta" in html
 
 
 def test_fixtures_desktop_css_has_breathing_room():

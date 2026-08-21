@@ -30,12 +30,14 @@
   <div class="standings-cols {% if is_h2h %}standings-cols-h2h{% endif %}" aria-hidden="true">
     <span>Pos</span>
     <span>Team</span>
-    <span>Form</span>
     {% if is_h2h %}
+    <span>Pts</span>
+    <span title="Recent GW points">Form</span>
     <span>W</span>
     <span>D</span>
     <span>L</span>
-    <span>Pts</span>
+    {% else %}
+    <span title="Recent GW points">Form</span>
     {% endif %}
     <span>GW{% if gw %}{{ gw.number }}{% endif %}</span>
     {% if not is_h2h %}
@@ -52,14 +54,15 @@
       <a class="standings-team" href="/league/{{ league.id }}/opponent/{{ row.manager.id }}{% if gw %}?gw={{ gw.number }}{% endif %}">
         <strong>{{ row.team_name }}</strong>
       </a>
-      <span class="standings-trend" title="Last {{ row.trend|length }} GW points">{{ trend_spark(row) }}</span>
       {% if is_h2h %}
+      <span class="standings-h2h-pts"><strong>{{ row.h2h_points }}</strong></span>
+      <span class="standings-trend" title="Last {{ row.trend|length }} GW fantasy points">{{ trend_spark(row) }}</span>
       <span class="standings-w">{{ row.wins }}</span>
       <span class="standings-d">{{ row.draws }}</span>
       <span class="standings-l">{{ row.losses }}</span>
-      <span class="standings-h2h-pts"><strong>{{ row.h2h_points }}</strong></span>
       <span class="standings-gw">{{ '%.0f'|format(row.gw_points) }}</span>
       {% else %}
+      <span class="standings-trend" title="Last {{ row.trend|length }} GW fantasy points">{{ trend_spark(row) }}</span>
       <span class="standings-gw">{{ '%.0f'|format(row.gw_points) }}</span>
       <span class="standings-tot">{{ '%.0f'|format(row.total_points) }}</span>
       {% endif %}

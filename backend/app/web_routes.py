@@ -678,9 +678,6 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
     else:
         rows = standings_svc.classic_standings(db, league, gw)
         mode = "classic"
-    rank_history = standings_svc.league_rank_history(
-        db, league, gw, me_id=manager.id
-    )
     chips = db.query(ChipState).filter(ChipState.manager_id == manager.id).one_or_none()
     from app.services import awards as awards_svc
 
@@ -697,7 +694,6 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
             chips=chips,
             member_count=len(rows),
             gw=gw,
-            rank_history=rank_history,
             fixtures=fixtures,
             h2h_cards=h2h_cards,
             awards=awards,
@@ -773,9 +769,6 @@ def league_set_type(
         else:
             rows = standings_svc.classic_standings(db, league, gw)
             mode = "classic"
-        rank_history = standings_svc.league_rank_history(
-            db, league, gw, me_id=manager.id
-        )
         return templates.TemplateResponse(
             "league.html",
             _ctx(
@@ -788,7 +781,6 @@ def league_set_type(
                 error=str(exc),
                 member_count=len(rows),
                 gw=gw,
-                rank_history=rank_history,
                 fixtures=fixtures,
             ),
             status_code=400,
