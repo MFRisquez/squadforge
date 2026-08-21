@@ -151,6 +151,37 @@ def _wants_json(request: Request) -> bool:
     )
 
 
+def _request_wants_desk_side(request: Request) -> bool:
+    """Left rails are CSS-desktop only (≥900px). Skip payload work on phones.
+
+    Prefer the soft-nav hint (same breakpoint as JS isDesktop), then Client Hints,
+    then a conservative User-Agent phone check. Unknown → compute (desktop-safe).
+    """
+    explicit = (request.headers.get("x-ff-desktop") or "").strip().lower()
+    if explicit in ("1", "true", "yes"):
+        return True
+    if explicit in ("0", "false", "no"):
+        return False
+
+    ch_mobile = (request.headers.get("sec-ch-ua-mobile") or "").strip()
+    if ch_mobile == "?1":
+        return False
+    if ch_mobile == "?0":
+        return True
+
+    ua = (request.headers.get("user-agent") or "").lower()
+    if not ua:
+        return True
+    # Phones: "Mobile" / iPhone / iPod. Android tablets usually lack "mobi".
+    if "iphone" in ua or "ipod" in ua or "windows phone" in ua or "opera mini" in ua:
+        return False
+    if "android" in ua and "mobi" in ua:
+        return False
+    if "mobi" in ua and "ipad" not in ua:
+        return False
+    return True
+
+
 def _resolve_gw(request: Request, db: Session):
     from app.services import deadline as deadline_svc
     from app.perf_trace import timed
@@ -963,7 +994,7 @@ def _squad_board_response(
     td_club_choices = [c for c in clubs if c.code != td_info.get("banned_club")]
     transfers_side_left = None
     nav_leagues = None
-    if template_name == "team.html":
+    if template_name == "team.html" and _request_wants_desk_side(request):
         with timed("team.desk_side"):
             from app.services import desk_side as desk_side_svc
             from app.services import league as league_svc
@@ -1464,18 +1495,22 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
         for p in picks
     }
     td_info = td_svc.td_view(db, manager.id, gw.number, gameweek_id=gw.id)
-    from app.services import desk_side as desk_side_svc
-    from app.services import league as league_svc
+    want_desk = _request_wants_desk_side(request)
+    nav_leagues: list | None = []
+    xi_side_left = None
+    if want_desk:
+        from app.services import desk_side as desk_side_svc
+        from app.services import league as league_svc
 
-    with timed("lineup.desk_side"):
-        nav_leagues = league_svc.manager_leagues(db, manager.id)
-        xi_side_left = desk_side_svc.xi_side_left_payload(
-            db,
-            manager_id=manager.id,
-            gw=gw,
-            leagues=nav_leagues,
-            td_info=td_info,
-        )
+        with timed("lineup.desk_side"):
+            nav_leagues = league_svc.manager_leagues(db, manager.id)
+            xi_side_left = desk_side_svc.xi_side_left_payload(
+                db,
+                manager_id=manager.id,
+                gw=gw,
+                leagues=nav_leagues,
+                td_info=td_info,
+            )
     super_sub_player_id = None
     if active_chip and active_chip.chip == "super_sub":
         try:
@@ -1495,47 +1530,47 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
     played_count = max(0, len(starters) - left_to_play)
 
     with timed("lineup.template_render"):
+        ctx_kwargs = dict(
+            manager=manager,
+            has_complete_squad=True,
+            owned_json=_owned_payload(owned, db, gw_number=gw.number),
+            initial_lineup={
+                "starters": starters,
+                "captain": captain,
+                "vice": vice,
+                "locked": view["edits_locked"],
+                "captainEditable": captain_editable,
+                "fixtureStarted": fixture_started,
+                "fixtureLive": fixture_live,
+                "captainArmed": armed,
+                "gw": gw.number,
+                "points": points_map,
+                "breakdowns": points_breakdown,
+                "gwTotal": gw_total,
+                "activeChip": active_chip.chip if active_chip else None,
+                "superSubPlayerId": super_sub_player_id,
+            },
+            spend=squad_svc.squad_spend(owned),
+            gw_total=gw_total,
+            any_fixture_started=any_fixture_started,
+            captain_name=captain_name,
+            left_to_play=left_to_play,
+            played_count=played_count,
+            chips=chips,
+            active_chip=active_chip,
+            bench_options=bench_options,
+            captain_editable=captain_editable,
+            td_info=td_info,
+            xi_side_left=xi_side_left,
+            notice=notice,
+            error=error,
+            **view,
+        )
+        # Always pass nav_leagues (empty on phone) so _ctx skips a second leagues query.
+        ctx_kwargs["nav_leagues"] = nav_leagues or []
         resp = templates.TemplateResponse(
             "lineup.html",
-            _ctx(
-                request,
-                db,
-                manager=manager,
-                has_complete_squad=True,
-                nav_leagues=nav_leagues,
-                owned_json=_owned_payload(owned, db, gw_number=gw.number),
-                initial_lineup={
-                    "starters": starters,
-                    "captain": captain,
-                    "vice": vice,
-                    "locked": view["edits_locked"],
-                    "captainEditable": captain_editable,
-                    "fixtureStarted": fixture_started,
-                    "fixtureLive": fixture_live,
-                    "captainArmed": armed,
-                    "gw": gw.number,
-                    "points": points_map,
-                    "breakdowns": points_breakdown,
-                    "gwTotal": gw_total,
-                    "activeChip": active_chip.chip if active_chip else None,
-                    "superSubPlayerId": super_sub_player_id,
-                },
-                spend=squad_svc.squad_spend(owned),
-                gw_total=gw_total,
-                any_fixture_started=any_fixture_started,
-                captain_name=captain_name,
-                left_to_play=left_to_play,
-                played_count=played_count,
-                chips=chips,
-                active_chip=active_chip,
-                bench_options=bench_options,
-                captain_editable=captain_editable,
-                td_info=td_info,
-                xi_side_left=xi_side_left,
-                notice=notice,
-                error=error,
-                **view,
-            ),
+            _ctx(request, db, **ctx_kwargs),
         )
     return attach_server_perf_header(resp, path="/lineup")
 

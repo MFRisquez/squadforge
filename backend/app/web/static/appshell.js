@@ -5,8 +5,18 @@
   const SHELL_PATHS = new Set(["/", "/lineup", "/team", "/fixtures", "/rules", "/leagues", "/onboard"]);
   const pageCache = new Map(); // full path+search -> { html, at }
   const CACHE_TTL_MS = 45_000;
+  const DESK_MQ = window.matchMedia("(min-width: 900px)");
   let navigating = false;
   let pendingNav = null; // latest path queued while a soft-nav is in flight
+
+  function softNavHeaders() {
+    // Same ≥900px breakpoint as lineup isDesktop — server skips desk-side work on phone.
+    return {
+      Accept: "text/html",
+      "X-Requested-With": "ff-shell",
+      "X-FF-Desktop": DESK_MQ && DESK_MQ.matches ? "1" : "0",
+    };
+  }
 
   function isAuthPage() {
     return document.body.classList.contains("page-auth");
@@ -60,13 +70,13 @@
   function prefetch(url) {
     return fetch(url, {
       credentials: "same-origin",
-      headers: { Accept: "text/html", Purpose: "prefetch" },
+      headers: { ...softNavHeaders(), Purpose: "prefetch" },
     })
       .then(async (res) => {
         if (!res.ok) return;
         const html = await res.text();
         // Keep query string (e.g. ?gw=) so GW arrows don't reuse the wrong page.
-        pageCache.set(url, { html, at: Date.now() });
+        pageCache.set(url, { html, at: Date.now(), serverPerf: readServerPerfHeader(res) });
       })
       .catch(() => {});
   }
@@ -246,7 +256,7 @@
         fetch(path, {
           credentials: "same-origin",
           cache: "no-store",
-          headers: { Accept: "text/html" },
+          headers: softNavHeaders(),
         })
           .then(async (res) => {
             if (!res.ok) return;
@@ -263,7 +273,7 @@
     const res = await fetch(path, {
       credentials: "same-origin",
       cache: "no-store",
-      headers: { Accept: "text/html", "X-Requested-With": "ff-shell" },
+      headers: softNavHeaders(),
     });
     if (!res.ok) throw new Error("nav");
     if (res.redirected && res.url) {

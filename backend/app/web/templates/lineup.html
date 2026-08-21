@@ -13,6 +13,7 @@
 
 <p class="sr-only" id="xiHint"></p>
 <div class="desk-board desk-xi">
+  {% if xi_side_left is not none %}
   <aside class="desk-rail desk-side-left" id="xiSideLeft" aria-label="DT and leagues">
     {% set side = xi_side_left or {} %}
     {% set td_side = side.td or {} %}
@@ -100,6 +101,7 @@
       <div class="rank-history-body" id="rankHistoryBody"></div>
     </div>
   </div>
+  {% endif %}
   <div class="desk-main desk-xi-main">
     <div class="desk-main-top desk-xi-chips">
       {% if edits_locked %}
@@ -201,6 +203,7 @@
       {% endif %}
     </form>
   </div>
+  {% if xi_side_left is not none %}
   <aside class="desk-rail xi-side-rail" id="xiSideRail" aria-label="Bench and live points">
     <section class="xi-bench-panel">
       <header class="desk-rail-head">
@@ -223,6 +226,7 @@
       </div>
     </section>
   </aside>
+  {% endif %}
 </div>
 
 <div class="drawer" id="playerDetail" hidden>
@@ -265,6 +269,8 @@
 <script id="ownedData" type="application/json">{{ owned_json | tojson }}</script>
 <script id="initialLineup" type="application/json">{{ initial_lineup | tojson }}</script>
 <script src="/static/club-sheet.js"></script>
+{% if xi_side_left is not none %}
 <script src="/static/xi-side.js"></script>
+{% endif %}
 <script src="/static/lineup.js"></script>
 {% endblock %}

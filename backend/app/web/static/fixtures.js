@@ -468,11 +468,16 @@
       team_news: enrich.team_news,
       preview: enrich.preview,
       pulse: enrich.pulse,
+      team_stats: enrich.team_stats != null ? enrich.team_stats : base.team_stats,
     });
     const root = activeDetailBody();
     if (!root) return;
     const news = root.querySelector("[data-fx-news]");
     if (news) news.outerHTML = newsSectionHtml(merged, { loading: false });
+    const stats = root.querySelector("[data-fx-team-stats]");
+    if (stats && enrich.team_stats != null) {
+      stats.outerHTML = matchStatsCompareHtml(merged, merged.status || "upcoming");
+    }
     const statusEl = root.querySelector("[data-fx-status]");
     if (statusEl && merged.preview?.venue) {
       const kick = formatKickoff(merged.kickoff);

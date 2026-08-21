@@ -746,18 +746,13 @@ def fixture_detail(
     }
     if owned_players is not None:
         payload["my_players"] = my_players_for_fixture(db, fx, owned_players)
-    # Team match stats (possession, SOT, xG, …) — best-effort from API-Football.
-    try:
-        from app.services import advanced_stats as adv_svc
-
-        payload["team_stats"] = adv_svc.team_match_stats_for_fixture(db, fx)
-    except Exception:
-        payload["team_stats"] = None
+    # Team match stats are slow (API-Football) — loaded via /preview, not this fast path.
+    payload["team_stats"] = None
     return payload
 
 
 def fixture_sheet_preview(db: Session, *, fixture_id: int) -> dict[str, Any] | None:
-    """Slow path: team news + PulseLive venue/formations for the match sheet."""
+    """Slow path: team news + PulseLive + optional API-Football team stats."""
     fx = db.query(Fixture).filter(Fixture.id == fixture_id).one_or_none()
     if not fx:
         return None
@@ -777,6 +772,13 @@ def fixture_sheet_preview(db: Session, *, fixture_id: int) -> dict[str, Any] | N
             "badge": badge_url(fx.away_club_code, kit_code=away.kit_code if away else None),
         },
     }
+    team_stats = None
+    try:
+        from app.services import advanced_stats as adv_svc
+
+        team_stats = adv_svc.team_match_stats_for_fixture(db, fx)
+    except Exception:
+        team_stats = None
     try:
         from app.services import pl_content
 
@@ -787,14 +789,15 @@ def fixture_sheet_preview(db: Session, *, fixture_id: int) -> dict[str, Any] | N
             "team_news": {"home": [], "away": []},
             "preview": None,
             "pulse": None,
+            "team_stats": team_stats,
         }
     return {
         "id": fx.id,
         "team_news": enriched.get("team_news") or {"home": [], "away": []},
         "preview": enriched.get("preview"),
         "pulse": enriched.get("pulse"),
+        "team_stats": team_stats,
     }
-
 
 def refresh_fixtures(db: Session) -> dict[str, int]:
     """Pull latest FPL fixtures (scores + stats)."""
