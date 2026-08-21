@@ -649,7 +649,7 @@
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => {
         renderList(data.fixtures || []);
-        // Keep open match sheet stats fresh (possession / SOT / …).
+        // Keep open match sheet fresh (score/clock + possession/SOT via preview).
         if (!selectedId) return;
         const reqId = String(selectedId);
         fetch(`/api/fixtures/${reqId}`)
@@ -658,13 +658,22 @@
             if (selectedId !== reqId || !detail || detail.error) return;
             const root = activeDetailBody();
             if (!root) return;
-            const stats = root.querySelector("[data-fx-team-stats]");
-            if (stats) {
-              stats.outerHTML = matchStatsCompareHtml(detail, detail.status || "upcoming");
+            const scoreEl = root.querySelector(".match-score-nums");
+            if (scoreEl) {
+              const hs = detail.home?.score;
+              const as_ = detail.away?.score;
+              if (hs != null && as_ != null) scoreEl.textContent = `${hs}–${as_}`;
             }
-            // Also refresh score / clock in the header if present
             const clock = root.querySelector(".fx-match-clock");
             if (clock && detail.clock) clock.textContent = detail.clock;
+            // team_stats live on /preview (fast detail path returns null).
+            return fetch(`/api/fixtures/${reqId}/preview`)
+              .then((r) => (r.ok ? r.json() : Promise.reject()))
+              .then((enrich) => {
+                if (selectedId !== reqId) return;
+                applyMatchPreview(detail, enrich);
+              })
+              .catch(() => {});
           })
           .catch(() => {});
       })
