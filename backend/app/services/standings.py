@@ -1011,6 +1011,72 @@ def my_h2h_rival_snapshot(
     }
 
 
+def my_h2h_rival_shell(h2h_cards: list[dict], me_id: int) -> dict | None:
+    """Fast shell for YOU VS RIVAL — scoreline only, no XI packing.
+
+    Player rows are filled client-side via ``/api/league/{id}/h2h-rival``.
+    """
+    if me_id is None:
+        return None
+    mine = None
+    for fx in h2h_cards or []:
+        home_id = (fx.get("home") or {}).get("manager_id")
+        away_id = (fx.get("away") or {}).get("manager_id")
+        if home_id == me_id:
+            mine = ("home", fx)
+            break
+        if away_id == me_id:
+            mine = ("away", fx)
+            break
+    if mine is None:
+        return {
+            "bye": True,
+            "loading": False,
+            "show_scores": False,
+            "rival": None,
+            "me": None,
+            "me_players": [],
+            "rival_players": [],
+            "players": [],
+            "message": "You have a bye this gameweek.",
+        }
+    side, fx = mine
+    rival_side = "away" if side == "home" else "home"
+    me_side = fx[side]
+    rival = fx[rival_side]
+    show_scores = bool(fx.get("show_scores"))
+    return {
+        "bye": False,
+        "loading": True,
+        "show_scores": show_scores,
+        "squad_frozen": False,
+        "squad_unavailable": False,
+        "match_id": fx.get("id"),
+        "result": fx.get("result"),
+        "me": {
+            "manager_id": me_side.get("manager_id"),
+            "team_name": me_side.get("team_name"),
+            "points": float(me_side.get("points") or 0),
+            "initials": me_side.get("initials"),
+            "avatar_tone": me_side.get("avatar_tone", 0),
+        },
+        "rival": {
+            "manager_id": rival.get("manager_id"),
+            "team_name": rival.get("team_name"),
+            "display_name": rival.get("display_name"),
+            "points": float(rival.get("points") or 0),
+            "initials": rival.get("initials"),
+            "avatar_tone": rival.get("avatar_tone", 0),
+            "chips_left": rival.get("chips_left") or [],
+            "top_player": rival.get("top_player"),
+        },
+        "me_players": [],
+        "rival_players": [],
+        "players": [],
+        "message": None,
+    }
+
+
 def my_rank_in_league(
     db: Session,
     league: League,

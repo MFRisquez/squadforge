@@ -424,6 +424,14 @@ def test_league_chips_board_and_rival_snapshot_on_page():
         assert snap["show_scores"] is True
         assert len(snap["rival_players"]) >= 2
         assert "me_players" in snap
+
+        cards = standings_svc.h2h_fixture_cards(db, league, gw)
+        shell = standings_svc.my_h2h_rival_shell(cards, a.id)
+        assert shell is not None
+        assert shell["loading"] is True
+        assert shell["me_players"] == []
+        assert shell["rival_players"] == []
+        assert shell["rival"]["manager_id"] == b.id
         lid = league.id
     finally:
         db.close()
@@ -437,6 +445,31 @@ def test_league_chips_board_and_rival_snapshot_on_page():
     assert "league-matchup-xis" in html
     assert "Chip Beta" in html
     assert "is-used" in html or "league-chip-pill" in html
+    # First paint: skeleton + deferred URL — not the packed XI HTML
+    assert f'data-h2h-rival-url="/api/league/{lid}/h2h-rival?gw=1"' in html
+    assert "is-skeleton-row" in html
+    assert "league-rival-card is-loading" in html or 'class="panel league-rival-card is-loading"' in html
     # GW query param works
     html2 = client.get(f"/league/{lid}?gw=1").text
     assert "league-gw-picker" in html2
+
+    api = client.get(f"/api/league/{lid}/h2h-rival?gw=1")
+    assert api.status_code == 200
+    payload = api.json()
+    assert payload["ok"] is True
+    assert payload["rival"]["bye"] is False
+    assert len(payload["rival"]["rival_players"]) >= 2
+    assert len(payload["rival"]["me_players"]) >= 0
+    assert payload["rival"]["rival"]["manager_id"] is not None
+
+
+def test_h2h_standings_column_labels():
+    from pathlib import Path
+
+    macros = (
+        Path(__file__).resolve().parents[1] / "app" / "web" / "templates" / "macros_standings.html"
+    ).read_text(encoding="utf-8")
+    assert ">H2H</span>" in macros or "title=\"H2H table points\">H2H</span>" in macros
+    assert ">Season</span>" in macros or "title=\"Season fantasy points\">Season</span>" in macros
+    assert 'title="H2H table points">Pts</span>' not in macros
+    assert 'title="Season fantasy points">Total</span>' not in macros
