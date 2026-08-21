@@ -682,7 +682,9 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
         db, league, gw, me_id=manager.id
     )
     chips = db.query(ChipState).filter(ChipState.manager_id == manager.id).one_or_none()
-    even = len(rows) % 2 == 0 and len(rows) >= 2
+    from app.services import awards as awards_svc
+
+    awards = awards_svc.league_awards(db, league.id)
     return templates.TemplateResponse(
         "league.html",
         _ctx(
@@ -693,12 +695,12 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
             mode=mode,
             me=manager,
             chips=chips,
-            even_members=even,
             member_count=len(rows),
             gw=gw,
             rank_history=rank_history,
             fixtures=fixtures,
             h2h_cards=h2h_cards,
+            awards=awards,
             notice=request.query_params.get("notice"),
             error=request.query_params.get("error"),
         ),
@@ -784,7 +786,6 @@ def league_set_type(
                 mode=mode,
                 me=manager,
                 error=str(exc),
-                even_members=len(rows) % 2 == 0 and len(rows) >= 2,
                 member_count=len(rows),
                 gw=gw,
                 rank_history=rank_history,
