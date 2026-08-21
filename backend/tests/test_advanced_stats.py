@@ -201,3 +201,139 @@ def test_ingest_tolerates_fixture_failure():
     finally:
         settings.api_football_key = old_key
         db.close()
+
+
+def test_team_match_stats_maps_away_first_response():
+    """API-Football often returns away block before home — both sides must fill."""
+    from app.models import Fixture
+
+    _reset()
+    db = SessionLocal()
+    try:
+        old_key = settings.api_football_key
+        settings.api_football_key = "test-key"
+        adv._team_stats_cache.clear()
+        db.add(Club(code="ARS", name="Arsenal", api_football_team_id=42))
+        db.add(Club(code="COV", name="Coventry", api_football_team_id=77))
+        fx = Fixture(
+            fpl_id=88001,
+            gameweek_number=1,
+            home_club_code="ARS",
+            away_club_code="COV",
+            kickoff_at="2026-08-21T17:00:00Z",
+            started=1,
+            finished=0,
+        )
+        db.add(fx)
+        db.commit()
+        db.refresh(fx)
+
+        def fake_get(path, params=None, **kwargs):
+            if path == "/fixtures":
+                return {
+                    "response": [
+                        {
+                            "fixture": {"id": 999},
+                            "teams": {"home": {"id": 42}, "away": {"id": 77}},
+                        }
+                    ]
+                }
+            if path == "/fixtures/statistics":
+                # Away block first (the bug case)
+                return {
+                    "response": [
+                        {
+                            "team": {"id": 77},
+                            "statistics": [
+                                {"type": "Ball Possession", "value": "38%"},
+                                {"type": "Shots on Goal", "value": 1},
+                                {"type": "Total Shots", "value": 4},
+                            ],
+                        },
+                        {
+                            "team": {"id": 42},
+                            "statistics": [
+                                {"type": "Ball Possession", "value": "62%"},
+                                {"type": "Shots on Goal", "value": 5},
+                                {"type": "Total Shots", "value": 12},
+                            ],
+                        },
+                    ]
+                }
+            return {"response": []}
+
+        with patch.object(adv, "_api_get", side_effect=fake_get):
+            out = adv.team_match_stats_for_fixture(db, fx, force=True)
+        assert out is not None
+        assert out["possession"]["home"] == "62%"
+        assert out["possession"]["away"] == "38%"
+        assert out["shots_on_target"]["home"] == "5"
+        assert out["shots_on_target"]["away"] == "1"
+        assert out["chances_created"]["home"] == "12"
+    finally:
+        settings.api_football_key = old_key
+        db.close()
+
+
+def test_team_match_stats_cache_ttl():
+    from app.models import Fixture
+
+    _reset()
+    db = SessionLocal()
+    try:
+        old_key = settings.api_football_key
+        settings.api_football_key = "test-key"
+        adv._team_stats_cache.clear()
+        db.add(Club(code="ARS", name="Arsenal", api_football_team_id=42))
+        db.add(Club(code="CHE", name="Chelsea", api_football_team_id=49))
+        fx = Fixture(
+            fpl_id=88002,
+            gameweek_number=1,
+            home_club_code="ARS",
+            away_club_code="CHE",
+            kickoff_at="2026-08-21T17:00:00Z",
+            started=1,
+        )
+        db.add(fx)
+        db.commit()
+        db.refresh(fx)
+
+        calls = {"n": 0}
+
+        def fake_get(path, params=None, **kwargs):
+            calls["n"] += 1
+            if path == "/fixtures":
+                return {
+                    "response": [
+                        {
+                            "fixture": {"id": 1001},
+                            "teams": {"home": {"id": 42}, "away": {"id": 49}},
+                        }
+                    ]
+                }
+            return {
+                "response": [
+                    {
+                        "team": {"id": 42},
+                        "statistics": [{"type": "Ball Possession", "value": "55%"}],
+                    },
+                    {
+                        "team": {"id": 49},
+                        "statistics": [{"type": "Ball Possession", "value": "45%"}],
+                    },
+                ]
+            }
+
+        with patch.object(adv, "_api_get", side_effect=fake_get):
+            first = adv.team_match_stats_for_fixture(db, fx)
+            second = adv.team_match_stats_for_fixture(db, fx)
+            forced = adv.team_match_stats_for_fixture(db, fx, force=True)
+        assert first["possession"]["home"] == "55%"
+        assert second["possession"]["home"] == "55%"
+        assert forced["possession"]["home"] == "55%"
+        # First open: fixtures resolve + statistics. Cache hit skips both.
+        # force=True hits both again.
+        assert calls["n"] == 4
+    finally:
+        settings.api_football_key = old_key
+        db.close()

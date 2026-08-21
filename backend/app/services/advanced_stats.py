@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 import unicodedata
 from datetime import datetime, timedelta
 from difflib import SequenceMatcher
@@ -26,6 +27,10 @@ API_BASE = "https://v3.football.api-sports.io"
 PL_LEAGUE_ID = 39
 RECENT_FETCH_MINUTES = 20
 NAME_MATCH_THRESHOLD = 0.78
+# Sheet team stats: short TTL so live possession/SOT can refresh without
+# re-hitting resolve+statistics on every soft paint (~40s worst case).
+TEAM_STATS_TTL_SEC = 30.0
+_team_stats_cache: dict[int, tuple[float, dict[str, Any]]] = {}
 
 _warned_missing_stat_shape = False
 
@@ -367,10 +372,10 @@ def ingest_advanced_stats(db: Session, gw: Gameweek, *, force: bool = False) -> 
 _STAT_ALIASES = {
     "possession": ("Ball Possession", "Possession"),
     "shots_on_target": ("Shots on Goal", "Shots on Target"),
-    "chances_created": ("Goal Attempts", "Shots insidebox", "Total Shots"),
+    "chances_created": ("Total Shots", "Goal Attempts", "Shots insidebox"),
     "expected_goals": ("expected_goals", "Expected Goals", "xG"),
     "passes_accurate": ("Passes accurate", "Accurate Passes"),
-    "duels_won": ("Duels won", "Total Duels Won"),
+    "duels_won": ("Duels won", "Total Duels Won", "Duels Won"),
     "fouls": ("Fouls",),
 }
 
@@ -412,28 +417,37 @@ def resolve_api_fixture_id(db: Session, fx) -> int | None:
     if not home or not away or not home.api_football_team_id or not away.api_football_team_id:
         return None
     day = str(fx.kickoff_at or "")[:10]
-    params: dict[str, Any] = {
-        "league": PL_LEAGUE_ID,
-        "season": settings.api_football_season,
-        "team": int(home.api_football_team_id),
-    }
-    if day:
-        params["date"] = day
-    data = _api_get("/fixtures", params, timeout=20.0)
+    home_id = int(home.api_football_team_id)
     away_id = int(away.api_football_team_id)
-    for row in data.get("response") or []:
-        teams = (row or {}).get("teams") or {}
-        home_row = (teams.get("home") or {}).get("id")
-        away_row = (teams.get("away") or {}).get("id")
-        fid = ((row or {}).get("fixture") or {}).get("id")
-        if not fid or not home_row or not away_row:
-            continue
-        if int(home_row) == int(home.api_football_team_id) and int(away_row) == away_id:
-            return int(fid)
+    # Try configured season, then ±1 (common misconfig around season rollover).
+    seasons = [int(settings.api_football_season)]
+    for alt in (int(settings.api_football_season) - 1, int(settings.api_football_season) + 1):
+        if alt >= 2020 and alt not in seasons:
+            seasons.append(alt)
+    for season in seasons:
+        params: dict[str, Any] = {
+            "league": PL_LEAGUE_ID,
+            "season": season,
+            "team": home_id,
+        }
+        if day:
+            params["date"] = day
+        data = _api_get("/fixtures", params, timeout=20.0)
+        for row in data.get("response") or []:
+            teams = (row or {}).get("teams") or {}
+            home_row = (teams.get("home") or {}).get("id")
+            away_row = (teams.get("away") or {}).get("id")
+            fid = ((row or {}).get("fixture") or {}).get("id")
+            if not fid or not home_row or not away_row:
+                continue
+            if int(home_row) == home_id and int(away_row) == away_id:
+                return int(fid)
     return None
 
 
-def team_match_stats_for_fixture(db: Session, fx) -> dict[str, Any] | None:
+def team_match_stats_for_fixture(
+    db: Session, fx, *, force: bool = False
+) -> dict[str, Any] | None:
     """Team-vs-team live stats for the Fixtures match sheet.
 
     Keys: possession, shots_on_target, chances_created, expected_goals,
@@ -442,6 +456,11 @@ def team_match_stats_for_fixture(db: Session, fx) -> dict[str, Any] | None:
     """
     if not _has_api_key() or fx is None:
         return None
+    fx_id = int(getattr(fx, "id", 0) or 0)
+    if not force and fx_id:
+        hit = _team_stats_cache.get(fx_id)
+        if hit and (time.time() - hit[0]) < TEAM_STATS_TTL_SEC:
+            return hit[1]
     try:
         api_id = resolve_api_fixture_id(db, fx)
         if not api_id:
@@ -450,9 +469,18 @@ def team_match_stats_for_fixture(db: Session, fx) -> dict[str, Any] | None:
         response = data.get("response") or []
         if len(response) < 2:
             return None
-        # Order: home first when possible
         home_club = db.query(Club).filter(Club.code == fx.home_club_code).one_or_none()
-        home_api = int(home_club.api_football_team_id) if home_club and home_club.api_football_team_id else None
+        away_club = db.query(Club).filter(Club.code == fx.away_club_code).one_or_none()
+        home_api = (
+            int(home_club.api_football_team_id)
+            if home_club and home_club.api_football_team_id
+            else None
+        )
+        away_api = (
+            int(away_club.api_football_team_id)
+            if away_club and away_club.api_football_team_id
+            else None
+        )
         blocks: dict[str, list] = {"home": [], "away": []}
         for block in response:
             team = (block or {}).get("team") or {}
@@ -460,10 +488,17 @@ def team_match_stats_for_fixture(db: Session, fx) -> dict[str, Any] | None:
             stats = (block or {}).get("statistics") or []
             if not isinstance(stats, list):
                 stats = []
-            side = "home" if home_api and tid and int(tid) == home_api else None
-            if side is None:
-                side = "home" if not blocks["home"] else "away"
-            blocks[side] = stats
+            if home_api and tid is not None and int(tid) == home_api:
+                blocks["home"] = stats
+            elif away_api and tid is not None and int(tid) == away_api:
+                blocks["away"] = stats
+            elif not blocks["home"]:
+                blocks["home"] = stats
+            else:
+                blocks["away"] = stats
+
+        if not blocks["home"] or not blocks["away"]:
+            return None
 
         labels = {
             "possession": "Possession",
@@ -479,7 +514,8 @@ def team_match_stats_for_fixture(db: Session, fx) -> dict[str, Any] | None:
             hv = _fmt_stat(_stat_value(blocks["home"], *aliases))
             av = _fmt_stat(_stat_value(blocks["away"], *aliases))
             out[key] = {"home": hv, "away": av, "label": labels[key]}
-        # Prefer elapsed minute from API when present
+        if fx_id:
+            _team_stats_cache[fx_id] = (time.time(), out)
         return out
     except Exception as exc:
         logger.info("API-Football team stats skipped: %s", exc)
