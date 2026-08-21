@@ -181,14 +181,14 @@
       <h2>League format</h2>
       <p class="muted">
         Classic ranks by total points all season.
-        H2H pairs everyone weekly and ranks by wins.
+        H2H pairs everyone weekly (odd leagues get a rotating bye) and ranks by wins.
       </p>
       <form method="post" action="/league/{{ league.id }}/type" class="stack">
         <label>Type
           <select name="league_type">
             <option value="classic" {% if league.league_type != 'h2h' %}selected{% endif %}>Classic</option>
-            <option value="h2h" {% if league.league_type == 'h2h' %}selected{% endif %} {% if (rows|length) < 2 %}disabled{% endif %}>
-              Head to Head {% if (rows|length) < 2 %}(need 2+ managers){% endif %}
+            <option value="h2h" {% if league.league_type == 'h2h' %}selected{% endif %} {% if member_count < 2 %}disabled{% endif %}>
+              Head to Head {% if member_count < 2 %}(need 2+ managers){% endif %}
             </option>
           </select>
         </label>
