@@ -408,6 +408,26 @@ def player_points_map(db: Session, gw: Gameweek) -> dict[int, float]:
     return {r.player_id: float(r.total) for r in rows}
 
 
+def _bench_eligible_for_autosub(
+    db: Session,
+    *,
+    player: Player,
+    minutes: dict[int, float],
+    gw_number: int,
+) -> bool:
+    """Bench pick can come on if they played, or their GW fixture is still open.
+
+    0 minutes only disqualifies after the club's fixture(s) for this GW are
+    finished (true blank). Upcoming/live 0' does not skip them — same Fri–Mon
+    GW timing rule as starters, inverted.
+    """
+    if (minutes.get(player.id, 0) or 0) > 0:
+        return True
+    return not fixtures_svc.club_fixture_finished(
+        db, club_code=player.team_code, gw_number=gw_number
+    )
+
+
 def _apply_autosubs(
     db: Session,
     *,
@@ -416,11 +436,13 @@ def _apply_autosubs(
     minutes: dict[int, float],
     gw_number: int,
 ) -> tuple[set[int], int | None, int | None]:
-    """FPL-like autosubs: blank starters only after their fixture is finished.
+    """FPL-like autosubs gated on fixture finished (Fri–Mon GW safe).
 
-    A bench player who already played does **not** come on while the starter's
-    match is still upcoming/live. Returns (effective_starters, captain_id, vice_id)
-    — captain/vice badges stay on the original picks; armband transfer is separate.
+    A starter with 0 minutes is only a blank once their club fixture is
+    **finished** — not while it is still upcoming (or live). A bench player
+    with 0 minutes stays eligible until *their* fixture finishes blank.
+    Returns (effective_starters, captain_id, vice_id) — captain/vice badges
+    stay on the original picks; armband transfer is separate.
     """
     by_id = {p.id: p for p in owned}
     starters = {p.player_id for p in picks if p.is_starter}
@@ -439,7 +461,8 @@ def _apply_autosubs(
         if not starter:
             continue
         # Wait until the starter's club fixture is fully finished before treating
-        # 0 minutes as a blank eligible for autosub.
+        # 0 minutes as a blank eligible for autosub (same finished gate as
+        # provisional captain — not merely "kickoff elsewhere this GW").
         if not fixtures_svc.club_fixture_finished(
             db, club_code=starter.team_code, gw_number=gw_number
         ):
@@ -447,10 +470,12 @@ def _apply_autosubs(
         for b in bench:
             if b.player_id in effective:
                 continue
-            if (minutes.get(b.player_id, 0) or 0) <= 0:
-                continue
             bp = by_id.get(b.player_id)
             if not bp:
+                continue
+            if not _bench_eligible_for_autosub(
+                db, player=bp, minutes=minutes, gw_number=gw_number
+            ):
                 continue
             trial = (effective - {sid}) | {b.player_id}
             counts = Counter(by_id[i].position for i in trial if i in by_id)

@@ -52,6 +52,24 @@ def _xi_picks(db, manager_id: int, gw_id: int, players: list[Player], captain_id
     db.commit()
 
 
+def _build_xi_squad(db) -> tuple[list[Player], list[Player], list[Player], int, int]:
+    by_pos: dict[str, list[Player]] = {"GK": [], "DEF": [], "MID": [], "ATT": []}
+    for p in db.query(Player).order_by(Player.id).all():
+        by_pos.setdefault(p.position, []).append(p)
+    squad = (
+        by_pos["GK"][:2]
+        + by_pos["DEF"][:5]
+        + by_pos["MID"][:5]
+        + by_pos["ATT"][:3]
+    )
+    assert len(squad) == 15
+    starter_ids, _, captain_id, vice_id = squad_svc.default_lineup_from_owned(squad)
+    starters = [p for p in squad if p.id in starter_ids]
+    bench = [p for p in squad if p.id not in starter_ids]
+    assert len(starters) == 11 and len(bench) >= 1
+    return squad, starters, bench, captain_id, vice_id
+
+
 def test_autosub_waits_until_starter_fixture_finished():
     db = SessionLocal()
     try:
@@ -63,25 +81,15 @@ def test_autosub_waits_until_starter_fixture_finished():
             team_name="Autosub FC",
         )
         gw = db.query(Gameweek).filter(Gameweek.number == 1).one()
-        by_pos: dict[str, list[Player]] = {"GK": [], "DEF": [], "MID": [], "ATT": []}
-        for p in db.query(Player).order_by(Player.id).all():
-            by_pos.setdefault(p.position, []).append(p)
-        squad = (
-            by_pos["GK"][:2]
-            + by_pos["DEF"][:5]
-            + by_pos["MID"][:5]
-            + by_pos["ATT"][:3]
-        )
-        assert len(squad) == 15
-        starter_ids, _, captain_id, vice_id = squad_svc.default_lineup_from_owned(squad)
-        starters = [p for p in squad if p.id in starter_ids]
-        bench = [p for p in squad if p.id not in starter_ids]
-        assert len(starters) == 11 and len(bench) >= 1
+        squad, starters, bench, captain_id, vice_id = _build_xi_squad(db)
         # Same-position swap always keeps a legal XI shape.
         blank = next(p for p in starters if p.position == "MID")
         bench_in = next(p for p in bench if p.position == "MID")
         blank.team_code = "BLN"
         bench_in.team_code = "BNC"
+        # Other squad players: finished blanks so they aren't autosub candidates.
+        for i, pl in enumerate(p for p in squad if p.id not in {blank.id, bench_in.id}):
+            pl.team_code = f"X{i:02d}"
         db.query(Fixture).filter(Fixture.gameweek_number == 1).delete()
         db.add(
             Fixture(
@@ -89,6 +97,7 @@ def test_autosub_waits_until_starter_fixture_finished():
                 gameweek_number=1,
                 home_club_code="BLN",
                 away_club_code="OTH",
+                kickoff_at="2026-08-16T14:00:00Z",
                 started=0,
                 finished=0,
             )
@@ -99,10 +108,28 @@ def test_autosub_waits_until_starter_fixture_finished():
                 gameweek_number=1,
                 home_club_code="BNC",
                 away_club_code="XYZ",
+                kickoff_at="2026-08-14T19:00:00Z",
                 started=1,
                 finished=1,
             )
         )
+        fid = 88010
+        for pl in squad:
+            if pl.id in {blank.id, bench_in.id}:
+                continue
+            db.add(
+                Fixture(
+                    fpl_id=fid,
+                    gameweek_number=1,
+                    home_club_code=pl.team_code,
+                    away_club_code="ZZZ",
+                    kickoff_at="2026-08-14T19:00:00Z",
+                    started=1,
+                    finished=1,
+                )
+            )
+            fid += 1
+        db.commit()
         ordered = starters + bench
         _xi_picks(db, mgr.id, gw.id, ordered, captain_id=captain_id, vice_id=vice_id)
         owned = squad
@@ -111,8 +138,13 @@ def test_autosub_waits_until_starter_fixture_finished():
             .filter(SquadPick.manager_id == mgr.id, SquadPick.gameweek_id == gw.id)
             .all()
         )
-        minutes = {p.id: 0.0 for p in squad}
+        # Other starters already played; only blank is still at 0' (fixture pending).
+        minutes = {p.id: 90.0 for p in squad}
+        minutes[blank.id] = 0.0
         minutes[bench_in.id] = 90.0
+        for pl in bench:
+            if pl.id != bench_in.id:
+                minutes[pl.id] = 0.0
 
         effective, _, _ = live_svc._apply_autosubs(
             db, owned=owned, picks=picks, minutes=minutes, gw_number=1
@@ -129,6 +161,181 @@ def test_autosub_waits_until_starter_fixture_finished():
         )
         assert blank.id not in effective2
         assert bench_in.id in effective2
+    finally:
+        db.close()
+
+
+def test_autosub_skips_sunday_starter_while_friday_match_done():
+    """GW split Fri–Sun: Sunday XI with 0' must not be autosubbed on Friday night."""
+    db = SessionLocal()
+    try:
+        mgr = league_svc.register_manager(
+            db,
+            display_name="FriSunMgr",
+            password="secret12",
+            email="frisun@example.com",
+            team_name="Fri Sun FC",
+        )
+        gw = db.query(Gameweek).filter(Gameweek.number == 1).one()
+        squad, starters, bench, captain_id, vice_id = _build_xi_squad(db)
+        sunday_starter = next(p for p in starters if p.position == "MID")
+        friday_bench = next(p for p in bench if p.position == "MID")
+        sunday_starter.team_code = "SUN"
+        friday_bench.team_code = "FRI"
+        db.query(Fixture).filter(Fixture.gameweek_number == 1).delete()
+        # Friday: finished — bench already has minutes.
+        db.add(
+            Fixture(
+                fpl_id=88101,
+                gameweek_number=1,
+                home_club_code="FRI",
+                away_club_code="OTH",
+                kickoff_at="2026-08-14T19:00:00Z",
+                started=1,
+                finished=1,
+            )
+        )
+        # Sunday: not kicked off — starter still at 0'.
+        db.add(
+            Fixture(
+                fpl_id=88102,
+                gameweek_number=1,
+                home_club_code="SUN",
+                away_club_code="XYZ",
+                kickoff_at="2026-08-16T14:00:00Z",
+                started=0,
+                finished=0,
+            )
+        )
+        db.commit()
+        ordered = starters + bench
+        _xi_picks(db, mgr.id, gw.id, ordered, captain_id=captain_id, vice_id=vice_id)
+        picks = (
+            db.query(SquadPick)
+            .filter(SquadPick.manager_id == mgr.id, SquadPick.gameweek_id == gw.id)
+            .all()
+        )
+        # Rest of XI already played; only Sunday starter is still at 0'.
+        minutes = {p.id: 90.0 for p in squad}
+        minutes[sunday_starter.id] = 0.0
+
+        effective, _, _ = live_svc._apply_autosubs(
+            db, owned=squad, picks=picks, minutes=minutes, gw_number=1
+        )
+        assert sunday_starter.id in effective, "Sunday starter must stay in XI pre-kickoff"
+        assert friday_bench.id not in effective
+    finally:
+        db.close()
+
+
+def test_autosub_friday_blank_takes_sunday_bench_before_kickoff():
+    """Friday blank (0') is replaced by Sunday bench even while Sunday is still 0'."""
+    db = SessionLocal()
+    try:
+        mgr = league_svc.register_manager(
+            db,
+            display_name="BlankFriMgr",
+            password="secret12",
+            email="blankfri@example.com",
+            team_name="Blank Fri FC",
+        )
+        gw = db.query(Gameweek).filter(Gameweek.number == 1).one()
+        squad, starters, bench, captain_id, vice_id = _build_xi_squad(db)
+        friday_blank = next(p for p in starters if p.position == "MID")
+        sunday_bench = next(p for p in bench if p.position == "MID")
+        # Another Friday bench who finished blank — must be skipped.
+        other_bench = next(p for p in bench if p.position != "MID" and p.id != sunday_bench.id)
+        friday_blank.team_code = "FRB"
+        sunday_bench.team_code = "SUN"
+        other_bench.team_code = "FRX"
+        for i, pl in enumerate(
+            p for p in squad if p.id not in {friday_blank.id, sunday_bench.id, other_bench.id}
+        ):
+            pl.team_code = f"Z{i:02d}"
+        db.query(Fixture).filter(Fixture.gameweek_number == 1).delete()
+        db.add(
+            Fixture(
+                fpl_id=88201,
+                gameweek_number=1,
+                home_club_code="FRB",
+                away_club_code="OTH",
+                kickoff_at="2026-08-14T19:00:00Z",
+                started=1,
+                finished=1,
+            )
+        )
+        db.add(
+            Fixture(
+                fpl_id=88202,
+                gameweek_number=1,
+                home_club_code="FRX",
+                away_club_code="AAA",
+                kickoff_at="2026-08-14T19:00:00Z",
+                started=1,
+                finished=1,
+            )
+        )
+        db.add(
+            Fixture(
+                fpl_id=88203,
+                gameweek_number=1,
+                home_club_code="SUN",
+                away_club_code="XYZ",
+                kickoff_at="2026-08-16T14:00:00Z",
+                started=0,
+                finished=0,
+            )
+        )
+        fid = 88210
+        for pl in squad:
+            if pl.id in {friday_blank.id, sunday_bench.id, other_bench.id}:
+                continue
+            db.add(
+                Fixture(
+                    fpl_id=fid,
+                    gameweek_number=1,
+                    home_club_code=pl.team_code,
+                    away_club_code="ZZZ",
+                    kickoff_at="2026-08-14T19:00:00Z",
+                    started=1,
+                    finished=1,
+                )
+            )
+            fid += 1
+        db.commit()
+        ordered = starters + bench
+        _xi_picks(db, mgr.id, gw.id, ordered, captain_id=captain_id, vice_id=vice_id)
+        # Bench order: finished blank first (must be skipped), then Sunday MID.
+        picks = (
+            db.query(SquadPick)
+            .filter(SquadPick.manager_id == mgr.id, SquadPick.gameweek_id == gw.id)
+            .all()
+        )
+        by_pid = {p.player_id: p for p in picks}
+        by_pid[other_bench.id].bench_order = 1
+        by_pid[sunday_bench.id].bench_order = 2
+        order = 3
+        for p in picks:
+            if not p.is_starter and p.player_id not in {other_bench.id, sunday_bench.id}:
+                p.bench_order = order
+                order += 1
+        db.commit()
+        picks = (
+            db.query(SquadPick)
+            .filter(SquadPick.manager_id == mgr.id, SquadPick.gameweek_id == gw.id)
+            .all()
+        )
+        minutes = {p.id: 90.0 for p in squad}
+        minutes[friday_blank.id] = 0.0
+        minutes[sunday_bench.id] = 0.0
+        minutes[other_bench.id] = 0.0
+
+        effective, _, _ = live_svc._apply_autosubs(
+            db, owned=squad, picks=picks, minutes=minutes, gw_number=1
+        )
+        assert friday_blank.id not in effective
+        assert sunday_bench.id in effective
+        assert other_bench.id not in effective
     finally:
         db.close()
 
