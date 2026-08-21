@@ -1617,20 +1617,25 @@ body.chip-bb-on .xi-bench-panel .desk-rail-head h2 {
 @media (max-width: 899px) {
   /* Phone XI: score only — free vertical space for the pitch */
   .live-hub {
-    grid-template-columns: auto;
-    justify-content: start;
-    align-items: baseline;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    justify-content: center;
+    align-items: center;
     gap: 0;
     margin: 0 0 0.35rem;
     padding: 0.35rem 0.55rem;
     border-radius: 0.7rem;
     box-shadow: none;
+    text-align: center;
   }
   .live-hub-meta,
   .live-hub-actions {
     display: none !important;
   }
   .live-hub-score {
+    justify-content: center;
+    justify-items: center;
+    width: 100%;
     gap: 0.2rem;
   }
   .live-hub-label {

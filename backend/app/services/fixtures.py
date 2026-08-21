@@ -253,10 +253,11 @@ def estimate_match_clock(
     finished: bool,
     now: datetime | None = None,
 ) -> str | None:
-    """Display clock under the score: ``14'``, ``45+2'``, ``HT``, ``90+3'``, ``FT``.
+    """Display clock under the score: ``14'``, ``45+2'``, ``MT``, ``90+3'``, ``FT``.
 
     FPL fixtures do not expose a live minute — estimate from kickoff with a
-    standard 15' half-time break. Close enough for the Fixtures tab.
+    standard 15' half-time break. Cap stoppage so we show ``MT`` during the
+    break (not unbounded ``45+10'``) and ``FT`` once the fixture is finished.
     """
     if finished:
         return "FT"
@@ -275,16 +276,24 @@ def estimate_match_clock(
     if now.tzinfo is None:
         now = now.replace(tzinfo=timezone.utc)
     elapsed = max(0, int((now - kick).total_seconds() // 60))
-    # 0–45 first half; 45–60 HT pause; 60+ second half maps to 45+
+    # Assumed: 0–45 1H, short stoppage, then MT until ~60', then 2H (HT break ≈15').
+    max_1h_stoppage = 7
+    max_2h_stoppage = 10
     if elapsed < 45:
         return f"{elapsed}'"
-    if elapsed < 60:
+    if elapsed <= 45 + max_1h_stoppage:
         extra = elapsed - 45
-        return "HT" if extra == 0 else f"45+{extra}'"
+        return "45'" if extra == 0 else f"45+{extra}'"
+    if elapsed < 60:
+        return "MT"
     second = elapsed - 15  # remove HT break
-    if second <= 90:
+    if second < 90:
         return f"{second}'"
-    return f"90+{second - 90}'"
+    extra2 = second - 90
+    if extra2 <= max_2h_stoppage:
+        return "90'" if extra2 == 0 else f"90+{extra2}'"
+    # Past assumed stoppage but FPL not finished yet — hold last stoppage label.
+    return f"90+{max_2h_stoppage}'"
 
 
 def fixtures_for_gameweek(db: Session, *, gw_number: int) -> list[dict[str, Any]]:
