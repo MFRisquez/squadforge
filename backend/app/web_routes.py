@@ -689,6 +689,11 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
     from app.services import awards as awards_svc
 
     awards = awards_svc.league_awards(db, league.id)
+    if view["edits_locked"]:
+        from app.services.auto_score import maybe_score_locked_gw
+        import threading
+
+        threading.Thread(target=lambda: maybe_score_locked_gw(), daemon=True).start()
     return templates.TemplateResponse(
         "league.html",
         _ctx(
@@ -1445,9 +1450,6 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
                 started_clubs.add(fx.away_club_code)
     fixture_started = {p.id: p.team_code in started_clubs for p in owned}
     any_fixture_started = bool(started_clubs)
-    # Don't show a GW total of 0 before any club has kicked off.
-    if view["edits_locked"] and not any_fixture_started:
-        gw_total = None
     armed = {
         p.player_id: bool(getattr(p, "captain_armed", 0))
         for p in picks

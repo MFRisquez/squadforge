@@ -334,10 +334,13 @@ def _apply_autosubs(
     owned: list[Player],
     picks: list[SquadPick],
     minutes: dict[int, float],
+    gw_number: int,
 ) -> tuple[set[int], int | None, int | None]:
-    """Simple FPL-like autosubs: blank starters replaced by bench who played.
+    """FPL-like autosubs: blank starters only after their fixture is finished.
 
-    Returns (effective_starters, captain_id, vice_id).
+    A bench player who already played does **not** come on while the starter's
+    match is still upcoming/live. Returns (effective_starters, captain_id, vice_id)
+    — captain/vice badges stay on the original picks; armband transfer is separate.
     """
     by_id = {p.id: p for p in owned}
     starters = {p.player_id for p in picks if p.is_starter}
@@ -355,7 +358,12 @@ def _apply_autosubs(
         starter = by_id.get(sid)
         if not starter:
             continue
-        # Find bench player who played and keeps a legal XI shape
+        # Wait until the starter's club fixture is fully finished before treating
+        # 0 minutes as a blank eligible for autosub.
+        if not fixtures_svc.club_fixture_finished(
+            db, club_code=starter.team_code, gw_number=gw_number
+        ):
+            continue
         for b in bench:
             if b.player_id in effective:
                 continue
@@ -371,10 +379,6 @@ def _apply_autosubs(
             except squad_svc.SquadError:
                 continue
             effective = trial
-            if captain == sid:
-                captain = b.player_id
-            if vice == sid:
-                vice = b.player_id
             break
 
     return effective, captain, vice
@@ -470,23 +474,21 @@ def score_managers(db: Session, gw: Gameweek) -> int:
                 ss_id = None
 
         effective, captain_id, vice_id = _apply_autosubs(
-            db, owned=owned, picks=picks, minutes=minutes
+            db, owned=owned, picks=picks, minutes=minutes, gw_number=int(gw.number)
+        )
+        cap_player = next((p for p in owned if p.id == captain_id), None) if captain_id else None
+        cap_finished = bool(
+            cap_player
+            and fixtures_svc.club_fixture_finished(
+                db, club_code=cap_player.team_code, gw_number=int(gw.number)
+            )
         )
         armband = squad_svc.effective_captain_id(
             captain_id or 0,
             vice_id,
             minutes,
+            captain_fixture_finished=cap_finished,
         )
-        armed_ids = {p.player_id for p in picks if getattr(p, "captain_armed", 0)}
-        # Provisional: current captain still counts before their kickoff
-        if captain_id and captain_id not in armed_ids:
-            cap_player = next((p for p in owned if p.id == captain_id), None)
-            if cap_player and not fixtures_svc.club_fixture_started(
-                db, club_code=cap_player.team_code, gw_number=gw.number
-            ):
-                armed_ids.add(captain_id)
-        if not armed_ids and armband:
-            armed_ids.add(armband)
 
         player_lines = []
         squad_points = 0.0
@@ -495,10 +497,8 @@ def score_managers(db: Session, gw: Gameweek) -> int:
         for pid in effective:
             base = pts.get(pid, 0.0)
             mult = 1.0
-            is_cap = pid in armed_ids or pid == armband
-            if pid in armed_ids:
-                mult = 3.0 if chip_name == "triple_captain" else 2.0
-            elif pid == armband:
+            is_cap = pid == armband
+            if pid == armband:
                 mult = 3.0 if chip_name == "triple_captain" else 2.0
             elif ss_id and pid == ss_id:
                 mult = 2.0
@@ -557,7 +557,7 @@ def score_managers(db: Session, gw: Gameweek) -> int:
             "unavailable_xi_penalty": neglect_pts,
             "unavailable_xi_players": neglect_ids,
             "armband_player_id": armband,
-            "armed_captain_ids": sorted(armed_ids),
+            "armed_captain_ids": [armband] if armband else [],
             "chip": chip_name or "—",
             "players": player_lines,
         }
@@ -594,8 +594,9 @@ def score_managers(db: Session, gw: Gameweek) -> int:
 def resolve_h2h(db: Session, gw: Gameweek) -> int:
     """Settle H2H results for ``gw``.
 
-    Stays ``pending`` until at least one PL fixture in the GW has started —
-    otherwise 0–0 before kickoff was incorrectly recorded as a draw.
+    Always writes live manager totals onto the match row so League / You vs rival
+    can show points. Result stays ``pending`` until at least one PL fixture in
+    the GW has started — otherwise 0–0 before kickoff was recorded as a draw.
     """
     from sqlalchemy import or_
 
@@ -614,14 +615,6 @@ def resolve_h2h(db: Session, gw: Gameweek) -> int:
     for league in leagues:
         matches = standings_svc.ensure_h2h_pairings(db, league, gw)
         for match in matches:
-            if not any_started:
-                # Undo premature settlements (e.g. 0–0 draw after deadline, pre-kickoff).
-                if match.result != "pending" or match.home_points or match.away_points:
-                    match.home_points = 0.0
-                    match.away_points = 0.0
-                    match.result = "pending"
-                    updated += 1
-                continue
             home = (
                 db.query(ManagerGameweekScore)
                 .filter(
@@ -642,6 +635,12 @@ def resolve_h2h(db: Session, gw: Gameweek) -> int:
             ap = float(away.total) if away else 0.0
             match.home_points = hp
             match.away_points = ap
+            if not any_started:
+                # Keep live totals visible; only block W/D/L settlement.
+                if match.result != "pending":
+                    match.result = "pending"
+                updated += 1
+                continue
             if hp > ap:
                 match.result = "home"
             elif ap > hp:
@@ -665,6 +664,25 @@ def run_gameweek_scoring(
     only from an explicit developer action (e.g. Score with demo data).
     """
     gw = squad_svc.current_gameweek(db)
+
+    # Keep Fixture.started/finished fresh so lineup / H2H / rival can show live pts
+    # without requiring someone to sit on the Fixtures tab.
+    fixture_sync: dict[str, Any] = {}
+    try:
+        fixture_sync = fixtures_svc.refresh_fixtures(db)
+    except Exception as exc:
+        fixture_sync = {"error": str(exc)}
+
+    # After deadline, mark the GW live so League cards leave Preview mode.
+    from app.services import deadline as deadline_svc
+
+    if deadline_svc.deadline_passed(gw) and (getattr(gw, "status", "") or "").lower() in {
+        "upcoming",
+        "",
+    }:
+        gw.status = "live"
+        db.commit()
+
     ingest: dict[str, Any]
     if force_demo:
         ingest = simulate_demo_metrics(db, gw)
@@ -695,6 +713,7 @@ def run_gameweek_scoring(
     return {
         "gameweek": gw.number,
         "ingest": ingest,
+        "fixtures": fixture_sync,
         "players_scored": n_players,
         "managers_scored": n_managers,
         "h2h_updated": n_h2h,
