@@ -275,11 +275,13 @@
     return `<section class="fx-detail-section fx-stats-section" data-fx-team-stats>
       <h3>${status === "live" ? "Live stats" : "Match stats"}</h3>
       ${
-        upcoming && !data.team_stats
-          ? `<p class="muted tiny fx-stats-note">Stats fill in once the match is underway.</p>`
-          : !data.team_stats
-            ? `<p class="muted tiny fx-stats-note">Advanced team stats appear when the live feed is available.</p>`
-            : ""
+        data.team_stats
+          ? ""
+          : data.team_stats_status === "no_api_key"
+            ? `<p class="muted tiny fx-stats-note">Possession, shots on target, and passes need the advanced match feed (API-Football key on the server).</p>`
+            : upcoming
+              ? `<p class="muted tiny fx-stats-note">Stats fill in once the match is underway.</p>`
+              : `<p class="muted tiny fx-stats-note">Goals & cards are live. Possession / shots / passes aren’t available for this match yet.</p>`
       }
       <table class="fx-stat-table">
         <thead>
@@ -473,13 +475,14 @@
       preview: enrich.preview,
       pulse: enrich.pulse,
       team_stats: enrich.team_stats != null ? enrich.team_stats : base.team_stats,
+      team_stats_status: enrich.team_stats_status || base.team_stats_status,
     });
     const root = activeDetailBody();
     if (!root) return;
     const news = root.querySelector("[data-fx-news]");
     if (news) news.outerHTML = newsSectionHtml(merged, { loading: false });
     const stats = root.querySelector("[data-fx-team-stats]");
-    if (stats && enrich.team_stats != null) {
+    if (stats && (enrich.team_stats != null || enrich.team_stats_status)) {
       stats.outerHTML = matchStatsCompareHtml(merged, merged.status || "upcoming");
     }
     const statusEl = root.querySelector("[data-fx-status]");

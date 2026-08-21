@@ -773,12 +773,19 @@ def fixture_sheet_preview(db: Session, *, fixture_id: int) -> dict[str, Any] | N
         },
     }
     team_stats = None
+    team_stats_status = "unavailable"
     try:
+        from app.config import settings as app_settings
         from app.services import advanced_stats as adv_svc
 
-        team_stats = adv_svc.team_match_stats_for_fixture(db, fx)
+        if not (app_settings.api_football_key or "").strip():
+            team_stats_status = "no_api_key"
+        else:
+            team_stats = adv_svc.team_match_stats_for_fixture(db, fx)
+            team_stats_status = "ok" if team_stats else "unavailable"
     except Exception:
         team_stats = None
+        team_stats_status = "error"
     try:
         from app.services import pl_content
 
@@ -790,6 +797,7 @@ def fixture_sheet_preview(db: Session, *, fixture_id: int) -> dict[str, Any] | N
             "preview": None,
             "pulse": None,
             "team_stats": team_stats,
+            "team_stats_status": team_stats_status,
         }
     return {
         "id": fx.id,
@@ -797,6 +805,7 @@ def fixture_sheet_preview(db: Session, *, fixture_id: int) -> dict[str, Any] | N
         "preview": enriched.get("preview"),
         "pulse": enriched.get("pulse"),
         "team_stats": team_stats,
+        "team_stats_status": team_stats_status,
     }
 
 def refresh_fixtures(db: Session) -> dict[str, int]:

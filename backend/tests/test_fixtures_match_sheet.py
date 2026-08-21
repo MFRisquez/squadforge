@@ -168,6 +168,9 @@ def test_fixture_sheet_preview_includes_team_news_and_preview():
         assert "Emirates" in (detail["preview"].get("body") or "")
         assert detail["team_news"]["away"]
         assert all("title" in c and "body" in c for c in detail["team_news"]["away"])
+        # Without API_FOOTBALL_KEY, advanced possession/SOT stay off (FPL has no such feed).
+        assert detail.get("team_stats") is None
+        assert detail.get("team_stats_status") in {"no_api_key", "unavailable", "error", "ok"}
     finally:
         db.close()
 
