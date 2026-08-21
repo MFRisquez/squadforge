@@ -499,7 +499,15 @@ def my_players_for_fixture(
 
             metrics: dict[str, float] = {}
             if gw is not None:
-                metrics = metrics_for_player(db, gw.id, int(base["id"]))
+                metrics = dict(metrics_for_player(db, gw.id, int(base["id"])))
+
+            # Prefer fixture G/A for both display AND points (live element lag).
+            if goals:
+                metrics["goals"] = max(float(metrics.get("goals") or 0), float(goals))
+            if assists:
+                metrics["assists"] = max(float(metrics.get("assists") or 0), float(assists))
+            if (goals or assists) and float(metrics.get("minutes") or 0) <= 0:
+                metrics["minutes"] = 1.0
 
             # Prefer fixture G/A; fill CS from live GW metrics when present.
             cs = metrics.get("clean_sheets")
@@ -515,16 +523,14 @@ def my_players_for_fixture(
             elif cs is None:
                 cs = 0.0
 
-            pts = points_by_player.get(int(base["id"]))
-            if pts is None and metrics:
-                try:
-                    pts = float(
-                        score_player(base.get("position") or "MID", metrics).total
-                    )
-                except ValueError:
-                    pts = 0.0
-            elif pts is None:
-                pts = 0.0
+            # Score from merged metrics so PTS matches G/A columns (not stale PlayerPoints).
+            pts = 0.0
+            try:
+                pts = float(
+                    score_player(base.get("position") or "MID", metrics or {"minutes": 0}).total
+                )
+            except ValueError:
+                pts = float(points_by_player.get(int(base["id"])) or 0)
 
             row.update(
                 {

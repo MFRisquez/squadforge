@@ -17,6 +17,7 @@
   const LOCKED = Boolean(INITIAL.locked);
   const CAPTAIN_EDITABLE = Boolean(INITIAL.captainEditable);
   let FIXTURE_STARTED = INITIAL.fixtureStarted || {};
+  let FIXTURE_LIVE = INITIAL.fixtureLive || {};
   const CAPTAIN_ARMED = INITIAL.captainArmed || {};
   let activeChip = INITIAL.activeChip || null;
   let superSubPlayerId = INITIAL.superSubPlayerId || null;
@@ -26,6 +27,10 @@
 
   function matchStarted(playerId) {
     return Boolean(FIXTURE_STARTED[String(playerId)] || FIXTURE_STARTED[playerId]);
+  }
+
+  function matchLive(playerId) {
+    return Boolean(FIXTURE_LIVE[String(playerId)] || FIXTURE_LIVE[playerId]);
   }
 
   function armbandMult(playerId, onBench) {
@@ -44,10 +49,8 @@
     const base = Number(raw);
     if (!Number.isFinite(base)) return null;
     const mult = armbandMult(playerId, onBench);
-    if (mult > 1) {
-      return { text: `${Math.round(base)}×${mult}`, n: base * mult, mult };
-    }
-    return { text: String(Math.round(base)), n: base, mult: 1 };
+    const total = Math.round(base * mult);
+    return { text: String(total), n: total, mult, base };
   }
 
   function canPickAsCaptain(playerId) {
@@ -662,8 +665,9 @@
     // otherwise keep opponent (same rule as the bench strip).
     const live = LOCKED && matchStarted(player.id) ? livePtsLabel(player.id, onBench) : null;
     if (live) {
+      const liveCls = matchLive(player.id) ? "is-live-match" : "";
       const cls = live.n < 0 ? "is-neg" : live.n > 0 ? "is-pos" : "";
-      footHtml = `<span class="shirt-foot shirt-opp shirt-pts-fx ${cls}">${live.text}</span>`;
+      footHtml = `<span class="shirt-foot shirt-opp shirt-pts-fx ${cls} ${liveCls}">${live.text}</span>`;
     } else if (fdr) {
       const venue = fdr.venue === "H" ? "H" : "A";
       footHtml = `<span class="shirt-foot shirt-opp fdr-${fdr.difficulty}">${fdr.opponent} (${venue})</span>`;
@@ -729,8 +733,9 @@
     let fixtureHtml;
     const live = LOCKED && matchStarted(player.id) ? livePtsLabel(player.id, true) : null;
     if (live) {
+      const liveCls = matchLive(player.id) ? "is-live-match" : "";
       const cls = live.n < 0 ? "is-neg" : live.n > 0 ? "is-pos" : "";
-      fixtureHtml = `<span class="xi-bench-fixture shirt-pts-fx ${cls}">${live.text} pts</span>`;
+      fixtureHtml = `<span class="xi-bench-fixture shirt-pts-fx ${cls} ${liveCls}">${live.text} pts</span>`;
     } else if (fdr) {
       const venue = fdr.venue === "H" ? "H" : "A";
       fixtureHtml = `<span class="xi-bench-fixture fdr-${fdr.difficulty}">${fdr.opponent} (${venue})</span>`;
@@ -884,7 +889,7 @@
           ? `${fdr.opponent} (${fdr.venue === "H" ? "H" : "A"})`
           : "TBD";
       } else {
-        ptsLabel = mult > 1 ? `${fmtPts(base)}×${mult}` : fmtPts(total);
+        ptsLabel = fmtPts(total);
       }
       const isTop = Boolean(started && topRow && p.id === topRow.p.id);
       const classes = [isTop ? "is-top" : "", onBench ? "is-bench" : "is-xi"].filter(Boolean).join(" ");
@@ -1091,6 +1096,7 @@
     Object.keys(BREAKDOWNS).forEach((k) => delete BREAKDOWNS[k]);
     Object.assign(BREAKDOWNS, bds);
     FIXTURE_STARTED = data.fixtureStarted || FIXTURE_STARTED;
+    FIXTURE_LIVE = data.fixtureLive || FIXTURE_LIVE;
     if (data.gwTotal != null) {
       INITIAL.gwTotal = data.gwTotal;
       const el = document.querySelector("[data-gw-total]");

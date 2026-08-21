@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from app.config import settings
 from app.db import Base, SessionLocal, engine
 from app.main import app
-from app.models import Gameweek, ManagerGameweekScore
+from app.models import Fixture, Gameweek, ManagerGameweekScore
 from app.services import league as league_svc
 from app.services import standings as standings_svc
 from app.services.seed import seed_if_empty
@@ -220,6 +220,27 @@ def test_h2h_rank_history_and_league_page_timeline():
                 result="home",
             )
         )
+        # h2h_standings only counts matches in GWs with a started/finished fixture.
+        for gw in gws:
+            fx = (
+                db.query(Fixture)
+                .filter(Fixture.gameweek_number == gw.number)
+                .order_by(Fixture.id)
+                .first()
+            )
+            if fx is None:
+                fx = Fixture(
+                    fpl_id=88000 + int(gw.number),
+                    gameweek_number=int(gw.number),
+                    home_club_code="ARS",
+                    away_club_code="AVL",
+                    started=1,
+                    finished=1,
+                )
+                db.add(fx)
+            else:
+                fx.started = 1
+                fx.finished = 1
         db.commit()
         hist = standings_svc.league_rank_history(db, league, gws[1], me_id=a.id)
         assert hist["gw_numbers"] == [1, 2]
