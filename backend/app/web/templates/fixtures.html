@@ -51,6 +51,7 @@
                   <span class="fx-ha-tag">Home</span>
                 </div>
                 <div class="fx-score-block" aria-label="Score">
+                  <span class="fx-score-nums-row">
                   {% if m.home.score is not none and m.away.score is not none %}
                     <span class="fx-score-num">{{ m.home.score }}</span>
                     <span class="fx-score-sep">–</span>
@@ -59,6 +60,10 @@
                     <span class="fx-score-num fx-score-empty">-</span>
                     <span class="fx-score-sep">–</span>
                     <span class="fx-score-num fx-score-empty">-</span>
+                  {% endif %}
+                  </span>
+                  {% if m.clock %}
+                  <span class="fx-match-clock">{{ m.clock }}</span>
                   {% endif %}
                 </div>
                 <div class="fx-club away" title="Away">

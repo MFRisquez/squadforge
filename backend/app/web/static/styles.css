@@ -3301,14 +3301,32 @@ body.picker-open {
 }
 .fx-score-block {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.14rem;
+  gap: 0.12rem;
   min-width: 2.2rem;
   padding: 0.16rem 0.28rem;
   border-radius: 0.4rem;
   background: #000000;
   color: #fff;
+}
+.fx-score-nums-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.14rem;
+}
+.fx-match-clock {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: rgba(255, 255, 255, 0.78);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.fx-card.status-live .fx-match-clock {
+  color: var(--accent, #B6DB00);
 }
 .fx-score-num {
   font-size: 0.88rem;
@@ -3318,6 +3336,20 @@ body.picker-open {
 }
 .fx-score-empty { opacity: 0.55; }
 .fx-score-sep { opacity: 0.55; font-weight: 700; }
+.match-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+}
+.match-score .fx-match-clock {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.match-scoreline .match-score .fx-match-clock {
+  color: inherit;
+  opacity: 0.85;
+}
 .fx-vs {
   font-size: 0.68rem;
   font-weight: 800;
