@@ -240,7 +240,13 @@ def api_fixtures(gw: Optional[int] = None) -> dict:
 
 @router.post("/fixtures/refresh")
 def api_fixtures_refresh(gw: Optional[int] = None) -> dict:
-    """Pull latest FPL fixture scores/stats, then return the selected GW list."""
+    """Pull latest FPL fixture scores/stats, then return the selected GW list.
+
+    Also kicks fantasy live scoring (minutes → PlayerPoints) so Lineup/League
+    stay in sync without waiting only for the 120s daemon.
+    """
+    import threading
+
     db = SessionLocal()
     try:
         try:
@@ -259,6 +265,93 @@ def api_fixtures_refresh(gw: Optional[int] = None) -> dict:
             "gw": gw_number,
             "synced": info,
             "fixtures": fixtures_svc.fixtures_for_gameweek(db, gw_number=gw_number),
+        }
+    finally:
+        db.close()
+        # Score after closing the list DB so we don't hold the connection.
+        def _score() -> None:
+            from app.services.auto_score import maybe_score_locked_gw
+
+            maybe_score_locked_gw(force=True)
+
+        threading.Thread(target=_score, daemon=True).start()
+
+
+@router.get("/xi/live-points")
+def api_xi_live_points(request: Request, gw: Optional[int] = None) -> dict:
+    """Pollable live PlayerPoints + fixture-started map for the locked Lineup.
+
+    Triggers a background score refresh, then returns whatever is already in DB
+    (same race-tolerant pattern as the Lineup HTML route).
+    """
+    import threading
+
+    from app.auth import current_manager
+    from app.config import settings
+    from app.models import Fixture, PlayerPoints
+    from app.services import deadline as deadline_svc
+    from app.services import squad as squad_svc
+    from app.services.auto_score import maybe_score_locked_gw
+
+    db = SessionLocal()
+    try:
+        manager = current_manager(request, db)
+        if not manager:
+            return {"ok": False, "error": "auth"}
+        try:
+            gameweek = deadline_svc.get_gameweek(db, int(gw) if gw is not None else None)
+        except Exception:
+            return {"ok": False, "error": "gameweek"}
+        current = squad_svc.current_gameweek(db)
+        if gameweek.id == current.id and deadline_svc.deadline_passed(current):
+            threading.Thread(target=lambda: maybe_score_locked_gw(force=True), daemon=True).start()
+        points: dict[str, float] = {}
+        breakdowns: dict[str, dict] = {}
+        for row in (
+            db.query(PlayerPoints)
+            .filter(
+                PlayerPoints.gameweek_id == gameweek.id,
+                PlayerPoints.formula_version == settings.formula_version,
+            )
+            .all()
+        ):
+            points[str(row.player_id)] = float(row.total or 0)
+            try:
+                import json
+
+                bd = json.loads(row.breakdown_json or "{}")
+            except Exception:
+                bd = {}
+            if isinstance(bd, dict):
+                breakdowns[str(row.player_id)] = {
+                    str(k): float(v or 0) for k, v in bd.items()
+                }
+        started_clubs: set[str] = set()
+        for fx in db.query(Fixture).filter(Fixture.gameweek_number == gameweek.number).all():
+            if fx.started or fx.finished:
+                if fx.home_club_code:
+                    started_clubs.add(fx.home_club_code)
+                if fx.away_club_code:
+                    started_clubs.add(fx.away_club_code)
+        owned = squad_svc.owned_players(db, manager.id)
+        fixture_started = {str(p.id): p.team_code in started_clubs for p in owned}
+        from app.models import ManagerGameweekScore
+
+        score = (
+            db.query(ManagerGameweekScore)
+            .filter(
+                ManagerGameweekScore.manager_id == manager.id,
+                ManagerGameweekScore.gameweek_id == gameweek.id,
+            )
+            .one_or_none()
+        )
+        return {
+            "ok": True,
+            "gw": int(gameweek.number),
+            "points": points,
+            "breakdowns": breakdowns,
+            "fixtureStarted": fixture_started,
+            "gwTotal": float(score.total) if score else None,
         }
     finally:
         db.close()

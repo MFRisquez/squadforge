@@ -362,3 +362,125 @@ def ingest_advanced_stats(db: Session, gw: Gameweek, *, force: bool = False) -> 
         except Exception:
             pass
         return {"source": "api_football", "error": str(exc)}
+
+
+_STAT_ALIASES = {
+    "possession": ("Ball Possession", "Possession"),
+    "shots_on_target": ("Shots on Goal", "Shots on Target"),
+    "chances_created": ("Goal Attempts", "Shots insidebox", "Total Shots"),
+    "expected_goals": ("expected_goals", "Expected Goals", "xG"),
+    "passes_accurate": ("Passes accurate", "Accurate Passes"),
+    "duels_won": ("Duels won", "Total Duels Won"),
+    "fouls": ("Fouls",),
+}
+
+
+def _stat_value(rows: list[dict[str, Any]], *names: str) -> Any:
+    by_type = {
+        str((r or {}).get("type") or "").strip().lower(): (r or {}).get("value")
+        for r in rows
+    }
+    for name in names:
+        key = name.strip().lower()
+        if key in by_type and by_type[key] is not None:
+            return by_type[key]
+    return None
+
+
+def _fmt_stat(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        text = value.strip()
+        return text or None
+    try:
+        n = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if abs(n - round(n)) < 1e-9:
+        return str(int(round(n)))
+    return f"{n:.2f}"
+
+
+def resolve_api_fixture_id(db: Session, fx) -> int | None:
+    """Map our Fixture row → API-Football fixture id via club team ids + kickoff day."""
+    if not _has_api_key() or fx is None:
+        return None
+    ensure_club_team_ids(db)
+    home = db.query(Club).filter(Club.code == fx.home_club_code).one_or_none()
+    away = db.query(Club).filter(Club.code == fx.away_club_code).one_or_none()
+    if not home or not away or not home.api_football_team_id or not away.api_football_team_id:
+        return None
+    day = str(fx.kickoff_at or "")[:10]
+    params: dict[str, Any] = {
+        "league": PL_LEAGUE_ID,
+        "season": settings.api_football_season,
+        "team": int(home.api_football_team_id),
+    }
+    if day:
+        params["date"] = day
+    data = _api_get("/fixtures", params, timeout=20.0)
+    away_id = int(away.api_football_team_id)
+    for row in data.get("response") or []:
+        teams = (row or {}).get("teams") or {}
+        home_row = (teams.get("home") or {}).get("id")
+        away_row = (teams.get("away") or {}).get("id")
+        fid = ((row or {}).get("fixture") or {}).get("id")
+        if not fid or not home_row or not away_row:
+            continue
+        if int(home_row) == int(home.api_football_team_id) and int(away_row) == away_id:
+            return int(fid)
+    return None
+
+
+def team_match_stats_for_fixture(db: Session, fx) -> dict[str, Any] | None:
+    """Team-vs-team live stats for the Fixtures match sheet.
+
+    Keys: possession, shots_on_target, chances_created, expected_goals,
+    passes_accurate, duels_won, fouls — each ``{home, away, label}``.
+    Returns None when API key missing or lookup fails.
+    """
+    if not _has_api_key() or fx is None:
+        return None
+    try:
+        api_id = resolve_api_fixture_id(db, fx)
+        if not api_id:
+            return None
+        data = _api_get("/fixtures/statistics", {"fixture": int(api_id)}, timeout=20.0)
+        response = data.get("response") or []
+        if len(response) < 2:
+            return None
+        # Order: home first when possible
+        home_club = db.query(Club).filter(Club.code == fx.home_club_code).one_or_none()
+        home_api = int(home_club.api_football_team_id) if home_club and home_club.api_football_team_id else None
+        blocks: dict[str, list] = {"home": [], "away": []}
+        for block in response:
+            team = (block or {}).get("team") or {}
+            tid = team.get("id")
+            stats = (block or {}).get("statistics") or []
+            if not isinstance(stats, list):
+                stats = []
+            side = "home" if home_api and tid and int(tid) == home_api else None
+            if side is None:
+                side = "home" if not blocks["home"] else "away"
+            blocks[side] = stats
+
+        labels = {
+            "possession": "Possession",
+            "shots_on_target": "Shots on target",
+            "chances_created": "Goal attempts",
+            "expected_goals": "Expected goals (xG)",
+            "passes_accurate": "Passes completed",
+            "duels_won": "Duels won",
+            "fouls": "Fouls",
+        }
+        out: dict[str, Any] = {"source": "api_football", "api_fixture_id": api_id}
+        for key, aliases in _STAT_ALIASES.items():
+            hv = _fmt_stat(_stat_value(blocks["home"], *aliases))
+            av = _fmt_stat(_stat_value(blocks["away"], *aliases))
+            out[key] = {"home": hv, "away": av, "label": labels[key]}
+        # Prefer elapsed minute from API when present
+        return out
+    except Exception as exc:
+        logger.info("API-Football team stats skipped: %s", exc)
+        return None

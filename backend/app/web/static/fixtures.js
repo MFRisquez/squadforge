@@ -236,23 +236,31 @@
     const away = teamTotals(data, "away");
     const homeName = data.home?.name || data.home?.code || "Home";
     const awayName = data.away?.name || data.away?.code || "Away";
+    const team = data.team_stats || {};
     const rows = [
-      ["Goals", home.goals, away.goals],
-      ["Assists", home.assists, away.assists],
-      ["Yellow cards", home.yellow, away.yellow],
-      ["Red cards", home.red, away.red],
-      ["Saves", home.saves, away.saves],
-      ["Penalties saved", home.penSaved, away.penSaved],
-      ["Penalties missed", home.penMissed, away.penMissed],
-      ["Own goals", home.ownGoals, away.ownGoals],
+      ["Possession", team.possession?.home, team.possession?.away, true],
+      ["Shots on target", team.shots_on_target?.home, team.shots_on_target?.away, true],
+      ["Goal attempts", team.chances_created?.home, team.chances_created?.away, true],
+      ["Expected goals (xG)", team.expected_goals?.home, team.expected_goals?.away, true],
+      ["Passes completed", team.passes_accurate?.home, team.passes_accurate?.away, true],
+      ["Duels won", team.duels_won?.home, team.duels_won?.away, true],
+      ["Fouls", team.fouls?.home, team.fouls?.away, true],
+      ["Goals", home.goals, away.goals, false],
+      ["Assists", home.assists, away.assists, false],
+      ["Yellow cards", home.yellow, away.yellow, false],
+      ["Red cards", home.red, away.red, false],
+      ["Saves", home.saves, away.saves, false],
     ];
     const upcoming = status === "upcoming";
     const body = rows
       .map(([label, h, a]) => {
-        const hv = upcoming ? "—" : h;
-        const av = upcoming ? "—" : a;
-        const hWin = !upcoming && Number(h) > Number(a);
-        const aWin = !upcoming && Number(a) > Number(h);
+        const hv = upcoming || h == null || h === "" ? "—" : h;
+        const av = upcoming || a == null || a === "" ? "—" : a;
+        const hn = Number(h);
+        const an = Number(a);
+        const numeric = Number.isFinite(hn) && Number.isFinite(an);
+        const hWin = !upcoming && numeric && hn > an;
+        const aWin = !upcoming && numeric && an > hn;
         return `<tr>
           <td class="fx-stat-home ${hWin ? "is-lead" : ""}">${hv}</td>
           <th scope="row">${label}</th>
@@ -260,12 +268,14 @@
         </tr>`;
       })
       .join("");
-    return `<section class="fx-detail-section fx-stats-section">
+    return `<section class="fx-detail-section fx-stats-section" data-fx-team-stats>
       <h3>${upcoming ? "Match stats" : status === "live" ? "Live stats" : "Match stats"}</h3>
       ${
         upcoming
           ? `<p class="muted tiny fx-stats-note">Stats fill in once the match is underway.</p>`
-          : ""
+          : !data.team_stats
+            ? `<p class="muted tiny fx-stats-note">Advanced team stats appear when the live feed is available.</p>`
+            : ""
       }
       <table class="fx-stat-table">
         <thead>
@@ -336,15 +346,16 @@
 
     const status = data.status || "upcoming";
     const kick = formatKickoff(data.kickoff);
+    const clockBit = data.clock ? ` · ${data.clock}` : "";
     const venueBit =
       data.preview?.venue
         ? ` · ${data.preview.venue}${data.preview.city ? `, ${data.preview.city}` : ""}`
         : "";
     const statusLine =
       status === "live"
-        ? `<p class="fx-detail-status is-live" data-fx-status>Live · ${kick} · GW${data.gw}${venueBit}</p>`
+        ? `<p class="fx-detail-status is-live" data-fx-status>Live${clockBit} · ${kick} · GW${data.gw}${venueBit}</p>`
         : status === "finished"
-          ? `<p class="fx-detail-status" data-fx-status>Full time · ${kick} · GW${data.gw}${venueBit}</p>`
+          ? `<p class="fx-detail-status" data-fx-status>Full time${clockBit} · ${kick} · GW${data.gw}${venueBit}</p>`
           : `<p class="fx-detail-status" data-fx-status>Upcoming · ${kick} · GW${data.gw}${venueBit}</p>`;
 
     const watchBlock = matchStatsCompareHtml(data, status);
@@ -386,7 +397,10 @@
           ${homeBadge}
           <strong class="match-club-name">${data.home.name || homeCode}</strong>
         </div>
-        <div class="match-score">${score}</div>
+        <div class="match-score">
+          <span class="match-score-nums">${score}</span>
+          ${data.clock ? `<span class="fx-match-clock">${data.clock}</span>` : ""}
+        </div>
         <div class="match-side">
           ${awayBadge}
           <strong class="match-club-name">${data.away.name || awayCode}</strong>
@@ -576,9 +590,10 @@
       .map((m) => {
         const scored = m.home.score != null && m.away.score != null;
         const top = fixtureTopHtml(m);
-        const scoreBlock = scored
+        const scoreInner = scored
           ? `<span class="fx-score-num">${m.home.score}</span><span class="fx-score-sep">–</span><span class="fx-score-num">${m.away.score}</span>`
           : `<span class="fx-score-num fx-score-empty">-</span><span class="fx-score-sep">–</span><span class="fx-score-num fx-score-empty">-</span>`;
+        const scoreBlock = `<span class="fx-score-nums-row">${scoreInner}</span>${m.clock ? `<span class="fx-match-clock">${m.clock}</span>` : ""}`;
         const homeBadge = m.home.badge
           ? `<img class="fx-badge" src="${m.home.badge}" alt="" width="40" height="40" loading="lazy" />`
           : "";

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -245,6 +246,47 @@ def club_fixture_finished(db: Session, *, club_code: str, gw_number: int) -> boo
     return club_match_state(db, club_code=club_code, gw_number=gw_number) == "finished"
 
 
+def estimate_match_clock(
+    *,
+    kickoff_at: str | None,
+    started: bool,
+    finished: bool,
+    now: datetime | None = None,
+) -> str | None:
+    """Display clock under the score: ``14'``, ``45+2'``, ``HT``, ``90+3'``, ``FT``.
+
+    FPL fixtures do not expose a live minute — estimate from kickoff with a
+    standard 15' half-time break. Close enough for the Fixtures tab.
+    """
+    if finished:
+        return "FT"
+    if not started:
+        return None
+    if not kickoff_at:
+        return "LIVE"
+    try:
+        text = str(kickoff_at).replace("Z", "+00:00")
+        kick = datetime.fromisoformat(text)
+    except ValueError:
+        return "LIVE"
+    if kick.tzinfo is None:
+        kick = kick.replace(tzinfo=timezone.utc)
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    elapsed = max(0, int((now - kick).total_seconds() // 60))
+    # 0–45 first half; 45–60 HT pause; 60+ second half maps to 45+
+    if elapsed < 45:
+        return f"{elapsed}'"
+    if elapsed < 60:
+        extra = elapsed - 45
+        return "HT" if extra == 0 else f"45+{extra}'"
+    second = elapsed - 15  # remove HT break
+    if second <= 90:
+        return f"{second}'"
+    return f"90+{second - 90}'"
+
+
 def fixtures_for_gameweek(db: Session, *, gw_number: int) -> list[dict[str, Any]]:
     clubs = {c.code: c for c in db.query(Club).all()}
     rows = (
@@ -262,6 +304,11 @@ def fixtures_for_gameweek(db: Session, *, gw_number: int) -> list[dict[str, Any]
             status = "finished"
         elif fx.started:
             status = "live"
+        clock = estimate_match_clock(
+            kickoff_at=fx.kickoff_at,
+            started=bool(fx.started),
+            finished=bool(fx.finished),
+        )
         out.append(
             {
                 "id": fx.id,
@@ -269,6 +316,7 @@ def fixtures_for_gameweek(db: Session, *, gw_number: int) -> list[dict[str, Any]
                 "gw": fx.gameweek_number,
                 "kickoff": fx.kickoff_at,
                 "status": status,
+                "clock": clock,
                 "home": {
                     "code": fx.home_club_code,
                     "name": home.name if home else fx.home_club_code,
@@ -655,12 +703,18 @@ def fixture_detail(
     status = "finished" if fx.finished else ("live" if fx.started else "upcoming")
     home = clubs.get(fx.home_club_code)
     away = clubs.get(fx.away_club_code)
+    clock = estimate_match_clock(
+        kickoff_at=fx.kickoff_at,
+        started=bool(fx.started),
+        finished=bool(fx.finished),
+    )
     payload: dict[str, Any] = {
         "id": fx.id,
         "fpl_id": fx.fpl_id,
         "gw": fx.gameweek_number,
         "kickoff": fx.kickoff_at,
         "status": status,
+        "clock": clock,
         "home": {
             "code": fx.home_club_code,
             "name": home.name if home else fx.home_club_code,
@@ -677,6 +731,13 @@ def fixture_detail(
     }
     if owned_players is not None:
         payload["my_players"] = my_players_for_fixture(db, fx, owned_players)
+    # Team match stats (possession, SOT, xG, …) — best-effort from API-Football.
+    try:
+        from app.services import advanced_stats as adv_svc
+
+        payload["team_stats"] = adv_svc.team_match_stats_for_fixture(db, fx)
+    except Exception:
+        payload["team_stats"] = None
     return payload
 
 
