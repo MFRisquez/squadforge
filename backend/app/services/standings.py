@@ -722,6 +722,226 @@ def h2h_fixture_cards(db: Session, league: League, gw) -> list[dict]:
     return cards
 
 
+def league_chips_board(db: Session, league: League, *, me_id: int | None = None) -> list[dict]:
+    """Remaining chips for every league member (compact board on League desk)."""
+    from app.models import ChipState
+
+    members = [
+        m.manager
+        for m in db.query(Membership).filter(Membership.league_id == league.id).all()
+    ]
+    if not members:
+        return []
+    ids = [m.id for m in members]
+    states = {
+        c.manager_id: c
+        for c in db.query(ChipState).filter(ChipState.manager_id.in_(ids)).all()
+    }
+    rows = []
+    for mgr in members:
+        team = (mgr.team_name or "").strip() or mgr.display_name
+        labels = _chips_labels_from_state(states.get(mgr.id))
+        rows.append(
+            {
+                "manager_id": mgr.id,
+                "team_name": team,
+                "display_name": mgr.display_name,
+                "initials": _team_initials(team),
+                "avatar_tone": int(mgr.id) % 8,
+                "chips": labels,
+                "chips_count": len(labels),
+                "is_me": bool(me_id and mgr.id == me_id),
+            }
+        )
+    rows.sort(key=lambda r: (not r["is_me"], -r["chips_count"], r["team_name"].lower()))
+    return rows
+
+
+def my_h2h_rival_snapshot(
+    db: Session,
+    league: League,
+    gw,
+    me_id: int,
+    *,
+    edits_locked: bool = True,
+    current_gw_id: int | None = None,
+) -> dict | None:
+    """Compact live XI points for the logged-in manager's H2H rival this GW.
+
+    Respects the same pre-deadline freeze as the opponent page: before kickoff
+    of the viewed (current) GW, show the previous locked squad — never a live
+    editable XI. Returns None on bye / no pairing / pre-GW1 freeze.
+    """
+    from app.models import Fixture, ManagerGameweekScore, PlayerPoints, SquadPick
+    from app.config import settings
+
+    if gw is None or me_id is None:
+        return None
+    cards = h2h_fixture_cards(db, league, gw)
+    mine = None
+    for fx in cards:
+        home_id = (fx.get("home") or {}).get("manager_id")
+        away_id = (fx.get("away") or {}).get("manager_id")
+        if home_id == me_id:
+            mine = ("home", fx)
+            break
+        if away_id == me_id:
+            mine = ("away", fx)
+            break
+    if mine is None:
+        return {
+            "bye": True,
+            "show_scores": False,
+            "rival": None,
+            "me": None,
+            "players": [],
+            "message": "You have a bye this gameweek.",
+        }
+
+    side, fx = mine
+    rival_side = "away" if side == "home" else "home"
+    me_side = fx[side]
+    rival = fx[rival_side]
+    rival_id = rival.get("manager_id")
+    show_scores = bool(fx.get("show_scores"))
+
+    squad_gw = gw
+    squad_frozen = False
+    squad_unavailable = False
+    if (
+        not edits_locked
+        and current_gw_id is not None
+        and int(gw.id) == int(current_gw_id)
+    ):
+        prev = (
+            db.query(Gameweek)
+            .filter(Gameweek.number == int(gw.number) - 1)
+            .one_or_none()
+        )
+        if prev:
+            squad_gw = prev
+            squad_frozen = True
+        else:
+            squad_unavailable = True
+
+    players_out: list[dict] = []
+    rival_total = float(rival.get("points") or 0)
+    if not squad_unavailable and rival_id:
+        picks = (
+            db.query(SquadPick)
+            .filter(
+                SquadPick.manager_id == rival_id,
+                SquadPick.gameweek_id == squad_gw.id,
+                SquadPick.is_starter == 1,
+            )
+            .all()
+        )
+        pids = [p.player_id for p in picks]
+        players_by_id = {
+            p.id: p for p in db.query(Player).filter(Player.id.in_(pids)).all()
+        } if pids else {}
+        picks_by_pid = {p.player_id: p for p in picks}
+
+        started_clubs: set[str] = set()
+        for frow in db.query(Fixture).filter(Fixture.gameweek_number == squad_gw.number).all():
+            if frow.started or frow.finished:
+                if frow.home_club_code:
+                    started_clubs.add(frow.home_club_code)
+                if frow.away_club_code:
+                    started_clubs.add(frow.away_club_code)
+
+        points_map: dict[int, float] = {}
+        if show_scores or squad_frozen:
+            for row in (
+                db.query(PlayerPoints)
+                .filter(
+                    PlayerPoints.gameweek_id == squad_gw.id,
+                    PlayerPoints.formula_version == settings.formula_version,
+                )
+                .all()
+            ):
+                points_map[row.player_id] = float(row.total or 0)
+
+        pos_order = {"GK": 0, "DEF": 1, "MID": 2, "ATT": 3}
+        for pid in pids:
+            pl = players_by_id.get(pid)
+            if not pl:
+                continue
+            pick = picks_by_pid.get(pid)
+            started = pl.team_code in started_clubs
+            pts = points_map.get(pid) if started else None
+            if not show_scores and not squad_frozen:
+                pts = None
+            players_out.append(
+                {
+                    "name": pl.name,
+                    "team": pl.team_code,
+                    "pos": pl.position,
+                    "is_captain": bool(pick and pick.is_captain),
+                    "is_vice": bool(pick and getattr(pick, "is_vice_captain", 0)),
+                    "points": pts,
+                    "fixture_started": started,
+                }
+            )
+        if show_scores:
+            players_out.sort(
+                key=lambda r: (
+                    -(r["points"] if r["points"] is not None else -1),
+                    pos_order.get(r["pos"], 9),
+                    r["name"],
+                )
+            )
+        else:
+            players_out.sort(key=lambda r: (pos_order.get(r["pos"], 9), r["name"]))
+
+        score_row = (
+            db.query(ManagerGameweekScore)
+            .filter(
+                ManagerGameweekScore.manager_id == rival_id,
+                ManagerGameweekScore.gameweek_id == squad_gw.id,
+            )
+            .one_or_none()
+        )
+        if score_row is not None:
+            rival_total = float(score_row.total or 0)
+
+    return {
+        "bye": False,
+        "show_scores": show_scores,
+        "squad_frozen": squad_frozen,
+        "squad_unavailable": squad_unavailable,
+        "match_id": fx.get("id"),
+        "result": fx.get("result"),
+        "me": {
+            "manager_id": me_side.get("manager_id"),
+            "team_name": me_side.get("team_name"),
+            "points": float(me_side.get("points") or 0),
+            "initials": me_side.get("initials"),
+            "avatar_tone": me_side.get("avatar_tone", 0),
+        },
+        "rival": {
+            "manager_id": rival.get("manager_id"),
+            "team_name": rival.get("team_name"),
+            "display_name": rival.get("display_name"),
+            "points": rival_total,
+            "initials": rival.get("initials"),
+            "avatar_tone": rival.get("avatar_tone", 0),
+            "chips_left": rival.get("chips_left") or [],
+            "top_player": rival.get("top_player"),
+        },
+        "players": players_out,
+        "message": (
+            "Squad locks at deadline — live points appear once the GW starts."
+            if squad_unavailable
+            else (
+                f"Showing locked GW{squad_gw.number} squad until this deadline."
+                if squad_frozen
+                else None
+            )
+        ),
+    }
+
+
 def my_rank_in_league(
     db: Session,
     league: League,

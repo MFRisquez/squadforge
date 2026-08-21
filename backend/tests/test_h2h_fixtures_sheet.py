@@ -333,3 +333,99 @@ def test_h2h_preview_hides_scores_before_gw_starts():
         assert cards[0]["show_scores"] is False
     finally:
         db.close()
+
+
+def test_league_chips_board_and_rival_snapshot_on_page():
+    from app.models import PlayerPoints, SquadPick
+
+    db = SessionLocal()
+    try:
+        a = league_svc.register_manager(
+            db,
+            display_name="ChipA",
+            password="secret12",
+            email="chipa@example.com",
+            team_name="Chip Alpha",
+        )
+        b = league_svc.register_manager(
+            db,
+            display_name="ChipB",
+            password="secret12",
+            email="chipb@example.com",
+            team_name="Chip Beta",
+        )
+        league = league_svc.create_league(db, "Chip Cup", a, league_type="h2h")
+        league_svc.join_league(db, league.invite_code, b)
+        gw = db.query(Gameweek).filter(Gameweek.number == 1).one()
+        gw.status = "live"
+        gw.is_current = 1
+        gw.deadline_at = (
+            (datetime.now(timezone.utc) - timedelta(hours=2))
+            .isoformat()
+            .replace("+00:00", "Z")
+        )
+        db.add(
+            H2HMatch(
+                league_id=league.id,
+                gameweek_id=gw.id,
+                home_manager_id=a.id,
+                away_manager_id=b.id,
+                home_points=30,
+                away_points=22,
+                result="pending",
+            )
+        )
+        players = db.query(Player).limit(11).all()
+        assert len(players) >= 2
+        for i, pl in enumerate(players[:11]):
+            db.add(
+                SquadPick(
+                    manager_id=b.id,
+                    gameweek_id=gw.id,
+                    player_id=pl.id,
+                    is_starter=1,
+                    is_captain=1 if i == 0 else 0,
+                    is_vice_captain=1 if i == 1 else 0,
+                    bench_order=0,
+                )
+            )
+            db.add(
+                PlayerPoints(
+                    player_id=pl.id,
+                    gameweek_id=gw.id,
+                    formula_version=settings.formula_version,
+                    total=float(5 + i),
+                )
+            )
+        db.add(ManagerGameweekScore(manager_id=a.id, gameweek_id=gw.id, total=30))
+        db.add(ManagerGameweekScore(manager_id=b.id, gameweek_id=gw.id, total=22))
+        db.commit()
+
+        board = standings_svc.league_chips_board(db, league, me_id=a.id)
+        assert len(board) == 2
+        assert any(r["is_me"] for r in board)
+        assert all("chips" in r for r in board)
+
+        snap = standings_svc.my_h2h_rival_snapshot(
+            db, league, gw, a.id, edits_locked=True, current_gw_id=gw.id
+        )
+        assert snap is not None
+        assert snap["bye"] is False
+        assert snap["rival"]["manager_id"] == b.id
+        assert snap["show_scores"] is True
+        assert len(snap["players"]) >= 2
+        lid = league.id
+    finally:
+        db.close()
+
+    client = _client()
+    client.post("/login", data={"login": "ChipA", "password": "secret12"}, follow_redirects=False)
+    html = client.get(f"/league/{lid}").text
+    assert "league-gw-picker" in html
+    assert "Chips left" in html
+    assert "Your rival" in html
+    assert "league-rival-xi" in html
+    assert "Chip Beta" in html
+    # GW query param works
+    html2 = client.get(f"/league/{lid}?gw=1").text
+    assert "league-gw-picker" in html2

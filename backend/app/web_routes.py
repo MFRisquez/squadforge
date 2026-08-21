@@ -668,16 +668,29 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
     if not membership:
         return RedirectResponse("/", status_code=303)
     league = membership.league
-    gw = squad_svc.current_gameweek(db)
+    view = _resolve_gw(request, db)
+    gw = view["gw"]
     fixtures: list = []
     h2h_cards: list = []
+    rival_card = None
+    chips_board: list = []
     if getattr(league, "league_type", "classic") == "h2h":
         rows, fixtures = standings_svc.h2h_standings(db, league, gw)
         mode = "h2h"
         h2h_cards = standings_svc.h2h_fixture_cards(db, league, gw)
+        rival_card = standings_svc.my_h2h_rival_snapshot(
+            db,
+            league,
+            gw,
+            manager.id,
+            edits_locked=view["edits_locked"],
+            current_gw_id=view["current_gw"].id,
+        )
+        chips_board = standings_svc.league_chips_board(db, league, me_id=manager.id)
     else:
         rows = standings_svc.classic_standings(db, league, gw)
         mode = "classic"
+        chips_board = standings_svc.league_chips_board(db, league, me_id=manager.id)
     chips = db.query(ChipState).filter(ChipState.manager_id == manager.id).one_or_none()
     from app.services import awards as awards_svc
 
@@ -696,7 +709,15 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
             gw=gw,
             fixtures=fixtures,
             h2h_cards=h2h_cards,
+            rival_card=rival_card,
+            chips_board=chips_board,
             awards=awards,
+            deadline_label=view["deadline_label"],
+            edits_locked=view["edits_locked"],
+            prev_gw=view["prev_gw"],
+            next_gw=view["next_gw"],
+            all_gws=view["all_gws"],
+            current_gw_number=view["current_gw_number"],
             notice=request.query_params.get("notice"),
             error=request.query_params.get("error"),
         ),
