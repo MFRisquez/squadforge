@@ -15,3 +15,7 @@ services:
         sync: false
       - key: PUBLIC_BASE_URL
         sync: false
+      - key: API_FOOTBALL_KEY
+        sync: false
+      - key: API_FOOTBALL_SEASON
+        value: "2026"
