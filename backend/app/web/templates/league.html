@@ -5,219 +5,271 @@
 {% from "macros_standings.html" import league_table %}
 
 <div class="desk-board desk-page">
-  <div class="desk-main">
-    <header class="league-hero">
-      <p class="eyebrow">{{ league.league_type|default('classic')|upper }} league{% if gw %} · GW{{ gw.number }}{% endif %}</p>
-      <h1>{{ league.name }}</h1>
-      <p class="lede tight">Invite <strong>{{ league.invite_code }}</strong> · {{ member_count }} teams</p>
-    </header>
+  <div class="desk-main desk-league">
+  <header class="league-hero">
+    <p class="eyebrow">{{ league.league_type|default('classic')|upper }} league{% if gw %} · GW{{ gw.number }}{% endif %}</p>
+    <h1>{{ league.name }}</h1>
+    <p class="lede tight">Invite <strong>{{ league.invite_code }}</strong> · {{ member_count }} teams</p>
+  </header>
 
-    {{ league_table(rows, mode, league, me, gw, label='League table') }}
+  <div class="league-desk">
+    {# Col 1 — standings + league admin #}
+    <div class="league-col league-col-standings">
+      {{ league_table(rows, mode, league, me, gw, label='League table') }}
 
-    {% if mode == 'h2h' %}
-    <section class="panel h2h-digest league-h2h-fixtures" aria-label="This week's fixtures">
-      <h2 class="section-title tight">This week's fixtures</h2>
-      {% if h2h_cards %}
-        <div class="h2h-cards" id="h2hCards">
-          {% for fx in h2h_cards %}
-            {% set home_win = fx.result == 'home' %}
-            {% set away_win = fx.result == 'away' %}
-            <button
-              type="button"
-              class="h2h-card h2h-card-btn {% if not fx.show_scores %}is-preview{% elif fx.result == 'pending' %}is-pending is-live{% elif fx.result == 'draw' %}is-draw{% else %}is-ft{% endif %}"
-              data-h2h-match="{{ fx.id }}"
-              aria-label="Open {{ fx.home.team_name }} vs {{ fx.away.team_name }}"
-            >
-              <div class="h2h-side {% if home_win %}is-winner{% endif %}">
-                <div class="h2h-team">
-                  <span class="h2h-avatar" aria-hidden="true">{{ fx.home.initials }}</span>
-                  <strong class="h2h-team-name">{{ fx.home.team_name }}{% if home_win %}<span class="h2h-win-mark" aria-hidden="true">✓</span>{% endif %}</strong>
-                </div>
-                {% if fx.show_scores %}
-                <span class="h2h-pts">{{ '%.0f'|format(fx.home.points) }}</span>
-                {% else %}
-                <span class="h2h-pts is-preview muted">—</span>
-                {% endif %}
-              </div>
-              <div class="h2h-vs">
-                {% if not fx.show_scores %}
-                  <span class="pill soft">Preview</span>
-                {% elif fx.result == 'pending' %}
-                  <span class="fx-status-row h2h-live"><em class="live-dot">LIVE</em></span>
-                {% elif fx.result == 'draw' %}
-                  <span class="pill soft">DRAW</span>
-                {% else %}
-                  <span class="pill soft">FT</span>
-                {% endif %}
-                {% if fx.season_record %}
-                <span class="h2h-season muted">{{ fx.season_record.label }}</span>
-                {% endif %}
-              </div>
-              <div class="h2h-side {% if away_win %}is-winner{% endif %}">
-                <div class="h2h-team">
-                  <span class="h2h-avatar" aria-hidden="true">{{ fx.away.initials }}</span>
-                  <strong class="h2h-team-name">{{ fx.away.team_name }}{% if away_win %}<span class="h2h-win-mark" aria-hidden="true">✓</span>{% endif %}</strong>
-                </div>
-                {% if fx.show_scores %}
-                <span class="h2h-pts">{{ '%.0f'|format(fx.away.points) }}</span>
-                {% else %}
-                <span class="h2h-pts is-preview muted">—</span>
-                {% endif %}
-              </div>
-            </button>
-          {% endfor %}
-        </div>
-      {% else %}
-        <p class="muted">Need at least 2 managers to draw H2H fixtures. With an odd number, one manager gets a bye each GW.</p>
+      {% if manager and manager.id == league.owner_id %}
+      <section class="panel league-format">
+        <h2>League format</h2>
+        <p class="muted">
+          Classic ranks by total points all season.
+          H2H pairs everyone weekly (odd leagues get a rotating bye) and ranks by wins.
+        </p>
+        <form method="post" action="/league/{{ league.id }}/type" class="stack">
+          <label>Type
+            <select name="league_type">
+              <option value="classic" {% if league.league_type != 'h2h' %}selected{% endif %}>Classic</option>
+              <option value="h2h" {% if league.league_type == 'h2h' %}selected{% endif %} {% if member_count < 2 %}disabled{% endif %}>
+                Head to Head {% if member_count < 2 %}(need 2+ managers){% endif %}
+              </option>
+            </select>
+          </label>
+          <button class="btn ghost" type="submit">Save format</button>
+        </form>
+      </section>
       {% endif %}
-    </section>
-    {% endif %}
 
-    <div class="row league-actions">
-      <a class="btn" href="/standings/{{ league.id }}">
-        {% if league.league_type == 'h2h' %}H2H standings{% else %}Full standings{% endif %}
-      </a>
-      <a class="btn ghost" href="/league/{{ league.id }}/awards">Season awards</a>
+      <section class="panel league-manage">
+        <h2>Manage</h2>
+        {% if manager and manager.id == league.owner_id %}
+        <form
+          method="post"
+          action="/league/{{ league.id }}/delete"
+          onsubmit="return confirm('This deletes the league for everyone. This can\'t be undone.');"
+        >
+          <button class="btn danger-btn" type="submit">Delete league</button>
+        </form>
+        {% else %}
+        <script type="application/json" id="leaveLeagueName">{{ league.name | tojson }}</script>
+        <form
+          method="post"
+          action="/league/{{ league.id }}/leave"
+          class="js-leave-league"
+        >
+          <button class="btn ghost" type="submit">Leave league</button>
+        </form>
+        {% endif %}
+      </section>
     </div>
 
-    {% if rank_history and rank_history.gw_numbers|length >= 2 %}
-    <section class="rank-timeline" aria-label="Position timeline">
-      <header class="rank-timeline-head">
-        <h2>Position timeline</h2>
-        <p class="muted tight">
-          {% if mode == 'h2h' %}
-          H2H table rank after each gameweek · #1 at the top
-          {% else %}
-          Rank after each gameweek · #1 at the top
-          {% endif %}
-        </p>
-      </header>
-      <div class="rank-timeline-chart-wrap">
-        <svg
-          class="rank-timeline-chart"
-          viewBox="0 0 {{ rank_history.chart_width }} {{ rank_history.chart_height }}"
-          role="img"
-          aria-label="League position by gameweek"
-        >
-          {% for g in rank_history.grid %}
-            <line class="rank-grid" x1="10" y1="{{ g.y }}" x2="{{ rank_history.chart_width - 10 }}" y2="{{ g.y }}" />
-            <text class="rank-axis" x="2" y="{{ g.y + 3 }}">{{ g.rank }}</text>
-          {% endfor %}
-          {% for g in rank_history.gw_labels %}
-            <text class="rank-axis gw" x="{{ g.x }}" y="{{ rank_history.chart_height - 1 }}">{{ g.number }}</text>
-          {% endfor %}
-          {% for s in rank_history.series %}
-            {% if s.polyline %}
-            <polyline
-              class="rank-line {% if s.is_me %}is-me{% endif %}"
-              fill="none"
-              stroke="{{ s.color }}"
-              stroke-width="{% if s.is_me %}2.6{% else %}1.5{% endif %}"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              points="{{ s.polyline }}"
-            >
-              <title>{{ s.team_name }}</title>
-            </polyline>
-            {% for p in s.points %}
-            <circle
-              class="rank-dot {% if s.is_me %}is-me{% endif %}"
-              cx="{{ p.x }}"
-              cy="{{ p.y }}"
-              r="{% if s.is_me %}3.2{% else %}2.4{% endif %}"
-              fill="{{ s.color }}"
-              stroke="#fff"
-              stroke-width="0.8"
-            >
-              <title>{{ p.title }}</title>
-            </circle>
+    {# Col 2 — H2H manager fixtures (not PL fixtures) #}
+    <div class="league-col league-col-mid">
+      {% if mode == 'h2h' %}
+      <section class="panel h2h-digest league-h2h-fixtures" aria-label="This week's H2H fixtures">
+        <h2 class="section-title tight">This week's fixtures</h2>
+        <p class="muted tiny league-h2h-sub">Manager vs manager · GW{{ gw.number if gw else '' }}</p>
+        {% if h2h_cards %}
+          <div class="h2h-cards" id="h2hCards">
+            {% for fx in h2h_cards %}
+              {% set home_win = fx.result == 'home' %}
+              {% set away_win = fx.result == 'away' %}
+              <button
+                type="button"
+                class="h2h-card h2h-card-btn {% if not fx.show_scores %}is-preview{% elif fx.result == 'pending' %}is-pending is-live{% elif fx.result == 'draw' %}is-draw{% else %}is-ft{% endif %}"
+                data-h2h-match="{{ fx.id }}"
+                aria-label="Open {{ fx.home.team_name }} vs {{ fx.away.team_name }}"
+              >
+                <div class="h2h-side {% if home_win %}is-winner{% endif %}">
+                  <div class="h2h-team">
+                    <span class="h2h-avatar" aria-hidden="true">{{ fx.home.initials }}</span>
+                    <strong class="h2h-team-name">{{ fx.home.team_name }}{% if home_win %}<span class="h2h-win-mark" aria-hidden="true">✓</span>{% endif %}</strong>
+                  </div>
+                  {% if fx.show_scores %}
+                  <span class="h2h-pts">{{ '%.0f'|format(fx.home.points) }}</span>
+                  {% else %}
+                  <span class="h2h-pts is-preview muted">—</span>
+                  {% endif %}
+                </div>
+                <div class="h2h-vs">
+                  {% if not fx.show_scores %}
+                    <span class="pill soft">Preview</span>
+                  {% elif fx.result == 'pending' %}
+                    <span class="fx-status-row h2h-live"><em class="live-dot">LIVE</em></span>
+                  {% elif fx.result == 'draw' %}
+                    <span class="pill soft">DRAW</span>
+                  {% else %}
+                    <span class="pill soft">FT</span>
+                  {% endif %}
+                  {% if fx.season_record %}
+                  <span class="h2h-season muted">{{ fx.season_record.label }}</span>
+                  {% endif %}
+                </div>
+                <div class="h2h-side {% if away_win %}is-winner{% endif %}">
+                  <div class="h2h-team">
+                    <span class="h2h-avatar" aria-hidden="true">{{ fx.away.initials }}</span>
+                    <strong class="h2h-team-name">{{ fx.away.team_name }}{% if away_win %}<span class="h2h-win-mark" aria-hidden="true">✓</span>{% endif %}</strong>
+                  </div>
+                  {% if fx.show_scores %}
+                  <span class="h2h-pts">{{ '%.0f'|format(fx.away.points) }}</span>
+                  {% else %}
+                  <span class="h2h-pts is-preview muted">—</span>
+                  {% endif %}
+                </div>
+              </button>
             {% endfor %}
-            {% endif %}
-          {% endfor %}
-        </svg>
-      </div>
-      <ul class="rank-timeline-legend">
-        {% for s in rank_history.series %}
-        <li class="{% if s.is_me %}is-me{% endif %}">
-          <span class="rank-swatch" style="background: {{ s.color }}"></span>
-          <span class="rank-legend-name">{{ s.team_name }}</span>
-          <span class="rank-legend-now muted">#{{ s.ranks[-1] }}</span>
-        </li>
-        {% endfor %}
-      </ul>
-      <div class="rank-timeline-table-wrap" tabindex="0">
-        <table class="rank-timeline-table">
-          <thead>
-            <tr>
-              <th>Team</th>
-              {% for n in rank_history.gw_numbers %}
-              <th>GW{{ n }}</th>
-              {% endfor %}
-            </tr>
-          </thead>
-          <tbody>
-            {% for s in rank_history.series %}
-            <tr class="{% if s.is_me %}is-me{% endif %}">
-              <th scope="row">{{ s.team_name }}</th>
-              {% for r in s.ranks %}
-              {% set prev = s.ranks[loop.index0 - 1] if loop.index0 > 0 else none %}
-              <td class="{% if prev is not none and r < prev %}is-up{% elif prev is not none and r > prev %}is-down{% endif %}">{{ r }}</td>
-              {% endfor %}
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
-    {% else %}
-    <section class="rank-timeline is-empty">
-      <h2>Position timeline</h2>
-      <p class="muted">El gráfico aparece después de la GW2</p>
-    </section>
-    {% endif %}
-
-    {% if manager and manager.id == league.owner_id %}
-    <section class="panel league-format">
-      <h2>League format</h2>
-      <p class="muted">
-        Classic ranks by total points all season.
-        H2H pairs everyone weekly (odd leagues get a rotating bye) and ranks by wins.
-      </p>
-      <form method="post" action="/league/{{ league.id }}/type" class="stack">
-        <label>Type
-          <select name="league_type">
-            <option value="classic" {% if league.league_type != 'h2h' %}selected{% endif %}>Classic</option>
-            <option value="h2h" {% if league.league_type == 'h2h' %}selected{% endif %} {% if member_count < 2 %}disabled{% endif %}>
-              Head to Head {% if member_count < 2 %}(need 2+ managers){% endif %}
-            </option>
-          </select>
-        </label>
-        <button class="btn ghost" type="submit">Save format</button>
-      </form>
-    </section>
-    {% endif %}
-
-    <section class="panel">
-      <h2>Manage</h2>
-      {% if manager and manager.id == league.owner_id %}
-      <form
-        method="post"
-        action="/league/{{ league.id }}/delete"
-        onsubmit="return confirm('This deletes the league for everyone. This can\'t be undone.');"
-      >
-        <button class="btn danger-btn" type="submit">Delete league</button>
-      </form>
+          </div>
+        {% else %}
+          <p class="muted">Need at least 2 managers to draw H2H fixtures. With an odd number, one manager gets a bye each GW.</p>
+        {% endif %}
+      </section>
       {% else %}
-      <script type="application/json" id="leaveLeagueName">{{ league.name | tojson }}</script>
-      <form
-        method="post"
-        action="/league/{{ league.id }}/leave"
-        class="js-leave-league"
-      >
-        <button class="btn ghost" type="submit">Leave league</button>
-      </form>
+      <section class="panel league-mid-classic" aria-label="Classic league">
+        <h2 class="section-title tight">Classic</h2>
+        <p class="muted tiny">Total points all season. Switch to H2H in League format for weekly manager fixtures.</p>
+      </section>
       {% endif %}
-    </section>
+    </div>
+
+    {# Col 3 — Season awards (desktop inline; mobile uses link below) #}
+    <div class="league-col league-col-awards league-awards-desk">
+      <section class="panel league-awards-panel" aria-label="Season awards">
+        <header class="league-awards-head">
+          <h2 class="section-title tight">Season awards</h2>
+          <p class="muted tiny">
+            {% if awards and awards.gameweeks_counted %}
+            {{ awards.gameweeks_counted }} GW{% if awards.gameweeks_counted != 1 %}s{% endif %} counted
+            {% else %}
+            From completed gameweeks
+            {% endif %}
+          </p>
+        </header>
+        {% if awards and awards.categories %}
+        <div class="awards-board awards-board-compact">
+          {% for cat in awards.categories %}
+          <article class="award-card {% if cat.empty %}is-empty{% elif me and cat.manager_id == me.id %}is-me{% endif %}">
+            <p class="award-kicker">{{ cat.title }}</p>
+            {% if cat.empty %}
+              <h3 class="award-winner muted">Not enough data yet</h3>
+              <p class="award-value muted">—</p>
+            {% else %}
+              <h3 class="award-winner">{{ cat.team_name }}</h3>
+              <p class="award-value">{{ cat.value_label }}</p>
+              {% if cat.detail %}
+              <p class="award-detail muted">{{ cat.detail }}</p>
+              {% endif %}
+            {% endif %}
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="muted tiny">Awards appear as gameweeks complete.</p>
+        {% endif %}
+        <a class="text-link league-awards-more" href="/league/{{ league.id }}/awards">Full awards page</a>
+      </section>
+    </div>
+  </div>
+
+  <div class="row league-actions league-awards-mobile">
+    <a class="btn" href="/standings/{{ league.id }}">
+      {% if league.league_type == 'h2h' %}H2H standings{% else %}Full standings{% endif %}
+    </a>
+    <a class="btn ghost" href="/league/{{ league.id }}/awards">Season awards</a>
+  </div>
+
+  {% if rank_history and rank_history.gw_numbers|length >= 2 %}
+  <section class="rank-timeline" aria-label="Position timeline">
+    <header class="rank-timeline-head">
+      <h2>Position timeline</h2>
+      <p class="muted tight">
+        {% if mode == 'h2h' %}
+        H2H table rank after each gameweek · #1 at the top
+        {% else %}
+        Rank after each gameweek · #1 at the top
+        {% endif %}
+      </p>
+    </header>
+    <div class="rank-timeline-chart-wrap">
+      <svg
+        class="rank-timeline-chart"
+        viewBox="0 0 {{ rank_history.chart_width }} {{ rank_history.chart_height }}"
+        role="img"
+        aria-label="League position by gameweek"
+      >
+        {% for g in rank_history.grid %}
+          <line class="rank-grid" x1="10" y1="{{ g.y }}" x2="{{ rank_history.chart_width - 10 }}" y2="{{ g.y }}" />
+          <text class="rank-axis" x="2" y="{{ g.y + 3 }}">{{ g.rank }}</text>
+        {% endfor %}
+        {% for g in rank_history.gw_labels %}
+          <text class="rank-axis gw" x="{{ g.x }}" y="{{ rank_history.chart_height - 1 }}">{{ g.number }}</text>
+        {% endfor %}
+        {% for s in rank_history.series %}
+          {% if s.polyline %}
+          <polyline
+            class="rank-line {% if s.is_me %}is-me{% endif %}"
+            fill="none"
+            stroke="{{ s.color }}"
+            stroke-width="{% if s.is_me %}2.6{% else %}1.5{% endif %}"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            points="{{ s.polyline }}"
+          >
+            <title>{{ s.team_name }}</title>
+          </polyline>
+          {% for p in s.points %}
+          <circle
+            class="rank-dot {% if s.is_me %}is-me{% endif %}"
+            cx="{{ p.x }}"
+            cy="{{ p.y }}"
+            r="{% if s.is_me %}3.2{% else %}2.4{% endif %}"
+            fill="{{ s.color }}"
+            stroke="#fff"
+            stroke-width="0.8"
+          >
+            <title>{{ p.title }}</title>
+          </circle>
+          {% endfor %}
+          {% endif %}
+        {% endfor %}
+      </svg>
+    </div>
+    <ul class="rank-timeline-legend">
+      {% for s in rank_history.series %}
+      <li class="{% if s.is_me %}is-me{% endif %}">
+        <span class="rank-swatch" style="background: {{ s.color }}"></span>
+        <span class="rank-legend-name">{{ s.team_name }}</span>
+        <span class="rank-legend-now muted">#{{ s.ranks[-1] }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    <div class="rank-timeline-table-wrap" tabindex="0">
+      <table class="rank-timeline-table">
+        <thead>
+          <tr>
+            <th>Team</th>
+            {% for n in rank_history.gw_numbers %}
+            <th>GW{{ n }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in rank_history.series %}
+          <tr class="{% if s.is_me %}is-me{% endif %}">
+            <th scope="row">{{ s.team_name }}</th>
+            {% for r in s.ranks %}
+            {% set prev = s.ranks[loop.index0 - 1] if loop.index0 > 0 else none %}
+            <td class="{% if prev is not none and r < prev %}is-up{% elif prev is not none and r > prev %}is-down{% endif %}">{{ r }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% else %}
+  <section class="rank-timeline is-empty">
+    <h2>Position timeline</h2>
+    <p class="muted">El gráfico aparece después de la GW2</p>
+  </section>
+  {% endif %}
   </div>
 </div>
 

@@ -9813,18 +9813,108 @@ body.page-squad .stat-strip {
   }
 }
 
-/* League home: hero + position timeline */
+/* League home: hero + 3-col desktop desk + position timeline */
 .league-hero {
   margin: 0 0 0.55rem;
 }
 .league-hero h1 {
   margin: 0.1rem 0 0.25rem;
 }
+.league-desk {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.league-col {
+  min-width: 0;
+}
+.league-h2h-sub {
+  margin: -0.15rem 0 0.55rem;
+}
+.league-awards-desk {
+  display: none;
+}
+.league-awards-mobile {
+  display: flex;
+}
+.league-awards-panel .league-awards-head {
+  margin: 0 0 0.55rem;
+}
+.league-awards-panel .section-title {
+  margin: 0 0 0.15rem;
+}
+.awards-board-compact {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0 0 0.55rem;
+}
+.awards-board-compact .award-card {
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.65rem;
+}
+.awards-board-compact .award-winner {
+  font-size: 0.95rem;
+}
+.awards-board-compact .award-value {
+  font-size: 1.05rem;
+}
+.awards-board-compact .award-detail,
+.awards-board-compact .award-blurb {
+  display: none;
+}
+.league-awards-more {
+  font-size: 0.78rem;
+  font-weight: 700;
+}
 .league-actions {
   margin: 0.35rem 0 1rem;
 }
 .league-table.standings-board {
   margin-bottom: 0.35rem;
+}
+
+/*
+ * League desktop column layout (same order + track pattern as XI/Transfers).
+ * Visual: standings | H2H fixtures | season awards.
+ * Rollback: delete this media block + restore single-column flow.
+ */
+@media (min-width: 900px) {
+  body.page-league .desk-board.desk-page > .desk-main.desk-league {
+    max-width: min(72rem, 100%);
+  }
+  body.page-league .league-desk {
+    display: grid;
+    grid-template-columns:
+      minmax(17rem, 1.15fr)
+      minmax(15rem, 0.9fr)
+      minmax(14rem, 0.85fr);
+    gap: 0.75rem;
+    align-items: start;
+  }
+  body.page-league .league-col-standings {
+    order: 1;
+    grid-column: 1;
+  }
+  body.page-league .league-col-mid {
+    order: 2;
+    grid-column: 2;
+  }
+  body.page-league .league-col-awards {
+    order: 3;
+    grid-column: 3;
+  }
+  body.page-league .league-awards-desk {
+    display: block;
+  }
+  body.page-league .league-awards-mobile {
+    display: none;
+  }
+  /* Mid column is narrow — stack H2H manager cards vertically */
+  body.page-league .league-col-mid .h2h-cards {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
 }
 .rank-timeline {
   margin: 0 0 1.15rem;
@@ -9953,7 +10043,7 @@ body.page-squad .stat-strip {
 }
 @media (min-width: 900px) {
   body.page-league .desk-board.desk-page > .desk-main {
-    max-width: min(52rem, 100%);
+    max-width: min(72rem, 100%);
   }
   .rank-timeline-chart {
     max-width: none;

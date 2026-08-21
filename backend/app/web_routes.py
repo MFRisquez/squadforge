@@ -786,7 +786,6 @@ def league_set_type(
                 mode=mode,
                 me=manager,
                 error=str(exc),
-                even_members=len(rows) % 2 == 0 and len(rows) >= 2,
                 member_count=len(rows),
                 gw=gw,
                 rank_history=rank_history,
