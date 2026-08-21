@@ -121,8 +121,11 @@ def merge_fixture_stats_into_events(db: Session, gw: Gameweek) -> int:
     """Backfill G/A/cards from Fixture.stats_json when event/live lags.
 
     Fixtures match sheet reads stats_json (often ahead of element live).
-    Take the max per metric so we never wipe a higher live value.
+    Aggregate per player across the GW (DGW sums), then take the max vs
+    current live values so we never wipe a higher live figure.
     """
+    from collections import defaultdict
+
     from app.models import Fixture
     from app.services.fixtures import _fixture_element_totals
 
@@ -131,7 +134,8 @@ def merge_fixture_stats_into_events(db: Session, gw: Gameweek) -> int:
         for p in db.query(Player).all()
         if fpl_id_from_external(p.external_id)
     }
-    merged = 0
+    # player_id → summed fixture metrics for this GW
+    agg: dict[int, dict[str, float]] = defaultdict(lambda: defaultdict(float))
     for fx in db.query(Fixture).filter(Fixture.gameweek_number == int(gw.number)).all():
         if not (fx.started or fx.finished):
             continue
@@ -139,31 +143,35 @@ def merge_fixture_stats_into_events(db: Session, gw: Gameweek) -> int:
             player = by_fpl.get(int(fpl_id))
             if not player:
                 continue
-            current = metrics_for_player(db, gw.id, player.id)
-            updates: dict[str, float] = {}
             for metric, val in totals.items():
                 if metric in {"bonus", "bps"}:
                     continue
-                cur = float(current.get(metric, 0) or 0)
-                nxt = float(val or 0)
-                if nxt > cur:
-                    updates[metric] = nxt
-            goals = float(updates.get("goals", current.get("goals", 0)) or 0)
-            assists = float(updates.get("assists", current.get("assists", 0)) or 0)
-            mins = float(current.get("minutes", 0) or 0)
-            # Scorer/assister must have played — unlock appearance if live minutes lag.
-            if (goals > 0 or assists > 0) and mins <= 0:
-                updates["minutes"] = 1.0
-            if not updates:
-                continue
-            _write_metrics(
-                db,
-                gameweek_id=gw.id,
-                player_id=player.id,
-                metrics=updates,
-                source="fpl_fixture",
-            )
-            merged += 1
+                agg[player.id][metric] += float(val or 0)
+
+    merged = 0
+    for player_id, totals in agg.items():
+        current = metrics_for_player(db, gw.id, player_id)
+        updates: dict[str, float] = {}
+        for metric, nxt in totals.items():
+            cur = float(current.get(metric, 0) or 0)
+            if nxt > cur:
+                updates[metric] = nxt
+        goals = float(updates.get("goals", current.get("goals", 0)) or 0)
+        assists = float(updates.get("assists", current.get("assists", 0)) or 0)
+        mins = float(current.get("minutes", 0) or 0)
+        # Scorer/assister must have played — unlock appearance if live minutes lag.
+        if (goals > 0 or assists > 0) and mins <= 0:
+            updates["minutes"] = 1.0
+        if not updates:
+            continue
+        _write_metrics(
+            db,
+            gameweek_id=gw.id,
+            player_id=player_id,
+            metrics=updates,
+            source="fpl_fixture",
+        )
+        merged += 1
     return merged
 
 
