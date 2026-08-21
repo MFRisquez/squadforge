@@ -1442,13 +1442,22 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
         captain_editable = deadline_svc.can_edit_captain(view["current_gw"])
     # One query for the GW instead of per-club lookups.
     started_clubs: set[str] = set()
+    live_clubs: set[str] = set()
     for fx in db.query(Fixture).filter(Fixture.gameweek_number == gw.number).all():
-        if fx.started or fx.finished:
+        if fx.finished:
             if fx.home_club_code:
                 started_clubs.add(fx.home_club_code)
             if fx.away_club_code:
                 started_clubs.add(fx.away_club_code)
+        elif fx.started:
+            if fx.home_club_code:
+                started_clubs.add(fx.home_club_code)
+                live_clubs.add(fx.home_club_code)
+            if fx.away_club_code:
+                started_clubs.add(fx.away_club_code)
+                live_clubs.add(fx.away_club_code)
     fixture_started = {p.id: p.team_code in started_clubs for p in owned}
+    fixture_live = {p.id: p.team_code in live_clubs for p in owned}
     any_fixture_started = bool(started_clubs)
     armed = {
         p.player_id: bool(getattr(p, "captain_armed", 0))
@@ -1502,6 +1511,7 @@ def lineup_page(request: Request, db: Session = Depends(get_db)):
                     "locked": view["edits_locked"],
                     "captainEditable": captain_editable,
                     "fixtureStarted": fixture_started,
+                    "fixtureLive": fixture_live,
                     "captainArmed": armed,
                     "gw": gw.number,
                     "points": points_map,

@@ -337,14 +337,23 @@ def api_xi_live_points(request: Request, gw: Optional[int] = None) -> dict:
                     str(k): float(v or 0) for k, v in bd.items()
                 }
         started_clubs: set[str] = set()
+        live_clubs: set[str] = set()
         for fx in db.query(Fixture).filter(Fixture.gameweek_number == gameweek_number).all():
-            if fx.started or fx.finished:
+            if fx.finished:
                 if fx.home_club_code:
                     started_clubs.add(fx.home_club_code)
                 if fx.away_club_code:
                     started_clubs.add(fx.away_club_code)
+            elif fx.started:
+                if fx.home_club_code:
+                    started_clubs.add(fx.home_club_code)
+                    live_clubs.add(fx.home_club_code)
+                if fx.away_club_code:
+                    started_clubs.add(fx.away_club_code)
+                    live_clubs.add(fx.away_club_code)
         owned = squad_svc.owned_players(db, manager_id)
         fixture_started = {str(p.id): p.team_code in started_clubs for p in owned}
+        fixture_live = {str(p.id): p.team_code in live_clubs for p in owned}
         score = (
             db.query(ManagerGameweekScore)
             .filter(
@@ -359,6 +368,7 @@ def api_xi_live_points(request: Request, gw: Optional[int] = None) -> dict:
             "points": points,
             "breakdowns": breakdowns,
             "fixtureStarted": fixture_started,
+            "fixtureLive": fixture_live,
             "gwTotal": float(score.total) if score else None,
         }
     finally:

@@ -1274,6 +1274,18 @@ body.chip-bb-on .xi-bench-panel .desk-rail-head h2 {
 }
 .shirt-pts-fx.is-neg { color: #ff8a80 !important; }
 .shirt-pts-fx.is-pos { color: #B6DB00 !important; }
+/* FPL-style live points chip while the club match is still in play */
+.shirt-pts-fx.is-live-match,
+.xi-bench-fixture.shirt-pts-fx.is-live-match {
+  background: linear-gradient(135deg, #5b21b6 0%, #a21caf 42%, #e11d48 100%) !important;
+  color: #ffffff !important;
+}
+.shirt-pts-fx.is-live-match.is-pos,
+.shirt-pts-fx.is-live-match.is-neg,
+.xi-bench-fixture.shirt-pts-fx.is-live-match.is-pos,
+.xi-bench-fixture.shirt-pts-fx.is-live-match.is-neg {
+  color: #ffffff !important;
+}
 .td-ban, .td-locked {
   grid-column: 1 / -1;
   margin: 0;

@@ -182,14 +182,21 @@ def ingest_fpl_live(db: Session, gw: Gameweek) -> dict[str, Any]:
         _write_metrics(db, gameweek_id=gw.id, player_id=pid.id, metrics=metrics, source="fpl_live")
         updated += 1
 
-    # Keep Fixture.stats_json fresh, then merge G/A into MatchEvents (live often lags).
-    fixture_merged = 0
+    # Keep Fixture.stats_json fresh, then ALWAYS merge G/A from DB fixtures.
+    # Refresh failure must not skip the merge — Fixtures page may already have
+    # newer stats_json while event/live still has goals=0.
     try:
         fixtures_svc.refresh_fixtures(db)
+    except Exception as exc:
+        import logging
+
+        logging.getLogger("squadforge.live_scoring").info(
+            "fixture refresh during ingest skipped: %s", exc
+        )
+    fixture_merged = 0
+    try:
         fixture_merged = merge_fixture_stats_into_events(db, gw)
     except Exception as exc:
-        fixture_merged = 0
-        # Live element rows already written; fixture merge is best-effort.
         import logging
 
         logging.getLogger("squadforge.live_scoring").info(
