@@ -253,14 +253,18 @@
     ];
     const upcoming = status === "upcoming";
     const body = rows
-      .map(([label, h, a]) => {
-        const hv = upcoming || h == null || h === "" ? "—" : h;
-        const av = upcoming || a == null || a === "" ? "—" : a;
-        const hn = Number(h);
-        const an = Number(a);
+      .map(([label, h, a, isAdvanced]) => {
+        // Advanced API-Football rows: show values whenever present (don't hide
+        // behind FPL "upcoming" if the live feed already has possession/SOT).
+        const hideH = isAdvanced ? h == null || h === "" : upcoming || h == null || h === "";
+        const hideA = isAdvanced ? a == null || a === "" : upcoming || a == null || a === "";
+        const hv = hideH ? "—" : h;
+        const av = hideA ? "—" : a;
+        const hn = Number(String(h).replace("%", ""));
+        const an = Number(String(a).replace("%", ""));
         const numeric = Number.isFinite(hn) && Number.isFinite(an);
-        const hWin = !upcoming && numeric && hn > an;
-        const aWin = !upcoming && numeric && an > hn;
+        const hWin = !hideH && !hideA && numeric && hn > an;
+        const aWin = !hideH && !hideA && numeric && an > hn;
         return `<tr>
           <td class="fx-stat-home ${hWin ? "is-lead" : ""}">${hv}</td>
           <th scope="row">${label}</th>
@@ -269,9 +273,9 @@
       })
       .join("");
     return `<section class="fx-detail-section fx-stats-section" data-fx-team-stats>
-      <h3>${upcoming ? "Match stats" : status === "live" ? "Live stats" : "Match stats"}</h3>
+      <h3>${status === "live" ? "Live stats" : "Match stats"}</h3>
       ${
-        upcoming
+        upcoming && !data.team_stats
           ? `<p class="muted tiny fx-stats-note">Stats fill in once the match is underway.</p>`
           : !data.team_stats
             ? `<p class="muted tiny fx-stats-note">Advanced team stats appear when the live feed is available.</p>`
@@ -643,7 +647,27 @@
   function refreshQuiet() {
     fetch(`/api/fixtures/refresh?gw=${BOOT.gw}`, { method: "POST" })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((data) => renderList(data.fixtures || []))
+      .then((data) => {
+        renderList(data.fixtures || []);
+        // Keep open match sheet stats fresh (possession / SOT / …).
+        if (!selectedId) return;
+        const reqId = String(selectedId);
+        fetch(`/api/fixtures/${reqId}`)
+          .then((r) => (r.ok ? r.json() : Promise.reject()))
+          .then((detail) => {
+            if (selectedId !== reqId || !detail || detail.error) return;
+            const root = activeDetailBody();
+            if (!root) return;
+            const stats = root.querySelector("[data-fx-team-stats]");
+            if (stats) {
+              stats.outerHTML = matchStatsCompareHtml(detail, detail.status || "upcoming");
+            }
+            // Also refresh score / clock in the header if present
+            const clock = root.querySelector(".fx-match-clock");
+            if (clock && detail.clock) clock.textContent = detail.clock;
+          })
+          .catch(() => {});
+      })
       .catch(() => {});
   }
 
