@@ -723,7 +723,7 @@ def h2h_fixture_cards(db: Session, league: League, gw) -> list[dict]:
 
 
 def league_chips_board(db: Session, league: League, *, me_id: int | None = None) -> list[dict]:
-    """Remaining chips for every league member (compact board on League desk)."""
+    """Chip bank for every league member — always all 5 chips; used ones marked grey."""
     from app.models import ChipState
 
     members = [
@@ -737,10 +737,32 @@ def league_chips_board(db: Session, league: League, *, me_id: int | None = None)
         c.manager_id: c
         for c in db.query(ChipState).filter(ChipState.manager_id.in_(ids)).all()
     }
+    slots_def = (
+        ("WC", "Wildcard", "wildcard_remaining"),
+        ("FH", "Free Hit", "free_hit_remaining"),
+        ("BB", "Bench Boost", "bench_boost_remaining"),
+        ("TC", "Triple Captain", "triple_captain_remaining"),
+        ("SS", "Super Sub", "super_sub_remaining"),
+    )
     rows = []
     for mgr in members:
         team = (mgr.team_name or "").strip() or mgr.display_name
-        labels = _chips_labels_from_state(states.get(mgr.id))
+        state = states.get(mgr.id)
+        chips = []
+        available = 0
+        for short, label, attr in slots_def:
+            rem = int(getattr(state, attr, 0) or 0) if state else 0
+            avail = rem > 0
+            if avail:
+                available += 1
+            chips.append(
+                {
+                    "short": short,
+                    "label": label,
+                    "available": avail,
+                    "remaining": rem,
+                }
+            )
         rows.append(
             {
                 "manager_id": mgr.id,
@@ -748,13 +770,89 @@ def league_chips_board(db: Session, league: League, *, me_id: int | None = None)
                 "display_name": mgr.display_name,
                 "initials": _team_initials(team),
                 "avatar_tone": int(mgr.id) % 8,
-                "chips": labels,
-                "chips_count": len(labels),
+                "chips": chips,
+                "chips_count": available,
                 "is_me": bool(me_id and mgr.id == me_id),
             }
         )
     rows.sort(key=lambda r: (not r["is_me"], -r["chips_count"], r["team_name"].lower()))
     return rows
+
+
+def _pack_gw_xi_players(
+    db: Session,
+    *,
+    manager_id: int | None,
+    squad_gw,
+    show_scores: bool,
+    squad_frozen: bool,
+    points_map: dict[int, float],
+    started_clubs: set[str],
+) -> tuple[list[dict], float | None]:
+    """Starters + manager GW total for one side of the matchup card."""
+    from app.models import ManagerGameweekScore, SquadPick
+
+    if not manager_id or squad_gw is None:
+        return [], None
+    picks = (
+        db.query(SquadPick)
+        .filter(
+            SquadPick.manager_id == manager_id,
+            SquadPick.gameweek_id == squad_gw.id,
+            SquadPick.is_starter == 1,
+        )
+        .all()
+    )
+    pids = [p.player_id for p in picks]
+    players_by_id = {
+        p.id: p for p in db.query(Player).filter(Player.id.in_(pids)).all()
+    } if pids else {}
+    picks_by_pid = {p.player_id: p for p in picks}
+    pos_order = {"GK": 0, "DEF": 1, "MID": 2, "ATT": 3}
+    players_out: list[dict] = []
+    for pid in pids:
+        pl = players_by_id.get(pid)
+        if not pl:
+            continue
+        pick = picks_by_pid.get(pid)
+        started = pl.team_code in started_clubs
+        pts = points_map.get(pid) if started else None
+        if not show_scores and not squad_frozen:
+            pts = None
+        players_out.append(
+            {
+                "name": pl.name,
+                "team": pl.team_code,
+                "pos": pl.position,
+                "is_captain": bool(pick and pick.is_captain),
+                "is_vice": bool(pick and getattr(pick, "is_vice_captain", 0)),
+                "points": pts,
+                "fixture_started": started,
+            }
+        )
+    if show_scores:
+        players_out.sort(
+            key=lambda r: (
+                -(r["points"] if r["points"] is not None else -1),
+                pos_order.get(r["pos"], 9),
+                r["name"],
+            )
+        )
+    else:
+        players_out.sort(key=lambda r: (pos_order.get(r["pos"], 9), r["name"]))
+
+    total = None
+    score_row = (
+        db.query(ManagerGameweekScore)
+        .filter(
+            ManagerGameweekScore.manager_id == manager_id,
+            ManagerGameweekScore.gameweek_id == squad_gw.id,
+        )
+        .one_or_none()
+    )
+    if score_row is not None:
+        total = float(score_row.total or 0)
+    return players_out, total
 
 
 def my_h2h_rival_snapshot(
@@ -766,13 +864,13 @@ def my_h2h_rival_snapshot(
     edits_locked: bool = True,
     current_gw_id: int | None = None,
 ) -> dict | None:
-    """Compact live XI points for the logged-in manager's H2H rival this GW.
+    """You vs rival live XI points for the viewed H2H gameweek.
 
-    Respects the same pre-deadline freeze as the opponent page: before kickoff
-    of the viewed (current) GW, show the previous locked squad — never a live
-    editable XI. Returns None on bye / no pairing / pre-GW1 freeze.
+    Both sides use locked SquadPick rows for ``squad_gw`` (same pre-deadline
+    freeze as the opponent page), so lineup/C/V changes after lock show here
+    on refresh. Player points come from live ``PlayerPoints``.
     """
-    from app.models import Fixture, ManagerGameweekScore, PlayerPoints, SquadPick
+    from app.models import Fixture, PlayerPoints
     from app.config import settings
 
     if gw is None or me_id is None:
@@ -795,6 +893,7 @@ def my_h2h_rival_snapshot(
             "rival": None,
             "me": None,
             "players": [],
+            "me_players": [],
             "message": "You have a bye this gameweek.",
         }
 
@@ -824,24 +923,12 @@ def my_h2h_rival_snapshot(
         else:
             squad_unavailable = True
 
-    players_out: list[dict] = []
+    me_players: list[dict] = []
+    rival_players: list[dict] = []
+    me_total = float(me_side.get("points") or 0)
     rival_total = float(rival.get("points") or 0)
-    if not squad_unavailable and rival_id:
-        picks = (
-            db.query(SquadPick)
-            .filter(
-                SquadPick.manager_id == rival_id,
-                SquadPick.gameweek_id == squad_gw.id,
-                SquadPick.is_starter == 1,
-            )
-            .all()
-        )
-        pids = [p.player_id for p in picks]
-        players_by_id = {
-            p.id: p for p in db.query(Player).filter(Player.id.in_(pids)).all()
-        } if pids else {}
-        picks_by_pid = {p.player_id: p for p in picks}
 
+    if not squad_unavailable:
         started_clubs: set[str] = set()
         for frow in db.query(Fixture).filter(Fixture.gameweek_number == squad_gw.number).all():
             if frow.started or frow.finished:
@@ -862,48 +949,28 @@ def my_h2h_rival_snapshot(
             ):
                 points_map[row.player_id] = float(row.total or 0)
 
-        pos_order = {"GK": 0, "DEF": 1, "MID": 2, "ATT": 3}
-        for pid in pids:
-            pl = players_by_id.get(pid)
-            if not pl:
-                continue
-            pick = picks_by_pid.get(pid)
-            started = pl.team_code in started_clubs
-            pts = points_map.get(pid) if started else None
-            if not show_scores and not squad_frozen:
-                pts = None
-            players_out.append(
-                {
-                    "name": pl.name,
-                    "team": pl.team_code,
-                    "pos": pl.position,
-                    "is_captain": bool(pick and pick.is_captain),
-                    "is_vice": bool(pick and getattr(pick, "is_vice_captain", 0)),
-                    "points": pts,
-                    "fixture_started": started,
-                }
-            )
-        if show_scores:
-            players_out.sort(
-                key=lambda r: (
-                    -(r["points"] if r["points"] is not None else -1),
-                    pos_order.get(r["pos"], 9),
-                    r["name"],
-                )
-            )
-        else:
-            players_out.sort(key=lambda r: (pos_order.get(r["pos"], 9), r["name"]))
-
-        score_row = (
-            db.query(ManagerGameweekScore)
-            .filter(
-                ManagerGameweekScore.manager_id == rival_id,
-                ManagerGameweekScore.gameweek_id == squad_gw.id,
-            )
-            .one_or_none()
+        me_players, me_score = _pack_gw_xi_players(
+            db,
+            manager_id=me_id,
+            squad_gw=squad_gw,
+            show_scores=show_scores,
+            squad_frozen=squad_frozen,
+            points_map=points_map,
+            started_clubs=started_clubs,
         )
-        if score_row is not None:
-            rival_total = float(score_row.total or 0)
+        rival_players, rival_score = _pack_gw_xi_players(
+            db,
+            manager_id=rival_id,
+            squad_gw=squad_gw,
+            show_scores=show_scores,
+            squad_frozen=squad_frozen,
+            points_map=points_map,
+            started_clubs=started_clubs,
+        )
+        if me_score is not None:
+            me_total = me_score
+        if rival_score is not None:
+            rival_total = rival_score
 
     return {
         "bye": False,
@@ -915,7 +982,7 @@ def my_h2h_rival_snapshot(
         "me": {
             "manager_id": me_side.get("manager_id"),
             "team_name": me_side.get("team_name"),
-            "points": float(me_side.get("points") or 0),
+            "points": me_total,
             "initials": me_side.get("initials"),
             "avatar_tone": me_side.get("avatar_tone", 0),
         },
@@ -929,7 +996,9 @@ def my_h2h_rival_snapshot(
             "chips_left": rival.get("chips_left") or [],
             "top_player": rival.get("top_player"),
         },
-        "players": players_out,
+        "players": rival_players,  # back-compat for older templates/tests
+        "me_players": me_players,
+        "rival_players": rival_players,
         "message": (
             "Squad locks at deadline — live points appear once the GW starts."
             if squad_unavailable

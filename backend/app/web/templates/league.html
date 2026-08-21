@@ -6,50 +6,32 @@
 
 <div class="desk-board desk-page">
   <div class="desk-main desk-league">
-  <header class="league-hero">
-    <p class="eyebrow">{{ league.league_type|default('classic')|upper }} league{% if gw %} · GW{{ gw.number }}{% endif %}</p>
-    <h1>{{ league.name }}</h1>
-    <p class="lede tight">Invite <strong>{{ league.invite_code }}</strong> · {{ member_count }} teams</p>
+  <header class="league-hero league-hero-compact">
+    <p class="league-hero-line">
+      <span class="eyebrow inline">{{ league.league_type|default('classic')|upper }} league{% if gw %} · GW{{ gw.number }}{% endif %}</span>
+      <span class="league-hero-sep" aria-hidden="true">·</span>
+      <span class="league-hero-meta">Invite <strong>{{ league.invite_code }}</strong></span>
+      <span class="league-hero-sep" aria-hidden="true">·</span>
+      <span class="league-hero-meta">{{ member_count }} teams</span>
+      {% if manager and manager.id != league.owner_id %}
+      <span class="league-hero-sep" aria-hidden="true">·</span>
+      <form method="post" action="/league/{{ league.id }}/leave" class="js-leave-league league-leave-inline">
+        <script type="application/json" id="leaveLeagueName">{{ league.name | tojson }}</script>
+        <button class="text-link league-leave-btn" type="submit">Leave</button>
+      </form>
+      {% endif %}
+    </p>
   </header>
 
   <div class="league-desk">
-    {# Col 1 — standings + manage #}
+    {# Col 1 — standings + H2H fixtures #}
     <div class="league-col league-col-standings">
       {{ league_table(rows, mode, league, me, gw, label='League table') }}
 
-      <section class="panel league-manage">
-        <h2>Manage</h2>
-        {% if manager and manager.id == league.owner_id %}
-        <form
-          method="post"
-          action="/league/{{ league.id }}/delete"
-          onsubmit="return confirm('This deletes the league for everyone. This can\'t be undone.');"
-        >
-          <button class="btn danger-btn" type="submit">Delete league</button>
-        </form>
-        {% else %}
-        <script type="application/json" id="leaveLeagueName">{{ league.name | tojson }}</script>
-        <form
-          method="post"
-          action="/league/{{ league.id }}/leave"
-          class="js-leave-league"
-        >
-          <button class="btn ghost" type="submit">Leave league</button>
-        </form>
-        {% endif %}
-      </section>
-    </div>
-
-    {# Col 2 — H2H fixtures + rival live card #}
-    <div class="league-col league-col-mid">
       {% if mode == 'h2h' %}
-      <section class="panel h2h-digest league-h2h-fixtures" aria-label="This week's H2H fixtures">
+      <section class="panel h2h-digest league-h2h-fixtures" aria-label="H2H fixtures">
         <header class="league-h2h-head">
-          <div>
-            <h2 class="section-title tight">H2H fixtures</h2>
-            <p class="muted tiny league-h2h-sub">Manager vs manager</p>
-          </div>
-          {% if all_gws %}
+          <h2 class="section-title tight">H2H fixtures</h2>
           <label class="league-gw-picker-wrap">
             <span class="sr-only">Choose gameweek</span>
             <select
@@ -57,14 +39,14 @@
               data-base-path="/league/{{ league.id }}"
               aria-label="Gameweek"
             >
-              {% for n in all_gws %}
+              {% set gw_list = all_gws if all_gws else ([gw.number] if gw else []) %}
+              {% for n in gw_list %}
               <option value="{{ n }}" {% if gw and n == gw.number %}selected{% endif %}>
                 GW{{ n }}{% if current_gw_number and n == current_gw_number %} · Current{% elif next_gw and n == next_gw %} · Next{% endif %}
               </option>
               {% endfor %}
             </select>
           </label>
-          {% endif %}
         </header>
         {% if h2h_cards %}
           <div class="h2h-cards" id="h2hCards">
@@ -128,12 +110,16 @@
           <p class="muted">Need at least 2 managers to draw H2H fixtures. With an odd number, one manager gets a bye each GW.</p>
         {% endif %}
       </section>
+      {% endif %}
+    </div>
 
-      {% if rival_card %}
-      <section class="panel league-rival-card" aria-label="Your H2H rival">
+    {# Col 2 — you vs rival (up) #}
+    <div class="league-col league-col-mid">
+      {% if mode == 'h2h' and rival_card %}
+      <section class="panel league-rival-card" aria-label="You vs rival">
         <header class="league-rival-head">
           <div>
-            <h2 class="section-title tight">Your rival</h2>
+            <h2 class="section-title tight">You vs rival</h2>
             <p class="muted tiny">GW{{ gw.number if gw else '' }} · live XI points</p>
           </div>
           {% if rival_card.rival and rival_card.rival.manager_id %}
@@ -180,44 +166,69 @@
           <p class="muted tiny league-rival-note">{{ rival_card.message }}</p>
           {% endif %}
 
-          {% if rival_card.players %}
-          <ul class="league-rival-xi">
-            {% for p in rival_card.players %}
-            <li class="league-rival-player {% if p.is_captain %}is-cap{% endif %}">
-              <span class="league-rival-pos">{{ p.pos }}</span>
-              <span class="league-rival-name">
-                {{ p.name }}
-                {% if p.is_captain %}<em class="league-rival-arm">C</em>{% elif p.is_vice %}<em class="league-rival-arm">V</em>{% endif %}
-                <span class="muted">{{ p.team }}</span>
-              </span>
-              <span class="league-rival-ppts">
-                {% if p.points is not none %}{{ '%.0f'|format(p.points) }}{% elif not rival_card.show_scores %}—{% else %}<span class="muted">…</span>{% endif %}
-              </span>
-            </li>
-            {% endfor %}
-          </ul>
-          {% elif rival_card.show_scores %}
-          <p class="muted tiny">No locked XI yet for this rival.</p>
-          {% endif %}
+          <div class="league-matchup-xis">
+            <div class="league-matchup-xi is-me">
+              <p class="league-matchup-label">{{ rival_card.me.team_name }}</p>
+              {% if rival_card.me_players %}
+              <ul class="league-rival-xi">
+                {% for p in rival_card.me_players %}
+                <li class="league-rival-player {% if p.is_captain %}is-cap{% endif %}">
+                  <span class="league-rival-pos">{{ p.pos }}</span>
+                  <span class="league-rival-name">
+                    {{ p.name }}
+                    {% if p.is_captain %}<em class="league-rival-arm">C</em>{% elif p.is_vice %}<em class="league-rival-arm">V</em>{% endif %}
+                    <span class="muted">{{ p.team }}</span>
+                  </span>
+                  <span class="league-rival-ppts">
+                    {% if p.points is not none %}{{ '%.0f'|format(p.points) }}{% elif not rival_card.show_scores %}—{% else %}<span class="muted">…</span>{% endif %}
+                  </span>
+                </li>
+                {% endfor %}
+              </ul>
+              {% else %}
+              <p class="muted tiny">No locked XI yet.</p>
+              {% endif %}
+            </div>
+            <div class="league-matchup-xi is-them">
+              <p class="league-matchup-label">{{ rival_card.rival.team_name }}</p>
+              {% if rival_card.rival_players %}
+              <ul class="league-rival-xi">
+                {% for p in rival_card.rival_players %}
+                <li class="league-rival-player {% if p.is_captain %}is-cap{% endif %}">
+                  <span class="league-rival-pos">{{ p.pos }}</span>
+                  <span class="league-rival-name">
+                    {{ p.name }}
+                    {% if p.is_captain %}<em class="league-rival-arm">C</em>{% elif p.is_vice %}<em class="league-rival-arm">V</em>{% endif %}
+                    <span class="muted">{{ p.team }}</span>
+                  </span>
+                  <span class="league-rival-ppts">
+                    {% if p.points is not none %}{{ '%.0f'|format(p.points) }}{% elif not rival_card.show_scores %}—{% else %}<span class="muted">…</span>{% endif %}
+                  </span>
+                </li>
+                {% endfor %}
+              </ul>
+              {% else %}
+              <p class="muted tiny">No locked XI yet.</p>
+              {% endif %}
+            </div>
+          </div>
         {% endif %}
       </section>
-      {% endif %}
-
-      {% else %}
+      {% elif mode != 'h2h' %}
       <section class="panel league-mid-classic" aria-label="Classic league">
         <h2 class="section-title tight">Classic</h2>
-        <p class="muted tiny">Total points all season. Ask the league owner if you want weekly H2H fixtures.</p>
+        <p class="muted tiny">Total points all season.</p>
       </section>
       {% endif %}
     </div>
 
-    {# Col 3 — chips board (top) + season awards (bottom) #}
+    {# Col 3 — chips (top) + awards (bottom) #}
     <div class="league-col league-col-awards league-awards-desk">
       {% if chips_board %}
       <section class="panel league-chips-board" aria-label="Chips remaining">
         <header class="league-awards-head">
           <h2 class="section-title tight">Chips left</h2>
-          <p class="muted tiny">What everyone still has in the bank</p>
+          <p class="muted tiny">Grey = already used</p>
         </header>
         <ul class="league-chips-list">
           {% for row in chips_board %}
@@ -225,15 +236,14 @@
             <span class="h2h-avatar tone-{{ row.avatar_tone }}" aria-hidden="true">{{ row.initials }}</span>
             <div class="league-chips-meta">
               <strong>{{ row.team_name }}</strong>
-              {% if row.chips %}
               <span class="league-chips-pills">
                 {% for c in row.chips %}
-                <span class="league-chip-pill">{{ c }}</span>
+                <span
+                  class="league-chip-pill {% if not c.available %}is-used{% endif %}"
+                  title="{{ c.label }}{% if c.available %} · {{ c.remaining }} left{% else %} · used{% endif %}"
+                >{{ c.short }}</span>
                 {% endfor %}
               </span>
-              {% else %}
-              <span class="muted tiny">All used</span>
-              {% endif %}
             </div>
           </li>
           {% endfor %}

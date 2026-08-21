@@ -9926,6 +9926,40 @@ body.page-squad .stat-strip {
 .league-hero h1 {
   margin: 0.1rem 0 0.25rem;
 }
+.league-hero-compact {
+  margin: 0 0 0.7rem;
+}
+.league-hero-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.55rem;
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+.league-hero-line .eyebrow.inline {
+  margin: 0;
+  display: inline;
+}
+.league-hero-sep {
+  opacity: 0.45;
+}
+.league-hero-meta strong {
+  color: var(--ink);
+  font-weight: 800;
+}
+.league-leave-inline {
+  display: inline;
+  margin: 0;
+}
+.league-leave-btn {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
 .league-desk {
   display: flex;
   flex-direction: column;
@@ -9940,13 +9974,10 @@ body.page-squad .stat-strip {
 }
 .league-h2h-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
   margin: 0 0 0.55rem;
-}
-.league-h2h-head .league-h2h-sub {
-  margin: 0.1rem 0 0;
 }
 .league-h2h-head .section-title {
   margin: 0;
@@ -9954,13 +9985,19 @@ body.page-squad .stat-strip {
 .league-gw-picker-wrap {
   flex: 0 0 auto;
   margin: 0;
+  display: block;
 }
 .league-gw-picker {
-  min-height: 2.2rem;
-  padding: 0.35rem 0.55rem;
-  font-size: 0.82rem;
-  font-weight: 700;
+  display: block;
+  min-width: 8.5rem;
+  min-height: 2.35rem;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.86rem;
+  font-weight: 800;
   border-radius: 0.55rem;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
 }
 .league-col-awards {
   display: flex;
@@ -9998,17 +10035,27 @@ body.page-squad .stat-strip {
 }
 .league-chips-pills {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
+  flex-wrap: nowrap;
+  gap: 0.22rem;
+  overflow-x: auto;
+  max-width: 100%;
 }
 .league-chip-pill {
+  flex: 0 0 auto;
   font-size: 0.62rem;
   font-weight: 800;
   letter-spacing: 0.02em;
-  padding: 0.12rem 0.4rem;
+  padding: 0.12rem 0.38rem;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: color-mix(in oklab, var(--ink) 6%, var(--panel));
+  white-space: nowrap;
+}
+.league-chip-pill.is-used {
+  opacity: 0.38;
+  color: var(--muted);
+  background: transparent;
+  text-decoration: line-through;
 }
 .league-rival-head {
   display: flex;
@@ -10062,13 +10109,29 @@ body.page-squad .stat-strip {
 .league-rival-note {
   margin: -0.25rem 0 0.55rem;
 }
+.league-matchup-xis {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+.league-matchup-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .league-rival-xi {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
   gap: 0.22rem;
-  max-height: 22rem;
+  max-height: 26rem;
   overflow: auto;
 }
 .league-rival-player {

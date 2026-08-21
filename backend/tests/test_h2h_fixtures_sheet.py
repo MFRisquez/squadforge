@@ -114,8 +114,12 @@ def test_h2h_fixture_cards_and_league_page_sheet():
     assert "league_h2h.js" in html
     assert "h2hFixturesBoot" in html
     assert "league-gw-picker" in html
-    assert "Your rival" in html
+    assert "You vs rival" in html
     assert "Chips left" in html
+    assert "Manager vs manager" not in html
+    assert "Delete league" not in html
+    assert "league-hero-compact" in html
+    assert "Invite" in html
     assert "Foxes" in html and "Badgers" in html
     # Boot JSON includes top player payload
     assert pname.split()[0] in html or pname in html
@@ -408,7 +412,8 @@ def test_league_chips_board_and_rival_snapshot_on_page():
         board = standings_svc.league_chips_board(db, league, me_id=a.id)
         assert len(board) == 2
         assert any(r["is_me"] for r in board)
-        assert all("chips" in r for r in board)
+        assert all(len(r["chips"]) == 5 for r in board)
+        assert all("available" in c for r in board for c in r["chips"])
 
         snap = standings_svc.my_h2h_rival_snapshot(
             db, league, gw, a.id, edits_locked=True, current_gw_id=gw.id
@@ -417,7 +422,8 @@ def test_league_chips_board_and_rival_snapshot_on_page():
         assert snap["bye"] is False
         assert snap["rival"]["manager_id"] == b.id
         assert snap["show_scores"] is True
-        assert len(snap["players"]) >= 2
+        assert len(snap["rival_players"]) >= 2
+        assert "me_players" in snap
         lid = league.id
     finally:
         db.close()
@@ -427,9 +433,10 @@ def test_league_chips_board_and_rival_snapshot_on_page():
     html = client.get(f"/league/{lid}").text
     assert "league-gw-picker" in html
     assert "Chips left" in html
-    assert "Your rival" in html
-    assert "league-rival-xi" in html
+    assert "You vs rival" in html
+    assert "league-matchup-xis" in html
     assert "Chip Beta" in html
+    assert "is-used" in html or "league-chip-pill" in html
     # GW query param works
     html2 = client.get(f"/league/{lid}?gw=1").text
     assert "league-gw-picker" in html2
