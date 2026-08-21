@@ -6,20 +6,39 @@
 {{ gw_bar(gw, deadline_label, True, prev_gw, next_gw, '/league/' ~ league.id ~ '/opponent/' ~ opponent.id, all_gws, current_gw_number) }}
 
 <section class="hero-block compact opponent-hero">
-  <p class="eyebrow">{{ league.name }}</p>
-  <h1>{{ opponent.team_name or '—' }}</h1>
-  <div class="opponent-meta">
-    <span class="pill soft">GW {{ squad_gw.number }}</span>
+  {# Phone: one line — H2H · team · GW · pts (no you-vs-them scoreboard) #}
+  <p class="opponent-mobile-line" aria-label="Opponent summary">
+    <span class="opponent-kind">{% if league.league_type == 'h2h' %}H2H{% else %}League{% endif %}</span>
+    <span class="opponent-sep" aria-hidden="true">·</span>
+    <strong class="opponent-team">{{ opponent.team_name or '—' }}</strong>
+    <span class="opponent-sep" aria-hidden="true">·</span>
+    <span class="opponent-gw">GW{{ squad_gw.number }}</span>
+    <span class="opponent-sep" aria-hidden="true">·</span>
     {% if squad_unavailable %}
-      <span class="pill soft opponent-frozen">Not revealed yet</span>
+    <span class="opponent-pts">hidden</span>
     {% elif any_fixture_started and score %}
-      <span class="pill soft">{{ '%.0f'|format(score.total) }} pts</span>
+    <span class="opponent-pts">{{ '%.0f'|format(score.total) }} pts</span>
     {% else %}
-      <span class="pill soft">pts pending</span>
+    <span class="opponent-pts">pts pending</span>
     {% endif %}
-    {% if squad_frozen %}
-      <span class="pill soft opponent-frozen">Locked squad</span>
-    {% endif %}
+  </p>
+  {# Desktop: stacked hero #}
+  <div class="opponent-desk-head">
+    <p class="eyebrow">{% if league.league_type == 'h2h' %}H2H{% else %}{{ league.name }}{% endif %}</p>
+    <h1>{{ opponent.team_name or '—' }}</h1>
+    <div class="opponent-meta">
+      <span class="pill soft">GW {{ squad_gw.number }}</span>
+      {% if squad_unavailable %}
+        <span class="pill soft opponent-frozen">Not revealed yet</span>
+      {% elif any_fixture_started and score %}
+        <span class="pill soft">{{ '%.0f'|format(score.total) }} pts</span>
+      {% else %}
+        <span class="pill soft">pts pending</span>
+      {% endif %}
+      {% if squad_frozen %}
+        <span class="pill soft opponent-frozen">Locked squad</span>
+      {% endif %}
+    </div>
   </div>
   {% if squad_unavailable %}
   <p class="muted tiny opponent-freeze-note">Squads reveal once the GW{{ squad_gw.number }} deadline passes.</p>
