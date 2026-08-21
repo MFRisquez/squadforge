@@ -608,9 +608,9 @@ def h2h_fixture_cards(db: Session, league: League, gw) -> list[dict]:
     from app.services import deadline as deadline_svc
 
     _, fixtures = h2h_standings(db, league, gw)
-    status = (getattr(gw, "status", "") or "").lower()
-    # Scores / top XI only after the deadline — never leak live picks pre-lock.
-    show_scores = deadline_svc.deadline_passed(gw) and status not in {"upcoming", ""}
+    # Scores / top XI after deadline — leave Preview mode even if FPL status
+    # still says "upcoming" (auto-scorer also flips status to live).
+    show_scores = deadline_svc.deadline_passed(gw)
     season = _h2h_season_records(db, league.id)
 
     manager_ids: list[int] = []
@@ -699,7 +699,11 @@ def h2h_fixture_cards(db: Session, league: League, gw) -> list[dict]:
                     "display_name": home.display_name if home else "TBD",
                     "initials": _team_initials(home_name),
                     "avatar_tone": (int(home_id) % 8) if home_id is not None else 0,
-                    "points": float(fx.get("home_points") or 0),
+                    "points": (
+                        float(scores_by_mgr[home_id].total)
+                        if show_scores and home_id in scores_by_mgr
+                        else float(fx.get("home_points") or 0)
+                    ),
                     "top_player": top_player_for(home_id) if show_scores else None,
                     "chips_left": _chips_labels_from_state(chips_by_mgr.get(home_id))
                     if home_id
@@ -711,7 +715,11 @@ def h2h_fixture_cards(db: Session, league: League, gw) -> list[dict]:
                     "display_name": away.display_name if away else "TBD",
                     "initials": _team_initials(away_name),
                     "avatar_tone": (int(away_id) % 8) if away_id is not None else 0,
-                    "points": float(fx.get("away_points") or 0),
+                    "points": (
+                        float(scores_by_mgr[away_id].total)
+                        if show_scores and away_id in scores_by_mgr
+                        else float(fx.get("away_points") or 0)
+                    ),
                     "top_player": top_player_for(away_id) if show_scores else None,
                     "chips_left": _chips_labels_from_state(chips_by_mgr.get(away_id))
                     if away_id
@@ -816,8 +824,11 @@ def _pack_gw_xi_players(
             continue
         pick = picks_by_pid.get(pid)
         started = pl.team_code in started_clubs
-        pts = points_map.get(pid) if started else None
-        if not show_scores and not squad_frozen:
+        # When scores are unlocked, always surface PlayerPoints (0 before kickoff).
+        # Do not hide as None/"—" just because Fixture.started lagged.
+        if show_scores or squad_frozen:
+            pts = float(points_map[pid]) if pid in points_map else (0.0 if show_scores else None)
+        else:
             pts = None
         players_out.append(
             {

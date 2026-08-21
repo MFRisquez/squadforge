@@ -266,12 +266,23 @@ def effective_captain_id(
     captain_id: int,
     vice_id: int | None,
     minutes_by_player: dict[int, float],
+    *,
+    captain_fixture_finished: bool = False,
 ) -> int:
-    """If captain plays 0 minutes, armband passes to vice-captain (FPL-style)."""
+    """Armband stays on captain until their fixture is finished with 0 minutes.
+
+    FPL-style: if the captain plays, they keep ×2/×3. If the captain's match
+    ends with 0 minutes, the vice gets the armband (only then — not while the
+    captain's kickoff is still ahead).
+    """
     cap_mins = minutes_by_player.get(captain_id, 0) or 0
     if cap_mins > 0:
         return captain_id
-    if vice_id and (minutes_by_player.get(vice_id, 0) or 0) > 0:
+    if (
+        captain_fixture_finished
+        and vice_id
+        and (minutes_by_player.get(vice_id, 0) or 0) > 0
+    ):
         return vice_id
     return captain_id
 

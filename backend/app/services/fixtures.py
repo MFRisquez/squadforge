@@ -240,6 +240,11 @@ def club_fixture_started(db: Session, *, club_code: str, gw_number: int) -> bool
     return club_match_state(db, club_code=club_code, gw_number=gw_number) in {"live", "finished"}
 
 
+def club_fixture_finished(db: Session, *, club_code: str, gw_number: int) -> bool:
+    """True when every fixture for this club in the GW is finished (DGW-safe)."""
+    return club_match_state(db, club_code=club_code, gw_number=gw_number) == "finished"
+
+
 def fixtures_for_gameweek(db: Session, *, gw_number: int) -> list[dict[str, Any]]:
     clubs = {c.code: c for c in db.query(Club).all()}
     rows = (
