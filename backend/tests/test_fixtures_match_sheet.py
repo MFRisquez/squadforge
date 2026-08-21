@@ -108,6 +108,7 @@ def test_fixture_detail_is_local_only_no_pulse():
         assert "team_news" not in detail
         assert "preview" not in detail
         assert "pulse" not in detail
+        assert detail.get("team_stats") is None
         pulse_mock.assert_not_called()
     finally:
         db.close()

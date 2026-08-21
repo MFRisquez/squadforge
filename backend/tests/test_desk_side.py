@@ -488,3 +488,51 @@ def test_manager_rank_sparks_switchable_for_two_leagues():
         assert all(c["preview"] for c in bundle["charts"])
     finally:
         db.close()
+
+
+def test_request_wants_desk_side_skips_phones():
+    from starlette.requests import Request
+    from app.web_routes import _request_wants_desk_side
+
+    def req(**headers):
+        scope = {
+            "type": "http",
+            "asgi": {"version": "3.0"},
+            "http_version": "1.1",
+            "method": "GET",
+            "scheme": "https",
+            "path": "/team",
+            "raw_path": b"/team",
+            "query_string": b"",
+            "headers": [(k.lower().encode(), v.encode()) for k, v in headers.items()],
+            "client": ("127.0.0.1", 123),
+            "server": ("test", 443),
+        }
+        return Request(scope)
+
+    assert _request_wants_desk_side(req(**{"x-ff-desktop": "0"})) is False
+    assert _request_wants_desk_side(req(**{"x-ff-desktop": "1"})) is True
+    assert _request_wants_desk_side(req(**{"sec-ch-ua-mobile": "?1"})) is False
+    assert _request_wants_desk_side(req(**{"sec-ch-ua-mobile": "?0"})) is True
+    assert (
+        _request_wants_desk_side(
+            req(**{"user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)"})
+        )
+        is False
+    )
+    assert (
+        _request_wants_desk_side(
+            req(
+                **{
+                    "user-agent": "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Mobile Safari/537.36"
+                }
+            )
+        )
+        is False
+    )
+    assert (
+        _request_wants_desk_side(
+            req(**{"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0"})
+        )
+        is True
+    )

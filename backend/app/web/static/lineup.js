@@ -1113,8 +1113,16 @@
       .catch(() => {});
   }
   if (LOCKED) {
-    pollLivePoints();
-    livePollTimer = window.setInterval(pollLivePoints, 30000);
+    // Don't block soft-nav paint with a sync score+poll — kick off after first frame.
+    const startLivePoll = () => {
+      pollLivePoints();
+      livePollTimer = window.setInterval(pollLivePoints, 30000);
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(startLivePoll, { timeout: 1800 });
+    } else {
+      window.setTimeout(startLivePoll, 400);
+    }
   }
 
   const onResize = () => {
