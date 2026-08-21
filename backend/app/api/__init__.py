@@ -282,8 +282,8 @@ def api_fixtures_refresh(gw: Optional[int] = None) -> dict:
 def api_xi_live_points(request: Request, gw: Optional[int] = None) -> dict:
     """Pollable live PlayerPoints + fixture-started map for the locked Lineup.
 
-    Runs scoring synchronously (when locked) so G/A from fixture stats land
-    before we return — avoids painting a stale 0 after Fixtures already moved.
+    Kick scoring in a background thread — never block the sole uvicorn worker on
+    a full FPL ingest (that was a common Render 502 under live GW traffic).
     """
     import json
 
@@ -314,7 +314,11 @@ def api_xi_live_points(request: Request, gw: Optional[int] = None) -> dict:
         db.close()
 
     if should_score:
-        maybe_score_locked_gw(force=True)
+        threading.Thread(
+            target=lambda: maybe_score_locked_gw(force=True),
+            daemon=True,
+            name="xi-live-points-score",
+        ).start()
 
     db = SessionLocal()
     try:
