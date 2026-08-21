@@ -665,7 +665,28 @@
               if (hs != null && as_ != null) scoreEl.textContent = `${hs}–${as_}`;
             }
             const clock = root.querySelector(".fx-match-clock");
-            if (clock && detail.clock) clock.textContent = detail.clock;
+            if (clock && detail.clock) {
+              clock.textContent = detail.clock;
+            } else if (detail.clock) {
+              const scoreWrap = root.querySelector(".match-score");
+              if (scoreWrap && !root.querySelector(".fx-match-clock")) {
+                const span = document.createElement("span");
+                span.className = "fx-match-clock";
+                span.textContent = detail.clock;
+                scoreWrap.appendChild(span);
+              }
+            }
+            // Status can flip upcoming → live without a full re-open.
+            const statusEl = root.querySelector("[data-fx-status]");
+            if (statusEl && detail.status) {
+              const kick = formatKickoff(detail.kickoff);
+              const clockBit = detail.clock ? ` · ${detail.clock}` : "";
+              const st = detail.status;
+              const label =
+                st === "live" ? "Live" : st === "finished" ? "Full time" : "Upcoming";
+              statusEl.textContent = `${label}${clockBit} · ${kick} · GW${detail.gw}`;
+              statusEl.classList.toggle("is-live", st === "live");
+            }
             // team_stats live on /preview (fast detail path returns null).
             return fetch(`/api/fixtures/${reqId}/preview`)
               .then((r) => (r.ok ? r.json() : Promise.reject()))
