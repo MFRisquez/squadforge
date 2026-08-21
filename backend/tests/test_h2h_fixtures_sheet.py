@@ -2,6 +2,7 @@
 
 import json
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
@@ -271,6 +272,14 @@ def test_h2h_fixture_cards_include_season_record():
     assert "2-1 this season" in html
     assert "h2h-avatar" in html
     assert "live-dot" in html
+    css = (Path(__file__).resolve().parents[1] / "app" / "web" / "static" / "styles.css").read_text(
+        encoding="utf-8"
+    )
+    assert "background: var(--panel)" in css
+    assert "html[data-theme=\"dark\"] .h2h-card" in css
+    assert "repeat(auto-fill, minmax(17.5rem, 1fr))" in css
+    assert ".h2h-card.is-draw" in css
+    assert ".h2h-card.is-live" in css or ".h2h-card.is-pending" in css
 
 
 def test_h2h_preview_hides_scores_before_gw_starts():

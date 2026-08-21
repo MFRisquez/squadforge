@@ -33,7 +33,7 @@
             {% set away_name = (fx.away.team_name if fx.away and fx.away.team_name else '') or ('TBD' if not fx.away else '—') %}
             {% set home_win = fx.result == 'home' %}
             {% set away_win = fx.result == 'away' %}
-            <article class="h2h-card {% if fx.result == 'pending' %}is-pending{% elif fx.result == 'draw' %}is-draw{% endif %}">
+            <article class="h2h-card {% if fx.result == 'pending' %}is-pending is-live{% elif fx.result == 'draw' %}is-draw{% else %}is-ft{% endif %}">
               <div class="h2h-side {% if home_win %}is-winner{% endif %}">
                 {% if fx.home %}
                   <a class="standings-team-link" href="/league/{{ league.id }}/opponent/{{ fx.home.id }}?gw={{ gw.number }}"><strong>{{ home_name }}</strong></a>
@@ -44,7 +44,7 @@
               </div>
               <div class="h2h-vs">
                 {% if fx.result == 'pending' %}
-                  <span class="pill soft">LIVE</span>
+                  <span class="fx-status-row h2h-live"><em class="live-dot">LIVE</em></span>
                 {% elif fx.result == 'draw' %}
                   <span class="pill soft">DRAW</span>
                 {% else %}
