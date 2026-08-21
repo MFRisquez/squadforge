@@ -401,10 +401,12 @@ def h2h_standings(db: Session, league: League, gw) -> tuple[list[dict], list[dic
     base_rows = _batch_manager_row_bases(db, members, gw)
     stats = {}
     for base in base_rows:
-        base.pop("_totals_by_number", None)
+        by_number = base.pop("_totals_by_number", None) or {}
+        best_gw = float(max(by_number.values())) if by_number else 0.0
         mid = base["manager"].id
         stats[mid] = {
             **base,
+            "best_gw": best_gw,
             "played": 0,
             "wins": 0,
             "draws": 0,
@@ -452,6 +454,21 @@ def h2h_standings(db: Session, league: League, gw) -> tuple[list[dict], list[dic
         row["rank"] = i
         row["prev_rank"] = None
         row["rank_delta"] = None
+
+    # Rank movement vs previous GW H2H table (same ↑/↓ as Classic).
+    if gw is not None and int(getattr(gw, "number", 0) or 0) > 1:
+        hist = h2h_rank_history(db, league, int(gw.number) - 1)
+        prev_ranks = {
+            int(m["manager_id"]): int(m["ranks"][-1])
+            for m in hist.get("managers") or []
+            if m.get("ranks")
+        }
+        for row in rows:
+            prev = prev_ranks.get(row["manager"].id)
+            if prev is None:
+                continue
+            row["prev_rank"] = prev
+            row["rank_delta"] = prev - row["rank"]
 
     by_id = {m.id: m for m in members}
     fixtures = []

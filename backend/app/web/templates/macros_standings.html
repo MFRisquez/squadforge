@@ -31,11 +31,13 @@
     <span>Pos</span>
     <span>Team</span>
     {% if is_h2h %}
-    <span>Pts</span>
-    <span title="Recent GW points">Form</span>
+    <span title="H2H table points">Pts</span>
+    <span title="Season fantasy points">Total</span>
+    <span title="Recent GW fantasy points">Form</span>
     <span>W</span>
     <span>D</span>
     <span>L</span>
+    <span title="Best single GW score">Best</span>
     {% else %}
     <span title="Recent GW points">Form</span>
     {% endif %}
@@ -56,10 +58,12 @@
       </a>
       {% if is_h2h %}
       <span class="standings-h2h-pts"><strong>{{ row.h2h_points }}</strong></span>
+      <span class="standings-tot">{{ '%.0f'|format(row.total_points) }}</span>
       <span class="standings-trend" title="Last {{ row.trend|length }} GW fantasy points">{{ trend_spark(row) }}</span>
       <span class="standings-w">{{ row.wins }}</span>
       <span class="standings-d">{{ row.draws }}</span>
       <span class="standings-l">{{ row.losses }}</span>
+      <span class="standings-best">{{ '%.0f'|format(row.best_gw or 0) }}</span>
       <span class="standings-gw">{{ '%.0f'|format(row.gw_points) }}</span>
       {% else %}
       <span class="standings-trend" title="Last {{ row.trend|length }} GW fantasy points">{{ trend_spark(row) }}</span>
