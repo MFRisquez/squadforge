@@ -124,20 +124,20 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS / catalog that showed wrong avail flags
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v165"' in sw
+    assert 'CACHE = "futfantasy-v166"' in sw
     assert "if (isStatic || isBadgeCdn) return cached || fetched" in sw
     assert "CSS is network-first" in sw
     # Must not cache-first the catalog (stale availability after FPL sync).
     assert "if (isStatic || isCatalog || isBadgeCdn) return cached || fetched" not in sw
-    assert "/static/styles.css?v=165" in sw
+    assert "/static/styles.css?v=166" in sw
     assert "/static/league_h2h.js" in sw
     assert "/static/club-sheet.js" in sw
     assert 'BADGE_CDN_HOST = "resources.premierleague.com"' in sw
     assert "isBadgeCdn" in sw
     assert "isStatic || isCatalog || isBadgeCdn" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=165" in base
-    assert "styles.css?v=165" in base
+    assert "sw.js?v=166" in base
+    assert "styles.css?v=166" in base
     css = (STATIC / "styles.css").read_text(encoding="utf-8")
     assert "shirt-pts-fx.is-live-match" in css
     assert "linear-gradient(135deg, #5b21b6" in css
@@ -186,6 +186,8 @@ def test_desk_side_left_layout_phase0():
     assert 'class="desk-rail desk-side-left"' in lineup
     assert 'id="squadSideLeft"' in team
     assert 'class="desk-rail desk-side-left"' in team
+    assert "{% if transfers_side_left is not none %}" in team
+    assert "{% if xi_side_left is not none %}" in lineup
     # Free Agents rail still present on Transfers
     assert 'id="transferRail"' in team
     assert "desk-side-left" in team[: team.find("transferRail")]
@@ -356,6 +358,13 @@ def test_appshell_softnav_perf_instrumentation():
     assert "function reportSoftNavTiming(" in js
     assert "function softNavHeaders()" in js
     assert '"X-FF-Desktop"' in js or "'X-FF-Desktop'" in js
+    assert "function syncDeskCookie()" in js
+    assert "ff_desk=" in js
+    base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
+    assert "ff_desk=" in base
+    main = (Path(__file__).resolve().parents[1] / "app" / "main.py").read_text(encoding="utf-8")
+    assert "Accept-CH" in main
+    assert "Sec-CH-UA-Mobile" in main
     assert "performance.now()" in js
     assert 'fetch("/api/client-perf"' in js
     assert "fromCache" in js

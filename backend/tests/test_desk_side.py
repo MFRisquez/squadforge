@@ -492,7 +492,7 @@ def test_manager_rank_sparks_switchable_for_two_leagues():
 
 def test_request_wants_desk_side_skips_phones():
     from starlette.requests import Request
-    from app.web_routes import _request_wants_desk_side
+    from app.desk_viewport import request_wants_desk_side as _request_wants_desk_side
 
     def req(**headers):
         scope = {
@@ -514,6 +514,10 @@ def test_request_wants_desk_side_skips_phones():
     assert _request_wants_desk_side(req(**{"x-ff-desktop": "1"})) is True
     assert _request_wants_desk_side(req(**{"sec-ch-ua-mobile": "?1"})) is False
     assert _request_wants_desk_side(req(**{"sec-ch-ua-mobile": "?0"})) is True
+    assert _request_wants_desk_side(req(**{"viewport-width": "390"})) is False
+    assert _request_wants_desk_side(req(**{"sec-ch-viewport-width": "1200"})) is True
+    assert _request_wants_desk_side(req(**{"cookie": "ff_desk=0"})) is False
+    assert _request_wants_desk_side(req(**{"cookie": "ff_desk=1"})) is True
     assert (
         _request_wants_desk_side(
             req(**{"user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)"})
@@ -536,3 +540,20 @@ def test_request_wants_desk_side_skips_phones():
         )
         is True
     )
+
+
+def test_xi_side_kpis_skips_on_mobile():
+    from starlette.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app)
+    res = client.get(
+        "/api/xi/side-kpis",
+        headers={"X-FF-Desktop": "0", "User-Agent": "Mozilla/5.0 (iPhone)"},
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body.get("ok") is True
+    assert body.get("skipped") == "mobile"
+    assert body.get("top_scorers") == []
+

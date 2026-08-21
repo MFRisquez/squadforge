@@ -9,8 +9,20 @@
   let navigating = false;
   let pendingNav = null; // latest path queued while a soft-nav is in flight
 
+  function syncDeskCookie() {
+    try {
+      const desk = DESK_MQ && DESK_MQ.matches ? "1" : "0";
+      document.cookie = `ff_desk=${desk}; Path=/; Max-Age=31536000; SameSite=Lax`;
+    } catch (_) {}
+  }
+  syncDeskCookie();
+  if (DESK_MQ && typeof DESK_MQ.addEventListener === "function") {
+    DESK_MQ.addEventListener("change", syncDeskCookie);
+  }
+
   function softNavHeaders() {
     // Same ≥900px breakpoint as lineup isDesktop — server skips desk-side work on phone.
+    syncDeskCookie();
     return {
       Accept: "text/html",
       "X-Requested-With": "ff-shell",
