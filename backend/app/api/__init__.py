@@ -281,44 +281,54 @@ def api_fixtures_refresh(gw: Optional[int] = None) -> dict:
 def api_xi_live_points(request: Request, gw: Optional[int] = None) -> dict:
     """Pollable live PlayerPoints + fixture-started map for the locked Lineup.
 
-    Triggers a background score refresh, then returns whatever is already in DB
-    (same race-tolerant pattern as the Lineup HTML route).
+    Runs scoring synchronously (when locked) so G/A from fixture stats land
+    before we return — avoids painting a stale 0 after Fixtures already moved.
     """
-    import threading
+    import json
 
     from app.auth import current_manager
     from app.config import settings
-    from app.models import Fixture, PlayerPoints
+    from app.models import Fixture, ManagerGameweekScore, PlayerPoints
     from app.services import deadline as deadline_svc
     from app.services import squad as squad_svc
     from app.services.auto_score import maybe_score_locked_gw
 
+    should_score = False
+    gw_number: Optional[int] = int(gw) if gw is not None else None
     db = SessionLocal()
     try:
         manager = current_manager(request, db)
         if not manager:
             return {"ok": False, "error": "auth"}
         try:
-            gameweek = deadline_svc.get_gameweek(db, int(gw) if gw is not None else None)
+            gameweek = deadline_svc.get_gameweek(db, gw_number)
         except Exception:
             return {"ok": False, "error": "gameweek"}
         current = squad_svc.current_gameweek(db)
-        if gameweek.id == current.id and deadline_svc.deadline_passed(current):
-            threading.Thread(target=lambda: maybe_score_locked_gw(force=True), daemon=True).start()
+        should_score = gameweek.id == current.id and deadline_svc.deadline_passed(current)
+        manager_id = manager.id
+        gameweek_id = gameweek.id
+        gameweek_number = int(gameweek.number)
+    finally:
+        db.close()
+
+    if should_score:
+        maybe_score_locked_gw(force=True)
+
+    db = SessionLocal()
+    try:
         points: dict[str, float] = {}
         breakdowns: dict[str, dict] = {}
         for row in (
             db.query(PlayerPoints)
             .filter(
-                PlayerPoints.gameweek_id == gameweek.id,
+                PlayerPoints.gameweek_id == gameweek_id,
                 PlayerPoints.formula_version == settings.formula_version,
             )
             .all()
         ):
             points[str(row.player_id)] = float(row.total or 0)
             try:
-                import json
-
                 bd = json.loads(row.breakdown_json or "{}")
             except Exception:
                 bd = {}
@@ -327,27 +337,25 @@ def api_xi_live_points(request: Request, gw: Optional[int] = None) -> dict:
                     str(k): float(v or 0) for k, v in bd.items()
                 }
         started_clubs: set[str] = set()
-        for fx in db.query(Fixture).filter(Fixture.gameweek_number == gameweek.number).all():
+        for fx in db.query(Fixture).filter(Fixture.gameweek_number == gameweek_number).all():
             if fx.started or fx.finished:
                 if fx.home_club_code:
                     started_clubs.add(fx.home_club_code)
                 if fx.away_club_code:
                     started_clubs.add(fx.away_club_code)
-        owned = squad_svc.owned_players(db, manager.id)
+        owned = squad_svc.owned_players(db, manager_id)
         fixture_started = {str(p.id): p.team_code in started_clubs for p in owned}
-        from app.models import ManagerGameweekScore
-
         score = (
             db.query(ManagerGameweekScore)
             .filter(
-                ManagerGameweekScore.manager_id == manager.id,
-                ManagerGameweekScore.gameweek_id == gameweek.id,
+                ManagerGameweekScore.manager_id == manager_id,
+                ManagerGameweekScore.gameweek_id == gameweek_id,
             )
             .one_or_none()
         )
         return {
             "ok": True,
-            "gw": int(gameweek.number),
+            "gw": gameweek_number,
             "points": points,
             "breakdowns": breakdowns,
             "fixtureStarted": fixture_started,

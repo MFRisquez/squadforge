@@ -28,6 +28,28 @@
     return Boolean(FIXTURE_STARTED[String(playerId)] || FIXTURE_STARTED[playerId]);
   }
 
+  function armbandMult(playerId, onBench) {
+    if (!onBench && Number(playerId) === Number(captainId)) {
+      return activeChip === "triple_captain" ? 3 : 2;
+    }
+    if (activeChip === "super_sub" && Number(superSubPlayerId) === Number(playerId)) {
+      return 2;
+    }
+    return 1;
+  }
+
+  function livePtsLabel(playerId, onBench) {
+    const raw = POINTS[String(playerId)];
+    if (raw == null || raw === "") return null;
+    const base = Number(raw);
+    if (!Number.isFinite(base)) return null;
+    const mult = armbandMult(playerId, onBench);
+    if (mult > 1) {
+      return { text: `${Math.round(base)}×${mult}`, n: base * mult, mult };
+    }
+    return { text: String(Math.round(base)), n: base, mult: 1 };
+  }
+
   function canPickAsCaptain(playerId) {
     return starterIds.has(playerId) && !matchStarted(playerId);
   }
@@ -463,14 +485,15 @@
       }
     }
     const isSS = activeChip === "super_sub" && Number(superSubPlayerId) === Number(player.id);
+    const liveLabel = LOCKED && matchStarted(player.id) ? livePtsLabel(player.id, onBench) : null;
     detailBody.innerHTML = `
       <div class="player-detail-hero player-detail-hero-meta compact-meta">
         <div class="meta">
           ${isCap ? `<span class="role-pill is-c">${activeChip === "triple_captain" ? "Triple captain ×3" : "Captain ×2"}</span>` : ""}
           ${isVice ? `<span class="role-pill is-v">Vice-captain</span>` : ""}
           ${isSS ? `<span class="role-pill is-ss">Super Sub ×2</span>` : ""}
-          ${LOCKED && matchStarted(player.id) && pts != null ? `<strong class="match-pts">${Number(pts).toFixed(0)} pts</strong>` : ""}
-          ${!(LOCKED && matchStarted(player.id)) && player.fdr ? `<span class="muted tiny">${player.fdr.opponent} (${player.fdr.venue === "H" ? "H" : "A"})</span>` : ""}
+          ${liveLabel ? `<strong class="match-pts">${liveLabel.text} pts</strong>` : ""}
+          ${!liveLabel && player.fdr ? `<span class="muted tiny">${player.fdr.opponent} (${player.fdr.venue === "H" ? "H" : "A"})</span>` : ""}
         </div>
       </div>
       <div class="kpi-block">
@@ -637,15 +660,10 @@
     let footHtml;
     // Locked: show live pts only after that club's fixture has started;
     // otherwise keep opponent (same rule as the bench strip).
-    if (
-      LOCKED &&
-      matchStarted(player.id) &&
-      pts != null &&
-      pts !== ""
-    ) {
-      const n = Number(pts);
-      const cls = n < 0 ? "is-neg" : n > 0 ? "is-pos" : "";
-      footHtml = `<span class="shirt-foot shirt-opp shirt-pts-fx ${cls}">${n.toFixed(0)}</span>`;
+    const live = LOCKED && matchStarted(player.id) ? livePtsLabel(player.id, onBench) : null;
+    if (live) {
+      const cls = live.n < 0 ? "is-neg" : live.n > 0 ? "is-pos" : "";
+      footHtml = `<span class="shirt-foot shirt-opp shirt-pts-fx ${cls}">${live.text}</span>`;
     } else if (fdr) {
       const venue = fdr.venue === "H" ? "H" : "A";
       footHtml = `<span class="shirt-foot shirt-opp fdr-${fdr.difficulty}">${fdr.opponent} (${venue})</span>`;
@@ -709,15 +727,10 @@
     meta.className = "xi-bench-meta";
     const fdr = player.fdr;
     let fixtureHtml;
-    if (
-      LOCKED &&
-      matchStarted(player.id) &&
-      POINTS[String(player.id)] != null &&
-      POINTS[String(player.id)] !== ""
-    ) {
-      const n = Number(POINTS[String(player.id)]);
-      const cls = n < 0 ? "is-neg" : n > 0 ? "is-pos" : "";
-      fixtureHtml = `<span class="xi-bench-fixture shirt-pts-fx ${cls}">${n.toFixed(0)} pts</span>`;
+    const live = LOCKED && matchStarted(player.id) ? livePtsLabel(player.id, true) : null;
+    if (live) {
+      const cls = live.n < 0 ? "is-neg" : live.n > 0 ? "is-pos" : "";
+      fixtureHtml = `<span class="xi-bench-fixture shirt-pts-fx ${cls}">${live.text} pts</span>`;
     } else if (fdr) {
       const venue = fdr.venue === "H" ? "H" : "A";
       fixtureHtml = `<span class="xi-bench-fixture fdr-${fdr.difficulty}">${fdr.opponent} (${venue})</span>`;
@@ -818,7 +831,7 @@
     const ranked = squad.map((p) => {
       const started = matchStarted(p.id);
       const base = started ? Number(POINTS[String(p.id)] || 0) : 0;
-      const mult = p.id === captainId ? 2 : 1;
+      const mult = armbandMult(p.id, !starterIds.has(p.id));
       const total = started ? base * mult : Number.NEGATIVE_INFINITY;
       return { p, base, mult, total, bd: BREAKDOWNS[String(p.id)] || {}, started };
     });
@@ -1095,7 +1108,7 @@
   }
   if (LOCKED) {
     pollLivePoints();
-    livePollTimer = window.setInterval(pollLivePoints, 45000);
+    livePollTimer = window.setInterval(pollLivePoints, 30000);
   }
 
   const onResize = () => {
