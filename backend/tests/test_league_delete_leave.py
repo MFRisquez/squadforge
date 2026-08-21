@@ -148,17 +148,16 @@ def test_league_page_shows_delete_or_leave(db):
 
     client.post("/login", data={"login": "Owner", "password": "secret12"}, follow_redirects=False)
     html = client.get(f"/league/{league.id}").text
-    assert "Delete league" in html
-    assert "Leave league" not in html
-    assert "This deletes the league for everyone" in html
-    assert "Manage" in html
+    assert "Delete league" not in html
+    assert "js-leave-league" not in html
     assert "Save format" not in html
     assert "<h2>League format</h2>" not in html
     assert "Position timeline" not in html
+    assert "Invite" in html
 
     client.post("/login", data={"login": "Guest", "password": "secret12"}, follow_redirects=False)
     html = client.get(f"/league/{league.id}").text
-    assert "Leave league" in html
+    assert "js-leave-league" in html
     assert "Delete league" not in html
     assert "Save format" not in html
     assert "<h2>League format</h2>" not in html
@@ -209,7 +208,8 @@ def test_backfill_null_league_owners_assigns_earliest_member(db):
     client = _client()
     client.post("/login", data={"login": "Owner", "password": "secret12"}, follow_redirects=False)
     html = client.get(f"/league/{league.id}").text
-    assert "Delete league" in html
+    assert "Delete league" not in html
+    assert league.invite_code in html
 
 
 def test_leave_confirm_safe_with_apostrophe_league_name(db):
@@ -227,7 +227,7 @@ def test_leave_confirm_safe_with_apostrophe_league_name(db):
 
     assert "confirm('Leave " not in html
     assert "data-league-name" not in html
-    assert 'class="js-leave-league"' in html or "class='js-leave-league'" in html
+    assert "js-leave-league" in html
     m = re.search(
         r'<script type="application/json" id="leaveLeagueName">(.*?)</script>',
         html,
