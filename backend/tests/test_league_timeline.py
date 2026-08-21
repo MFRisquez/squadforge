@@ -229,6 +229,23 @@ def test_h2h_rank_history_and_league_page_timeline():
         # After GW2 both have 3 H2H pts; A has higher PF (40+70=110 vs 60+20=80) → A #1
         assert by_id[a.id]["ranks"][1] == 1
         assert by_id[b.id]["ranks"][1] == 2
+
+        db.add(ManagerGameweekScore(manager_id=a.id, gameweek_id=gws[0].id, total=40))
+        db.add(ManagerGameweekScore(manager_id=b.id, gameweek_id=gws[0].id, total=60))
+        db.add(ManagerGameweekScore(manager_id=a.id, gameweek_id=gws[1].id, total=70))
+        db.add(ManagerGameweekScore(manager_id=b.id, gameweek_id=gws[1].id, total=20))
+        db.commit()
+
+        rows, _ = standings_svc.h2h_standings(db, league, gws[1])
+        by_mgr = {r["manager"].id: r for r in rows}
+        assert by_mgr[a.id]["total_points"] == 110
+        assert by_mgr[b.id]["total_points"] == 80
+        assert by_mgr[a.id]["best_gw"] == 70
+        assert by_mgr[b.id]["best_gw"] == 60
+        assert by_mgr[a.id]["rank"] == 1
+        assert by_mgr[a.id]["rank_delta"] == 1
+        assert by_mgr[b.id]["rank_delta"] == -1
+
         lid = league.id
     finally:
         db.close()
@@ -239,8 +256,17 @@ def test_h2h_rank_history_and_league_page_timeline():
     assert "Position timeline" not in html
     assert "rank-timeline-chart" not in html
     assert "standings-board" in html
+    assert "standings-tot" in html
+    assert "standings-best" in html
     assert "H2H Alpha" in html
     assert "H2H Beta" in html
+
+    from pathlib import Path
+
+    css = (Path(__file__).resolve().parents[1] / "app" / "web" / "static" / "styles.css").read_text(
+        encoding="utf-8"
+    )
+    assert "body.page-league.page-fit .shell" in css
 
 
 def test_fixtures_desktop_css_has_breathing_room():
