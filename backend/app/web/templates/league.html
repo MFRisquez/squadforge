@@ -24,7 +24,7 @@
             {% set away_win = fx.result == 'away' %}
             <button
               type="button"
-              class="h2h-card h2h-card-btn {% if fx.result == 'pending' %}is-pending{% elif fx.result == 'draw' %}is-draw{% endif %}"
+              class="h2h-card h2h-card-btn {% if not fx.show_scores %}is-preview{% elif fx.result == 'pending' %}is-pending is-live{% elif fx.result == 'draw' %}is-draw{% else %}is-ft{% endif %}"
               data-h2h-match="{{ fx.id }}"
               aria-label="Open {{ fx.home.team_name }} vs {{ fx.away.team_name }}"
             >
