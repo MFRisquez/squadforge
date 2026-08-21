@@ -256,6 +256,10 @@ def test_h2h_fixture_cards_include_season_record():
         card = cards[0]
         assert card["home"]["initials"] == "AF"
         assert card["away"]["initials"] == "BU"
+        assert "avatar_tone" in card["home"]
+        assert "avatar_tone" in card["away"]
+        assert 0 <= card["home"]["avatar_tone"] <= 7
+        assert 0 <= card["away"]["avatar_tone"] <= 7
         assert card["season_record"] is not None
         # From home(A) perspective: A won gw1 + gw97, B won gw98 → 2-1
         assert card["season_record"]["home_wins"] == 2
@@ -271,15 +275,23 @@ def test_h2h_fixture_cards_include_season_record():
     html = client.get(f"/league/{lid}").text
     assert "2-1 this season" in html
     assert "h2h-avatar" in html
+    assert "h2h-vs-mark" in html
+    assert "h2h-manager" in html
+    assert "tone-" in html
     assert "live-dot" in html
     css = (Path(__file__).resolve().parents[1] / "app" / "web" / "static" / "styles.css").read_text(
         encoding="utf-8"
     )
     assert "background: var(--panel)" in css
     assert "html[data-theme=\"dark\"] .h2h-card" in css
-    assert "repeat(auto-fill, minmax(17.5rem, 1fr))" in css
+    assert ".h2h-avatar.tone-0" in css
+    assert ".h2h-vs-mark" in css
+    assert ".h2h-side.is-loser" in css
     assert ".h2h-card.is-draw" in css
     assert ".h2h-card.is-live" in css or ".h2h-card.is-pending" in css
+    # League mid column keeps cards stacked (not multi-col grid)
+    assert "body.page-league .league-col-mid .h2h-cards" in css
+    assert "grid-template-columns: 1fr" in css
 
 
 def test_h2h_preview_hides_scores_before_gw_starts():

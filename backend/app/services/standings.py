@@ -681,6 +681,7 @@ def h2h_fixture_cards(db: Session, league: League, gw) -> list[dict]:
                     "team_name": home_name,
                     "display_name": home.display_name if home else "TBD",
                     "initials": _team_initials(home_name),
+                    "avatar_tone": (int(home_id) % 8) if home_id is not None else 0,
                     "points": float(fx.get("home_points") or 0),
                     "top_player": top_player_for(home_id) if show_scores else None,
                     "chips_left": _chips_labels_from_state(chips_by_mgr.get(home_id))
@@ -692,6 +693,7 @@ def h2h_fixture_cards(db: Session, league: League, gw) -> list[dict]:
                     "team_name": away_name,
                     "display_name": away.display_name if away else "TBD",
                     "initials": _team_initials(away_name),
+                    "avatar_tone": (int(away_id) % 8) if away_id is not None else 0,
                     "points": float(fx.get("away_points") or 0),
                     "top_player": top_player_for(away_id) if show_scores else None,
                     "chips_left": _chips_labels_from_state(chips_by_mgr.get(away_id))

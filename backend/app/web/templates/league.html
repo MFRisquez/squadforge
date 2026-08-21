@@ -70,48 +70,56 @@
         {% if h2h_cards %}
           <div class="h2h-cards" id="h2hCards">
             {% for fx in h2h_cards %}
-              {% set home_win = fx.result == 'home' %}
-              {% set away_win = fx.result == 'away' %}
+              {% set home_win = fx.show_scores and fx.result == 'home' %}
+              {% set away_win = fx.show_scores and fx.result == 'away' %}
+              {% set is_decided = fx.show_scores and fx.result in ('home', 'away') %}
               <button
                 type="button"
                 class="h2h-card h2h-card-btn {% if not fx.show_scores %}is-preview{% elif fx.result == 'pending' %}is-pending is-live{% elif fx.result == 'draw' %}is-draw{% else %}is-ft{% endif %}"
                 data-h2h-match="{{ fx.id }}"
                 aria-label="Open {{ fx.home.team_name }} vs {{ fx.away.team_name }}"
               >
-                <div class="h2h-side {% if home_win %}is-winner{% endif %}">
+                <div class="h2h-side {% if home_win %}is-winner{% elif is_decided %}is-loser{% endif %}">
                   <div class="h2h-team">
-                    <span class="h2h-avatar" aria-hidden="true">{{ fx.home.initials }}</span>
-                    <strong class="h2h-team-name">{{ fx.home.team_name }}{% if home_win %}<span class="h2h-win-mark" aria-hidden="true">✓</span>{% endif %}</strong>
+                    <span class="h2h-avatar tone-{{ fx.home.avatar_tone }}" aria-hidden="true">{{ fx.home.initials }}</span>
+                    <div class="h2h-meta">
+                      <strong class="h2h-team-name">{{ fx.home.team_name }}{% if home_win %}<span class="h2h-win-mark" aria-hidden="true">✓</span>{% endif %}</strong>
+                      {% if fx.home.display_name and fx.home.display_name != fx.home.team_name %}
+                      <span class="h2h-manager">{{ fx.home.display_name }}</span>
+                      {% endif %}
+                    </div>
                   </div>
                   {% if fx.show_scores %}
                   <span class="h2h-pts">{{ '%.0f'|format(fx.home.points) }}</span>
-                  {% else %}
-                  <span class="h2h-pts is-preview muted">—</span>
                   {% endif %}
                 </div>
                 <div class="h2h-vs">
+                  <span class="h2h-vs-mark" aria-hidden="true">VS</span>
                   {% if not fx.show_scores %}
-                    <span class="pill soft">Preview</span>
+                    <span class="pill soft h2h-status">Preview</span>
                   {% elif fx.result == 'pending' %}
                     <span class="fx-status-row h2h-live"><em class="live-dot">LIVE</em></span>
                   {% elif fx.result == 'draw' %}
-                    <span class="pill soft">DRAW</span>
+                    <span class="pill soft h2h-status">DRAW</span>
                   {% else %}
-                    <span class="pill soft">FT</span>
+                    <span class="pill soft h2h-status">FT</span>
                   {% endif %}
                   {% if fx.season_record %}
                   <span class="h2h-season muted">{{ fx.season_record.label }}</span>
                   {% endif %}
                 </div>
-                <div class="h2h-side {% if away_win %}is-winner{% endif %}">
+                <div class="h2h-side {% if away_win %}is-winner{% elif is_decided %}is-loser{% endif %}">
                   <div class="h2h-team">
-                    <span class="h2h-avatar" aria-hidden="true">{{ fx.away.initials }}</span>
-                    <strong class="h2h-team-name">{{ fx.away.team_name }}{% if away_win %}<span class="h2h-win-mark" aria-hidden="true">✓</span>{% endif %}</strong>
+                    <span class="h2h-avatar tone-{{ fx.away.avatar_tone }}" aria-hidden="true">{{ fx.away.initials }}</span>
+                    <div class="h2h-meta">
+                      <strong class="h2h-team-name">{{ fx.away.team_name }}{% if away_win %}<span class="h2h-win-mark" aria-hidden="true">✓</span>{% endif %}</strong>
+                      {% if fx.away.display_name and fx.away.display_name != fx.away.team_name %}
+                      <span class="h2h-manager">{{ fx.away.display_name }}</span>
+                      {% endif %}
+                    </div>
                   </div>
                   {% if fx.show_scores %}
                   <span class="h2h-pts">{{ '%.0f'|format(fx.away.points) }}</span>
-                  {% else %}
-                  <span class="h2h-pts is-preview muted">—</span>
                   {% endif %}
                 </div>
               </button>
