@@ -434,9 +434,15 @@ def api_xi_side_kpis(request: Request, gw: Optional[int] = None) -> dict:
     """Deferred XI left-rail KPIs (top scorers + position charts).
 
     Kept off the initial /lineup HTML so soft-nav paints the pitch first.
+    Phones never show the rail — skip the heavy desk_side work entirely.
     """
     from app.auth import current_manager
+    from app.desk_viewport import request_wants_desk_side
     from app.services import deadline as deadline_svc
+
+    if not request_wants_desk_side(request):
+        return {"ok": True, "skipped": "mobile", "top_scorers": [], "rank_spark": None}
+
     from app.services import desk_side as desk_side_svc
     from app.services import league as league_svc
 

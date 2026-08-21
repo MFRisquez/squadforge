@@ -28,6 +28,22 @@ app.add_middleware(
     secret_key=settings.secret_key,
     https_only=not settings.debug,
 )
+
+
+@app.middleware("http")
+async def advertise_client_hints(request, call_next):
+    """Ask browsers for mobile/viewport hints so we can skip desk-side on phones."""
+    response = await call_next(request)
+    # Merge if a proxy already set Accept-CH.
+    existing = response.headers.get("Accept-CH", "")
+    wanted = "Sec-CH-UA-Mobile, Sec-CH-Viewport-Width, Viewport-Width"
+    response.headers["Accept-CH"] = (
+        f"{existing}, {wanted}" if existing and wanted not in existing else wanted
+    )
+    response.headers["Critical-CH"] = "Sec-CH-UA-Mobile, Sec-CH-Viewport-Width"
+    return response
+
+
 app.include_router(api_router)
 app.include_router(web_router)
 

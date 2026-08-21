@@ -13,6 +13,7 @@
 
 <form method="post" action="/td/save" id="tdForm" hidden aria-hidden="true"></form>
 <div class="desk-board desk-squad">
+  {% if transfers_side_left is not none %}
   <aside class="desk-rail desk-side-left" id="squadSideLeft" aria-label="Transfers side panel">
     {% set side = transfers_side_left or {} %}
     <section class="desk-side-block desk-side-transfers">
@@ -82,6 +83,7 @@
       {% endif %}
     </section>
   </aside>
+  {% endif %}
   <div class="desk-main-top">
     {{ chip_strip(chips, active_chip, edits_locked, bench_options, group='squad', next_path='/team', gw_number=gw.number) }}
 

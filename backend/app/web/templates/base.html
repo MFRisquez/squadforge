@@ -22,10 +22,15 @@
         var t = localStorage.getItem("ff_theme");
         if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
       } catch (e) {}
+      // Persist ≥900px desk hint so hard navigations can skip left-rail work on phones.
+      try {
+        var desk = window.matchMedia("(min-width: 900px)").matches ? "1" : "0";
+        document.cookie = "ff_desk=" + desk + "; Path=/; Max-Age=31536000; SameSite=Lax";
+      } catch (e) {}
     })();
   </script>
   <link rel="preload" href="/static/fonts/Vielma_Grotesk_Bold.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="/static/styles.css?v=165" />
+  <link rel="stylesheet" href="/static/styles.css?v=166" />
   <style>
     html, body, button, input, select, textarea {
       font-family: "Vielma Grotesk", sans-serif;
@@ -96,7 +101,7 @@
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
-        navigator.serviceWorker.register("/static/sw.js?v=165").catch(() => {});
+        navigator.serviceWorker.register("/static/sw.js?v=166").catch(() => {});
       });
     }
   </script>
