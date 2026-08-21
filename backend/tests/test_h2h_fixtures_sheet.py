@@ -107,12 +107,15 @@ def test_h2h_fixture_cards_and_league_page_sheet():
     client = _client()
     client.post("/login", data={"login": "FxA", "password": "secret12"}, follow_redirects=False)
     html = client.get(f"/league/{lid}").text
-    assert "This week's fixtures" in html
+    assert "H2H fixtures" in html
     assert "data-h2h-match" in html
     assert "h2hMatchDetail" in html
     assert "match-detail-sheet" in html
     assert "league_h2h.js" in html
     assert "h2hFixturesBoot" in html
+    assert "league-gw-picker" in html
+    assert "Your rival" in html
+    assert "Chips left" in html
     assert "Foxes" in html and "Badgers" in html
     # Boot JSON includes top player payload
     assert pname.split()[0] in html or pname in html
