@@ -179,3 +179,74 @@ def test_set_league_type_allows_odd_h2h():
         assert len(matches) == 1  # 3 managers → 1 match + 1 bye
     finally:
         db.close()
+
+
+def test_purge_h2h_before_kickoff_then_regenerate_circle():
+    """Pre-season wipe deletes old pairings; next ensure uses circle method."""
+    from app.models import Fixture, H2HMatch
+
+    db = SessionLocal()
+    try:
+        managers = []
+        for i in range(4):
+            managers.append(
+                league_svc.register_manager(
+                    db,
+                    display_name=f"PurgeRR{i}",
+                    password="secret12",
+                    email=f"purgerr{i}@example.com",
+                    team_name=f"Purge {i}",
+                )
+            )
+        league = league_svc.create_league(
+            db, "Purge H2H", managers[0], league_type="h2h"
+        )
+        for m in managers[1:]:
+            league_svc.join_league(db, league.invite_code, m)
+        gw = db.query(Gameweek).filter(Gameweek.number == 1).one()
+        db.query(Fixture).filter(Fixture.gameweek_number == 1).update(
+            {"started": 0, "finished": 0}
+        )
+        # Seed a deliberately wrong legacy pairing (A-B / C-D may or may not
+        # match circle round 0 — either way purge must wipe it).
+        ids = sorted(int(m.id) for m in managers)
+        db.add(
+            H2HMatch(
+                league_id=league.id,
+                gameweek_id=gw.id,
+                home_manager_id=ids[0],
+                away_manager_id=ids[1],
+                home_points=0,
+                away_points=0,
+                result="draw",
+            )
+        )
+        db.add(
+            H2HMatch(
+                league_id=league.id,
+                gameweek_id=gw.id,
+                home_manager_id=ids[2],
+                away_manager_id=ids[3],
+                home_points=0,
+                away_points=0,
+                result="draw",
+            )
+        )
+        db.commit()
+        assert (
+            db.query(H2HMatch).filter(H2HMatch.league_id == league.id).count() == 2
+        )
+
+        purged = standings_svc.purge_h2h_matches_before_kickoff(db)
+        assert purged["deleted"] >= 2
+        assert db.query(H2HMatch).filter(H2HMatch.league_id == league.id).count() == 0
+
+        expected = set(standings_svc.h2h_circle_pairs(ids, round_index=0))
+        regenerated = standings_svc.ensure_h2h_pairings(db, league, gw)
+        got = {
+            (int(m.home_manager_id), int(m.away_manager_id)) for m in regenerated
+        }
+        # Order inside each pair is fixed by circle method; compare as sets of pairs.
+        assert got == expected
+    finally:
+        db.close()

@@ -144,6 +144,14 @@ def on_startup() -> None:
                 cleared.get("manager_scores_deleted"),
                 cleared.get("gameweek_ids"),
             )
+        from app.services import standings as standings_svc
+
+        purged = standings_svc.purge_h2h_matches_before_kickoff(db)
+        if purged.get("deleted"):
+            logger.info(
+                "purged %s pre-kickoff H2HMatch row(s) for circle-method regenerate",
+                purged["deleted"],
+            )
     finally:
         db.close()
     from app.services.auto_score import start_auto_scorer

@@ -303,6 +303,34 @@ def h2h_circle_pairs(
     return pairs
 
 
+def purge_h2h_matches_before_kickoff(db: Session) -> dict[str, int]:
+    """Delete H2H fixtures for gameweeks that have not kicked off yet.
+
+    Used once the circle-method rotator replaced the broken 1-step shuffle:
+    pre-season (and any GW still without a started/finished PL fixture) can
+    be wiped so ``ensure_h2h_pairings`` regenerates with the correct bracket.
+    Settled GWs that already have live fixtures are left untouched.
+    """
+    from sqlalchemy import or_
+
+    started_gw_ids = {
+        int(gid)
+        for (gid,) in (
+            db.query(Gameweek.id)
+            .join(Fixture, Fixture.gameweek_number == Gameweek.number)
+            .filter(or_(Fixture.started == 1, Fixture.finished == 1))
+            .distinct()
+            .all()
+        )
+    }
+    q = db.query(H2HMatch)
+    if started_gw_ids:
+        q = q.filter(~H2HMatch.gameweek_id.in_(started_gw_ids))
+    deleted = q.delete(synchronize_session=False)
+    db.commit()
+    return {"deleted": int(deleted or 0)}
+
+
 def ensure_h2h_pairings(db: Session, league: League, gw) -> list[H2HMatch]:
     """Create H2H fixtures for ``gw`` via circle-method round-robin.
 
