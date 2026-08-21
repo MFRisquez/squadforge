@@ -678,14 +678,8 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
         rows, fixtures = standings_svc.h2h_standings(db, league, gw)
         mode = "h2h"
         h2h_cards = standings_svc.h2h_fixture_cards(db, league, gw)
-        rival_card = standings_svc.my_h2h_rival_snapshot(
-            db,
-            league,
-            gw,
-            manager.id,
-            edits_locked=view["edits_locked"],
-            current_gw_id=view["current_gw"].id,
-        )
+        # Shell only — full XI packed async via /api/league/{id}/h2h-rival
+        rival_card = standings_svc.my_h2h_rival_shell(h2h_cards, manager.id)
         chips_board = standings_svc.league_chips_board(db, league, me_id=manager.id)
     else:
         rows = standings_svc.classic_standings(db, league, gw)

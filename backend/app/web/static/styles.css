@@ -6493,11 +6493,11 @@ body.page-opponent .desk-xi { margin-top: 0.25rem; }
   background: transparent;
   color: var(--ink);
 }
-/* H2H: Pos | Team | Pts | Total | Form | W | D | L | Best | GW — must beat .standings-row above */
+/* H2H: Pos | Team | H2H | Season | Form | W | D | L | Best | GW — must beat .standings-row above */
 .standings-cols.standings-cols-h2h,
 .standings-row.standings-row-h2h {
   grid-template-columns:
-    3rem minmax(0, 1.4fr) 2.4rem 3rem 3.2rem 1.7rem 1.7rem 1.7rem 2.6rem 2.8rem;
+    3rem minmax(0, 1.4fr) 2.6rem 3.5rem 3.2rem 1.7rem 1.7rem 1.7rem 2.6rem 2.8rem;
   column-gap: 0.4rem;
 }
 .standings-cols-h2h span:nth-child(n + 3) {
@@ -10169,6 +10169,20 @@ body.page-squad .stat-strip {
   font-weight: 900;
   font-variant-numeric: tabular-nums;
 }
+.league-rival-player.is-skeleton-row .skeleton {
+  display: block;
+  height: 0.7rem;
+  border-radius: 0.35rem;
+}
+.league-rival-player.is-skeleton-row .skeleton.wide {
+  height: 0.78rem;
+}
+.league-rival-xi.is-skeleton {
+  pointer-events: none;
+}
+.league-rival-card.is-loading .league-rival-pts {
+  opacity: 0.72;
+}
 .league-awards-desk {
   display: none;
 }
@@ -10214,7 +10228,7 @@ body.page-squad .stat-strip {
 
 /*
  * League desktop column layout (same order + track pattern as XI/Transfers).
- * Visual: standings | H2H fixtures | season awards.
+ * Visual: standings+fixtures | YOU VS RIVAL | chips+awards.
  * Rollback: delete this media block + restore single-column flow.
  */
 @media (min-width: 900px) {
@@ -10232,10 +10246,11 @@ body.page-squad .stat-strip {
   }
   body.page-league .league-desk {
     display: grid;
+    /* Mid (YOU VS RIVAL) gets the widest share — dual XI needs room */
     grid-template-columns:
-      minmax(28rem, 1.35fr)
-      minmax(24rem, 1.2fr)
-      minmax(16rem, 0.85fr);
+      minmax(24rem, 1.1fr)
+      minmax(28rem, 1.5fr)
+      minmax(15rem, 0.8fr);
     gap: 1.1rem;
     align-items: start;
   }
@@ -10422,7 +10437,7 @@ body.page-squad .stat-strip {
   }
   .standings-cols.standings-cols-h2h,
   .standings-row.standings-row-h2h {
-    grid-template-columns: 2.35rem minmax(0, 1fr) 2rem 2.4rem 1.45rem 1.45rem 1.45rem 2.3rem;
+    grid-template-columns: 2.35rem minmax(0, 1fr) 2.2rem 2.9rem 1.45rem 1.45rem 1.45rem 2.3rem;
     gap: 0.18rem;
   }
   .standings-cols-h2h .standings-trend,
@@ -10431,7 +10446,7 @@ body.page-squad .stat-strip {
   .standings-row-h2h .standings-best {
     display: none;
   }
-  /* H2H phone: Pos Team Pts Total W D L GW — hide Form + Best */
+  /* H2H phone: Pos Team H2H Season W D L GW — hide Form + Best */
   .standings-cols-h2h span:nth-child(5),
   .standings-cols-h2h span:nth-child(9) { display: none; }
   .standings-row {

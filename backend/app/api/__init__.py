@@ -340,3 +340,58 @@ def api_xi_side_kpis(request: Request, gw: Optional[int] = None) -> dict:
         return {"ok": True, "gw": int(gameweek.number), **payload}
     finally:
         db.close()
+
+
+@router.get("/league/{league_id}/h2h-rival")
+def api_h2h_rival(league_id: int, request: Request, gw: Optional[int] = None) -> dict:
+    """Deferred YOU VS RIVAL dual XI — kept off initial /league HTML.
+
+    Same freeze rules as the opponent page: pre-deadline current GW uses the
+    previous locked squad (or unavailable on GW1).
+    """
+    from app.auth import current_manager
+    from app.models import Membership
+    from app.services import deadline as deadline_svc
+    from app.services import squad as squad_svc
+    from app.services import standings as standings_svc
+
+    db = SessionLocal()
+    try:
+        manager = current_manager(request, db)
+        if not manager:
+            return {"ok": False, "error": "auth"}
+        membership = (
+            db.query(Membership)
+            .filter(
+                Membership.league_id == league_id,
+                Membership.manager_id == manager.id,
+            )
+            .one_or_none()
+        )
+        if not membership:
+            return {"ok": False, "error": "forbidden"}
+        league = membership.league
+        if getattr(league, "league_type", "classic") != "h2h":
+            return {"ok": False, "error": "not_h2h"}
+        try:
+            gameweek = deadline_svc.get_gameweek(db, int(gw) if gw is not None else None)
+        except Exception:
+            return {"ok": False, "error": "gameweek"}
+        current = squad_svc.current_gameweek(db)
+        if gameweek.id != current.id:
+            edits_locked = True
+        else:
+            edits_locked = not deadline_svc.can_edit(current)
+        snap = standings_svc.my_h2h_rival_snapshot(
+            db,
+            league,
+            gameweek,
+            manager.id,
+            edits_locked=edits_locked,
+            current_gw_id=current.id,
+        )
+        if snap is None:
+            return {"ok": False, "error": "empty"}
+        return {"ok": True, "gw": int(gameweek.number), "rival": snap}
+    finally:
+        db.close()

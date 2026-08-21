@@ -116,7 +116,14 @@
     {# Col 2 — you vs rival (up) #}
     <div class="league-col league-col-mid">
       {% if mode == 'h2h' and rival_card %}
-      <section class="panel league-rival-card" aria-label="You vs rival">
+      <section
+        class="panel league-rival-card {% if rival_card.loading %}is-loading{% endif %}"
+        aria-label="You vs rival"
+        {% if rival_card.loading and gw %}
+        data-h2h-rival-url="/api/league/{{ league.id }}/h2h-rival?gw={{ gw.number }}"
+        aria-busy="true"
+        {% endif %}
+      >
         <header class="league-rival-head">
           <div>
             <h2 class="section-title tight">You vs rival</h2>
@@ -129,48 +136,50 @@
 
         {% if rival_card.bye %}
           <p class="muted">{{ rival_card.message }}</p>
-        {% elif rival_card.squad_unavailable %}
-          <p class="muted">{{ rival_card.message }}</p>
         {% else %}
           <div class="league-rival-scoreline">
             <div class="league-rival-side is-me">
               <span class="h2h-avatar tone-{{ rival_card.me.avatar_tone }}" aria-hidden="true">{{ rival_card.me.initials }}</span>
               <div class="league-rival-meta">
-                <strong>{{ rival_card.me.team_name }}</strong>
+                <strong data-rival-me-name>{{ rival_card.me.team_name }}</strong>
                 <span class="muted tiny">You</span>
               </div>
               {% if rival_card.show_scores %}
-              <span class="league-rival-pts">{{ '%.0f'|format(rival_card.me.points) }}</span>
+              <span class="league-rival-pts" data-rival-me-pts>{{ '%.0f'|format(rival_card.me.points) }}</span>
               {% else %}
-              <span class="league-rival-pts is-muted">—</span>
+              <span class="league-rival-pts is-muted" data-rival-me-pts>—</span>
               {% endif %}
             </div>
             <span class="h2h-vs-mark" aria-hidden="true">VS</span>
             <div class="league-rival-side is-them">
               <span class="h2h-avatar tone-{{ rival_card.rival.avatar_tone }}" aria-hidden="true">{{ rival_card.rival.initials }}</span>
               <div class="league-rival-meta">
-                <strong>{{ rival_card.rival.team_name }}</strong>
+                <strong data-rival-them-name>{{ rival_card.rival.team_name }}</strong>
                 {% if rival_card.rival.display_name and rival_card.rival.display_name != rival_card.rival.team_name %}
                 <span class="muted tiny">{{ rival_card.rival.display_name }}</span>
                 {% endif %}
               </div>
               {% if rival_card.show_scores %}
-              <span class="league-rival-pts">{{ '%.0f'|format(rival_card.rival.points) }}</span>
+              <span class="league-rival-pts" data-rival-them-pts>{{ '%.0f'|format(rival_card.rival.points) }}</span>
               {% else %}
-              <span class="league-rival-pts is-muted">—</span>
+              <span class="league-rival-pts is-muted" data-rival-them-pts>—</span>
               {% endif %}
             </div>
           </div>
 
-          {% if rival_card.message %}
-          <p class="muted tiny league-rival-note">{{ rival_card.message }}</p>
-          {% endif %}
+          <p class="muted tiny league-rival-note" data-rival-note {% if not rival_card.message %}hidden{% endif %}>{{ rival_card.message or '' }}</p>
 
-          <div class="league-matchup-xis">
+          <div class="league-matchup-xis" data-rival-xis>
             <div class="league-matchup-xi is-me">
-              <p class="league-matchup-label">{{ rival_card.me.team_name }}</p>
-              {% if rival_card.me_players %}
-              <ul class="league-rival-xi">
+              <p class="league-matchup-label" data-rival-me-label>{{ rival_card.me.team_name }}</p>
+              {% if rival_card.loading %}
+              <ul class="league-rival-xi is-skeleton" data-rival-me-xi aria-hidden="true">
+                {% for _ in range(11) %}
+                <li class="league-rival-player is-skeleton-row"><span class="skeleton"></span><span class="skeleton wide"></span><span class="skeleton"></span></li>
+                {% endfor %}
+              </ul>
+              {% elif rival_card.me_players %}
+              <ul class="league-rival-xi" data-rival-me-xi>
                 {% for p in rival_card.me_players %}
                 <li class="league-rival-player {% if p.is_captain %}is-cap{% endif %}">
                   <span class="league-rival-pos">{{ p.pos }}</span>
@@ -186,13 +195,19 @@
                 {% endfor %}
               </ul>
               {% else %}
-              <p class="muted tiny">No locked XI yet.</p>
+              <p class="muted tiny" data-rival-me-empty>No locked XI yet.</p>
               {% endif %}
             </div>
             <div class="league-matchup-xi is-them">
-              <p class="league-matchup-label">{{ rival_card.rival.team_name }}</p>
-              {% if rival_card.rival_players %}
-              <ul class="league-rival-xi">
+              <p class="league-matchup-label" data-rival-them-label>{{ rival_card.rival.team_name }}</p>
+              {% if rival_card.loading %}
+              <ul class="league-rival-xi is-skeleton" data-rival-them-xi aria-hidden="true">
+                {% for _ in range(11) %}
+                <li class="league-rival-player is-skeleton-row"><span class="skeleton"></span><span class="skeleton wide"></span><span class="skeleton"></span></li>
+                {% endfor %}
+              </ul>
+              {% elif rival_card.rival_players %}
+              <ul class="league-rival-xi" data-rival-them-xi>
                 {% for p in rival_card.rival_players %}
                 <li class="league-rival-player {% if p.is_captain %}is-cap{% endif %}">
                   <span class="league-rival-pos">{{ p.pos }}</span>
@@ -208,7 +223,7 @@
                 {% endfor %}
               </ul>
               {% else %}
-              <p class="muted tiny">No locked XI yet.</p>
+              <p class="muted tiny" data-rival-them-empty>No locked XI yet.</p>
               {% endif %}
             </div>
           </div>
