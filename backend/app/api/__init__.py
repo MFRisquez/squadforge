@@ -32,6 +32,113 @@ def health() -> dict:
     return {"ok": True, "service": "squadforge"}
 
 
+@router.get("/debug/live-ingest")
+def debug_live_ingest(token: str = "") -> dict:
+    """Temporary: diagnose why XI points stay 0 during live matches."""
+    if token != "probe-9855-live-ingest":
+        return {"ok": False, "error": "forbidden"}
+    from datetime import datetime, timezone
+
+    from app.models import Fixture, MatchEvent, Player, PlayerPoints
+    from app.services import deadline as deadline_svc
+    from app.services import live_scoring as live_svc
+    from app.services import squad as squad_svc
+    from app.config import settings
+
+    db = SessionLocal()
+    try:
+        gw = squad_svc.current_gameweek(db)
+        dl = deadline_svc.parse_deadline(gw)
+        passed = deadline_svc.deadline_passed(gw)
+        live_fx = [
+            {
+                "id": fx.id,
+                "home": fx.home_club_code,
+                "away": fx.away_club_code,
+                "started": bool(fx.started),
+                "finished": bool(fx.finished),
+                "score": [fx.home_score, fx.away_score],
+            }
+            for fx in db.query(Fixture).filter(Fixture.gameweek_number == int(gw.number)).all()
+            if fx.started and not fx.finished
+        ]
+        # FPL fetch from this host
+        fpl_ok = None
+        fpl_err = None
+        mbeumo_fpl_mins = None
+        try:
+            live = live_svc._http_get(live_svc.FPL_EVENT_LIVE.format(gw=gw.number))
+            els = live.get("elements") or []
+            fpl_ok = {"elements": len(els)}
+            for e in els:
+                if int(e.get("id") or 0) == 427:
+                    mbeumo_fpl_mins = (e.get("stats") or {}).get("minutes")
+                    break
+        except Exception as exc:
+            fpl_err = str(exc)
+
+        # Run scoring directly (bypass maybe_score deadline gate)
+        summary = live_svc.run_gameweek_scoring(db, prefer_live=True, force_demo=False)
+
+        def player_snap(name_sub: str):
+            out = []
+            for p in db.query(Player).filter(Player.name.ilike(f"%{name_sub}%")).limit(3).all():
+                rows = (
+                    db.query(MatchEvent)
+                    .filter(MatchEvent.gameweek_id == gw.id, MatchEvent.player_id == p.id)
+                    .all()
+                )
+                metrics = {r.metric: {"value": float(r.value), "source": r.source} for r in rows}
+                pts = (
+                    db.query(PlayerPoints)
+                    .filter(
+                        PlayerPoints.gameweek_id == gw.id,
+                        PlayerPoints.player_id == p.id,
+                        PlayerPoints.formula_version == settings.formula_version,
+                    )
+                    .one_or_none()
+                )
+                out.append(
+                    {
+                        "id": p.id,
+                        "name": p.name,
+                        "external_id": p.external_id,
+                        "team": p.team_code,
+                        "minutes": metrics.get("minutes"),
+                        "tackles": metrics.get("tackles"),
+                        "points": float(pts.total) if pts else None,
+                    }
+                )
+            return out
+
+        return {
+            "ok": True,
+            "now": datetime.now(timezone.utc).isoformat(),
+            "gw": gw.number,
+            "gw_status": gw.status,
+            "deadline_at": gw.deadline_at,
+            "deadline_parsed": dl.isoformat() if dl else None,
+            "deadline_passed": passed,
+            "live_fixtures": live_fx,
+            "fpl_ok": fpl_ok,
+            "fpl_err": fpl_err,
+            "mbeumo_fpl_mins": mbeumo_fpl_mins,
+            "score_summary": {
+                "ingest": summary.get("ingest"),
+                "players_scored": summary.get("players_scored"),
+                "managers_scored": summary.get("managers_scored"),
+            },
+            "players": {
+                "Mbeumo": player_snap("Mbeumo"),
+                "McBurnie": player_snap("McBurnie"),
+                "Calafiori": player_snap("Calafiori"),
+            },
+        }
+    finally:
+        db.close()
+
+
+
 class SoftNavPerfBody(BaseModel):
     url: str = Field(default="", max_length=512)
     fetch_ms: float = Field(default=0, ge=0)
