@@ -32,6 +32,66 @@ def health() -> dict:
     return {"ok": True, "service": "squadforge"}
 
 
+@router.get("/debug/match-events")
+def debug_match_events(token: str = "", name: str = "Calafiori") -> dict:
+    """Temporary read-only probe — remove after GW1 verification.
+
+    Returns MatchEvent rows for a player name in the current GW so we can
+    confirm FPL live ingest (tackles/cbi) without shell access to Postgres.
+    """
+    if token != "probe-9855-calafiori-verify":
+        return {"ok": False, "error": "forbidden"}
+    from app.models import MatchEvent
+    from app.services import squad as squad_svc
+
+    db = SessionLocal()
+    try:
+        gw = squad_svc.current_gameweek(db)
+        players = (
+            db.query(Player)
+            .filter(Player.name.ilike(f"%{name.strip()}%"))
+            .order_by(Player.id)
+            .limit(5)
+            .all()
+        )
+        out = []
+        for p in players:
+            rows = (
+                db.query(MatchEvent)
+                .filter(
+                    MatchEvent.gameweek_id == gw.id,
+                    MatchEvent.player_id == p.id,
+                )
+                .order_by(MatchEvent.metric)
+                .all()
+            )
+            metrics = {r.metric: {"value": float(r.value), "source": r.source} for r in rows}
+            out.append(
+                {
+                    "player_id": p.id,
+                    "name": p.name,
+                    "external_id": p.external_id,
+                    "position": p.position,
+                    "team_code": p.team_code,
+                    "gameweek": gw.number,
+                    "gameweek_id": gw.id,
+                    "metrics": metrics,
+                    "tackles": metrics.get("tackles"),
+                    "cbi": metrics.get("cbi"),
+                }
+            )
+        # Also kick a forced score cycle so the probe can be used right after deploy.
+        def _score() -> None:
+            from app.services.auto_score import maybe_score_locked_gw
+
+            maybe_score_locked_gw(force=True)
+
+        threading.Thread(target=_score, daemon=True).start()
+        return {"ok": True, "players": out, "fpl_live_calafiori_expected": {"tackles": 1, "cbi": 4}}
+    finally:
+        db.close()
+
+
 class SoftNavPerfBody(BaseModel):
     url: str = Field(default="", max_length=512)
     fetch_ms: float = Field(default=0, ge=0)
