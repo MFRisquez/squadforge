@@ -240,10 +240,12 @@ def test_fixtures_list_shows_home_away_and_score_placeholder():
 def test_fixtures_js_xi_table_is_match_kpis():
     js = (STATIC / "fixtures.js").read_text(encoding="utf-8")
     assert "fx-xi-table" in js
+    assert 'scope="col">Mins</th>' in js
     assert 'scope="col">G</th>' in js
     assert 'scope="col">A</th>' in js
     assert 'scope="col">CS</th>' in js
     assert 'scope="col">Pts</th>' in js
+    assert "p.minutes" in js
     assert "p.goals" in js
     assert "p.assists" in js
     assert "p.clean_sheets" in js
@@ -304,6 +306,7 @@ def test_my_players_fixture_kpis_blank_before_kickoff():
         assert len(mine["home"]) == 1
         row = mine["home"][0]
         assert row["name"] == "Saka"
+        assert row["minutes"] is None
         assert row["goals"] is None
         assert row["assists"] is None
         assert row["clean_sheets"] is None
@@ -317,11 +320,18 @@ def test_my_players_fixture_kpis_blank_before_kickoff():
 def test_my_players_fixture_kpis_from_match_stats():
     import json
 
+    from app.models import Gameweek, MatchEvent
+
     db = SessionLocal()
     try:
         for code, name, kit in (("ARS", "Arsenal", 3), ("LIV", "Liverpool", 14)):
             if not db.query(Club).filter(Club.code == code).one_or_none():
                 db.add(Club(code=code, name=name, kit_code=kit))
+        gw = db.query(Gameweek).filter(Gameweek.number == 1).one_or_none()
+        if not gw:
+            gw = Gameweek(number=1, status="live", name="GW1", is_current=1)
+            db.add(gw)
+            db.flush()
         fx = db.query(Fixture).filter(Fixture.fpl_id == 92002).one_or_none()
         if not fx:
             fx = Fixture(
@@ -365,14 +375,39 @@ def test_my_players_fixture_kpis_from_match_stats():
                 price=9.0,
             )
             db.add(p)
+            db.flush()
+        # Starter with minutes → Mins column + appearance points in Pts.
+        ev = (
+            db.query(MatchEvent)
+            .filter(
+                MatchEvent.gameweek_id == gw.id,
+                MatchEvent.player_id == p.id,
+                MatchEvent.metric == "minutes",
+            )
+            .one_or_none()
+        )
+        if not ev:
+            db.add(
+                MatchEvent(
+                    gameweek_id=gw.id,
+                    player_id=p.id,
+                    metric="minutes",
+                    value=67.0,
+                    source="test",
+                )
+            )
+        else:
+            ev.value = 67.0
         db.commit()
 
         mine = fixtures_svc.my_players_for_fixture(db, fx, [p])
         row = mine["home"][0]
+        assert row["minutes"] == 67
         assert row["goals"] == 1
         assert row["assists"] == 1
         assert row["clean_sheets"] == 0  # MID
         assert row["points"] is not None
+        assert float(row["points"]) >= 2  # appearance (≥60' → 2) + G/A
     finally:
         db.close()
 
