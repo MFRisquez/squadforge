@@ -84,6 +84,8 @@ def test_demo_scoring_writes_manager_total():
         assert summary["managers_scored"] >= 1
         assert summary["players_scored"] >= 1
         assert summary["ingest"]["source"] == "demo_sim"
+        # API-Football ingest must stay disconnected from scoring.
+        assert summary["ingest"].get("api_football") == {"skipped": "disabled"}
 
         from app.models import ManagerGameweekScore, MatchEvent
 
@@ -130,6 +132,7 @@ def test_auto_scoring_never_falls_back_to_demo(monkeypatch):
         assert summary["ingest"].get("demo_skipped") is True
         assert summary["ingest"].get("fell_back_demo") is None
         assert summary["ingest"].get("source") != "demo_sim"
+        assert summary["ingest"].get("api_football") == {"skipped": "disabled"}
         after = (
             db.query(MatchEvent)
             .filter(MatchEvent.gameweek_id == gw.id, MatchEvent.source == "demo_sim")
@@ -137,6 +140,34 @@ def test_auto_scoring_never_falls_back_to_demo(monkeypatch):
         )
         assert before == 0
         assert after == 0
+    finally:
+        db.close()
+
+
+def test_run_gameweek_scoring_does_not_call_api_football_ingest(monkeypatch):
+    """Scoring path must not pull API-Football player metrics (can overwrite FPL tackles)."""
+    called = {"n": 0}
+
+    def _boom(*_a, **_k):
+        called["n"] += 1
+        raise AssertionError("ingest_advanced_stats must not run during scoring")
+
+    monkeypatch.setattr(
+        "app.services.advanced_stats.ingest_advanced_stats",
+        _boom,
+    )
+
+    def _empty_live(_db, _gw):
+        return {"source": "fpl_live", "players_updated": 0, "club_results": 0, "live_empty": True}
+
+    monkeypatch.setattr(live_svc, "ingest_fpl_live", _empty_live)
+    monkeypatch.setattr(live_svc.fixtures_svc, "refresh_fixtures", lambda _db: {"fixtures": 0})
+
+    db = SessionLocal()
+    try:
+        summary = live_svc.run_gameweek_scoring(db, prefer_live=True, force_demo=False)
+        assert called["n"] == 0
+        assert summary["ingest"].get("api_football") == {"skipped": "disabled"}
     finally:
         db.close()
 
