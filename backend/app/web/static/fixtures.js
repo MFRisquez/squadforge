@@ -147,6 +147,7 @@
         const avail = p.availability || "ok";
         return `<tr class="avail-${avail}">
           <td class="fx-xi-name"><span class="fx-xi-player">${p.name || "—"}</span><span class="fx-xi-pos">${p.position || ""}</span></td>
+          <td>${fmtMatchKpi(p.minutes)}</td>
           <td>${fmtMatchKpi(p.goals)}</td>
           <td>${fmtMatchKpi(p.assists)}</td>
           <td>${fmtMatchKpi(p.clean_sheets)}</td>
@@ -161,6 +162,7 @@
           <thead>
             <tr>
               <th scope="col">Player</th>
+              <th scope="col">Mins</th>
               <th scope="col">G</th>
               <th scope="col">A</th>
               <th scope="col">CS</th>

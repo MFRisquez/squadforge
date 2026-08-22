@@ -522,11 +522,12 @@ def my_players_for_fixture(
     fixture: Fixture,
     players: list[Player],
 ) -> dict[str, list[dict[str, Any]]]:
-    """Owned players in this match with fixture/GW KPIs (G, A, CS, Pts).
+    """Owned players in this match with fixture/GW KPIs (Mins, G, A, CS, Pts).
 
     Before kickoff every KPI is null (UI shows —). Once the fixture has
-    started, goals/assists come from this fixture's FPL stats; clean sheets
-    and points come from GW MatchEvent / PlayerPoints (updated each GW).
+    started, minutes come from live MatchEvent metrics; goals/assists from
+    this fixture's FPL stats; clean sheets and points from scored metrics
+    (any minutes → appearance points).
     """
     from app.config import settings
     from app.models import Gameweek, PlayerPoints
@@ -569,6 +570,7 @@ def my_players_for_fixture(
             if not started:
                 row.update(
                     {
+                        "minutes": None,
                         "goals": None,
                         "assists": None,
                         "clean_sheets": None,
@@ -595,12 +597,13 @@ def my_players_for_fixture(
             if (goals or assists) and float(metrics.get("minutes") or 0) <= 0:
                 metrics["minutes"] = 1.0
 
+            mins = int(float(metrics.get("minutes") or 0))
+
             # Prefer fixture G/A; fill CS from live GW metrics when present.
             cs = metrics.get("clean_sheets")
             if cs is None and conceded is not None:
                 pos = (base.get("position") or "").upper()
-                minutes = float(metrics.get("minutes") or 0)
-                if pos in {"GK", "DEF"} and conceded == 0 and minutes >= 60:
+                if pos in {"GK", "DEF"} and conceded == 0 and mins >= 60:
                     cs = 1.0
                 elif pos in {"GK", "DEF"}:
                     cs = 0.0
@@ -620,6 +623,7 @@ def my_players_for_fixture(
 
             row.update(
                 {
+                    "minutes": mins,
                     "goals": goals,
                     "assists": assists,
                     "clean_sheets": int(cs),
