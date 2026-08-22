@@ -132,6 +132,8 @@ def debug_live_ingest(token: str = "") -> dict:
                 "Mbeumo": player_snap("Mbeumo"),
                 "McBurnie": player_snap("McBurnie"),
                 "Calafiori": player_snap("Calafiori"),
+                "Ndiaye": player_snap("Ndiaye"),
+                "Ballard": player_snap("Ballard"),
             },
         }
     finally:
