@@ -84,6 +84,32 @@ def _kickoff_day(iso: str | None) -> str | None:
         return (iso or "")[:10] or None
 
 
+def format_pulse_clock(clock: Any) -> str | None:
+    """Turn Pulse ``clock`` into our display label (``67'``, ``90+7'``, ``MT``).
+
+    Pulse uses labels like ``\"90+7'00\"`` (minute + seconds). We drop the
+    trailing seconds so the UI matches FPL-style clocks.
+    """
+    if not isinstance(clock, dict):
+        return None
+    label = str(clock.get("label") or "").strip()
+    if not label:
+        return None
+    upper = label.upper()
+    if upper in {"FT", "FULL TIME"}:
+        return "FT"
+    if upper in {"HT", "HALF TIME", "MT"}:
+        return "MT"
+    # "90+7'00" / "45'00" / "67'" → strip optional two-digit seconds after '
+    if "'" in label:
+        head, _, tail = label.partition("'")
+        head = head.strip()
+        if head and (not tail or tail.strip().isdigit()):
+            return f"{head}'"
+        return f"{head}'" if head else None
+    return label
+
+
 def resolve_pulse_fixture(
     *,
     home_abbr: str,
@@ -98,8 +124,16 @@ def resolve_pulse_fixture(
     day = _kickoff_day(kickoff_at)
     cache_key = f"{home}-{away}-{day}"
     hit = _fixture_cache.get(cache_key)
-    if hit and time.time() - hit[0] < 600:
-        return hit[1]
+    if hit:
+        cached_at, cached_val = hit
+        # Live matches need a short TTL so Match Centre clock stays fresh.
+        ttl = 25.0
+        if isinstance(cached_val, dict):
+            st = str(cached_val.get("status") or "").upper()
+            if st in {"C", "U", ""}:
+                ttl = 600.0
+        if time.time() - cached_at < ttl:
+            return cached_val
 
     season = current_comp_season_id()
     if not season or not home or not away:
@@ -166,10 +200,12 @@ def resolve_pulse_fixture(
             break
 
     pulse_id = None
+    listing_clock: Any = None
     for block in pages:
         for row in block.get("content") or []:
             if _row_match(row):
                 pulse_id = int(row.get("id") or 0) or None
+                listing_clock = row.get("clock")
                 break
         if pulse_id:
             break
@@ -199,12 +235,19 @@ def resolve_pulse_fixture(
             }
         )
 
+    status = detail.get("status")
+    clock_label = format_pulse_clock(detail.get("clock")) or format_pulse_clock(listing_clock)
+    # Completed fixtures: prefer FT over a frozen stoppage label for our UI.
+    if str(status or "").upper() == "C":
+        clock_label = "FT"
+
     out = {
         "pulse_id": pulse_id,
         "venue": (ground.get("name") or "").strip() or None,
         "city": (ground.get("city") or "").strip() or None,
         "formations": formations,
-        "status": detail.get("status"),
+        "status": status,
+        "clock": clock_label,
     }
     _fixture_cache[cache_key] = (time.time(), out)
     return out
