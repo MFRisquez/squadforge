@@ -1,0 +1,132 @@
+{
+  "entity": {
+    "id": 128923,
+    "teams": [
+      {
+        "team": {
+          "name": "Arsenal",
+          "club": {
+            "name": "Arsenal",
+            "shortName": "Arsenal",
+            "abbr": "ARS",
+            "id": 1
+          },
+          "teamType": "FIRST",
+          "shortName": "Arsenal",
+          "id": 1
+        },
+        "score": 3
+      },
+      {
+        "team": {
+          "name": "Coventry City",
+          "club": {
+            "name": "Coventry City",
+            "shortName": "Coventry",
+            "abbr": "COV",
+            "id": 5
+          },
+          "teamType": "FIRST",
+          "shortName": "Coventry",
+          "id": 5
+        },
+        "score": 0
+      }
+    ],
+    "status": "C"
+  },
+  "data": {
+    "1": {
+      "M": [
+        {
+          "name": "possession_percentage",
+          "value": 64.1,
+          "description": "Todo: possession_percentage",
+          "additionalInfo": {}
+        },
+        {
+          "name": "accurate_pass",
+          "value": 565.0,
+          "description": "Todo: accurate_pass",
+          "additionalInfo": {}
+        },
+        {
+          "name": "duel_won",
+          "value": 37.0,
+          "description": "Todo: duel_won",
+          "additionalInfo": {}
+        },
+        {
+          "name": "attempts_ibox",
+          "value": 10.0,
+          "description": "Todo: attempts_ibox",
+          "additionalInfo": {}
+        },
+        {
+          "name": "attempts_obox",
+          "value": 10.0,
+          "description": "Todo: attempts_obox",
+          "additionalInfo": {}
+        },
+        {
+          "name": "ontarget_scoring_att",
+          "value": 6.0,
+          "description": "Todo: ontarget_scoring_att",
+          "additionalInfo": {}
+        },
+        {
+          "name": "fk_foul_lost",
+          "value": 10.0,
+          "description": "Todo: fk_foul_lost",
+          "additionalInfo": {}
+        }
+      ]
+    },
+    "5": {
+      "M": [
+        {
+          "name": "accurate_pass",
+          "value": 271.0,
+          "description": "Todo: accurate_pass",
+          "additionalInfo": {}
+        },
+        {
+          "name": "duel_won",
+          "value": 34.0,
+          "description": "Todo: duel_won",
+          "additionalInfo": {}
+        },
+        {
+          "name": "possession_percentage",
+          "value": 35.9,
+          "description": "Todo: possession_percentage",
+          "additionalInfo": {}
+        },
+        {
+          "name": "attempts_obox",
+          "value": 3.0,
+          "description": "Todo: attempts_obox",
+          "additionalInfo": {}
+        },
+        {
+          "name": "fk_foul_lost",
+          "value": 13.0,
+          "description": "Todo: fk_foul_lost",
+          "additionalInfo": {}
+        },
+        {
+          "name": "attempts_ibox",
+          "value": 1.0,
+          "description": "Todo: attempts_ibox",
+          "additionalInfo": {}
+        },
+        {
+          "name": "ontarget_scoring_att",
+          "value": 1.0,
+          "description": "Todo: ontarget_scoring_att",
+          "additionalInfo": {}
+        }
+      ]
+    }
+  }
+}

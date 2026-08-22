@@ -2,7 +2,9 @@
 
 Team news comes from FPL bootstrap player `news` (synced into Player rows).
 Venue + formations come from the public PulseLive football API that powers
-premierleague.com when we can resolve the fixture.
+premierleague.com. Possession / shots / passes come from the free sibling
+endpoint ``GET /football/stats/match/{pulse_id}`` (not present on
+``/fixtures/{id}`` itself).
 """
 
 from __future__ import annotations
@@ -298,8 +300,106 @@ def match_preview_blurb(
     }
 
 
+def fetch_pulse_match_stats(pulse_id: int) -> dict[str, Any] | None:
+    """Team match stats from PulseLive (same free API as premierleague.com Match Centre).
+
+    ``GET /football/stats/match/{pulse_id}`` — not included on ``/fixtures/{id}``.
+    """
+    if not pulse_id:
+        return None
+    raw = _http_get(f"{PULSE_BASE}/stats/match/{int(pulse_id)}", timeout=10.0)
+    if not isinstance(raw, dict):
+        return None
+    return map_pulse_match_stats(raw)
+
+
+def map_pulse_match_stats(raw: dict[str, Any]) -> dict[str, Any] | None:
+    """Map Pulse ``stats/match`` payload → fixture sheet ``team_stats`` shape."""
+    entity = raw.get("entity") if isinstance(raw.get("entity"), dict) else {}
+    data = raw.get("data") if isinstance(raw.get("data"), dict) else {}
+    teams = entity.get("teams") or []
+    if len(teams) < 2 or not data:
+        return None
+
+    def _team_id(block: dict[str, Any]) -> str | None:
+        tid = ((block or {}).get("team") or {}).get("id")
+        return str(int(tid)) if tid is not None else None
+
+    home_id = _team_id(teams[0] if isinstance(teams[0], dict) else {})
+    away_id = _team_id(teams[1] if isinstance(teams[1], dict) else {})
+    if not home_id or not away_id:
+        return None
+
+    def _metrics(tid: str) -> dict[str, float]:
+        block = data.get(tid) or data.get(str(tid)) or {}
+        rows = block.get("M") if isinstance(block, dict) else None
+        out: dict[str, float] = {}
+        if not isinstance(rows, list):
+            return out
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            name = row.get("name")
+            if not name:
+                continue
+            try:
+                out[str(name)] = float(row.get("value") or 0)
+            except (TypeError, ValueError):
+                continue
+        return out
+
+    home = _metrics(home_id)
+    away = _metrics(away_id)
+    if not home and not away:
+        return None
+
+    def _pair(metric: str, *, as_pct: bool = False, as_int: bool = False) -> dict[str, Any]:
+        hv = home.get(metric)
+        av = away.get(metric)
+
+        def fmt(v: float | None) -> Any:
+            if v is None:
+                return None
+            if as_pct:
+                # Match Centre style whole percent.
+                return f"{int(round(float(v)))}%"
+            if as_int:
+                return int(round(float(v)))
+            return float(v)
+
+        return {"home": fmt(hv), "away": fmt(av)}
+
+    def _attempts(side: dict[str, float]) -> float | None:
+        if not side:
+            return None
+        if "attempts_ibox" in side or "attempts_obox" in side:
+            return float(side.get("attempts_ibox") or 0) + float(side.get("attempts_obox") or 0)
+        if "shot_created" in side:
+            return float(side.get("shot_created") or 0)
+        return None
+
+    ha = _attempts(home)
+    aa = _attempts(away)
+
+    return {
+        "source": "pulselive",
+        "pulse_id": entity.get("id"),
+        "possession": _pair("possession_percentage", as_pct=True),
+        "shots_on_target": _pair("ontarget_scoring_att", as_int=True),
+        "chances_created": {
+            "home": int(round(ha)) if ha is not None else None,
+            "away": int(round(aa)) if aa is not None else None,
+        },
+        # Pulse Opta dump for this season does not include xG on this endpoint.
+        "expected_goals": {"home": None, "away": None},
+        "passes_accurate": _pair("accurate_pass", as_int=True),
+        "duels_won": _pair("duel_won", as_int=True),
+        "fouls": _pair("fk_foul_lost", as_int=True),
+    }
+
+
 def enrich_fixture_sheet(db: Session, fx: Fixture, payload: dict[str, Any]) -> dict[str, Any]:
-    """Attach team news + PL preview onto a fixture_detail payload."""
+    """Attach team news + PL preview + Pulse match stats onto a fixture payload."""
     home_code = fx.home_club_code
     away_code = fx.away_club_code
     home_news = club_team_news(db, home_code, limit=4)
@@ -325,4 +425,16 @@ def enrich_fixture_sheet(db: Session, fx: Fixture, payload: dict[str, Any]) -> d
     payload["team_news"] = {"home": home_news, "away": away_news}
     payload["preview"] = preview
     payload["pulse"] = pulse
+    team_stats = None
+    team_stats_status = "unavailable"
+    pulse_id = (pulse or {}).get("pulse_id") if isinstance(pulse, dict) else None
+    if pulse_id:
+        try:
+            team_stats = fetch_pulse_match_stats(int(pulse_id))
+            team_stats_status = "ok" if team_stats else "no_statistics"
+        except Exception:  # noqa: BLE001
+            team_stats = None
+            team_stats_status = "error"
+    payload["team_stats"] = team_stats
+    payload["team_stats_status"] = team_stats_status
     return payload
