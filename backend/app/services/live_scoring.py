@@ -117,6 +117,100 @@ def _write_metrics(db: Session, *, gameweek_id: int, player_id: int, metrics: di
             )
 
 
+def _write_metrics_bulk(
+    db: Session,
+    *,
+    gameweek_id: int,
+    updates: list[tuple[int, dict[str, float]]],
+    source: str,
+) -> int:
+    """Upsert MatchEvents for many players with one preload query (live hot path).
+
+    Avoids per-metric SELECTs that made ingest_fpl_live timeout on Render
+    (~600 players × ~15 metrics → minutes froze mid-match).
+    """
+    if not updates:
+        return 0
+    player_ids = [pid for pid, _ in updates]
+    existing = (
+        db.query(MatchEvent)
+        .filter(
+            MatchEvent.gameweek_id == gameweek_id,
+            MatchEvent.player_id.in_(player_ids),
+        )
+        .all()
+    )
+    by_key: dict[tuple[int, str], MatchEvent] = {(r.player_id, r.metric): r for r in existing}
+    now = datetime.utcnow()
+    written = 0
+    for player_id, metrics in updates:
+        for metric, value in metrics.items():
+            key = (player_id, metric)
+            row = by_key.get(key)
+            if row:
+                row.value = float(value)
+                row.source = source
+                row.fetched_at = now
+            else:
+                ev = MatchEvent(
+                    gameweek_id=gameweek_id,
+                    player_id=player_id,
+                    metric=metric,
+                    value=float(value),
+                    source=source,
+                    fetched_at=now,
+                )
+                db.add(ev)
+                by_key[key] = ev
+            written += 1
+    return written
+
+
+def _live_ingest_player_ids(db: Session, gw: Gameweek) -> set[int]:
+    """Players worth updating every ~2 min: owned + clubs with GW fixtures underway."""
+    from app.models import Fixture
+
+    owned = {int(r[0]) for r in db.query(OwnedPlayer.player_id).all()}
+    live_clubs = {
+        code
+        for (code,) in db.query(Fixture.home_club_code)
+        .filter(
+            Fixture.gameweek_number == int(gw.number),
+            Fixture.started == 1,
+            Fixture.finished == 0,
+        )
+        .all()
+    } | {
+        code
+        for (code,) in db.query(Fixture.away_club_code)
+        .filter(
+            Fixture.gameweek_number == int(gw.number),
+            Fixture.started == 1,
+            Fixture.finished == 0,
+        )
+        .all()
+    }
+    # Also include finished-this-GW clubs so FT minutes still land.
+    gw_clubs = {
+        code
+        for (code,) in db.query(Fixture.home_club_code)
+        .filter(Fixture.gameweek_number == int(gw.number), Fixture.started == 1)
+        .all()
+    } | {
+        code
+        for (code,) in db.query(Fixture.away_club_code)
+        .filter(Fixture.gameweek_number == int(gw.number), Fixture.started == 1)
+        .all()
+    }
+    clubs = live_clubs or gw_clubs
+    if not clubs:
+        return owned
+    club_players = {
+        int(r[0]) for r in db.query(Player.id).filter(Player.team_code.in_(sorted(clubs))).all()
+    }
+    return owned | club_players
+
+
 def merge_fixture_stats_into_events(db: Session, gw: Gameweek) -> int:
     """Backfill G/A/cards from Fixture.stats_json when event/live lags.
 
@@ -176,19 +270,29 @@ def merge_fixture_stats_into_events(db: Session, gw: Gameweek) -> int:
 
 
 def ingest_fpl_live(db: Session, gw: Gameweek) -> dict[str, Any]:
-    """Pull FPL event live + fixtures; write MatchEvent + ClubResult rows."""
+    """Pull FPL event live + fixtures; write MatchEvent + ClubResult rows.
+
+    Hot path only upserts owned players + players in clubs with started GW
+    fixtures — not the full ~600-element catalogue. Full-catalogue writes
+    were timing out on Render and freezing minutes mid-match.
+    """
     live = _http_get(FPL_EVENT_LIVE.format(gw=gw.number))
     elements = live.get("elements") or []
-    by_fpl = {fpl_id_from_external(p.external_id): p for p in db.query(Player).all() if fpl_id_from_external(p.external_id)}
+    target_ids = _live_ingest_player_ids(db, gw)
+    by_fpl = {
+        fpl_id_from_external(p.external_id): p
+        for p in db.query(Player).filter(Player.id.in_(target_ids or {-1})).all()
+        if fpl_id_from_external(p.external_id)
+    }
 
-    updated = 0
+    batch: list[tuple[int, dict[str, float]]] = []
     for el in elements:
-        pid = by_fpl.get(int(el.get("id") or 0))
-        if not pid:
+        player = by_fpl.get(int(el.get("id") or 0))
+        if not player:
             continue
-        metrics = map_fpl_stats(el.get("stats") or {})
-        _write_metrics(db, gameweek_id=gw.id, player_id=pid.id, metrics=metrics, source="fpl_live")
-        updated += 1
+        batch.append((player.id, map_fpl_stats(el.get("stats") or {})))
+    _write_metrics_bulk(db, gameweek_id=gw.id, updates=batch, source="fpl_live")
+    updated = len(batch)
 
     # Keep Fixture.stats_json fresh, then ALWAYS merge G/A from DB fixtures.
     # Refresh failure must not skip the merge — Fixtures page may already have
@@ -211,60 +315,63 @@ def ingest_fpl_live(db: Session, gw: Gameweek) -> dict[str, Any]:
             "fixture stats merge skipped: %s", exc
         )
 
-    # Club results from fixtures for TD
+    # Club results only when something finished — skip bootstrap every 2 min.
     fixtures = _http_get(f"{FPL_FIXTURES}?event={gw.number}")
-    teams = {c.code: c for c in db.query(Club).all()}
-    # Need FPL team id → short_name; re-fetch bootstrap teams via club.kit_code reverse or codes from sync
-    # Clubs store kit_code = FPL teams[].code, but fixtures use teams[].id. Map via fresh bootstrap.
-    from app.services.fpl_sync import fetch_bootstrap
-
-    bootstrap = fetch_bootstrap()
-    id_to_short = {
-        int(t["id"]): (t.get("short_name") or t["name"][:3]).upper()[:8] for t in bootstrap["teams"]
-    }
-
+    finished_rows = [
+        fx
+        for fx in (fixtures or [])
+        if isinstance(fx, dict) and (fx.get("finished") or fx.get("finished_provisional"))
+    ]
     club_results = 0
-    db.query(ClubResult).filter(ClubResult.gameweek_id == gw.id).delete()
-    for fx in fixtures:
-        if not fx.get("finished") and not fx.get("finished_provisional"):
-            continue
-        hs = fx.get("team_h_score")
-        as_ = fx.get("team_a_score")
-        if hs is None or as_ is None:
-            continue
-        home = id_to_short.get(int(fx["team_h"]))
-        away = id_to_short.get(int(fx["team_a"]))
-        if not home or not away:
-            continue
-        if hs > as_:
-            results = ((home, "W"), (away, "L"))
-        elif hs < as_:
-            results = ((home, "L"), (away, "W"))
-        else:
-            results = ((home, "D"), (away, "D"))
-        # DGW: use fixture id order as index per club
-        for club_code, result in results:
-            if club_code not in teams:
+    if finished_rows:
+        teams = {c.code: c for c in db.query(Club).all()}
+        from app.services.fpl_sync import fetch_bootstrap
+
+        bootstrap = fetch_bootstrap()
+        id_to_short = {
+            int(t["id"]): (t.get("short_name") or t["name"][:3]).upper()[:8]
+            for t in bootstrap["teams"]
+        }
+
+        db.query(ClubResult).filter(ClubResult.gameweek_id == gw.id).delete()
+        for fx in finished_rows:
+            hs = fx.get("team_h_score")
+            as_ = fx.get("team_a_score")
+            if hs is None or as_ is None:
                 continue
-            existing = (
-                db.query(ClubResult)
-                .filter(ClubResult.gameweek_id == gw.id, ClubResult.club_code == club_code)
-                .count()
-            )
-            db.add(
-                ClubResult(
-                    gameweek_id=gw.id,
-                    club_code=club_code,
-                    fixture_index=existing,
-                    result=result,
+            home = id_to_short.get(int(fx["team_h"]))
+            away = id_to_short.get(int(fx["team_a"]))
+            if not home or not away:
+                continue
+            if hs > as_:
+                results = ((home, "W"), (away, "L"))
+            elif hs < as_:
+                results = ((home, "L"), (away, "W"))
+            else:
+                results = ((home, "D"), (away, "D"))
+            for club_code, result in results:
+                if club_code not in teams:
+                    continue
+                existing = (
+                    db.query(ClubResult)
+                    .filter(ClubResult.gameweek_id == gw.id, ClubResult.club_code == club_code)
+                    .count()
                 )
-            )
-            club_results += 1
+                db.add(
+                    ClubResult(
+                        gameweek_id=gw.id,
+                        club_code=club_code,
+                        fixture_index=existing,
+                        result=result,
+                    )
+                )
+                club_results += 1
 
     db.commit()
     return {
         "source": "fpl_live",
         "players_updated": updated,
+        "players_targeted": len(target_ids),
         "fixture_stats_merged": fixture_merged,
         "club_results": club_results,
         "live_empty": len(elements) == 0,
