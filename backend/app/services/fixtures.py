@@ -772,19 +772,11 @@ def fixture_sheet_preview(db: Session, *, fixture_id: int) -> dict[str, Any] | N
             "badge": badge_url(fx.away_club_code, kit_code=away.kit_code if away else None),
         },
     }
+    # Possession / SOT / passes (API-Football) permanently off — free plan has
+    # no current-season data. Do not call advanced_stats here; goals/cards still
+    # come from FPL stats_json on the fast detail path.
     team_stats = None
     team_stats_status = "unavailable"
-    try:
-        from app.services import advanced_stats as adv_svc
-
-        result = adv_svc.team_match_stats_result(db, fx)
-        team_stats = result.get("team_stats")
-        team_stats_status = result.get("team_stats_status") or (
-            "ok" if team_stats else "unavailable"
-        )
-    except Exception:
-        team_stats = None
-        team_stats_status = "error"
     try:
         from app.services import pl_content
 

@@ -168,9 +168,9 @@ def test_fixture_sheet_preview_includes_team_news_and_preview():
         assert "Emirates" in (detail["preview"].get("body") or "")
         assert detail["team_news"]["away"]
         assert all("title" in c and "body" in c for c in detail["team_news"]["away"])
-        # Without API_FOOTBALL_KEY, advanced possession/SOT stay off (FPL has no such feed).
+        # Without a paid match-stats feed, possession/SOT stay unavailable.
         assert detail.get("team_stats") is None
-        assert detail.get("team_stats_status") in {"no_api_key", "unavailable", "error", "ok"}
+        assert detail.get("team_stats_status") == "unavailable"
     finally:
         db.close()
 
@@ -187,6 +187,9 @@ def test_fixtures_js_match_sheet_section_order():
     assert "/preview" in js
     assert "newsLoading" in js
     assert "applyMatchPreview" in js
+    assert "Possession &amp; shots stats unavailable this season." in js
+    assert "API-Football key on the server" not in js
+    assert "coming soon" not in js.lower()
     status_i = js.find("${statusLine}")
     stats_i = js.find("${watchBlock}")
     xi_i = js.find("${squadBlock}")

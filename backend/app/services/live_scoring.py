@@ -804,13 +804,11 @@ def run_gameweek_scoring(
                 "source": ingest.get("source") or "fpl_live",
             }
 
-    # Advanced defensive/create stats from API-Football (optional; never blocks scoring).
-    try:
-        from app.services import advanced_stats as adv_svc
-
-        ingest["api_football"] = adv_svc.ingest_advanced_stats(db, gw)
-    except Exception as exc:
-        ingest["api_football"] = {"error": str(exc)}
+    # API-Football player ingest is permanently disabled (free plan has no
+    # current season). Never call it here: _write_metrics upserts by metric and
+    # would overwrite FPL live `tackles` if a partial response ever succeeded.
+    # Player scoring (tackles / CBI / creativity / threat) is FPL-only.
+    ingest["api_football"] = {"skipped": "disabled"}
 
     n_players = score_players(db, gw)
     n_managers = score_managers(db, gw)

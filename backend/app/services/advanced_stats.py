@@ -1,8 +1,15 @@
-"""Ingest advanced PL stats from API-Football into MatchEvent rows.
+"""API-Football helpers (team match stats + optional player metrics).
 
-Writes source="api_football" metrics (tackles, interceptions, blocks,
-key_passes, shots_on_target). Clearances are not available from this API
-and stay 0. When API_FOOTBALL_KEY is empty, all public entrypoints no-op.
+**Permanently disabled in production** until a paid plan is confirmed:
+``run_gameweek_scoring`` does not call ``ingest_advanced_stats``, and the
+Fixtures sheet preview does not call ``team_match_stats_result``. Free-tier
+keys only cover older seasons; current-season possession/SOT will not work.
+
+If re-enabled later: ``ingest_advanced_stats`` writes source=\"api_football\"
+MatchEvents (tackles, interceptions, blocks, key_passes, shots_on_target)
+via ``_write_metrics``, which upserts by metric and can overwrite FPL live
+``tackles``. Scoring formulas themselves read FPL field names (tackles, cbi,
+creativity, threat) from ``map_fpl_stats``.
 """
 
 from __future__ import annotations

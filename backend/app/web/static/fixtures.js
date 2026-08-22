@@ -272,23 +272,15 @@
         </tr>`;
       })
       .join("");
+    // Possession / SOT / passes need a paid match-stats feed we do not have.
+    // Honest unavailable copy only — do not use debug statuses that invite
+    // chasing a free-tier fix. Off until the product owner enables a paid plan.
+    const advancedNote = data.team_stats
+      ? ""
+      : `<p class="muted tiny fx-stats-note">Possession &amp; shots stats unavailable this season.</p>`;
     return `<section class="fx-detail-section fx-stats-section" data-fx-team-stats>
       <h3>${status === "live" ? "Live stats" : "Match stats"}</h3>
-      ${
-        data.team_stats
-          ? ""
-          : data.team_stats_status === "no_api_key"
-            ? `<p class="muted tiny fx-stats-note">Possession, shots on target, and passes need the advanced match feed (API-Football key on the server).</p>`
-            : data.team_stats_status === "no_club_ids"
-              ? `<p class="muted tiny fx-stats-note">Advanced stats: club mapping incomplete for this match.</p>`
-              : data.team_stats_status === "no_fixture_match"
-                ? `<p class="muted tiny fx-stats-note">Advanced stats: match not found in the live feed yet.</p>`
-                : data.team_stats_status === "no_statistics"
-                  ? `<p class="muted tiny fx-stats-note">Possession / shots appear after the feed publishes team statistics.</p>`
-                  : upcoming
-                    ? `<p class="muted tiny fx-stats-note">Stats fill in once the match is underway.</p>`
-                    : `<p class="muted tiny fx-stats-note">Goals & cards are live. Possession / shots / passes aren’t available for this match yet.</p>`
-      }
+      ${advancedNote}
       <table class="fx-stat-table">
         <thead>
           <tr>
