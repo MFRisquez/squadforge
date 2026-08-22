@@ -582,7 +582,7 @@
     if (LOCKED) loadMatchProfile(player.id);
   }
 
-  function loadMatchProfile(playerId) {
+  function loadMatchProfile(playerId, { quiet } = {}) {
     const kpis = document.getElementById("detailKpis");
     const qs = GW ? `?mode=match&gw=${GW}` : `?mode=match`;
     fetch(`/api/players/${playerId}${qs}`)
@@ -609,11 +609,14 @@
         }
         if (data.gw_points != null) {
           const meta = detailBody.querySelector(".meta");
-          if (meta && !meta.querySelector(".match-pts")) {
-            const s = document.createElement("strong");
-            s.className = "match-pts";
+          if (meta) {
+            let s = meta.querySelector(".match-pts");
+            if (!s) {
+              s = document.createElement("strong");
+              s.className = "match-pts";
+              meta.appendChild(s);
+            }
             s.textContent = `${Number(data.gw_points).toFixed(0)} pts`;
-            meta.appendChild(s);
           }
         }
         if (kpis) {
@@ -627,6 +630,8 @@
         }
       })
       .catch(() => {
+        // Poll refreshes stay quiet — don't wipe a good KPI table on a blip.
+        if (quiet) return;
         if (kpis) kpis.innerHTML = `<span class="muted tiny">Couldn’t load match stats.</span>`;
       });
   }
@@ -1109,7 +1114,19 @@
     const url = GW != null ? `/api/xi/live-points?gw=${GW}` : "/api/xi/live-points";
     fetch(url, { headers: { Accept: "application/json" }, credentials: "same-origin" })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then(applyLivePointsPayload)
+      .then((data) => {
+        applyLivePointsPayload(data);
+        // Same timer: refresh open player-detail KPIs (minutes etc.) only when
+        // the sheet is actually visible — avoid extra work otherwise.
+        if (
+          detailPlayer &&
+          playerDetail &&
+          !playerDetail.hidden &&
+          document.body.contains(playerDetail)
+        ) {
+          loadMatchProfile(detailPlayer.id, { quiet: true });
+        }
+      })
       .catch(() => {});
   }
   if (LOCKED) {

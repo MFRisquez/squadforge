@@ -313,12 +313,8 @@
     </section>`;
   }
 
-  function detailHtml(data, score, { newsLoading } = {}) {
-    const homeCode = data.home?.code || "";
-    const awayCode = data.away?.code || "";
-    const homeMine = data.my_players?.home || MY_BY_CLUB[homeCode] || [];
-    const awayMine = data.my_players?.away || MY_BY_CLUB[awayCode] || [];
-
+  function matchActionHtml(data) {
+    const status = data.status || "upcoming";
     const goalsHome = sideLines(data.goals?.home, "⚽");
     const goalsAway = sideLines(data.goals?.away, "⚽");
     const assistsHome = sideLines(data.assists?.home, "ⓐ");
@@ -335,10 +331,31 @@
     const pmAway = sideLines(data.penalties_missed?.away, "PM");
     const svHome = sideLines(data.saves?.home, "Sv");
     const svAway = sideLines(data.saves?.away, "Sv");
-
     const homeHtml = goalsHome + assistsHome + ogHome + ycHome + rcHome + psHome + pmHome + svHome;
     const awayHtml = goalsAway + assistsAway + ogAway + ycAway + rcAway + psAway + pmAway + svAway;
     const hasEvents = Boolean(homeHtml || awayHtml);
+    if (hasEvents) {
+      return `<section class="fx-detail-section" data-fx-action>
+          <h3>${status === "finished" ? "Match action" : "Live action"}</h3>
+          <div class="match-events">
+            ${sideBlock(data.home?.name || "Home", homeHtml)}
+            ${sideBlock(data.away?.name || "Away", awayHtml)}
+          </div>
+        </section>`;
+    }
+    if (status === "upcoming") return "";
+    return `<section class="fx-detail-section" data-fx-action>
+            <h3>Match action</h3>
+            <p class="muted tiny">No events yet — refresh while the match is live or after full time.</p>
+          </section>`;
+  }
+
+  function detailHtml(data, score, { newsLoading } = {}) {
+    const homeCode = data.home?.code || "";
+    const awayCode = data.away?.code || "";
+    const homeMine = data.my_players?.home || MY_BY_CLUB[homeCode] || [];
+    const awayMine = data.my_players?.away || MY_BY_CLUB[awayCode] || [];
+
     const homeBadge = data.home.badge
       ? `<img class="fx-badge fx-badge-detail" src="${data.home.badge}" alt="${data.home.name || homeCode}" width="96" height="96" decoding="async" />`
       : `<span class="fx-badge-fallback" aria-label="${homeCode}">${homeCode}</span>`;
@@ -377,21 +394,7 @@
           </section>`;
 
     const newsBlock = newsSectionHtml(data, { loading: Boolean(newsLoading) });
-
-    const actionBlock = hasEvents
-      ? `<section class="fx-detail-section">
-          <h3>${status === "finished" ? "Match action" : "Live action"}</h3>
-          <div class="match-events">
-            ${sideBlock(data.home.name || "Home", homeHtml)}
-            ${sideBlock(data.away.name || "Away", awayHtml)}
-          </div>
-        </section>`
-      : status === "upcoming"
-        ? ""
-        : `<section class="fx-detail-section">
-            <h3>Match action</h3>
-            <p class="muted tiny">No events yet — refresh while the match is live or after full time.</p>
-          </section>`;
+    const actionBlock = matchActionHtml(data);
 
     return `
       <div class="match-scoreline match-scoreline-badges">
@@ -685,6 +688,16 @@
                 st === "live" ? "Live" : st === "finished" ? "Full time" : "Upcoming";
               statusEl.textContent = `${label}${clockBit} · ${kick} · GW${detail.gw}`;
               statusEl.classList.toggle("is-live", st === "live");
+            }
+            // Re-paint goals/assists (and cards) on the open sheet — same poll,
+            // only when a match detail is open.
+            const actionHtml = matchActionHtml(detail);
+            const actionEl = root.querySelector("[data-fx-action]");
+            if (actionHtml) {
+              if (actionEl) actionEl.outerHTML = actionHtml;
+              else root.insertAdjacentHTML("beforeend", actionHtml);
+            } else if (actionEl) {
+              actionEl.remove();
             }
             // team_stats live on /preview (fast detail path returns null).
             return fetch(`/api/fixtures/${reqId}/preview`)
