@@ -1,15 +1,15 @@
 /* FutFantasy phone app shell */
 const CACHE = "futfantasy-v175";
 const PRECACHE = [
-  "/static/styles.css?v=175",
+  "/static/styles.css?v=176",
   "/static/ui.js",
   "/static/chips.js",
-  "/static/appshell.js?v=175",
-  "/static/lineup.js?v=175",
+  "/static/appshell.js?v=176",
+  "/static/lineup.js?v=176",
   "/static/xi-side.js",
   "/static/squadboard.js",
   "/static/club-sheet.js",
-  "/static/fixtures.js?v=175",
+  "/static/fixtures.js?v=176",
   "/static/league_h2h.js",
   "/static/fonts/Vielma_Grotesk_Bold.woff2",
   "/static/fonts/Vielma_Grotesk_Bold.otf",
