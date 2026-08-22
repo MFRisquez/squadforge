@@ -69,5 +69,6 @@ def test_estimate_match_clock_prefers_pulse_then_fpl():
     assert _clock(kick, 100, fpl_minutes=79, pulse_clock="90+7'") == "90+7'"
     # FPL minutes beat a lagging wall estimate (wall thinks ~100' → 90+N).
     assert _clock(kick, 100, fpl_minutes=79) == "79'"
-    assert _clock(kick, 50, fpl_minutes=45) == "MT"
+    assert _clock(kick, 48, fpl_minutes=45) == "45+3'"
+    assert _clock(kick, 55, fpl_minutes=45) == "MT"
     assert _clock(kick, 110, fpl_minutes=90) == "90+5'"
