@@ -77,9 +77,9 @@ def test_auto_score_refreshes_fixture_started_before_scoring():
 
         refresh_calls: list[dict] = []
 
-        def _tracking_refresh(session):
+        def _tracking_refresh(session, **kwargs):
             out = fixtures_svc.sync_fixtures(session, rows=fake_rows)
-            refresh_calls.append(out)
+            refresh_calls.append({"out": out, "kwargs": kwargs})
             return out
 
         with patch.object(fixtures_svc, "refresh_fixtures", side_effect=_tracking_refresh):
@@ -93,10 +93,12 @@ def test_auto_score_refreshes_fixture_started_before_scoring():
                 },
             ):
                 # Import after patch target is ready — auto_score imports fixtures inside try.
+                auto_svc._last_gw_sweep_at = 0.0
                 summary = auto_svc.maybe_score_locked_gw(force=True)
 
         assert summary is not None
         assert refresh_calls, "auto-scorer must call refresh_fixtures every cycle"
+        assert refresh_calls[0]["kwargs"].get("scope") in {"live", "gw"}
         fx = db.query(Fixture).filter(Fixture.fpl_id == 99001).one()
         assert fx.started == 1
         assert fx.finished == 0

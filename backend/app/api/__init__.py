@@ -357,18 +357,21 @@ def api_fixtures_refresh(gw: Optional[int] = None) -> dict:
 
     db = SessionLocal()
     try:
-        try:
-            info = fixtures_svc.refresh_fixtures(db)
-        except Exception as exc:
-            info = {"fixtures": 0, "error": str(exc)}
         from app.services import squad as squad_svc
 
-        squad_svc.maybe_advance_finished_gameweek(db)
         if gw is None:
             current = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
             gw_number = current.number if current else 1
         else:
             gw_number = int(gw)
+        try:
+            # Current GW only (~10) — never re-upsert the full 380-fixture season
+            # on every Refresh tap / poll.
+            info = fixtures_svc.refresh_fixtures(db, scope="gw", gw_number=gw_number)
+        except Exception as exc:
+            info = {"fixtures": 0, "error": str(exc)}
+
+        squad_svc.maybe_advance_finished_gameweek(db)
         return {
             "gw": gw_number,
             "synced": info,

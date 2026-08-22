@@ -194,7 +194,7 @@ def ingest_fpl_live(db: Session, gw: Gameweek) -> dict[str, Any]:
     # Refresh failure must not skip the merge — Fixtures page may already have
     # newer stats_json while event/live still has goals=0.
     try:
-        fixtures_svc.refresh_fixtures(db)
+        fixtures_svc.refresh_fixtures(db, scope="live")
     except Exception as exc:
         import logging
 
@@ -774,7 +774,7 @@ def run_gameweek_scoring(
     # without requiring someone to sit on the Fixtures tab.
     fixture_sync: dict[str, Any] = {}
     try:
-        fixture_sync = fixtures_svc.refresh_fixtures(db)
+        fixture_sync = fixtures_svc.refresh_fixtures(db, scope="live")
     except Exception as exc:
         fixture_sync = {"error": str(exc)}
 

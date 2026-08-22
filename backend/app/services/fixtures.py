@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
-from typing import Any
+from datetime import datetime, timedelta, timezone
+from typing import Any, Literal
 
 import httpx
 from sqlalchemy.orm import Session
@@ -13,6 +13,10 @@ from app.kits import badge_url
 from app.models import Club, Fixture, Gameweek, Player
 
 FPL_FIXTURES = "https://fantasy.premierleague.com/api/fixtures/"
+
+# How often the auto-scorer also refreshes non-live fixtures in the current GW
+# (upcoming → live transitions). Hot path stays live-only every ~2 min.
+GW_SWEEP_INTERVAL_SEC = 12 * 60
 
 
 def map_fdr(fpl_diff: int | None) -> int:
@@ -28,31 +32,98 @@ def map_fdr(fpl_diff: int | None) -> int:
     return min(4, d)
 
 
-def fetch_fixtures(timeout: float = 45.0) -> list[dict[str, Any]]:
+def fetch_fixtures(
+    timeout: float = 45.0,
+    *,
+    event: int | None = None,
+) -> list[dict[str, Any]]:
+    """Fetch FPL fixtures. Pass ``event`` to limit to one gameweek (~10 rows).
+
+    Unfiltered calls return the full season (~380) — only use that for bootstrap.
+    """
     headers = {
         "User-Agent": "SquadForge/0.3 (private fantasy; contact local)",
         "Accept": "application/json",
     }
+    params: dict[str, Any] = {}
+    if event is not None:
+        params["event"] = int(event)
     with httpx.Client(timeout=timeout, headers=headers, follow_redirects=True) as client:
-        response = client.get(FPL_FIXTURES)
+        response = client.get(FPL_FIXTURES, params=params or None)
         response.raise_for_status()
         data = response.json()
         return data if isinstance(data, list) else []
 
 
-def sync_fixtures(db: Session, rows: list[dict[str, Any]] | None = None) -> dict[str, int]:
-    """Upsert FPL fixtures. Requires clubs.fpl_team_id from bootstrap sync."""
-    payload = rows if rows is not None else fetch_fixtures()
+def _fpl_row_finished(fx: dict[str, Any]) -> bool:
+    return bool(fx.get("finished") or fx.get("finished_provisional"))
+
+
+def _fpl_row_is_active(fx: dict[str, Any], *, now: datetime | None = None) -> bool:
+    """True for live / resolving matches that still need a 2-min poll.
+
+    Includes kickoff-passed rows where FPL has not flipped ``started`` yet.
+    Skips finished matches and far-future kickoffs.
+    """
+    if _fpl_row_finished(fx):
+        return False
+    if fx.get("started"):
+        return True
+    ko = fx.get("kickoff_time")
+    if not ko:
+        return False
+    try:
+        kick = datetime.fromisoformat(str(ko).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if kick.tzinfo is None:
+        kick = kick.replace(tzinfo=timezone.utc)
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    # Small lead so we catch kickoff the cycle it happens.
+    return now >= kick - timedelta(minutes=2)
+
+
+def sync_fixtures(
+    db: Session,
+    rows: list[dict[str, Any]] | None = None,
+    *,
+    event: int | None = None,
+    only_active: bool = False,
+) -> dict[str, int]:
+    """Upsert FPL fixtures. Requires clubs.fpl_team_id from bootstrap sync.
+
+    ``event`` — fetch/sync one gameweek only (preferred for live paths).
+    ``only_active`` — among the payload, upsert only live/resolving rows
+    (started & not finished, or kickoff passed & not finished).
+    """
+    if rows is not None:
+        payload = rows
+    else:
+        payload = fetch_fixtures(event=event)
     by_fpl_id = {
         int(c.fpl_team_id): c
         for c in db.query(Club).filter(Club.fpl_team_id.isnot(None)).all()
         if c.fpl_team_id
     }
     if not by_fpl_id:
-        return {"fixtures": 0, "skipped": len(payload), "reason": "no_club_fpl_ids"}
+        return {
+            "fixtures": 0,
+            "skipped": len(payload),
+            "reason": "no_club_fpl_ids",
+            "fetched": len(payload),
+            "event": event,
+            "only_active": only_active,
+        }
 
+    now = datetime.now(timezone.utc)
     upserted = 0
+    skipped_inactive = 0
     for fx in payload:
+        if only_active and not _fpl_row_is_active(fx, now=now):
+            skipped_inactive += 1
+            continue
         fpl_id = int(fx.get("id") or 0)
         if not fpl_id:
             continue
@@ -60,8 +131,8 @@ def sync_fixtures(db: Session, rows: list[dict[str, Any]] | None = None) -> dict
         away = by_fpl_id.get(int(fx.get("team_a") or 0))
         if not home or not away:
             continue
-        event = fx.get("event")
-        gw_number = int(event) if event is not None else 0
+        ev = fx.get("event")
+        gw_number = int(ev) if ev is not None else 0
         stats = fx.get("stats") or []
         row = db.query(Fixture).filter(Fixture.fpl_id == fpl_id).one_or_none()
         fields = dict(
@@ -72,7 +143,7 @@ def sync_fixtures(db: Session, rows: list[dict[str, Any]] | None = None) -> dict
             away_difficulty=int(fx.get("team_a_difficulty") or 3),
             kickoff_at=fx.get("kickoff_time"),
             started=1 if fx.get("started") else 0,
-            finished=1 if (fx.get("finished") or fx.get("finished_provisional")) else 0,
+            finished=1 if _fpl_row_finished(fx) else 0,
             home_score=fx.get("team_h_score"),
             away_score=fx.get("team_a_score"),
             stats_json=json.dumps(stats),
@@ -84,7 +155,13 @@ def sync_fixtures(db: Session, rows: list[dict[str, Any]] | None = None) -> dict
                 setattr(row, k, v)
         upserted += 1
     db.commit()
-    return {"fixtures": upserted}
+    return {
+        "fixtures": upserted,
+        "fetched": len(payload),
+        "skipped_inactive": skipped_inactive,
+        "event": event,
+        "only_active": only_active,
+    }
 
 
 def next_fixtures_for_club(
@@ -796,15 +873,44 @@ def fixture_sheet_preview(db: Session, *, fixture_id: int) -> dict[str, Any] | N
         ),
     }
 
-def refresh_fixtures(db: Session) -> dict[str, int]:
+def refresh_fixtures(
+    db: Session,
+    *,
+    scope: Literal["live", "gw", "season"] = "live",
+    gw_number: int | None = None,
+) -> dict[str, int]:
     """Pull latest FPL fixtures (scores + started/finished + stats).
+
+    Scopes (hot → cold):
+    - ``live`` — current GW from FPL, upsert only live/resolving matches
+      (typical auto-score cycle: ~2–4 rows, never 380).
+    - ``gw`` — all fixtures in the current (or given) GW (~10). Use for the
+      Fixtures Refresh button and occasional upcoming→live sweeps.
+    - ``season`` — full calendar (~380). Bootstrap / empty-DB only.
 
     If clubs lack ``fpl_team_id`` (common on older DBs), backfill via
     ``ensure_fixtures_ready`` then retry — otherwise started/finished never
     move off the seed snapshot.
     """
-    info = sync_fixtures(db)
-    if info.get("reason") == "no_club_fpl_ids" or int(info.get("fixtures") or 0) == 0:
+    if gw_number is None and scope in {"live", "gw"}:
+        current = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
+        gw_number = int(current.number) if current else None
+
+    def _run() -> dict[str, int]:
+        if scope == "season" or gw_number is None:
+            return sync_fixtures(db)
+        if scope == "gw":
+            return sync_fixtures(db, event=int(gw_number), only_active=False)
+        return sync_fixtures(db, event=int(gw_number), only_active=True)
+
+    info = _run()
+    info = {**info, "scope": scope}
+    # Live scope may upsert 0 rows when nothing is kicking — that is OK.
+    # Only retry after club-id backfill when the FPL map was empty.
+    if info.get("reason") == "no_club_fpl_ids":
         ensure_fixtures_ready(db)
-        info = sync_fixtures(db)
+        info = {**_run(), "scope": scope}
+    elif scope == "season" and int(info.get("fixtures") or 0) == 0:
+        ensure_fixtures_ready(db)
+        info = {**_run(), "scope": scope}
     return info
