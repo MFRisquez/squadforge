@@ -124,20 +124,33 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS / catalog that showed wrong avail flags
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v174"' in sw
+    assert 'CACHE = "futfantasy-v175"' in sw
     assert "if (isStatic || isBadgeCdn) return cached || fetched" in sw
-    assert "CSS is network-first" in sw
+    assert "CSS + JS + shell HTML: network-first" in sw
+    assert "isJs" in sw
+    assert "isCss || isJs || isCatalog || isShell" in sw
     # Must not cache-first the catalog (stale availability after FPL sync).
     assert "if (isStatic || isCatalog || isBadgeCdn) return cached || fetched" not in sw
-    assert "/static/styles.css?v=174" in sw
+    assert "/static/styles.css?v=175" in sw
+    assert "/static/lineup.js?v=175" in sw
+    assert "/static/appshell.js?v=175" in sw
+    assert "/static/fixtures.js?v=175" in sw
     assert "/static/league_h2h.js" in sw
     assert "/static/club-sheet.js" in sw
     assert 'BADGE_CDN_HOST = "resources.premierleague.com"' in sw
     assert "isBadgeCdn" in sw
     assert "isStatic || isCatalog || isBadgeCdn" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=174" in base
-    assert "styles.css?v=174" in base
+    assert "sw.js?v=175" in base
+    assert "styles.css?v=175" in base
+    assert "appshell.js?v=175" in base
+    appshell = (STATIC / "appshell.js").read_text(encoding="utf-8")
+    assert 'pathOnly === "/lineup"' in appshell
+    assert "livePage" in appshell
+    lineup_tpl = (TEMPLATES / "lineup.html").read_text(encoding="utf-8")
+    assert "lineup.js?v=175" in lineup_tpl
+    fx_tpl = (TEMPLATES / "fixtures.html").read_text(encoding="utf-8")
+    assert "fixtures.js?v=175" in fx_tpl
     css = (STATIC / "styles.css").read_text(encoding="utf-8")
     assert "shirt-pts-fx.is-live-match" in css
     assert "linear-gradient(135deg, #5b21b6" in css

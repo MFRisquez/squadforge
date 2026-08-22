@@ -1,15 +1,15 @@
 /* FutFantasy phone app shell */
-const CACHE = "futfantasy-v174";
+const CACHE = "futfantasy-v175";
 const PRECACHE = [
-  "/static/styles.css?v=174",
+  "/static/styles.css?v=175",
   "/static/ui.js",
   "/static/chips.js",
-  "/static/appshell.js",
-  "/static/lineup.js",
+  "/static/appshell.js?v=175",
+  "/static/lineup.js?v=175",
   "/static/xi-side.js",
   "/static/squadboard.js",
   "/static/club-sheet.js",
-  "/static/fixtures.js",
+  "/static/fixtures.js?v=175",
   "/static/league_h2h.js",
   "/static/fonts/Vielma_Grotesk_Bold.woff2",
   "/static/fonts/Vielma_Grotesk_Bold.otf",
@@ -45,6 +45,7 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   const isStatic = url.pathname.startsWith("/static/");
   const isCss = isStatic && url.pathname.endsWith(".css");
+  const isJs = isStatic && url.pathname.endsWith(".js");
   const isCatalog = url.pathname === "/api/players/catalog";
   const isBadgeCdn = url.hostname === BADGE_CDN_HOST;
   const isShell =
@@ -69,7 +70,7 @@ self.addEventListener("fetch", (event) => {
           // Opaque cross-origin (no-cors <img>) has ok=false / status 0 — still cacheable.
           const okToCache =
             res && (res.ok || (isBadgeCdn && res.type === "opaque"));
-          // Catalog / CSS: network-first — still warm cache for offline fallback only.
+          // Catalog / CSS / JS: network-first — still warm cache for offline fallback only.
           if (okToCache && (isStatic || isCatalog || isBadgeCdn)) {
             const copy = res.clone();
             caches.open(CACHE).then((cache) => cache.put(req, copy));
@@ -78,12 +79,12 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(() => cached);
 
-      // CSS is network-first so desktop shirt/layout tweaks are not stuck on stale SW cache.
-      if (isCss || isCatalog || isShell) {
+      // CSS + JS + shell HTML: network-first so live GW / soft-nav are not stuck.
+      if (isCss || isJs || isCatalog || isShell) {
         return fetched.then((res) => res || cached);
       }
 
-      // Other static + badge CDN: cache-first.
+      // Badge CDN (and non-js/css static): cache-first.
       if (isStatic || isBadgeCdn) return cached || fetched;
 
       return fetched.then((res) => res || cached);

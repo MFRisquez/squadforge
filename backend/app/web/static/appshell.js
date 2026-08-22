@@ -260,9 +260,17 @@
 
   async function fetchPageHtml(path) {
     // Never reuse in-memory HTML for ?gw= — first tap must show the new gameweek.
+    // Live pages: never reuse soft-nav HTML cache — INITIAL points / fixture scores
+    // go stale within seconds; poll alone is not enough if we never re-SSR.
     const key = path;
     const hasGw = /[?&]gw=/.test(path);
-    if (!hasGw) {
+    const pathOnly = path.split("?")[0];
+    const livePage =
+      pathOnly === "/lineup" ||
+      pathOnly === "/xi" ||
+      pathOnly === "/fixtures" ||
+      pathOnly === "/points";
+    if (!hasGw && !livePage) {
       const hit = pageCache.get(key);
       if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
         fetch(path, {
@@ -297,7 +305,12 @@
     }
     const serverPerf = readServerPerfHeader(res);
     const html = await res.text();
-    pageCache.set(key, { html, at: Date.now(), serverPerf });
+    // Still warm cache for non-live pages only.
+    if (!livePage) {
+      pageCache.set(key, { html, at: Date.now(), serverPerf });
+    } else {
+      pageCache.delete(key);
+    }
     return { html, fromCache: false, serverPerf };
   }
 
