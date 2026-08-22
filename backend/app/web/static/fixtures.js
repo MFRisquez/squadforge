@@ -279,9 +279,15 @@
           ? ""
           : data.team_stats_status === "no_api_key"
             ? `<p class="muted tiny fx-stats-note">Possession, shots on target, and passes need the advanced match feed (API-Football key on the server).</p>`
-            : upcoming
-              ? `<p class="muted tiny fx-stats-note">Stats fill in once the match is underway.</p>`
-              : `<p class="muted tiny fx-stats-note">Goals & cards are live. Possession / shots / passes aren’t available for this match yet.</p>`
+            : data.team_stats_status === "no_club_ids"
+              ? `<p class="muted tiny fx-stats-note">Advanced stats: club mapping incomplete for this match.</p>`
+              : data.team_stats_status === "no_fixture_match"
+                ? `<p class="muted tiny fx-stats-note">Advanced stats: match not found in the live feed yet.</p>`
+                : data.team_stats_status === "no_statistics"
+                  ? `<p class="muted tiny fx-stats-note">Possession / shots appear after the feed publishes team statistics.</p>`
+                  : upcoming
+                    ? `<p class="muted tiny fx-stats-note">Stats fill in once the match is underway.</p>`
+                    : `<p class="muted tiny fx-stats-note">Goals & cards are live. Possession / shots / passes aren’t available for this match yet.</p>`
       }
       <table class="fx-stat-table">
         <thead>

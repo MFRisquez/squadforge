@@ -275,6 +275,81 @@ def test_team_match_stats_maps_away_first_response():
         db.close()
 
 
+def test_team_match_stats_result_reports_no_club_ids():
+    from app.models import Fixture
+
+    _reset()
+    db = SessionLocal()
+    try:
+        old_key = settings.api_football_key
+        settings.api_football_key = "test-key"
+        adv._team_stats_cache.clear()
+        db.add(Club(code="ARS", name="Arsenal", api_football_team_id=42))
+        db.add(Club(code="COV", name="Coventry City"))  # unmapped
+        fx = Fixture(
+            fpl_id=88003,
+            gameweek_number=1,
+            home_club_code="ARS",
+            away_club_code="COV",
+            kickoff_at="2026-08-21T19:00:00Z",
+            started=1,
+        )
+        db.add(fx)
+        db.commit()
+        db.refresh(fx)
+
+        with patch.object(adv, "_api_get", return_value={"response": []}):
+            result = adv.team_match_stats_result(db, fx, force=True)
+        assert result["team_stats"] is None
+        assert result["team_stats_status"] == "no_club_ids"
+        assert "COV" in (result.get("missing_clubs") or [])
+    finally:
+        settings.api_football_key = old_key
+        db.close()
+
+
+def test_ensure_club_team_ids_uses_alias_and_season_fallback():
+    _reset()
+    db = SessionLocal()
+    try:
+        old_key = settings.api_football_key
+        old_season = settings.api_football_season
+        settings.api_football_key = "test-key"
+        settings.api_football_season = 2026
+        db.add(Club(code="COV", name="Coventry City"))
+        db.add(Club(code="NFO", name="Nott'm Forest"))
+        db.commit()
+
+        calls: list[dict] = []
+
+        def fake_get(path, params=None, **kwargs):
+            calls.append({"path": path, "params": dict(params or {})})
+            if path == "/teams" and (params or {}).get("season") == 2026:
+                return {"response": []}  # season not published yet
+            if path == "/teams" and (params or {}).get("season") == 2025:
+                return {
+                    "response": [
+                        {"team": {"id": 77, "name": "Coventry"}},
+                        {"team": {"id": 65, "name": "Nottingham Forest"}},
+                    ]
+                }
+            return {"response": []}
+
+        with patch.object(adv, "_api_get", side_effect=fake_get):
+            out = adv.ensure_club_team_ids(db)
+        assert out["updated"] == 2
+        assert out["season"] == 2025
+        clubs = {c.code: c.api_football_team_id for c in db.query(Club).all()}
+        assert clubs["COV"] == 77
+        assert clubs["NFO"] == 65
+        assert any(c["params"].get("season") == 2026 for c in calls)
+        assert any(c["params"].get("season") == 2025 for c in calls)
+    finally:
+        settings.api_football_key = old_key
+        settings.api_football_season = old_season
+        db.close()
+
+
 def test_team_match_stats_cache_ttl():
     from app.models import Fixture
 
