@@ -1,10 +1,14 @@
 (() => {
-  const CATALOG_KEY = "ff_players_catalog_v2";
-  const CATALOG_META = "ff_players_catalog_meta_v2";
+  // Keep in sync with squadboard.js — splash warm must hit the same key.
+  const CATALOG_KEY = "ff_players_catalog_v3";
+  const CATALOG_META = "ff_players_catalog_meta_v3";
   const WARM_KEY = "ff_shell_warmed_v1";
   const SHELL_PATHS = new Set(["/", "/lineup", "/team", "/fixtures", "/rules", "/leagues", "/onboard"]);
   const pageCache = new Map(); // full path+search -> { html, at }
   const CACHE_TTL_MS = 45_000;
+  // Live tabs (XI / Fixtures): short SWR so rapid tab switches feel instant
+  // without serving multi-minute-stale scores. Polls still refresh in-page.
+  const LIVE_CACHE_TTL_MS = 8_000;
   const DESK_MQ = window.matchMedia("(min-width: 900px)");
   let navigating = false;
   let pendingNav = null; // latest path queued while a soft-nav is in flight
@@ -260,8 +264,8 @@
 
   async function fetchPageHtml(path) {
     // Never reuse in-memory HTML for ?gw= — first tap must show the new gameweek.
-    // Live pages: never reuse soft-nav HTML cache — INITIAL points / fixture scores
-    // go stale within seconds; poll alone is not enough if we never re-SSR.
+    // Live pages use a short SWR window so Home↔XI↔Fixtures ping-pong is not a
+    // full SSR round-trip every time; background refresh keeps cache warm.
     const key = path;
     const hasGw = /[?&]gw=/.test(path);
     const pathOnly = path.split("?")[0];
@@ -270,9 +274,10 @@
       pathOnly === "/xi" ||
       pathOnly === "/fixtures" ||
       pathOnly === "/points";
-    if (!hasGw && !livePage) {
+    const ttl = livePage ? LIVE_CACHE_TTL_MS : CACHE_TTL_MS;
+    if (!hasGw) {
       const hit = pageCache.get(key);
-      if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
+      if (hit && Date.now() - hit.at < ttl) {
         fetch(path, {
           credentials: "same-origin",
           cache: "no-store",
@@ -305,12 +310,7 @@
     }
     const serverPerf = readServerPerfHeader(res);
     const html = await res.text();
-    // Still warm cache for non-live pages only.
-    if (!livePage) {
-      pageCache.set(key, { html, at: Date.now(), serverPerf });
-    } else {
-      pageCache.delete(key);
-    }
+    pageCache.set(key, { html, at: Date.now(), serverPerf });
     return { html, fromCache: false, serverPerf };
   }
 
@@ -353,6 +353,18 @@
         if (n) topPill.textContent = `GW ${n}`;
       }
       if (push) history.pushState({ ffShell: true }, "", path);
+      // Fixtures / Home / Rules are SSR-complete — show content while scripts hydrate.
+      // XI pitch is empty until lineup.js runs, so keep it pending until scripts end.
+      const pathOnly = path.split("?")[0];
+      const paintBeforeScripts =
+        pathOnly === "/fixtures" ||
+        pathOnly === "/" ||
+        pathOnly === "/rules" ||
+        pathOnly === "/leagues" ||
+        pathOnly.startsWith("/standings/");
+      if (paintBeforeScripts) {
+        requestAnimationFrame(() => nextMain.classList.remove("shell-pending"));
+      }
       await runScripts(nextMain);
       const t3 = performance.now();
       reportSoftNavTiming({
@@ -365,9 +377,11 @@
       });
       bindGwPicker(nextMain);
       window.scrollTo(0, 0);
-      requestAnimationFrame(() => {
-        nextMain.classList.remove("shell-pending");
-      });
+      if (!paintBeforeScripts) {
+        requestAnimationFrame(() => {
+          nextMain.classList.remove("shell-pending");
+        });
+      }
     } catch (_) {
       window.location.href = path;
     } finally {

@@ -1,15 +1,15 @@
 /* FutFantasy phone app shell */
-const CACHE = "futfantasy-v175";
+const CACHE = "futfantasy-v177";
 const PRECACHE = [
-  "/static/styles.css?v=176",
+  "/static/styles.css?v=177",
   "/static/ui.js",
   "/static/chips.js",
-  "/static/appshell.js?v=176",
-  "/static/lineup.js?v=176",
+  "/static/appshell.js?v=177",
+  "/static/lineup.js?v=177",
   "/static/xi-side.js",
   "/static/squadboard.js",
   "/static/club-sheet.js",
-  "/static/fixtures.js?v=176",
+  "/static/fixtures.js?v=177",
   "/static/league_h2h.js",
   "/static/fonts/Vielma_Grotesk_Bold.woff2",
   "/static/fonts/Vielma_Grotesk_Bold.otf",
@@ -46,6 +46,7 @@ self.addEventListener("fetch", (event) => {
   const isStatic = url.pathname.startsWith("/static/");
   const isCss = isStatic && url.pathname.endsWith(".css");
   const isJs = isStatic && url.pathname.endsWith(".js");
+  const isVersionedStatic = isStatic && url.searchParams.has("v");
   const isCatalog = url.pathname === "/api/players/catalog";
   const isBadgeCdn = url.hostname === BADGE_CDN_HOST;
   const isShell =
@@ -70,7 +71,6 @@ self.addEventListener("fetch", (event) => {
           // Opaque cross-origin (no-cors <img>) has ok=false / status 0 — still cacheable.
           const okToCache =
             res && (res.ok || (isBadgeCdn && res.type === "opaque"));
-          // Catalog / CSS / JS: network-first — still warm cache for offline fallback only.
           if (okToCache && (isStatic || isCatalog || isBadgeCdn)) {
             const copy = res.clone();
             caches.open(CACHE).then((cache) => cache.put(req, copy));
@@ -79,12 +79,19 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(() => cached);
 
-      // CSS + JS + shell HTML: network-first so live GW / soft-nav are not stuck.
+      // Versioned CSS/JS (?v=N): cache-first — soft-nav re-injects these every
+      // tab switch; network-first made each tap wait on RTT. Live GW data lives
+      // in HTML/API responses, not in these fingerprinted assets.
+      if ((isCss || isJs) && isVersionedStatic) {
+        return cached || fetched;
+      }
+
+      // Shell HTML + catalog + unversioned JS: network-first (fresh pages / API).
       if (isCss || isJs || isCatalog || isShell) {
         return fetched.then((res) => res || cached);
       }
 
-      // Badge CDN (and non-js/css static): cache-first.
+      // Badge CDN (and other static): cache-first.
       if (isStatic || isBadgeCdn) return cached || fetched;
 
       return fetched.then((res) => res || cached);
