@@ -25,6 +25,7 @@ logger = logging.getLogger("squadforge.advanced_stats")
 
 API_BASE = "https://v3.football.api-sports.io"
 PL_LEAGUE_ID = 39
+CHAMPIONSHIP_LEAGUE_ID = 40
 RECENT_FETCH_MINUTES = 20
 NAME_MATCH_THRESHOLD = 0.78
 # Sheet team stats: short TTL so live possession/SOT can refresh without
@@ -34,11 +35,45 @@ _team_stats_cache: dict[int, tuple[float, dict[str, Any]]] = {}
 
 _warned_missing_stat_shape = False
 
+# FPL Club.code → API-Football team id (IDs are stable across seasons).
+# Covers current PL + recent promotees so we don't depend on season team lists
+# that omit clubs still listed under Championship for season-1.
+_PL_CODE_TO_API_ID: dict[str, int] = {
+    "ARS": 42,
+    "AVL": 66,
+    "BHA": 51,
+    "BOU": 35,
+    "BRE": 55,
+    "BUR": 44,
+    "CHE": 49,
+    "COV": 71,  # Coventry City
+    "CRY": 52,
+    "EVE": 45,
+    "FUL": 36,
+    "HUL": 64,  # Hull City
+    "IPS": 57,  # Ipswich Town
+    "LEE": 63,  # Leeds United
+    "LEI": 46,
+    "LIV": 40,
+    "MCI": 50,
+    "MUN": 33,
+    "NEW": 34,
+    "NFO": 65,
+    "SHU": 62,
+    "SOU": 41,
+    "SUN": 746,  # Sunderland
+    "TOT": 47,
+    "WHU": 48,
+    "WOL": 39,
+}
+
 
 def _normalize_name(raw: str) -> str:
     text = unicodedata.normalize("NFKD", raw or "")
     text = "".join(ch for ch in text if not unicodedata.combining(ch))
     text = text.lower()
+    # Drop apostrophes so "Nott'm Forest" → "nottm forest" (not "nott m forest").
+    text = text.replace("'", "").replace("'", "").replace("'", "")
     text = re.sub(r"\b(fc|afc|cf|sc)\b", " ", text)
     text = re.sub(r"[^a-z0-9\s]", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
@@ -112,35 +147,54 @@ def ensure_club_team_ids(db: Session, *, force: bool = False) -> dict[str, Any]:
     if missing == 0 and not force:
         return {"skipped": "already_mapped", "updated": 0}
 
-    api_teams: list = []
-    used_season = None
-    for season in _season_candidates():
-        data = _api_get(
-            "/teams",
-            {"league": PL_LEAGUE_ID, "season": season},
-        )
-        api_teams = data.get("response") or []
-        if api_teams:
-            used_season = season
-            break
-    by_norm: dict[str, int] = {}
-    for row in api_teams:
-        team = (row or {}).get("team") or {}
-        tid = team.get("id")
-        name = team.get("name") or ""
-        if not tid or not name:
-            continue
-        by_norm[_normalize_name(name)] = int(tid)
-
     updated = 0
-    clubs = (
-        db.query(Club).all()
-        if force
-        else db.query(Club).filter(Club.api_football_team_id.is_(None)).all()
-    )
-    for club in clubs:
+
+    # 1) Hardcoded FPL code → API id (covers promotees missing from PL season lists).
+    for club in db.query(Club).all():
         if club.api_football_team_id and not force:
             continue
+        tid = _PL_CODE_TO_API_ID.get((club.code or "").upper())
+        if tid is not None and club.api_football_team_id != tid:
+            club.api_football_team_id = tid
+            updated += 1
+
+    still = [c for c in db.query(Club).all() if not c.api_football_team_id]
+    if not still and not force:
+        if updated:
+            db.commit()
+        return {
+            "updated": updated,
+            "api_teams": 0,
+            "season": None,
+            "still_missing": 0,
+            "via": "code_map",
+        }
+
+    # 2) League season team lists (PL, then Championship for promotees).
+    api_teams: list = []
+    used_season = None
+    by_norm: dict[str, int] = {}
+    for league_id in (PL_LEAGUE_ID, CHAMPIONSHIP_LEAGUE_ID):
+        for season in _season_candidates():
+            data = _api_get(
+                "/teams",
+                {"league": league_id, "season": season},
+            )
+            rows = data.get("response") or []
+            if not rows:
+                continue
+            if used_season is None:
+                used_season = season
+            api_teams.extend(rows)
+            for row in rows:
+                team = (row or {}).get("team") or {}
+                tid = team.get("id")
+                name = team.get("name") or ""
+                if not tid or not name:
+                    continue
+                by_norm[_normalize_name(name)] = int(tid)
+
+    for club in db.query(Club).filter(Club.api_football_team_id.is_(None)).all():
         norm = _normalize_name(club.name)
         tid = by_norm.get(norm)
         if tid is None:
@@ -149,7 +203,6 @@ def ensure_club_team_ids(db: Session, *, force: bool = False) -> dict[str, Any]:
                 if tid is not None:
                     break
         if tid is None:
-            # Fuzzy fallback against API names
             best_id = None
             best_score = 0.0
             for api_name, api_id in by_norm.items():
@@ -160,9 +213,34 @@ def ensure_club_team_ids(db: Session, *, force: bool = False) -> dict[str, Any]:
             if best_id is not None and best_score >= NAME_MATCH_THRESHOLD:
                 tid = best_id
         if tid is not None:
-            if club.api_football_team_id != tid:
-                club.api_football_team_id = tid
-                updated += 1
+            club.api_football_team_id = tid
+            updated += 1
+
+    # 3) Name search for any remaining gaps (1 request per club).
+    for club in db.query(Club).filter(Club.api_football_team_id.is_(None)).all():
+        q = (club.name or club.code or "").strip()
+        if len(q) < 3:
+            continue
+        data = _api_get("/teams", {"search": q[:40]}, timeout=20.0)
+        best_id = None
+        best_score = 0.0
+        target = _normalize_name(club.name)
+        for row in data.get("response") or []:
+            team = (row or {}).get("team") or {}
+            tid = team.get("id")
+            name = team.get("name") or ""
+            country = (team.get("country") or "").lower()
+            if not tid or not name:
+                continue
+            if country and country not in {"england", "wales"}:
+                continue
+            score = SequenceMatcher(None, target, _normalize_name(name)).ratio()
+            if score > best_score:
+                best_score = score
+                best_id = int(tid)
+        if best_id is not None and best_score >= NAME_MATCH_THRESHOLD:
+            club.api_football_team_id = best_id
+            updated += 1
         else:
             logger.warning("API-Football: could not map club %s (%s)", club.code, club.name)
 

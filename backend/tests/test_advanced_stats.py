@@ -25,6 +25,8 @@ def _reset():
 def test_normalize_name_strips_fc_and_accents():
     assert adv._normalize_name("Atlético FC") == "atletico"
     assert adv._normalize_name("AFC Bournemouth") == "bournemouth"
+    assert adv._normalize_name("Nott'm Forest") == "nottm forest"
+    assert adv._normalize_name("Coventry City") == "coventry city"
 
 
 def test_ingest_skips_without_api_key():
@@ -54,19 +56,13 @@ def test_ensure_club_team_ids_maps_and_is_idempotent():
         db.add(Club(code="CHE", name="Chelsea"))
         db.commit()
 
-        fake_teams = {
-            "response": [
-                {"team": {"id": 42, "name": "Arsenal"}},
-                {"team": {"id": 49, "name": "Chelsea FC"}},
-            ]
-        }
-        with patch.object(adv, "_api_get", return_value=fake_teams) as mocked:
+        with patch.object(adv, "_api_get", return_value={"response": []}) as mocked:
             first = adv.ensure_club_team_ids(db)
             assert first["updated"] == 2
-            assert mocked.call_count == 1
             second = adv.ensure_club_team_ids(db)
             assert second["skipped"] == "already_mapped"
-            assert mocked.call_count == 1
+            # Known FPL codes use the hardcoded map — no network required.
+            assert mocked.call_count == 0
 
         clubs = {c.code: c.api_football_team_id for c in db.query(Club).all()}
         assert clubs["ARS"] == 42
@@ -285,12 +281,13 @@ def test_team_match_stats_result_reports_no_club_ids():
         settings.api_football_key = "test-key"
         adv._team_stats_cache.clear()
         db.add(Club(code="ARS", name="Arsenal", api_football_team_id=42))
-        db.add(Club(code="COV", name="Coventry City"))  # unmapped
+        # Unknown code — not in hardcoded PL map and API returns empty.
+        db.add(Club(code="ZZZ", name="Zed United"))
         fx = Fixture(
             fpl_id=88003,
             gameweek_number=1,
             home_club_code="ARS",
-            away_club_code="COV",
+            away_club_code="ZZZ",
             kickoff_at="2026-08-21T19:00:00Z",
             started=1,
         )
@@ -302,51 +299,64 @@ def test_team_match_stats_result_reports_no_club_ids():
             result = adv.team_match_stats_result(db, fx, force=True)
         assert result["team_stats"] is None
         assert result["team_stats_status"] == "no_club_ids"
-        assert "COV" in (result.get("missing_clubs") or [])
+        assert "ZZZ" in (result.get("missing_clubs") or [])
     finally:
         settings.api_football_key = old_key
         db.close()
 
 
-def test_ensure_club_team_ids_uses_alias_and_season_fallback():
+def test_ensure_club_team_ids_code_map_covers_promotees():
+    """Promoted clubs map even when season team lists are empty."""
     _reset()
     db = SessionLocal()
     try:
         old_key = settings.api_football_key
-        old_season = settings.api_football_season
         settings.api_football_key = "test-key"
-        settings.api_football_season = 2026
         db.add(Club(code="COV", name="Coventry City"))
+        db.add(Club(code="HUL", name="Hull City"))
+        db.add(Club(code="SUN", name="Sunderland"))
         db.add(Club(code="NFO", name="Nott'm Forest"))
         db.commit()
 
-        calls: list[dict] = []
+        with patch.object(adv, "_api_get", return_value={"response": []}):
+            out = adv.ensure_club_team_ids(db)
+        assert out["updated"] == 4
+        assert out.get("still_missing") == 0
+        clubs = {c.code: c.api_football_team_id for c in db.query(Club).all()}
+        assert clubs["COV"] == 71
+        assert clubs["HUL"] == 64
+        assert clubs["SUN"] == 746
+        assert clubs["NFO"] == 65
+    finally:
+        settings.api_football_key = old_key
+        db.close()
+
+
+def test_ensure_club_team_ids_search_fallback_for_unknown_code():
+    _reset()
+    db = SessionLocal()
+    try:
+        old_key = settings.api_football_key
+        settings.api_football_key = "test-key"
+        db.add(Club(code="ZZZ", name="Zed United"))
+        db.commit()
 
         def fake_get(path, params=None, **kwargs):
-            calls.append({"path": path, "params": dict(params or {})})
-            if path == "/teams" and (params or {}).get("season") == 2026:
-                return {"response": []}  # season not published yet
-            if path == "/teams" and (params or {}).get("season") == 2025:
+            if path == "/teams" and (params or {}).get("search"):
                 return {
                     "response": [
-                        {"team": {"id": 77, "name": "Coventry"}},
-                        {"team": {"id": 65, "name": "Nottingham Forest"}},
+                        {"team": {"id": 9999, "name": "Zed United", "country": "England"}},
                     ]
                 }
             return {"response": []}
 
         with patch.object(adv, "_api_get", side_effect=fake_get):
             out = adv.ensure_club_team_ids(db)
-        assert out["updated"] == 2
-        assert out["season"] == 2025
-        clubs = {c.code: c.api_football_team_id for c in db.query(Club).all()}
-        assert clubs["COV"] == 77
-        assert clubs["NFO"] == 65
-        assert any(c["params"].get("season") == 2026 for c in calls)
-        assert any(c["params"].get("season") == 2025 for c in calls)
+        assert out["updated"] == 1
+        club = db.query(Club).filter(Club.code == "ZZZ").one()
+        assert club.api_football_team_id == 9999
     finally:
         settings.api_football_key = old_key
-        settings.api_football_season = old_season
         db.close()
 
 
