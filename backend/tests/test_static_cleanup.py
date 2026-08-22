@@ -124,38 +124,40 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS / catalog that showed wrong avail flags
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v177"' in sw
+    assert 'CACHE = "futfantasy-v178"' in sw
     assert "if (isStatic || isBadgeCdn) return cached || fetched" in sw
-    # Versioned JS/CSS are cache-first (soft-nav tab speed); shell HTML stays network-first.
-    assert "Versioned CSS/JS (?v=N): cache-first" in sw
-    assert "isVersionedStatic" in sw
+    # All static CSS/JS are cache-first; shell HTML + catalog stay network-first.
+    assert "All static CSS/JS: cache-first" in sw
     assert "isJs" in sw
-    assert "isCss || isJs || isCatalog || isShell" in sw
+    assert "isCss || isJs" in sw
     # Must not cache-first the catalog (stale availability after FPL sync).
     assert "if (isStatic || isCatalog || isBadgeCdn) return cached || fetched" not in sw
-    assert "/static/styles.css?v=177" in sw
-    assert "/static/lineup.js?v=177" in sw
-    assert "/static/appshell.js?v=177" in sw
-    assert "/static/fixtures.js?v=177" in sw
-    assert "/static/league_h2h.js" in sw
-    assert "/static/club-sheet.js" in sw
+    assert "/static/styles.css?v=178" in sw
+    assert "/static/lineup.js?v=178" in sw
+    assert "/static/appshell.js?v=178" in sw
+    assert "/static/fixtures.js?v=178" in sw
+    assert "/static/league_h2h.js?v=178" in sw
+    assert "/static/club-sheet.js?v=178" in sw
     assert 'BADGE_CDN_HOST = "resources.premierleague.com"' in sw
     assert "isBadgeCdn" in sw
     assert "isStatic || isCatalog || isBadgeCdn" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=177" in base
-    assert "styles.css?v=177" in base
-    assert "appshell.js?v=177" in base
+    assert "sw.js?v=178" in base
+    assert "styles.css?v=178" in base
+    assert "appshell.js?v=178" in base
     appshell = (STATIC / "appshell.js").read_text(encoding="utf-8")
     assert 'pathOnly === "/lineup"' in appshell
     assert "livePage" in appshell
     assert "LIVE_CACHE_TTL_MS" in appshell
+    assert "scriptTextCache" in appshell
+    assert "loadScriptText" in appshell
     assert 'ff_players_catalog_v3' in appshell
     assert "paintBeforeScripts" in appshell
     lineup_tpl = (TEMPLATES / "lineup.html").read_text(encoding="utf-8")
-    assert "lineup.js?v=177" in lineup_tpl
+    assert "lineup.js?v=178" in lineup_tpl
+    assert "club-sheet.js?v=178" in lineup_tpl
     fx_tpl = (TEMPLATES / "fixtures.html").read_text(encoding="utf-8")
-    assert "fixtures.js?v=177" in fx_tpl
+    assert "fixtures.js?v=178" in fx_tpl
     css = (STATIC / "styles.css").read_text(encoding="utf-8")
     assert "shirt-pts-fx.is-live-match" in css
     assert "linear-gradient(135deg, #5b21b6" in css

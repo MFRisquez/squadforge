@@ -5,10 +5,20 @@
   const WARM_KEY = "ff_shell_warmed_v1";
   const SHELL_PATHS = new Set(["/", "/lineup", "/team", "/fixtures", "/rules", "/leagues", "/onboard"]);
   const pageCache = new Map(); // full path+search -> { html, at }
+  // Absolute script URL → Promise<string|null> (in-memory across soft-nav).
+  const scriptTextCache = new Map();
   const CACHE_TTL_MS = 45_000;
-  // Live tabs (XI / Fixtures): short SWR so rapid tab switches feel instant
-  // without serving multi-minute-stale scores. Polls still refresh in-page.
-  const LIVE_CACHE_TTL_MS = 8_000;
+  // Live tabs (XI / Fixtures): SWR so rapid tab switches skip SSR wait.
+  // Polls still refresh scores in-page.
+  const LIVE_CACHE_TTL_MS = 20_000;
+  const PAGE_SCRIPT_URLS = [
+    "/static/club-sheet.js?v=178",
+    "/static/xi-side.js?v=178",
+    "/static/lineup.js?v=178",
+    "/static/fixtures.js?v=178",
+    "/static/squadboard.js?v=178",
+    "/static/league_h2h.js?v=178",
+  ];
   const DESK_MQ = window.matchMedia("(min-width: 900px)");
   let navigating = false;
   let pendingNav = null; // latest path queued while a soft-nav is in flight
@@ -111,6 +121,7 @@
   async function warmShellData() {
     await Promise.allSettled([
       warmCatalog(),
+      ...PAGE_SCRIPT_URLS.map((u) => loadScriptText(u)),
       prefetch("/"),
       prefetch("/lineup"),
       prefetch("/team"),
@@ -192,25 +203,77 @@
     document.body.style.top = "";
   }
 
+  function scriptHref(src) {
+    try {
+      return new URL(src, window.location.origin).href;
+    } catch (_) {
+      return String(src || "");
+    }
+  }
+
+  function loadScriptText(src) {
+    const href = scriptHref(src);
+    if (!href) return Promise.resolve(null);
+    const hit = scriptTextCache.get(href);
+    if (hit) return hit;
+    const pending = fetch(href, {
+      credentials: "same-origin",
+      // Prefer SW / HTTP cache — we version assets; do not bypass with no-store.
+      cache: "force-cache",
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("script");
+        return res.text();
+      })
+      .catch(() => {
+        scriptTextCache.delete(href);
+        return null;
+      });
+    scriptTextCache.set(href, pending);
+    return pending;
+  }
+
+  function isExecutableScript(el) {
+    const type = (el.getAttribute("type") || "").toLowerCase();
+    return !type || type === "text/javascript" || type === "module" || type === "application/javascript";
+  }
+
   async function runScripts(root) {
     const scripts = Array.from(root.querySelectorAll("script"));
+    // Warm all external sources in parallel before sequential exec (order matters).
+    await Promise.all(
+      scripts
+        .filter((el) => el.src && isExecutableScript(el))
+        .map((el) => loadScriptText(el.getAttribute("src") || el.src))
+    );
     for (const old of scripts) {
-      const type = (old.getAttribute("type") || "").toLowerCase();
-      if (type && type !== "text/javascript" && type !== "module" && type !== "application/javascript") {
+      if (!isExecutableScript(old)) {
         // keep JSON / other data scripts in place
         continue;
       }
-      const s = document.createElement("script");
-      for (const attr of old.attributes) {
-        s.setAttribute(attr.name, attr.value);
-      }
       if (old.src) {
-        await new Promise((resolve, reject) => {
+        const code = await loadScriptText(old.getAttribute("src") || old.src);
+        if (code != null) {
+          const s = document.createElement("script");
+          // Re-exec from memory — no second network wait on tab revisit.
+          s.textContent = code;
+          old.parentNode.replaceChild(s, old);
+          continue;
+        }
+        const s = document.createElement("script");
+        for (const attr of old.attributes) {
+          s.setAttribute(attr.name, attr.value);
+        }
+        await new Promise((resolve) => {
           s.onload = () => resolve();
-          s.onerror = () => resolve(); // don't block nav
+          s.onerror = () => resolve();
           old.parentNode.replaceChild(s, old);
         });
       } else {
+        const s = document.createElement("script");
+        for (const attr of old.attributes) {
+          s.setAttribute(attr.name, attr.value);
+        }
         s.textContent = old.textContent || "";
         old.parentNode.replaceChild(s, old);
       }
@@ -328,7 +391,26 @@
     const main = document.querySelector("main.shell");
     try {
       const t1 = performance.now();
-      const fetched = await fetchPageHtml(path);
+      // Overlap HTML SSR with page-script warm (memory / SW cache).
+      const pathOnlyWarm = path.split("?")[0];
+      const warmScripts =
+        pathOnlyWarm === "/lineup" || pathOnlyWarm === "/xi" || pathOnlyWarm === "/points"
+          ? Promise.all([
+              loadScriptText("/static/club-sheet.js?v=178"),
+              loadScriptText("/static/xi-side.js?v=178"),
+              loadScriptText("/static/lineup.js?v=178"),
+            ])
+          : pathOnlyWarm === "/fixtures"
+            ? loadScriptText("/static/fixtures.js?v=178")
+            : pathOnlyWarm === "/team"
+              ? Promise.all([
+                  loadScriptText("/static/club-sheet.js?v=178"),
+                  loadScriptText("/static/squadboard.js?v=178"),
+                ])
+              : pathOnlyWarm.startsWith("/standings") || pathOnlyWarm.startsWith("/league")
+                ? loadScriptText("/static/league_h2h.js?v=178")
+                : Promise.resolve();
+      const [fetched] = await Promise.all([fetchPageHtml(path), warmScripts]);
       const t2 = performance.now();
       if (fetched == null) return;
       const html = fetched.html;
