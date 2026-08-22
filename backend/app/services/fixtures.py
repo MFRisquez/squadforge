@@ -775,14 +775,13 @@ def fixture_sheet_preview(db: Session, *, fixture_id: int) -> dict[str, Any] | N
     team_stats = None
     team_stats_status = "unavailable"
     try:
-        from app.config import settings as app_settings
         from app.services import advanced_stats as adv_svc
 
-        if not (app_settings.api_football_key or "").strip():
-            team_stats_status = "no_api_key"
-        else:
-            team_stats = adv_svc.team_match_stats_for_fixture(db, fx)
-            team_stats_status = "ok" if team_stats else "unavailable"
+        result = adv_svc.team_match_stats_result(db, fx)
+        team_stats = result.get("team_stats")
+        team_stats_status = result.get("team_stats_status") or (
+            "ok" if team_stats else "unavailable"
+        )
     except Exception:
         team_stats = None
         team_stats_status = "error"

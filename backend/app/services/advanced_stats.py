@@ -76,20 +76,53 @@ def _safe_int(value: Any) -> float:
         return 0.0
 
 
-def ensure_club_team_ids(db: Session) -> dict[str, Any]:
+# Common FPL short names → API-Football team name forms (after _normalize_name).
+_CLUB_NAME_ALIASES: dict[str, tuple[str, ...]] = {
+    "nottm forest": ("nottingham forest",),
+    "spurs": ("tottenham", "tottenham hotspur"),
+    "man utd": ("manchester united",),
+    "man city": ("manchester city",),
+    "wolves": ("wolverhampton wanderers", "wolverhampton"),
+    "brighton": ("brighton and hove albion", "brighton hove albion"),
+    "west ham": ("west ham united",),
+    "newcastle": ("newcastle united",),
+    "leeds": ("leeds united",),
+    "coventry city": ("coventry",),
+    "hull city": ("hull",),
+    "ipswich town": ("ipswich",),
+    "sunderland": ("sunderland afc",),
+}
+
+
+def _season_candidates() -> list[int]:
+    base = int(settings.api_football_season)
+    out = [base]
+    for alt in (base - 1, base + 1):
+        if alt >= 2020 and alt not in out:
+            out.append(alt)
+    return out
+
+
+def ensure_club_team_ids(db: Session, *, force: bool = False) -> dict[str, Any]:
     """Map API-Football team ids onto Club rows (idempotent)."""
     if not _has_api_key():
         return {"skipped": "no_api_key", "updated": 0}
 
     missing = db.query(Club).filter(Club.api_football_team_id.is_(None)).count()
-    if missing == 0:
+    if missing == 0 and not force:
         return {"skipped": "already_mapped", "updated": 0}
 
-    data = _api_get(
-        "/teams",
-        {"league": PL_LEAGUE_ID, "season": settings.api_football_season},
-    )
-    api_teams = data.get("response") or []
+    api_teams: list = []
+    used_season = None
+    for season in _season_candidates():
+        data = _api_get(
+            "/teams",
+            {"league": PL_LEAGUE_ID, "season": season},
+        )
+        api_teams = data.get("response") or []
+        if api_teams:
+            used_season = season
+            break
     by_norm: dict[str, int] = {}
     for row in api_teams:
         team = (row or {}).get("team") or {}
@@ -100,9 +133,21 @@ def ensure_club_team_ids(db: Session) -> dict[str, Any]:
         by_norm[_normalize_name(name)] = int(tid)
 
     updated = 0
-    for club in db.query(Club).filter(Club.api_football_team_id.is_(None)).all():
+    clubs = (
+        db.query(Club).all()
+        if force
+        else db.query(Club).filter(Club.api_football_team_id.is_(None)).all()
+    )
+    for club in clubs:
+        if club.api_football_team_id and not force:
+            continue
         norm = _normalize_name(club.name)
         tid = by_norm.get(norm)
+        if tid is None:
+            for alias in _CLUB_NAME_ALIASES.get(norm, ()):
+                tid = by_norm.get(alias)
+                if tid is not None:
+                    break
         if tid is None:
             # Fuzzy fallback against API names
             best_id = None
@@ -115,14 +160,20 @@ def ensure_club_team_ids(db: Session) -> dict[str, Any]:
             if best_id is not None and best_score >= NAME_MATCH_THRESHOLD:
                 tid = best_id
         if tid is not None:
-            club.api_football_team_id = tid
-            updated += 1
+            if club.api_football_team_id != tid:
+                club.api_football_team_id = tid
+                updated += 1
         else:
             logger.warning("API-Football: could not map club %s (%s)", club.code, club.name)
 
     if updated:
         db.commit()
-    return {"updated": updated, "api_teams": len(api_teams)}
+    return {
+        "updated": updated,
+        "api_teams": len(api_teams),
+        "season": used_season,
+        "still_missing": db.query(Club).filter(Club.api_football_team_id.is_(None)).count(),
+    }
 
 
 def fetch_round_fixtures(db: Session, gw_number: int) -> list[int]:
@@ -138,25 +189,31 @@ def fetch_round_fixtures(db: Session, gw_number: int) -> list[int]:
     if not mapped:
         return []
 
-    data = _api_get(
-        "/fixtures",
-        {
-            "league": PL_LEAGUE_ID,
-            "season": settings.api_football_season,
-            "round": f"Regular Season - {int(gw_number)}",
-        },
-    )
     fixture_ids: list[int] = []
-    for row in data.get("response") or []:
-        fixture = (row or {}).get("fixture") or {}
-        teams = (row or {}).get("teams") or {}
-        home_id = ((teams.get("home") or {}).get("id"))
-        away_id = ((teams.get("away") or {}).get("id"))
-        fid = fixture.get("id")
-        if not fid or not home_id or not away_id:
+    for season in _season_candidates():
+        data = _api_get(
+            "/fixtures",
+            {
+                "league": PL_LEAGUE_ID,
+                "season": season,
+                "round": f"Regular Season - {int(gw_number)}",
+            },
+        )
+        rows = data.get("response") or []
+        if not rows:
             continue
-        if int(home_id) in mapped and int(away_id) in mapped:
-            fixture_ids.append(int(fid))
+        for row in rows:
+            fixture = (row or {}).get("fixture") or {}
+            teams = (row or {}).get("teams") or {}
+            home_id = ((teams.get("home") or {}).get("id"))
+            away_id = ((teams.get("away") or {}).get("id"))
+            fid = fixture.get("id")
+            if not fid or not home_id or not away_id:
+                continue
+            if int(home_id) in mapped and int(away_id) in mapped:
+                fixture_ids.append(int(fid))
+        if fixture_ids:
+            break
     return fixture_ids
 
 
@@ -409,31 +466,43 @@ def _fmt_stat(value: Any) -> str | None:
 
 def resolve_api_fixture_id(db: Session, fx) -> int | None:
     """Map our Fixture row → API-Football fixture id via club team ids + kickoff day."""
+    result = resolve_api_fixture_id_detailed(db, fx)
+    return result.get("api_fixture_id")
+
+
+def resolve_api_fixture_id_detailed(db: Session, fx) -> dict[str, Any]:
+    """Like resolve_api_fixture_id but includes a machine-readable ``reason`` on failure."""
     if not _has_api_key() or fx is None:
-        return None
+        return {"api_fixture_id": None, "reason": "no_api_key"}
     ensure_club_team_ids(db)
     home = db.query(Club).filter(Club.code == fx.home_club_code).one_or_none()
     away = db.query(Club).filter(Club.code == fx.away_club_code).one_or_none()
-    if not home or not away or not home.api_football_team_id or not away.api_football_team_id:
-        return None
+    if not home or not away:
+        return {"api_fixture_id": None, "reason": "club_missing"}
+    if not home.api_football_team_id or not away.api_football_team_id:
+        # Retry with force in case season list was empty on first boot.
+        ensure_club_team_ids(db, force=True)
+        db.refresh(home)
+        db.refresh(away)
+    if not home.api_football_team_id or not away.api_football_team_id:
+        missing = []
+        if not home.api_football_team_id:
+            missing.append(home.code)
+        if not away.api_football_team_id:
+            missing.append(away.code)
+        return {
+            "api_fixture_id": None,
+            "reason": "no_club_ids",
+            "missing_clubs": missing,
+        }
+
     day = str(fx.kickoff_at or "")[:10]
     home_id = int(home.api_football_team_id)
     away_id = int(away.api_football_team_id)
-    # Try configured season, then ±1 (common misconfig around season rollover).
-    seasons = [int(settings.api_football_season)]
-    for alt in (int(settings.api_football_season) - 1, int(settings.api_football_season) + 1):
-        if alt >= 2020 and alt not in seasons:
-            seasons.append(alt)
-    for season in seasons:
-        params: dict[str, Any] = {
-            "league": PL_LEAGUE_ID,
-            "season": season,
-            "team": home_id,
-        }
-        if day:
-            params["date"] = day
-        data = _api_get("/fixtures", params, timeout=20.0)
-        for row in data.get("response") or []:
+    gw_number = int(getattr(fx, "gameweek_number", 0) or 0)
+
+    def _match_rows(rows: list) -> int | None:
+        for row in rows:
             teams = (row or {}).get("teams") or {}
             home_row = (teams.get("home") or {}).get("id")
             away_row = (teams.get("away") or {}).get("id")
@@ -442,7 +511,54 @@ def resolve_api_fixture_id(db: Session, fx) -> int | None:
                 continue
             if int(home_row) == home_id and int(away_row) == away_id:
                 return int(fid)
-    return None
+        return None
+
+    # 1) Prefer exact kickoff day + home team.
+    for season in _season_candidates():
+        params: dict[str, Any] = {
+            "league": PL_LEAGUE_ID,
+            "season": season,
+            "team": home_id,
+        }
+        if day:
+            params["date"] = day
+        data = _api_get("/fixtures", params, timeout=20.0)
+        found = _match_rows(data.get("response") or [])
+        if found:
+            return {"api_fixture_id": found, "reason": "ok", "season": season}
+
+    # 2) Same teams, no date filter (timezone / delayed kickoff mismatches).
+    for season in _season_candidates():
+        data = _api_get(
+            "/fixtures",
+            {
+                "league": PL_LEAGUE_ID,
+                "season": season,
+                "team": home_id,
+            },
+            timeout=20.0,
+        )
+        found = _match_rows(data.get("response") or [])
+        if found:
+            return {"api_fixture_id": found, "reason": "ok", "season": season, "via": "team"}
+
+    # 3) GW round listing.
+    if gw_number > 0:
+        for season in _season_candidates():
+            data = _api_get(
+                "/fixtures",
+                {
+                    "league": PL_LEAGUE_ID,
+                    "season": season,
+                    "round": f"Regular Season - {gw_number}",
+                },
+                timeout=20.0,
+            )
+            found = _match_rows(data.get("response") or [])
+            if found:
+                return {"api_fixture_id": found, "reason": "ok", "season": season, "via": "round"}
+
+    return {"api_fixture_id": None, "reason": "no_fixture_match", "day": day or None}
 
 
 def team_match_stats_for_fixture(
@@ -454,21 +570,42 @@ def team_match_stats_for_fixture(
     passes_accurate, duels_won, fouls — each ``{home, away, label}``.
     Returns None when API key missing or lookup fails.
     """
+    result = team_match_stats_result(db, fx, force=force)
+    return result.get("team_stats")
+
+
+def team_match_stats_result(
+    db: Session, fx, *, force: bool = False
+) -> dict[str, Any]:
+    """Return ``{team_stats, team_stats_status, ...}`` for diagnostics + UI."""
     if not _has_api_key() or fx is None:
-        return None
+        return {"team_stats": None, "team_stats_status": "no_api_key"}
     fx_id = int(getattr(fx, "id", 0) or 0)
     if not force and fx_id:
         hit = _team_stats_cache.get(fx_id)
         if hit and (time.time() - hit[0]) < TEAM_STATS_TTL_SEC:
-            return hit[1]
+            return {
+                "team_stats": hit[1],
+                "team_stats_status": "ok",
+                "cached": True,
+            }
     try:
-        api_id = resolve_api_fixture_id(db, fx)
+        resolved = resolve_api_fixture_id_detailed(db, fx)
+        api_id = resolved.get("api_fixture_id")
         if not api_id:
-            return None
+            return {
+                "team_stats": None,
+                "team_stats_status": resolved.get("reason") or "no_fixture_match",
+                "missing_clubs": resolved.get("missing_clubs"),
+            }
         data = _api_get("/fixtures/statistics", {"fixture": int(api_id)}, timeout=20.0)
         response = data.get("response") or []
         if len(response) < 2:
-            return None
+            return {
+                "team_stats": None,
+                "team_stats_status": "no_statistics",
+                "api_fixture_id": api_id,
+            }
         home_club = db.query(Club).filter(Club.code == fx.home_club_code).one_or_none()
         away_club = db.query(Club).filter(Club.code == fx.away_club_code).one_or_none()
         home_api = (
@@ -498,7 +635,11 @@ def team_match_stats_for_fixture(
                 blocks["away"] = stats
 
         if not blocks["home"] or not blocks["away"]:
-            return None
+            return {
+                "team_stats": None,
+                "team_stats_status": "no_statistics",
+                "api_fixture_id": api_id,
+            }
 
         labels = {
             "possession": "Possession",
@@ -516,7 +657,7 @@ def team_match_stats_for_fixture(
             out[key] = {"home": hv, "away": av, "label": labels[key]}
         if fx_id:
             _team_stats_cache[fx_id] = (time.time(), out)
-        return out
+        return {"team_stats": out, "team_stats_status": "ok", "api_fixture_id": api_id}
     except Exception as exc:
         logger.info("API-Football team stats skipped: %s", exc)
-        return None
+        return {"team_stats": None, "team_stats_status": "error", "error": str(exc)}
