@@ -1947,7 +1947,7 @@ def fixtures_refresh(request: Request, db: Session = Depends(get_db)):
     view = _resolve_gw(request, db)
     gw = view["gw"]
     try:
-        info = fixtures_svc.refresh_fixtures(db)
+        info = fixtures_svc.refresh_fixtures(db, scope="gw", gw_number=int(gw.number))
         notice = quote(f"Updated {info.get('fixtures', 0)} fixtures from FPL")
         return RedirectResponse(f"/fixtures?gw={gw.number}&notice={notice}", status_code=303)
     except Exception as exc:
