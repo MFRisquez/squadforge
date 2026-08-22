@@ -241,7 +241,6 @@
       ["Possession", team.possession?.home, team.possession?.away, true],
       ["Shots on target", team.shots_on_target?.home, team.shots_on_target?.away, true],
       ["Goal attempts", team.chances_created?.home, team.chances_created?.away, true],
-      ["Expected goals (xG)", team.expected_goals?.home, team.expected_goals?.away, true],
       ["Passes completed", team.passes_accurate?.home, team.passes_accurate?.away, true],
       ["Duels won", team.duels_won?.home, team.duels_won?.away, true],
       ["Fouls", team.fouls?.home, team.fouls?.away, true],
@@ -254,8 +253,8 @@
     const upcoming = status === "upcoming";
     const body = rows
       .map(([label, h, a, isAdvanced]) => {
-        // Advanced API-Football rows: show values whenever present (don't hide
-        // behind FPL "upcoming" if the live feed already has possession/SOT).
+        // Advanced PulseLive rows: show values whenever present (don't hide
+        // behind FPL "upcoming" if Opta already published possession/SOT).
         const hideH = isAdvanced ? h == null || h === "" : upcoming || h == null || h === "";
         const hideA = isAdvanced ? a == null || a === "" : upcoming || a == null || a === "";
         const hv = hideH ? "—" : h;
@@ -272,9 +271,8 @@
         </tr>`;
       })
       .join("");
-    // Possession / SOT / passes need a paid match-stats feed we do not have.
-    // Honest unavailable copy only — do not use debug statuses that invite
-    // chasing a free-tier fix. Off until the product owner enables a paid plan.
+    // Advanced rows (possession / SOT / passes) come from PulseLive stats/match
+    // when the match has published Opta team stats; otherwise show a short note.
     const advancedNote = data.team_stats
       ? ""
       : `<p class="muted tiny fx-stats-note">Possession &amp; shots stats unavailable this season.</p>`;

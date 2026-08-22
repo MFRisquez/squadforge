@@ -152,14 +152,25 @@ def test_fixture_sheet_preview_includes_team_news_and_preview():
         fid = fx.id
 
         fake_pulse = {
-            "pulse_id": 1,
+            "pulse_id": 128923,
             "venue": "Emirates Stadium",
             "city": "London",
             "formations": [],
-            "status": "U",
+            "status": "C",
+        }
+        fake_stats = {
+            "source": "pulselive",
+            "pulse_id": 128923,
+            "possession": {"home": "64%", "away": "36%"},
+            "shots_on_target": {"home": 6, "away": 1},
+            "chances_created": {"home": 20, "away": 4},
+            "passes_accurate": {"home": 565, "away": 271},
+            "duels_won": {"home": 37, "away": 34},
+            "fouls": {"home": 10, "away": 13},
         }
         with patch.object(pl_content, "resolve_pulse_fixture", return_value=fake_pulse):
-            detail = fixtures_svc.fixture_sheet_preview(db, fixture_id=fid)
+            with patch.object(pl_content, "fetch_pulse_match_stats", return_value=fake_stats):
+                detail = fixtures_svc.fixture_sheet_preview(db, fixture_id=fid)
 
         assert detail is not None
         assert "team_news" in detail
@@ -168,9 +179,8 @@ def test_fixture_sheet_preview_includes_team_news_and_preview():
         assert "Emirates" in (detail["preview"].get("body") or "")
         assert detail["team_news"]["away"]
         assert all("title" in c and "body" in c for c in detail["team_news"]["away"])
-        # Without a paid match-stats feed, possession/SOT stay unavailable.
-        assert detail.get("team_stats") is None
-        assert detail.get("team_stats_status") == "unavailable"
+        assert detail.get("team_stats") == fake_stats
+        assert detail.get("team_stats_status") == "ok"
     finally:
         db.close()
 
@@ -188,6 +198,7 @@ def test_fixtures_js_match_sheet_section_order():
     assert "newsLoading" in js
     assert "applyMatchPreview" in js
     assert "Possession &amp; shots stats unavailable this season." in js
+    assert "Expected goals (xG)" not in js
     assert "API-Football key on the server" not in js
     assert "coming soon" not in js.lower()
     status_i = js.find("${statusLine}")

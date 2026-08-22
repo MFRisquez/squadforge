@@ -752,7 +752,7 @@ def fixture_detail(
 
 
 def fixture_sheet_preview(db: Session, *, fixture_id: int) -> dict[str, Any] | None:
-    """Slow path: team news + PulseLive + optional API-Football team stats."""
+    """Slow path: team news + PulseLive venue/preview + Pulse match stats."""
     fx = db.query(Fixture).filter(Fixture.id == fixture_id).one_or_none()
     if not fx:
         return None
@@ -772,11 +772,6 @@ def fixture_sheet_preview(db: Session, *, fixture_id: int) -> dict[str, Any] | N
             "badge": badge_url(fx.away_club_code, kit_code=away.kit_code if away else None),
         },
     }
-    # Possession / SOT / passes (API-Football) permanently off — free plan has
-    # no current-season data. Do not call advanced_stats here; goals/cards still
-    # come from FPL stats_json on the fast detail path.
-    team_stats = None
-    team_stats_status = "unavailable"
     try:
         from app.services import pl_content
 
@@ -787,16 +782,18 @@ def fixture_sheet_preview(db: Session, *, fixture_id: int) -> dict[str, Any] | N
             "team_news": {"home": [], "away": []},
             "preview": None,
             "pulse": None,
-            "team_stats": team_stats,
-            "team_stats_status": team_stats_status,
+            "team_stats": None,
+            "team_stats_status": "unavailable",
         }
     return {
         "id": fx.id,
         "team_news": enriched.get("team_news") or {"home": [], "away": []},
         "preview": enriched.get("preview"),
         "pulse": enriched.get("pulse"),
-        "team_stats": team_stats,
-        "team_stats_status": team_stats_status,
+        "team_stats": enriched.get("team_stats"),
+        "team_stats_status": enriched.get("team_stats_status") or (
+            "ok" if enriched.get("team_stats") else "unavailable"
+        ),
     }
 
 def refresh_fixtures(db: Session) -> dict[str, int]:
