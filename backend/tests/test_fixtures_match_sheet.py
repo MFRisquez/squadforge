@@ -164,7 +164,6 @@ def test_fixture_sheet_preview_includes_team_news_and_preview():
             "possession": {"home": "64%", "away": "36%"},
             "shots_on_target": {"home": 6, "away": 1},
             "chances_created": {"home": 20, "away": 4},
-            "expected_goals": {"home": None, "away": None},
             "passes_accurate": {"home": 565, "away": 271},
             "duels_won": {"home": 37, "away": 34},
             "fouls": {"home": 10, "away": 13},
@@ -199,6 +198,7 @@ def test_fixtures_js_match_sheet_section_order():
     assert "newsLoading" in js
     assert "applyMatchPreview" in js
     assert "Possession &amp; shots stats unavailable this season." in js
+    assert "Expected goals (xG)" not in js
     assert "API-Football key on the server" not in js
     assert "coming soon" not in js.lower()
     status_i = js.find("${statusLine}")

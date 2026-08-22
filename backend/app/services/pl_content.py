@@ -390,8 +390,6 @@ def map_pulse_match_stats(raw: dict[str, Any]) -> dict[str, Any] | None:
             "home": int(round(ha)) if ha is not None else None,
             "away": int(round(aa)) if aa is not None else None,
         },
-        # Pulse Opta dump for this season does not include xG on this endpoint.
-        "expected_goals": {"home": None, "away": None},
         "passes_accurate": _pair("accurate_pass", as_int=True),
         "duels_won": _pair("duel_won", as_int=True),
         "fouls": _pair("fk_foul_lost", as_int=True),

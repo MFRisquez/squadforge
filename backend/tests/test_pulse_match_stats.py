@@ -21,7 +21,7 @@ def test_map_pulse_match_stats_ars_cov_possession_and_shots():
     assert out["passes_accurate"] == {"home": 565, "away": 271}
     assert out["duels_won"] == {"home": 37, "away": 34}
     assert out["fouls"] == {"home": 10, "away": 13}
-    assert out["expected_goals"] == {"home": None, "away": None}
+    assert "expected_goals" not in out
 
 
 def test_map_pulse_match_stats_empty_payload():

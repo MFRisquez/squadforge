@@ -241,7 +241,6 @@
       ["Possession", team.possession?.home, team.possession?.away, true],
       ["Shots on target", team.shots_on_target?.home, team.shots_on_target?.away, true],
       ["Goal attempts", team.chances_created?.home, team.chances_created?.away, true],
-      ["Expected goals (xG)", team.expected_goals?.home, team.expected_goals?.away, true],
       ["Passes completed", team.passes_accurate?.home, team.passes_accurate?.away, true],
       ["Duels won", team.duels_won?.home, team.duels_won?.away, true],
       ["Fouls", team.fouls?.home, team.fouls?.away, true],
