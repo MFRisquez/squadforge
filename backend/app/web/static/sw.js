@@ -1,16 +1,16 @@
 /* FutFantasy phone app shell */
-const CACHE = "futfantasy-v177";
+const CACHE = "futfantasy-v178";
 const PRECACHE = [
-  "/static/styles.css?v=177",
+  "/static/styles.css?v=178",
   "/static/ui.js",
   "/static/chips.js",
-  "/static/appshell.js?v=177",
-  "/static/lineup.js?v=177",
-  "/static/xi-side.js",
-  "/static/squadboard.js",
-  "/static/club-sheet.js",
-  "/static/fixtures.js?v=177",
-  "/static/league_h2h.js",
+  "/static/appshell.js?v=178",
+  "/static/lineup.js?v=178",
+  "/static/xi-side.js?v=178",
+  "/static/squadboard.js?v=178",
+  "/static/club-sheet.js?v=178",
+  "/static/fixtures.js?v=178",
+  "/static/league_h2h.js?v=178",
   "/static/fonts/Vielma_Grotesk_Bold.woff2",
   "/static/fonts/Vielma_Grotesk_Bold.otf",
   "/static/manifest.webmanifest",
@@ -46,7 +46,6 @@ self.addEventListener("fetch", (event) => {
   const isStatic = url.pathname.startsWith("/static/");
   const isCss = isStatic && url.pathname.endsWith(".css");
   const isJs = isStatic && url.pathname.endsWith(".js");
-  const isVersionedStatic = isStatic && url.searchParams.has("v");
   const isCatalog = url.pathname === "/api/players/catalog";
   const isBadgeCdn = url.hostname === BADGE_CDN_HOST;
   const isShell =
@@ -79,15 +78,15 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(() => cached);
 
-      // Versioned CSS/JS (?v=N): cache-first — soft-nav re-injects these every
-      // tab switch; network-first made each tap wait on RTT. Live GW data lives
-      // in HTML/API responses, not in these fingerprinted assets.
-      if ((isCss || isJs) && isVersionedStatic) {
+      // All static CSS/JS: cache-first. Soft-nav re-injects page scripts every
+      // tab; appshell also keeps an in-memory source cache. Live GW data lives
+      // in HTML/API, not these assets. Catalog stays network-first.
+      if (isCss || isJs) {
         return cached || fetched;
       }
 
-      // Shell HTML + catalog + unversioned JS: network-first (fresh pages / API).
-      if (isCss || isJs || isCatalog || isShell) {
+      // Shell HTML + catalog: network-first.
+      if (isCatalog || isShell) {
         return fetched.then((res) => res || cached);
       }
 
