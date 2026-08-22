@@ -197,16 +197,28 @@ def test_fixtures_js_match_sheet_section_order():
     assert "/preview" in js
     assert "newsLoading" in js
     assert "applyMatchPreview" in js
+    assert "matchActionHtml" in js
+    assert "data-fx-action" in js
     assert "Possession &amp; shots stats unavailable this season." in js
     assert "Expected goals (xG)" not in js
     assert "API-Football key on the server" not in js
     assert "coming soon" not in js.lower()
+    # Open-sheet poll must re-paint goals/assists, not only score/clock.
+    assert "matchActionHtml(detail)" in js
     status_i = js.find("${statusLine}")
     stats_i = js.find("${watchBlock}")
     xi_i = js.find("${squadBlock}")
     news_i = js.find("${newsBlock}")
     assert 0 < status_i < stats_i < xi_i < news_i
 
+
+def test_lineup_js_poll_refreshes_open_detail_kpis():
+    js = (STATIC / "lineup.js").read_text(encoding="utf-8")
+    assert "function pollLivePoints" in js
+    assert "loadMatchProfile(detailPlayer.id, { quiet: true })" in js
+    assert "function loadMatchProfile(playerId, { quiet } = {})" in js
+    # Same 30s timer — no second interval for KPIs.
+    assert js.count("setInterval(pollLivePoints") == 1
 
 def test_fixtures_list_shows_home_away_and_score_placeholder():
     tpl = (TEMPLATES / "fixtures.html").read_text(encoding="utf-8")
