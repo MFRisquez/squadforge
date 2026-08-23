@@ -75,6 +75,22 @@
                   <span class="fx-ha-tag">Away</span>
                 </div>
               </div>
+              {% set home_scorers = m.scorers.home if m.scorers else [] %}
+              {% set away_scorers = m.scorers.away if m.scorers else [] %}
+              {% if home_scorers or away_scorers %}
+              <div class="fx-card-scorers" aria-label="Goal scorers">
+                <ul class="fx-scorer-col">
+                  {% for line in home_scorers %}
+                  <li><span class="fx-scorer-line">{{ line }}</span></li>
+                  {% endfor %}
+                </ul>
+                <ul class="fx-scorer-col away">
+                  {% for line in away_scorers %}
+                  <li><span class="fx-scorer-line">{{ line }}</span></li>
+                  {% endfor %}
+                </ul>
+              </div>
+              {% endif %}
               {% set home_mine = m.my_players.home if m.my_players else [] %}
               {% set away_mine = m.my_players.away if m.my_players else [] %}
               {% if home_mine or away_mine %}
@@ -145,5 +161,5 @@
 </div>
 
 <script id="fixturesBoot" type="application/json">{{ {"gw": gw.number, "poll": true, "myByClub": my_by_club or {}} | tojson }}</script>
-<script src="/static/fixtures.js?v=180"></script>
+<script src="/static/fixtures.js?v=181"></script>
 {% endblock %}
