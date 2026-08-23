@@ -48,6 +48,8 @@ class Fixture(Base):
     kickoff_at: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     started: Mapped[int] = mapped_column(Integer, default=0)
     finished: Mapped[int] = mapped_column(Integer, default=0)
+    # FPL fixtures[].minutes — official match minute from the feed (not TV clock).
+    minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     home_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     away_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     # Raw FPL stats blob (goals_scored / assists / …) for match detail later

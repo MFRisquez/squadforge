@@ -478,6 +478,9 @@
       team_stats: enrich.team_stats != null ? enrich.team_stats : base.team_stats,
       team_stats_status: enrich.team_stats_status || base.team_stats_status,
     });
+    // Prefer Pulse Match Centre clock (then FPL-backed estimate from /preview).
+    const betterClock = enrich.clock || enrich.pulse?.clock || null;
+    if (betterClock) merged.clock = betterClock;
     const root = activeDetailBody();
     if (!root) return;
     const news = root.querySelector("[data-fx-news]");
@@ -486,14 +489,31 @@
     if (stats && (enrich.team_stats != null || enrich.team_stats_status)) {
       stats.outerHTML = matchStatsCompareHtml(merged, merged.status || "upcoming");
     }
+    if (merged.clock) {
+      const clockEl = root.querySelector(".fx-match-clock");
+      if (clockEl) {
+        clockEl.textContent = merged.clock;
+      } else {
+        const scoreWrap = root.querySelector(".match-score");
+        if (scoreWrap) {
+          const span = document.createElement("span");
+          span.className = "fx-match-clock";
+          span.textContent = merged.clock;
+          scoreWrap.appendChild(span);
+        }
+      }
+    }
     const statusEl = root.querySelector("[data-fx-status]");
-    if (statusEl && merged.preview?.venue) {
+    if (statusEl) {
       const kick = formatKickoff(merged.kickoff);
-      const venueBit = ` · ${merged.preview.venue}${merged.preview.city ? `, ${merged.preview.city}` : ""}`;
+      const venueBit = merged.preview?.venue
+        ? ` · ${merged.preview.venue}${merged.preview.city ? `, ${merged.preview.city}` : ""}`
+        : "";
       const status = merged.status || "upcoming";
       const label =
         status === "live" ? "Live" : status === "finished" ? "Full time" : "Upcoming";
-      statusEl.textContent = `${label} · ${kick} · GW${merged.gw}${venueBit}`;
+      const clockBit = merged.clock ? ` · ${merged.clock}` : "";
+      statusEl.textContent = `${label}${clockBit} · ${kick} · GW${merged.gw}${venueBit}`;
     }
   }
 
@@ -706,6 +726,20 @@
               .then((r) => (r.ok ? r.json() : Promise.reject()))
               .then((enrich) => {
                 if (selectedId !== reqId) return;
+                // Preview carries Pulse clock — upgrade list/fast-path estimate.
+                const pulseClock = enrich.clock || enrich.pulse?.clock;
+                if (pulseClock) detail.clock = pulseClock;
+                const clockEl = root.querySelector(".fx-match-clock");
+                if (pulseClock && clockEl) clockEl.textContent = pulseClock;
+                else if (pulseClock) {
+                  const scoreWrap = root.querySelector(".match-score");
+                  if (scoreWrap && !root.querySelector(".fx-match-clock")) {
+                    const span = document.createElement("span");
+                    span.className = "fx-match-clock";
+                    span.textContent = pulseClock;
+                    scoreWrap.appendChild(span);
+                  }
+                }
                 applyMatchPreview(detail, enrich);
               })
               .catch(() => {});
@@ -755,10 +789,13 @@
     DESK_MQ.addEventListener("change", onMq);
   }
 
-  // Live poll while any match may be in progress
+  // Live poll while any match may be in progress — 15s so scoreboard tracks
+  // FPL goals/clock without waiting on the 2-min auto-scorer alone.
   let pollTimer = null;
   if (BOOT.poll) {
-    pollTimer = setInterval(refreshQuiet, 45000);
+    pollTimer = setInterval(refreshQuiet, 15000);
+    // First pull soon after open (don't wait a full interval).
+    window.setTimeout(refreshQuiet, 2500);
   }
   window.__ffTeardown = () => {
     if (pollTimer) clearInterval(pollTimer);
