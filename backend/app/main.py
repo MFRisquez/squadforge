@@ -104,6 +104,11 @@ def _ensure_schema_patches() -> None:
         if "api_football_team_id" not in cols:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE clubs ADD COLUMN api_football_team_id INTEGER"))
+    if "fixtures" in tables:
+        cols = {c["name"] for c in inspect(engine).get_columns("fixtures")}
+        if "minutes" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE fixtures ADD COLUMN minutes INTEGER"))
     if "gameweeks" in tables:
         cols = {c["name"] for c in inspect(engine).get_columns("gameweeks")}
         if "deadline_at" not in cols:

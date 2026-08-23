@@ -39,6 +39,8 @@ def test_fpl_row_is_active_live_and_kickoff_passed():
 
 
 def test_sync_fixtures_only_active_skips_finished_and_far_upcoming(db_session=None):
+    from sqlalchemy import text
+
     from app.config import settings
     from app.db import Base, SessionLocal, engine
     from app.models import Club, Fixture
@@ -46,6 +48,11 @@ def test_sync_fixtures_only_active_skips_finished_and_far_upcoming(db_session=No
 
     settings.reset_db_on_startup = False
     Base.metadata.create_all(bind=engine)
+    # Test DBs may predate Fixture.minutes — mirror app startup patch.
+    with engine.begin() as conn:
+        cols = {c["name"] for c in __import__("sqlalchemy").inspect(engine).get_columns("fixtures")}
+        if "minutes" not in cols:
+            conn.execute(text("ALTER TABLE fixtures ADD COLUMN minutes INTEGER"))
     db = SessionLocal()
     try:
         seed_if_empty(db)

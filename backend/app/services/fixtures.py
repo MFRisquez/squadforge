@@ -144,6 +144,7 @@ def sync_fixtures(
             kickoff_at=fx.get("kickoff_time"),
             started=1 if fx.get("started") else 0,
             finished=1 if _fpl_row_finished(fx) else 0,
+            minutes=int(fx["minutes"]) if fx.get("minutes") is not None else None,
             home_score=fx.get("team_h_score"),
             away_score=fx.get("team_a_score"),
             stats_json=json.dumps(stats),
@@ -329,18 +330,55 @@ def estimate_match_clock(
     started: bool,
     finished: bool,
     now: datetime | None = None,
+    fpl_minutes: int | None = None,
+    pulse_clock: str | None = None,
 ) -> str | None:
     """Display clock under the score: ``14'``, ``45+2'``, ``MT``, ``90+3'``, ``FT``.
 
-    FPL fixtures do not expose a live minute — estimate from kickoff with a
-    standard 15' half-time break. Cap stoppage so we show ``MT`` during the
-    break (not unbounded ``45+10'``) and ``FT`` once the fixture is finished.
+    Prefer PulseLive ``clock.label`` when provided (Match Centre), then FPL
+    ``fixtures[].minutes``, then a kickoff-based estimate as last resort.
     """
     if finished:
         return "FT"
     if not started:
         return None
+    if pulse_clock:
+        return pulse_clock
+
+    # Official FPL match minute (integer). During stoppage it often stays at 90
+    # until finished_provisional flips — better than an unbounded wall estimate.
+    if fpl_minutes is not None:
+        try:
+            m = int(fpl_minutes)
+        except (TypeError, ValueError):
+            m = -1
+        if m >= 0:
+            if m < 45:
+                return f"{m}'"
+            if m == 45:
+                # Wall clock can still distinguish HT break from end of 1H.
+                pass  # fall through to hybrid below when we have kickoff
+            elif m < 90:
+                return f"{m}'"
+            else:
+                # 90+ stoppage: prefer wall-based 90+N if kickoff known, else 90'.
+                if not kickoff_at:
+                    return "90'"
+                # continue into wall estimate but start from known 2H context
+                pass
+
     if not kickoff_at:
+        if fpl_minutes is not None:
+            try:
+                m = int(fpl_minutes)
+                if m >= 90:
+                    return "90'"
+                if m == 45:
+                    return "45'"
+                if m >= 0:
+                    return f"{m}'"
+            except (TypeError, ValueError):
+                pass
         return "LIVE"
     try:
         text = str(kickoff_at).replace("Z", "+00:00")
@@ -356,6 +394,31 @@ def estimate_match_clock(
     # Assumed: 0–45 1H, short stoppage, then MT until ~60', then 2H (HT break ≈15').
     max_1h_stoppage = 7
     max_2h_stoppage = 10
+
+    # When FPL says 45', use wall clock to show MT during the break.
+    if fpl_minutes is not None:
+        try:
+            m = int(fpl_minutes)
+        except (TypeError, ValueError):
+            m = -1
+        if m == 45:
+            if elapsed < 45:
+                return "45'"
+            if elapsed <= 45 + max_1h_stoppage:
+                extra = elapsed - 45
+                return "45'" if extra == 0 else f"45+{extra}'"
+            if elapsed < 60:
+                return "MT"
+            return "45'"
+        if m >= 90:
+            second = elapsed - 15
+            if second < 90:
+                return "90'"
+            extra2 = second - 90
+            if extra2 <= max_2h_stoppage:
+                return "90'" if extra2 == 0 else f"90+{extra2}'"
+            return f"90+{max_2h_stoppage}'"
+
     if elapsed < 45:
         return f"{elapsed}'"
     if elapsed <= 45 + max_1h_stoppage:
@@ -394,6 +457,7 @@ def fixtures_for_gameweek(db: Session, *, gw_number: int) -> list[dict[str, Any]
             kickoff_at=fx.kickoff_at,
             started=bool(fx.started),
             finished=bool(fx.finished),
+            fpl_minutes=getattr(fx, "minutes", None),
         )
         out.append(
             {
@@ -803,6 +867,7 @@ def fixture_detail(
         kickoff_at=fx.kickoff_at,
         started=bool(fx.started),
         finished=bool(fx.finished),
+        fpl_minutes=getattr(fx, "minutes", None),
     )
     payload: dict[str, Any] = {
         "id": fx.id,
@@ -811,6 +876,7 @@ def fixture_detail(
         "kickoff": fx.kickoff_at,
         "status": status,
         "clock": clock,
+        "minutes": getattr(fx, "minutes", None),
         "home": {
             "code": fx.home_club_code,
             "name": home.name if home else fx.home_club_code,
@@ -865,7 +931,15 @@ def fixture_sheet_preview(db: Session, *, fixture_id: int) -> dict[str, Any] | N
             "pulse": None,
             "team_stats": None,
             "team_stats_status": "unavailable",
+            "clock": estimate_match_clock(
+                kickoff_at=fx.kickoff_at,
+                started=bool(fx.started),
+                finished=bool(fx.finished),
+                fpl_minutes=getattr(fx, "minutes", None),
+            ),
         }
+    pulse = enriched.get("pulse") if isinstance(enriched.get("pulse"), dict) else None
+    pulse_clock = (pulse or {}).get("clock") if pulse else None
     return {
         "id": fx.id,
         "team_news": enriched.get("team_news") or {"home": [], "away": []},
@@ -874,6 +948,13 @@ def fixture_sheet_preview(db: Session, *, fixture_id: int) -> dict[str, Any] | N
         "team_stats": enriched.get("team_stats"),
         "team_stats_status": enriched.get("team_stats_status") or (
             "ok" if enriched.get("team_stats") else "unavailable"
+        ),
+        "clock": estimate_match_clock(
+            kickoff_at=fx.kickoff_at,
+            started=bool(fx.started),
+            finished=bool(fx.finished),
+            fpl_minutes=getattr(fx, "minutes", None),
+            pulse_clock=pulse_clock if isinstance(pulse_clock, str) else None,
         ),
     }
 
