@@ -10,6 +10,7 @@ endpoint ``GET /football/stats/match/{pulse_id}`` (not present on
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -41,6 +42,12 @@ _STATUS_TITLE = {
 # Soft in-process cache so opening several match sheets stays snappy.
 _season_cache: dict[str, Any] = {"id": None, "at": 0.0}
 _fixture_cache: dict[str, tuple[float, dict[str, Any] | None]] = {}
+
+_GOAL_TEXT_RE = re.compile(
+    r"Goal!\s*(?P<home>.+?)\s+(?P<hs>\d+),\s*(?P<away>.+?)\s+(?P<as_>\d+)\.\s*"
+    r"(?P<player>.+?)\s*\((?P<club>[^)]+)\)",
+    re.IGNORECASE,
+)
 
 
 def _http_get(url: str, *, params: dict | None = None, timeout: float = 8.0) -> Any | None:
@@ -108,6 +115,94 @@ def format_pulse_clock(clock: Any) -> str | None:
             return f"{head}'"
         return f"{head}'" if head else None
     return label
+
+
+def format_pulse_goal_minute(label: str | None) -> str | None:
+    """``05`` / ``90+9`` / ``90+9'00`` → ``5'`` / ``90+9'``."""
+    raw = str(label or "").strip()
+    if not raw:
+        return None
+    if "'" in raw:
+        raw = raw.split("'", 1)[0].strip()
+    if re.fullmatch(r"\d+", raw):
+        return f"{int(raw)}'"
+    if re.fullmatch(r"\d+\+\d+", raw):
+        return f"{raw}'"
+    return f"{raw}'" if raw else None
+
+
+def parse_pulse_textstream_goals(
+    raw: dict[str, Any] | None,
+    *,
+    home_abbr: str,
+    away_abbr: str,
+) -> list[dict[str, Any]]:
+    """Extract timed goals from Pulse Match Centre textstream."""
+    if not isinstance(raw, dict):
+        return []
+    events = raw.get("events") if isinstance(raw.get("events"), dict) else raw
+    content = (events or {}).get("content") if isinstance(events, dict) else None
+    if not isinstance(content, list):
+        return []
+    home = (home_abbr or "").upper()
+    away = (away_abbr or "").upper()
+    out: list[dict[str, Any]] = []
+    for row in content:
+        if not isinstance(row, dict):
+            continue
+        typ = str(row.get("type") or "").lower()
+        if "goal" not in typ:
+            continue
+        text = str(row.get("text") or "")
+        m = _GOAL_TEXT_RE.search(text)
+        if not m:
+            continue
+        player = (m.group("player") or "").strip()
+        club = (m.group("club") or "").strip().upper()
+        # Map club name / abbr in parentheses to home/away.
+        side = None
+        if home and (home in club or club.startswith(home) or home in club.replace(" ", "")):
+            side = "home"
+        elif away and (away in club or club.startswith(away) or away in club.replace(" ", "")):
+            side = "away"
+        else:
+            # Fallback: compare against full names in the Goal! scoreline prefix.
+            home_name = (m.group("home") or "").upper()
+            away_name = (m.group("away") or "").upper()
+            club_u = (m.group("club") or "").upper()
+            if club_u and club_u in home_name:
+                side = "home"
+            elif club_u and club_u in away_name:
+                side = "away"
+        if side is None:
+            continue
+        minute = format_pulse_goal_minute(((row.get("time") or {}) if isinstance(row.get("time"), dict) else {}).get("label"))
+        out.append(
+            {
+                "side": side,
+                "name": player,
+                "minute": minute,
+                "own_goal": "own" in typ,
+            }
+        )
+    return out
+
+
+def fetch_pulse_goal_events(
+    pulse_id: int,
+    *,
+    home_abbr: str,
+    away_abbr: str,
+) -> list[dict[str, Any]]:
+    """Timed goals for a Pulse fixture (one textstream page, pageSize=200)."""
+    if not pulse_id:
+        return []
+    raw = _http_get(
+        f"{PULSE_BASE}/fixtures/{int(pulse_id)}/textstream/EN",
+        params={"page": 0, "pageSize": 200},
+        timeout=10.0,
+    )
+    return parse_pulse_textstream_goals(raw if isinstance(raw, dict) else None, home_abbr=home_abbr, away_abbr=away_abbr)
 
 
 def resolve_pulse_fixture(
@@ -236,9 +331,15 @@ def resolve_pulse_fixture(
 
     status = detail.get("status")
     clock_label = format_pulse_clock(detail.get("clock")) or format_pulse_clock(listing_clock)
-    # Completed fixtures: prefer FT over a frozen stoppage label for our UI.
-    if str(status or "").upper() == "C":
-        clock_label = "FT"
+    # Do NOT force FT just because Pulse status is C — that often flips during
+    # stoppage while FPL is still provisional and late goals are landing.
+    # Our estimate_match_clock(finished=True) still shows FT once FPL finishes.
+
+    goals: list[dict[str, Any]] = []
+    try:
+        goals = fetch_pulse_goal_events(int(pulse_id), home_abbr=home, away_abbr=away)
+    except Exception as exc:  # noqa: BLE001
+        log.debug("Pulse goals fetch failed %s: %s", pulse_id, exc)
 
     out = {
         "pulse_id": pulse_id,
@@ -247,6 +348,7 @@ def resolve_pulse_fixture(
         "formations": formations,
         "status": status,
         "clock": clock_label,
+        "goals": goals,
     }
     _fixture_cache[cache_key] = (time.time(), out)
     return out

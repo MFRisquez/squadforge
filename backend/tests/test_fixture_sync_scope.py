@@ -36,6 +36,20 @@ def test_fpl_row_is_active_live_and_kickoff_passed():
         },
         now=now,
     )
+    # Provisionally finished still active — late goals / score must keep syncing.
+    assert fixtures_svc._fpl_row_is_active(
+        {
+            "started": True,
+            "finished": False,
+            "finished_provisional": True,
+            "kickoff_time": "2026-08-22T14:00:00Z",
+        },
+        now=now,
+    )
+    assert not fixtures_svc._fpl_row_finished(
+        {"finished": False, "finished_provisional": True}
+    )
+    assert fixtures_svc._fpl_row_finished({"finished": True, "finished_provisional": True})
 
 
 def test_sync_fixtures_only_active_skips_finished_and_far_upcoming(db_session=None):
@@ -110,14 +124,34 @@ def test_sync_fixtures_only_active_skips_finished_and_far_upcoming(db_session=No
                 "team_a_score": None,
                 "stats": [],
             },
+            {
+                # Provisional only — must still upsert (late 90+ goals).
+                "id": 88004,
+                "event": 1,
+                "team_h": int(mun.fpl_team_id),
+                "team_a": int(che.fpl_team_id),
+                "team_h_difficulty": 3,
+                "team_a_difficulty": 3,
+                "kickoff_time": (now - timedelta(hours=2)).isoformat().replace("+00:00", "Z"),
+                "started": True,
+                "finished": False,
+                "finished_provisional": True,
+                "minutes": 90,
+                "team_h_score": 2,
+                "team_a_score": 2,
+                "stats": [],
+            },
         ]
         out = fixtures_svc.sync_fixtures(db, rows=rows, event=1, only_active=True)
-        assert out["fixtures"] == 1
+        assert out["fixtures"] == 2
         assert out["skipped_inactive"] == 2
-        assert out["fetched"] == 3
+        assert out["fetched"] == 4
         assert db.query(Fixture).filter(Fixture.fpl_id == 88001).one().started == 1
         assert db.query(Fixture).filter(Fixture.fpl_id == 88002).one_or_none() is None
         assert db.query(Fixture).filter(Fixture.fpl_id == 88003).one_or_none() is None
+        prov = db.query(Fixture).filter(Fixture.fpl_id == 88004).one()
+        assert prov.finished == 0
+        assert prov.home_score == 2 and prov.away_score == 2
     finally:
         db.close()
 

@@ -374,10 +374,15 @@ def api_fixtures_refresh(gw: Optional[int] = None) -> dict:
             info = {"fixtures": 0, "error": str(exc)}
 
         squad_svc.maybe_advance_finished_gameweek(db)
+        matches = fixtures_svc.fixtures_for_gameweek(db, gw_number=gw_number)
+        try:
+            matches = fixtures_svc.enrich_live_scorer_minutes(db, matches)
+        except Exception:  # noqa: BLE001 — poll must still return scores
+            pass
         return {
             "gw": gw_number,
             "synced": info,
-            "fixtures": fixtures_svc.fixtures_for_gameweek(db, gw_number=gw_number),
+            "fixtures": matches,
         }
     finally:
         db.close()

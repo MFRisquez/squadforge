@@ -56,14 +56,22 @@ def fetch_fixtures(
 
 
 def _fpl_row_finished(fx: dict[str, Any]) -> bool:
-    return bool(fx.get("finished") or fx.get("finished_provisional"))
+    """True only when FPL marks the fixture fully finished.
+
+    ``finished_provisional`` alone is NOT enough — FPL often flips provisional
+    during stoppage while late goals (and scoreline) are still arriving. Treating
+    provisional as finished froze our live upsert and showed Full time too early
+    (e.g. NEW–LIV Szoboszlai 90+9' on the scoreboard).
+    """
+    return bool(fx.get("finished"))
 
 
 def _fpl_row_is_active(fx: dict[str, Any], *, now: datetime | None = None) -> bool:
     """True for live / resolving matches that still need a 2-min poll.
 
-    Includes kickoff-passed rows where FPL has not flipped ``started`` yet.
-    Skips finished matches and far-future kickoffs.
+    Includes kickoff-passed rows where FPL has not flipped ``started`` yet,
+    and provisionally-finished rows (still accepting late goals/score updates).
+    Skips fully finished matches and far-future kickoffs.
     """
     if _fpl_row_finished(fx):
         return False
@@ -459,6 +467,13 @@ def fixtures_for_gameweek(db: Session, *, gw_number: int) -> list[dict[str, Any]
             finished=bool(fx.finished),
             fpl_minutes=getattr(fx, "minutes", None),
         )
+        scorers: dict[str, list[str]] = {"home": [], "away": []}
+        if status in {"live", "finished"}:
+            try:
+                # List path: FPL names only (fast). Live refresh / sheet adds Pulse minutes.
+                scorers = scorers_payload_for_fixture(db, fx, pulse_goals=[], fetch_pulse=False)
+            except Exception:  # noqa: BLE001 — list must still render
+                scorers = {"home": [], "away": []}
         out.append(
             {
                 "id": fx.id,
@@ -467,6 +482,7 @@ def fixtures_for_gameweek(db: Session, *, gw_number: int) -> list[dict[str, Any]
                 "kickoff": fx.kickoff_at,
                 "status": status,
                 "clock": clock,
+                "scorers": scorers,
                 "home": {
                     "code": fx.home_club_code,
                     "name": home.name if home else fx.home_club_code,
@@ -493,8 +509,47 @@ def _kickoff_day(kickoff: str | None) -> str | None:
     return text[:10] if len(text) >= 10 else None
 
 
-def _scorer_lines(events: dict[str, Any], side: str) -> list[dict[str, Any]]:
-    """Flatten goal rows for UI. FPL has no minute — minute stays null for now."""
+def _scorer_names_match(fpl_name: str, pulse_name: str) -> bool:
+    a = (fpl_name or "").strip().lower()
+    b = (pulse_name or "").strip().lower()
+    if not a or not b:
+        return False
+    if a == b or a in b or b in a:
+        return True
+    return a.split()[-1] == b.split()[-1]
+
+
+def _apply_pulse_minutes(
+    lines: list[dict[str, Any]],
+    pulse_goals: list[dict[str, Any]] | None,
+    *,
+    side: str,
+) -> list[dict[str, Any]]:
+    """Attach Pulse Match Centre minutes onto FPL scorer rows (order-stable)."""
+    if not pulse_goals:
+        return lines
+    pool = [g for g in pulse_goals if g.get("side") == side and g.get("minute")]
+    used: set[int] = set()
+    for line in lines:
+        if line.get("own_goal") or line.get("minute"):
+            continue
+        for i, goal in enumerate(pool):
+            if i in used:
+                continue
+            if _scorer_names_match(str(line.get("name") or ""), str(goal.get("name") or "")):
+                line["minute"] = goal["minute"]
+                used.add(i)
+                break
+    return lines
+
+
+def _scorer_lines(
+    events: dict[str, Any],
+    side: str,
+    *,
+    pulse_goals: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """Flatten goal rows for UI. Minutes come from Pulse when available."""
     lines: list[dict[str, Any]] = []
     for row in (events.get("goals") or {}).get(side) or []:
         name = row.get("name") or "Player"
@@ -506,7 +561,58 @@ def _scorer_lines(events: dict[str, Any], side: str) -> list[dict[str, Any]]:
         count = int(row.get("value") or 1)
         for _ in range(max(1, count)):
             lines.append({"name": f"{name} (OG)", "minute": None, "own_goal": True})
-    return lines
+    return _apply_pulse_minutes(lines, pulse_goals, side=side)
+
+
+def grouped_scorer_labels(lines: list[dict[str, Any]]) -> list[str]:
+    """``Muñoz 34', 57'`` — one label per player, minutes joined."""
+    order: list[str] = []
+    minutes: dict[str, list[str]] = {}
+    for row in lines:
+        name = str(row.get("name") or "Player")
+        if name not in minutes:
+            order.append(name)
+            minutes[name] = []
+        minute = row.get("minute")
+        if minute:
+            minutes[name].append(str(minute))
+    out: list[str] = []
+    for name in order:
+        mins = minutes[name]
+        out.append(f"{name} {', '.join(mins)}" if mins else name)
+    return out
+
+
+def scorers_payload_for_fixture(
+    db: Session,
+    fx: Fixture,
+    *,
+    pulse_goals: list[dict[str, Any]] | None = None,
+    fetch_pulse: bool = False,
+) -> dict[str, list[str]]:
+    """Home/away scorer labels for the fixtures scoreboard.
+
+    ``fetch_pulse`` hits PulseLive textstream for minutes — use on live refresh /
+    sheet preview, not on every SSR list render.
+    """
+    events = parse_match_events(db, fx)
+    if pulse_goals is None and fetch_pulse and (fx.started or fx.finished):
+        try:
+            from app.services import pl_content
+
+            pulse = pl_content.resolve_pulse_fixture(
+                home_abbr=fx.home_club_code,
+                away_abbr=fx.away_club_code,
+                kickoff_at=fx.kickoff_at,
+            )
+            if isinstance(pulse, dict):
+                pulse_goals = pulse.get("goals") if isinstance(pulse.get("goals"), list) else None
+        except Exception:  # noqa: BLE001 — scorers still render without minutes
+            pulse_goals = None
+    return {
+        "home": grouped_scorer_labels(_scorer_lines(events, "home", pulse_goals=pulse_goals)),
+        "away": grouped_scorer_labels(_scorer_lines(events, "away", pulse_goals=pulse_goals)),
+    }
 
 
 def squad_by_club(players: list[Player]) -> dict[str, list[dict[str, Any]]]:
@@ -731,6 +837,32 @@ def enrich_fixtures_with_squad(
     return enriched
 
 
+def enrich_live_scorer_minutes(db: Session, matches: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Attach Pulse goal minutes onto live (and freshly finished) list rows."""
+    if not matches:
+        return matches
+    by_id = {
+        fx.id: fx
+        for fx in db.query(Fixture)
+        .filter(Fixture.id.in_([m["id"] for m in matches if m.get("id")]))
+        .all()
+    }
+    out: list[dict[str, Any]] = []
+    for row in matches:
+        item = dict(row)
+        status = item.get("status")
+        fx = by_id.get(item.get("id"))
+        if fx is not None and status in {"live", "finished"} and (item.get("scorers") or status == "live"):
+            try:
+                # Live rows always try Pulse; finished only if we already show scorers.
+                fetch = status == "live"
+                item["scorers"] = scorers_payload_for_fixture(db, fx, fetch_pulse=fetch)
+            except Exception:  # noqa: BLE001
+                pass
+        out.append(item)
+    return out
+
+
 def fixtures_live_board(db: Session, *, gw_number: int, today: str | None = None) -> dict[str, Any]:
     """GW fixtures with scorers, preferring matches on `today` (YYYY-MM-DD)."""
     from datetime import datetime, timezone
@@ -895,6 +1027,10 @@ def fixture_detail(
         payload["my_players"] = my_players_for_fixture(db, fx, owned_players)
     # Team match stats are slow (API-Football) — loaded via /preview, not this fast path.
     payload["team_stats"] = None
+    try:
+        payload["scorers"] = scorers_payload_for_fixture(db, fx, pulse_goals=[])
+    except Exception:  # noqa: BLE001
+        payload["scorers"] = {"home": [], "away": []}
     return payload
 
 
@@ -940,6 +1076,16 @@ def fixture_sheet_preview(db: Session, *, fixture_id: int) -> dict[str, Any] | N
         }
     pulse = enriched.get("pulse") if isinstance(enriched.get("pulse"), dict) else None
     pulse_clock = (pulse or {}).get("clock") if pulse else None
+    # Pulse often flips status C → clock FT while FPL is still provisional and
+    # late goals are landing. Never prefer Pulse FT until our row is finished.
+    if not fx.finished and pulse_clock == "FT":
+        pulse_clock = None
+    pulse_goals = (pulse or {}).get("goals") if isinstance((pulse or {}).get("goals"), list) else None
+    scorers: dict[str, list[str]] = {"home": [], "away": []}
+    try:
+        scorers = scorers_payload_for_fixture(db, fx, pulse_goals=pulse_goals)
+    except Exception:  # noqa: BLE001
+        scorers = {"home": [], "away": []}
     return {
         "id": fx.id,
         "team_news": enriched.get("team_news") or {"home": [], "away": []},
@@ -949,6 +1095,7 @@ def fixture_sheet_preview(db: Session, *, fixture_id: int) -> dict[str, Any] | N
         "team_stats_status": enriched.get("team_stats_status") or (
             "ok" if enriched.get("team_stats") else "unavailable"
         ),
+        "scorers": scorers,
         "clock": estimate_match_clock(
             kickoff_at=fx.kickoff_at,
             started=bool(fx.started),

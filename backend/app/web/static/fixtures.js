@@ -138,10 +138,18 @@
     if (kind === "pm") {
       return `<span class="fx-ev-ico fx-ev-ball fx-ev-pm" title="Penalty missed" aria-label="Penalty missed"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path fill="currentColor" d="M12 3.2 14.2 8l5 .4-3.8 3.3 1.2 4.9L12 14.8 7.4 16.6l1.2-4.9L4.8 8.4l5-.4z" opacity=".3"/><path stroke="#e11d48" stroke-width="2.2" stroke-linecap="round" d="M8 8l8 8M16 8l-8 8"/></svg></span>`;
     }
+    if (kind === "ps") {
+      // Penalty saved — green glove
+      return `<span class="fx-ev-ico fx-ev-glove fx-ev-ps" title="Penalty saved" aria-label="Penalty saved"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="#16a34a" d="M8.2 3.8c.7-.7 1.8-.7 2.5 0l.8.8c.2-.6.7-1 1.4-1h.2c.9 0 1.6.7 1.6 1.6V7c.3-.2.7-.3 1.1-.3.9 0 1.6.7 1.6 1.6v2.2c.3-.1.6-.2.9-.2.9 0 1.6.7 1.6 1.6v5.2c0 2.4-1.6 4.5-3.9 5.1l-.7.2H9.4c-2.3 0-4.2-1.9-4.2-4.2V10c0-.9.7-1.6 1.6-1.6.3 0 .6.1.9.2V6.1c0-.9.7-1.6 1.6-1.6.3 0 .6.1.9.3V5.4c0-.6.2-1.1.6-1.5z"/><path fill="#15803d" d="M9 11.2h7.2v1.3H9zm0 2.4h7.2v1.3H9zm0 2.4h5.4v1.3H9z" opacity=".35"/></svg></span>`;
+    }
+    if (kind === "sv") {
+      // Save — white glove with black outline
+      return `<span class="fx-ev-ico fx-ev-glove fx-ev-sv" title="Save" aria-label="Save"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="#f8fafc" stroke="#0f172a" stroke-width="1.2" d="M8.2 3.8c.7-.7 1.8-.7 2.5 0l.8.8c.2-.6.7-1 1.4-1h.2c.9 0 1.6.7 1.6 1.6V7c.3-.2.7-.3 1.1-.3.9 0 1.6.7 1.6 1.6v2.2c.3-.1.6-.2.9-.2.9 0 1.6.7 1.6 1.6v5.2c0 2.4-1.6 4.5-3.9 5.1l-.7.2H9.4c-2.3 0-4.2-1.9-4.2-4.2V10c0-.9.7-1.6 1.6-1.6.3 0 .6.1.9.2V6.1c0-.9.7-1.6 1.6-1.6.3 0 .6.1.9.3V5.4c0-.6.2-1.1.6-1.5z"/><path fill="none" stroke="#0f172a" stroke-width="1" d="M9 11.2h7.2M9 13.6h7.2M9 16h5.4"/></svg></span>`;
+    }
     if (kind === "goal") {
       return `<span class="fx-ev-ico fx-ev-ball fx-ev-goal" title="Goal" aria-label="Goal"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path fill="currentColor" d="M12 3.2 14.2 8l5 .4-3.8 3.3 1.2 4.9L12 14.8 7.4 16.6l1.2-4.9L4.8 8.4l5-.4z" opacity=".45"/></svg></span>`;
     }
-    // Fallback text chip for rarer events (saves / pen saved).
+    // Fallback text chip for rarer events.
     return `<span class="fx-ev-ico fx-ev-text" aria-hidden="true">${kind}</span>`;
   }
 
@@ -351,12 +359,12 @@
     const ycAway = sideLines(data.yellow_cards?.away, evIcon("yc"));
     const rcHome = sideLines(data.red_cards?.home, evIcon("rc"));
     const rcAway = sideLines(data.red_cards?.away, evIcon("rc"));
-    const psHome = sideLines(data.penalties_saved?.home, evIcon("PS"));
-    const psAway = sideLines(data.penalties_saved?.away, evIcon("PS"));
+    const psHome = sideLines(data.penalties_saved?.home, evIcon("ps"));
+    const psAway = sideLines(data.penalties_saved?.away, evIcon("ps"));
     const pmHome = sideLines(data.penalties_missed?.home, evIcon("pm"));
     const pmAway = sideLines(data.penalties_missed?.away, evIcon("pm"));
-    const svHome = sideLines(data.saves?.home, evIcon("Sv"));
-    const svAway = sideLines(data.saves?.away, evIcon("Sv"));
+    const svHome = sideLines(data.saves?.home, evIcon("sv"));
+    const svAway = sideLines(data.saves?.away, evIcon("sv"));
     const homeHtml = goalsHome + assistsHome + ogHome + ycHome + rcHome + psHome + pmHome + svHome;
     const awayHtml = goalsAway + assistsAway + ogAway + ycAway + rcAway + psAway + pmAway + svAway;
     const hasEvents = Boolean(homeHtml || awayHtml);
@@ -437,6 +445,7 @@
           <strong class="match-club-name">${data.away.name || awayCode}</strong>
         </div>
       </div>
+      ${scorersBlockHtml(data.scorers)}
       ${statusLine}
       ${watchBlock}
       ${squadBlock}
@@ -501,10 +510,14 @@
       pulse: enrich.pulse,
       team_stats: enrich.team_stats != null ? enrich.team_stats : base.team_stats,
       team_stats_status: enrich.team_stats_status || base.team_stats_status,
+      scorers: enrich.scorers || base.scorers,
     });
     // Prefer Pulse Match Centre clock (then FPL-backed estimate from /preview).
+    // Ignore Pulse "FT" while the fixture is still live/provisional for us.
     const betterClock = enrich.clock || enrich.pulse?.clock || null;
-    if (betterClock) merged.clock = betterClock;
+    if (betterClock && !(merged.status !== "finished" && betterClock === "FT")) {
+      merged.clock = betterClock;
+    }
     const root = activeDetailBody();
     if (!root) return;
     const news = root.querySelector("[data-fx-news]");
@@ -512,6 +525,17 @@
     const stats = root.querySelector("[data-fx-team-stats]");
     if (stats && (enrich.team_stats != null || enrich.team_stats_status)) {
       stats.outerHTML = matchStatsCompareHtml(merged, merged.status || "upcoming");
+    }
+    const scorersHtml = scorersBlockHtml(merged.scorers);
+    const scorersEl = root.querySelector(".fx-card-scorers");
+    if (scorersHtml) {
+      if (scorersEl) scorersEl.outerHTML = scorersHtml;
+      else {
+        const scoreline = root.querySelector(".match-scoreline");
+        if (scoreline) scoreline.insertAdjacentHTML("afterend", scorersHtml);
+      }
+    } else if (scorersEl) {
+      scorersEl.remove();
     }
     if (merged.clock) {
       const clockEl = root.querySelector(".fx-match-clock");
@@ -635,6 +659,21 @@
     return `<ul class="fx-news">${lines.map((l) => `<li>${l}</li>`).join("")}</ul>`;
   }
 
+  function scorersColHtml(lines, away) {
+    const rows = (lines || []).filter(Boolean);
+    if (!rows.length) return `<ul class="fx-scorer-col${away ? " away" : ""}"></ul>`;
+    return `<ul class="fx-scorer-col${away ? " away" : ""}">${rows
+      .map((line) => `<li><span class="fx-scorer-line">${line}</span></li>`)
+      .join("")}</ul>`;
+  }
+
+  function scorersBlockHtml(scorers) {
+    const home = scorers?.home || [];
+    const away = scorers?.away || [];
+    if (!home.length && !away.length) return "";
+    return `<div class="fx-card-scorers" aria-label="Goal scorers">${scorersColHtml(home, false)}${scorersColHtml(away, true)}</div>`;
+  }
+
   function renderList(fixtures) {
     if (!list) return;
     const rows = attachSquad(fixtures);
@@ -682,6 +721,7 @@
                 <span class="fx-ha-tag">Away</span>
               </div>
             </div>
+            ${scorersBlockHtml(m.scorers)}
             ${mineBlock}
             ${newsHtml(m.news)}
           </button>
@@ -744,6 +784,17 @@
               else root.insertAdjacentHTML("beforeend", actionHtml);
             } else if (actionEl) {
               actionEl.remove();
+            }
+            const scorersHtml = scorersBlockHtml(detail.scorers);
+            const scorersEl = root.querySelector(".fx-card-scorers");
+            if (scorersHtml) {
+              if (scorersEl) scorersEl.outerHTML = scorersHtml;
+              else {
+                const scoreline = root.querySelector(".match-scoreline");
+                if (scoreline) scoreline.insertAdjacentHTML("afterend", scorersHtml);
+              }
+            } else if (scorersEl) {
+              scorersEl.remove();
             }
             // team_stats live on /preview (fast detail path returns null).
             return fetch(`/api/fixtures/${reqId}/preview`)

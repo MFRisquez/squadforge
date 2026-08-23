@@ -211,10 +211,19 @@ def test_fixtures_js_match_sheet_section_order():
     assert 'evIcon("assist")' in js
     assert 'evIcon("og")' in js
     assert 'evIcon("pm")' in js
+    assert 'evIcon("ps")' in js
+    assert 'evIcon("sv")' in js
     assert 'evIcon("goal")' in js
+    assert "fx-ev-ps" in js
+    assert "fx-ev-sv" in js
+    assert "fx-ev-glove" in js
+    assert "scorersBlockHtml" in js
+    assert "fx-card-scorers" in js
     # Icons replace letter tags in match action lists.
     assert ">YC<" not in js
     assert ">RC<" not in js
+    assert 'evIcon("PS")' not in js
+    assert 'evIcon("Sv")' not in js
     assert "Possession &amp; shots stats unavailable this season." in js
     assert "Expected goals (xG)" not in js
     assert "API-Football key on the server" not in js
@@ -286,6 +295,8 @@ def test_fixtures_css_vs_aligned_with_crests():
     assert ".fx-ev-pm" in css
     assert "background: #f5c518" in css
     assert "background: #e11d48" in css
+    assert ".fx-card-scorers" in css
+    assert ".fx-scorer-line" in css
 
 
 def test_my_players_fixture_kpis_blank_before_kickoff():
