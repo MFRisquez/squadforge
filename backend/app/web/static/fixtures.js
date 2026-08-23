@@ -104,12 +104,12 @@
     return ko;
   }
 
-  function sideLines(rows, label) {
+  function sideLines(rows, iconHtml) {
     if (!rows || !rows.length) return "";
     return rows
       .map((r) => {
         const mult = r.value > 1 ? ` ×${r.value}` : "";
-        return `<li><span class="muted">${label}</span> <strong>${r.name}</strong>${mult}</li>`;
+        return `<li class="fx-ev-line">${iconHtml}<strong>${r.name}</strong>${mult}</li>`;
       })
       .join("");
   }
@@ -119,6 +119,30 @@
       <h3>${title}</h3>
       <ul class="event-list">${html || "<li class='muted tiny'>—</li>"}</ul>
     </div>`;
+  }
+
+  /** Compact event icons for match action (no YC/RC text). */
+  function evIcon(kind) {
+    if (kind === "yc") {
+      return `<span class="fx-ev-ico fx-ev-card fx-ev-yc" title="Yellow card" aria-label="Yellow card"></span>`;
+    }
+    if (kind === "rc") {
+      return `<span class="fx-ev-ico fx-ev-card fx-ev-rc" title="Red card" aria-label="Red card"></span>`;
+    }
+    if (kind === "assist") {
+      return `<span class="fx-ev-ico fx-ev-assist" title="Assist" aria-label="Assist"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M4.2 20.4c.4.5 1.1.6 1.6.3l4.2-2.6 1.1 1.8c.3.5.9.6 1.4.4l1.3-.6c.5-.2.7-.8.5-1.3l-1-1.7 2.2-1.4c2.3-1.4 3.2-4.4 2.1-6.8l-.4-.8-5.6 3.5-1.5-2.4 5.5-3.4-.4-.9C13.4 1.4 10.5.8 8.3 2.1L5.2 4.1c-.5.3-.6 1-.3 1.5l.6 1-2.4 1.5c-.5.3-.6 1-.3 1.5l.9 1.5c.3.5 1 .6 1.5.3L6 10.6l1.5 2.4-2.8 1.7-1.1-1.8c-.3-.5-1-.6-1.5-.3l-1.2.7c-.5.3-.6 1-.3 1.5l1.6 2.6z"/></svg></span>`;
+    }
+    if (kind === "og") {
+      return `<span class="fx-ev-ico fx-ev-ball fx-ev-og" title="Own goal" aria-label="Own goal"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path fill="currentColor" d="M12 3.2 14.2 8l5 .4-3.8 3.3 1.2 4.9L12 14.8 7.4 16.6l1.2-4.9L4.8 8.4l5-.4z" opacity=".35"/><text x="12" y="13.2" text-anchor="middle" font-size="7" font-weight="700" fill="currentColor">OG</text></svg></span>`;
+    }
+    if (kind === "pm") {
+      return `<span class="fx-ev-ico fx-ev-ball fx-ev-pm" title="Penalty missed" aria-label="Penalty missed"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path fill="currentColor" d="M12 3.2 14.2 8l5 .4-3.8 3.3 1.2 4.9L12 14.8 7.4 16.6l1.2-4.9L4.8 8.4l5-.4z" opacity=".3"/><path stroke="#e11d48" stroke-width="2.2" stroke-linecap="round" d="M8 8l8 8M16 8l-8 8"/></svg></span>`;
+    }
+    if (kind === "goal") {
+      return `<span class="fx-ev-ico fx-ev-ball fx-ev-goal" title="Goal" aria-label="Goal"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path fill="currentColor" d="M12 3.2 14.2 8l5 .4-3.8 3.3 1.2 4.9L12 14.8 7.4 16.6l1.2-4.9L4.8 8.4l5-.4z" opacity=".45"/></svg></span>`;
+    }
+    // Fallback text chip for rarer events (saves / pen saved).
+    return `<span class="fx-ev-ico fx-ev-text" aria-hidden="true">${kind}</span>`;
   }
 
   function playerNewsList(players) {
@@ -317,22 +341,22 @@
 
   function matchActionHtml(data) {
     const status = data.status || "upcoming";
-    const goalsHome = sideLines(data.goals?.home, "⚽");
-    const goalsAway = sideLines(data.goals?.away, "⚽");
-    const assistsHome = sideLines(data.assists?.home, "ⓐ");
-    const assistsAway = sideLines(data.assists?.away, "ⓐ");
-    const ogHome = sideLines(data.own_goals?.home, "OG");
-    const ogAway = sideLines(data.own_goals?.away, "OG");
-    const ycHome = sideLines(data.yellow_cards?.home, "YC");
-    const ycAway = sideLines(data.yellow_cards?.away, "YC");
-    const rcHome = sideLines(data.red_cards?.home, "RC");
-    const rcAway = sideLines(data.red_cards?.away, "RC");
-    const psHome = sideLines(data.penalties_saved?.home, "PS");
-    const psAway = sideLines(data.penalties_saved?.away, "PS");
-    const pmHome = sideLines(data.penalties_missed?.home, "PM");
-    const pmAway = sideLines(data.penalties_missed?.away, "PM");
-    const svHome = sideLines(data.saves?.home, "Sv");
-    const svAway = sideLines(data.saves?.away, "Sv");
+    const goalsHome = sideLines(data.goals?.home, evIcon("goal"));
+    const goalsAway = sideLines(data.goals?.away, evIcon("goal"));
+    const assistsHome = sideLines(data.assists?.home, evIcon("assist"));
+    const assistsAway = sideLines(data.assists?.away, evIcon("assist"));
+    const ogHome = sideLines(data.own_goals?.home, evIcon("og"));
+    const ogAway = sideLines(data.own_goals?.away, evIcon("og"));
+    const ycHome = sideLines(data.yellow_cards?.home, evIcon("yc"));
+    const ycAway = sideLines(data.yellow_cards?.away, evIcon("yc"));
+    const rcHome = sideLines(data.red_cards?.home, evIcon("rc"));
+    const rcAway = sideLines(data.red_cards?.away, evIcon("rc"));
+    const psHome = sideLines(data.penalties_saved?.home, evIcon("PS"));
+    const psAway = sideLines(data.penalties_saved?.away, evIcon("PS"));
+    const pmHome = sideLines(data.penalties_missed?.home, evIcon("pm"));
+    const pmAway = sideLines(data.penalties_missed?.away, evIcon("pm"));
+    const svHome = sideLines(data.saves?.home, evIcon("Sv"));
+    const svAway = sideLines(data.saves?.away, evIcon("Sv"));
     const homeHtml = goalsHome + assistsHome + ogHome + ycHome + rcHome + psHome + pmHome + svHome;
     const awayHtml = goalsAway + assistsAway + ogAway + ycAway + rcAway + psAway + pmAway + svAway;
     const hasEvents = Boolean(homeHtml || awayHtml);

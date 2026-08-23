@@ -199,6 +199,22 @@ def test_fixtures_js_match_sheet_section_order():
     assert "applyMatchPreview" in js
     assert "matchActionHtml" in js
     assert "data-fx-action" in js
+    assert "function evIcon" in js
+    assert "fx-ev-yc" in js
+    assert "fx-ev-rc" in js
+    assert "fx-ev-assist" in js
+    assert "fx-ev-og" in js
+    assert "fx-ev-pm" in js
+    assert "fx-ev-goal" in js
+    assert 'evIcon("yc")' in js
+    assert 'evIcon("rc")' in js
+    assert 'evIcon("assist")' in js
+    assert 'evIcon("og")' in js
+    assert 'evIcon("pm")' in js
+    assert 'evIcon("goal")' in js
+    # Icons replace letter tags in match action lists.
+    assert ">YC<" not in js
+    assert ">RC<" not in js
     assert "Possession &amp; shots stats unavailable this season." in js
     assert "Expected goals (xG)" not in js
     assert "API-Football key on the server" not in js
@@ -262,6 +278,14 @@ def test_fixtures_css_vs_aligned_with_crests():
     assert ".fx-news-card" in css
     assert ".fx-preview-card" in css
     assert "gap: 0.4rem" in css
+    assert ".fx-ev-card" in css
+    assert ".fx-ev-yc" in css
+    assert ".fx-ev-rc" in css
+    assert ".fx-ev-assist" in css
+    assert ".fx-ev-og" in css
+    assert ".fx-ev-pm" in css
+    assert "background: #f5c518" in css
+    assert "background: #e11d48" in css
 
 
 def test_my_players_fixture_kpis_blank_before_kickoff():
