@@ -3575,6 +3575,48 @@ body.picker-open {
   gap: 0.35rem;
   font-size: 0.92rem;
 }
+.fx-ev-line {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.fx-ev-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: var(--text, #e8eef7);
+  line-height: 0;
+}
+.fx-ev-card {
+  width: 0.55rem;
+  height: 0.78rem;
+  border-radius: 0.1rem;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+.fx-ev-yc {
+  background: #f5c518;
+}
+.fx-ev-rc {
+  background: #e11d48;
+}
+.fx-ev-text {
+  min-width: 1.1rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--muted, #9aa7b8);
+}
+.fx-ev-ball svg,
+.fx-ev-assist svg {
+  display: block;
+}
+.fx-ev-pm {
+  color: var(--text, #e8eef7);
+}
+.fx-ev-og {
+  color: var(--text, #e8eef7);
+}
 .player-detail-actions {
   display: flex;
   flex-wrap: wrap;
