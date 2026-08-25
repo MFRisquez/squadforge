@@ -75,3 +75,26 @@ def test_league_news_accordion_renders(db, monkeypatch):
     assert "Manuel mete plena" in html
     assert 'id="leagueNewsToggle"' in html
     assert 'id="leagueNewsBody"' in html
+
+
+def test_league_news_panel_shows_when_enabled_without_edition(db, monkeypatch):
+    monkeypatch.setattr(settings, "gemini_api_key", "test-key")
+    mgr = league_svc.register_manager(
+        db,
+        display_name="EmptyNews",
+        password="secret12",
+        email="empty@example.com",
+        team_name="Empty FC",
+    )
+    league = league_svc.create_league(db, "Empty Desk", mgr, league_type="classic")
+    # Avoid sync Gemini call on page load
+    from app.services import league_news as news_svc
+    from unittest.mock import patch
+
+    with patch.object(news_svc, "ensure_league_news", return_value={"ok": True, "generated": []}):
+        client = _client()
+        client.post("/login", data={"login": "EmptyNews", "password": "secret12"}, follow_redirects=False)
+        resp = client.get(f"/league/{league.id}")
+    assert resp.status_code == 200
+    assert "league-news-panel" in resp.text
+    assert "Todavía no hay crónica" in resp.text

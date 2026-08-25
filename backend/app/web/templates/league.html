@@ -23,7 +23,7 @@
     </p>
   </header>
 
-  {% if news_edition %}
+  {% if news_enabled %}
   <section class="panel league-news-panel" aria-label="League News">
     <button
       type="button"
@@ -35,53 +35,61 @@
       <span class="league-news-toggle-text">
         <span class="section-title tight">News</span>
         <span class="muted tiny league-news-eyebrow">
-          {% if news_edition.edition_type == 'pre_gw' %}Pre · GW{{ news_edition.gameweek_number }}
-          {% else %}Post · GW{{ news_edition.gameweek_number }}{% endif %}
+          {% if news_edition and news_edition.edition_type == 'pre_gw' %}Pre · GW{{ news_edition.gameweek_number }}
+          {% elif news_edition %}Post · GW{{ news_edition.gameweek_number }}
+          {% else %}Pronto{% endif %}
         </span>
       </span>
       <span class="league-news-chevron" aria-hidden="true">▾</span>
     </button>
     <div class="league-news-body" id="leagueNewsBody" hidden>
-      {% if news_edition.title %}
-      <h3 class="league-news-title">{{ news_edition.title }}</h3>
-      {% endif %}
-      {% if news_edition.kicker %}
-      <p class="league-news-kicker">{{ news_edition.kicker }}</p>
-      {% endif %}
-      {% if news_edition.lede %}
-      <div class="league-news-lede">
-        {% for para in news_edition.lede.split('\n\n') %}
-        {% if para.strip() %}<p>{{ para.strip() }}</p>{% endif %}
-        {% endfor %}
-      </div>
-      {% endif %}
-      {% if news_edition.stories %}
-      <div class="league-news-stories">
-        {% for story in news_edition.stories %}
-        <article class="league-news-story">
-          {% if story.photo %}
-          <img
-            class="league-news-photo"
-            src="{{ story.photo }}"
-            {% if story.photo_fallback %}data-fallback="{{ story.photo_fallback }}"{% endif %}
-            alt="{{ story.player_name or '' }}"
-            loading="lazy"
-            onerror="if(this.dataset.fallback&&this.src!==this.dataset.fallback){this.src=this.dataset.fallback;}else{this.remove();}"
-          />
+      {% if news_edition %}
+          {% if news_edition.title %}
+          <h3 class="league-news-title">{{ news_edition.title }}</h3>
           {% endif %}
-          <div class="league-news-story-copy">
-            <h4 class="league-news-headline">{{ story.headline }}</h4>
-            {% if story.body %}
-            <div class="league-news-copy">
-              {% for para in story.body.split('\n\n') %}
-              {% if para.strip() %}<p>{{ para.strip() }}</p>{% endif %}
-              {% endfor %}
-            </div>
-            {% endif %}
+          {% if news_edition.kicker %}
+          <p class="league-news-kicker">{{ news_edition.kicker }}</p>
+          {% endif %}
+          {% if news_edition.lede %}
+          <div class="league-news-lede">
+            {% for para in news_edition.lede.split('\n\n') %}
+            {% if para.strip() %}<p>{{ para.strip() }}</p>{% endif %}
+            {% endfor %}
           </div>
-        </article>
-        {% endfor %}
-      </div>
+          {% endif %}
+          {% if news_edition.stories %}
+          <div class="league-news-stories">
+            {% for story in news_edition.stories %}
+            <article class="league-news-story">
+              {% if story.photo %}
+              <img
+                class="league-news-photo"
+                src="{{ story.photo }}"
+                {% if story.photo_fallback %}data-fallback="{{ story.photo_fallback }}"{% endif %}
+                alt="{{ story.player_name or '' }}"
+                loading="lazy"
+                onerror="if(this.dataset.fallback&&this.src!==this.dataset.fallback){this.src=this.dataset.fallback;}else{this.remove();}"
+              />
+              {% endif %}
+              <div class="league-news-story-copy">
+                <h4 class="league-news-headline">{{ story.headline }}</h4>
+                {% if story.body %}
+                <div class="league-news-copy">
+                  {% for para in story.body.split('\n\n') %}
+                  {% if para.strip() %}<p>{{ para.strip() }}</p>{% endif %}
+                  {% endfor %}
+                </div>
+                {% endif %}
+              </div>
+            </article>
+            {% endfor %}
+          </div>
+          {% endif %}
+      {% else %}
+          <p class="muted league-news-empty">
+            Todavía no hay crónica. Sale sola cuando terminan todos los partidos de la jornada
+            (post) o cuando faltan menos de 48&nbsp;h para el próximo deadline (pre).
+          </p>
       {% endif %}
     </div>
   </section>
@@ -372,7 +380,7 @@
       {% if league.league_type == 'h2h' %}H2H standings{% else %}Full standings{% endif %}
     </a>
     <a class="btn ghost" href="/league/{{ league.id }}/awards">Season awards</a>
-    {% if news_edition %}
+    {% if news_enabled %}
     <button type="button" class="btn ghost" id="leagueNewsToggleMobile" aria-controls="leagueNewsBody">News</button>
     {% endif %}
   </div>
@@ -396,7 +404,7 @@
 <script id="h2hFixturesBoot" type="application/json">{{ h2h_cards | tojson }}</script>
 <script src="/static/league_h2h.js?v=182"></script>
 {% endif %}
-{% if news_edition %}
+{% if news_enabled %}
 <script>
 (function () {
   function bindNewsToggle(btn) {
