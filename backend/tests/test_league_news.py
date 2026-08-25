@@ -254,7 +254,7 @@ def test_call_gemini_parses_json(monkeypatch):
     assert len(out["stories"]) == 1
     kwargs = client.post.call_args
     assert kwargs[0][0] == news_svc.GEMINI_URL
-    assert "gemini-2.5-flash" in kwargs[0][0]
+    assert "gemini-3.6-flash" in kwargs[0][0]
     sent = kwargs[1]["json"]
     assert sent["generationConfig"]["responseMimeType"] == "application/json"
     assert kwargs[1]["headers"]["x-goog-api-key"] == "test-key"
