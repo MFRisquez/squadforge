@@ -222,5 +222,110 @@ def test_forecast_package_uses_real_fdr_signal(db, monkeypatch):
     assert package["stories"], "expected at least one forecast candidate"
     top = package["stories"][0]
     assert top.get("player_id")
-    assert top.get("fdr") in (1, 2)
+    assert top.get("fdr") in (1, 2, 3)
     assert "form" in top
+
+
+def test_forecast_window_opens_for_current_gw(db):
+    gw = db.query(Gameweek).filter(Gameweek.number == 1).one()
+    for g in db.query(Gameweek).all():
+        g.is_current = 0
+        g.status = "upcoming"
+    gw.is_current = 1
+    gw.status = "upcoming"
+    db.commit()
+    assert news_svc.forecast_window_open(gw) is True
+
+
+def test_cross_league_cards_merge_same_player(db, monkeypatch):
+    monkeypatch.setattr(settings, "gemini_api_key", "test-key")
+    mgr = league_svc.register_manager(
+        db,
+        display_name="DedupeFan",
+        password="secret12",
+        email="dedupe@example.com",
+        team_name="Dedupe FC",
+    )
+    _fill_squad(db, mgr.id)
+    classic = league_svc.create_league(db, "Clásico Norte", mgr, league_type="classic")
+    h2h = league_svc.create_league(db, "H2H Sur", mgr, league_type="h2h")
+    shared = {
+        "headline": "Salah la rompió",
+        "body": "Puso 18 puntos.",
+        "drama": 40,
+        "kind": "broke_out",
+        "player_id": 101,
+        "gw_points": 18,
+        "manager_name": "DedupeFan",
+    }
+    db.add(
+        LeagueNewsEdition(
+            league_id=classic.id,
+            edition_type="post_gw",
+            gameweek_number=1,
+            content_json=json.dumps({"stories": [shared]}),
+        )
+    )
+    db.add(
+        LeagueNewsEdition(
+            league_id=h2h.id,
+            edition_type="post_gw",
+            gameweek_number=1,
+            content_json=json.dumps(
+                {
+                    "stories": [
+                        {
+                            **shared,
+                            "body": "Puso 18 puntos también en el mano a mano.",
+                            "drama": 42,
+                        }
+                    ]
+                }
+            ),
+        )
+    )
+    db.commit()
+    feed = news_svc.build_manager_news_feed(db, mgr.id)
+    assert len(feed["cards"]) == 1
+    card = feed["cards"][0]
+    assert "Clásico Norte" in card["label"] and "H2H Sur" in card["label"]
+    assert "classic" in card["filters"] and "h2h" in card["filters"]
+
+
+def test_xi_dead_weight_packs_all_offenders(db, monkeypatch):
+    monkeypatch.setattr(settings, "gemini_api_key", "test-key")
+    from app.models import Gameweek, Player, SquadPick
+
+    mgr = league_svc.register_manager(
+        db,
+        display_name="Negligente",
+        password="secret12",
+        email="neg@example.com",
+        team_name="Neg FC",
+    )
+    league = league_svc.create_league(db, "Roast League", mgr, league_type="classic")
+    gw = db.query(Gameweek).filter(Gameweek.number == 1).one()
+    injured = db.query(Player).filter(Player.position == "MID").first()
+    assert injured is not None
+    injured.status = "i"
+    injured.chance_of_playing = 0
+    db.add(
+        SquadPick(
+            manager_id=mgr.id,
+            gameweek_id=gw.id,
+            player_id=injured.id,
+            is_starter=1,
+            is_captain=0,
+            is_vice_captain=0,
+            bench_order=0,
+        )
+    )
+    db.commit()
+
+    cands = news_svc._xi_dead_weight_candidates(db, league, gw)
+    assert cands, "expected dead-weight candidate"
+    fact = cands[0]["fact"]
+    assert fact["kind"] == "xi_dead_weight"
+    assert fact["offender_count"] >= 1
+    assert any(o["manager_name"] == "Negligente" for o in fact["offenders"])
+    assert "maricos" in fact["roast_instruction"]

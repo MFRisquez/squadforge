@@ -28,6 +28,7 @@
       class="news-featured"
       data-news-card
       data-filter="{{ featured.filter }}"
+      data-filters="{{ (featured.filters or [featured.filter]) | join(',') }}"
       data-card-id="{{ featured.id }}"
       aria-label="{{ featured.headline }}"
     >
@@ -72,6 +73,7 @@
         class="news-card"
         data-news-card
         data-filter="{{ card.filter }}"
+        data-filters="{{ (card.filters or [card.filter]) | join(',') }}"
         data-card-id="{{ card.id }}"
         aria-label="{{ card.headline }}"
       >
@@ -116,5 +118,5 @@
 </div>
 
 <script id="newsFeedBoot" type="application/json">{{ {"cards": cards} | tojson }}</script>
-<script src="/static/news.js?v=186"></script>
+<script src="/static/news.js?v=187"></script>
 {% endblock %}

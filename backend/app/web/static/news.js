@@ -115,8 +115,9 @@
         b.classList.toggle("is-active", b === btn);
       });
       document.querySelectorAll("[data-news-card]").forEach((card) => {
-        const f = card.getAttribute("data-filter") || "";
-        const show = key === "all" || f === key;
+        const raw = card.getAttribute("data-filters") || card.getAttribute("data-filter") || "";
+        const list = raw.split(",").map((s) => s.trim()).filter(Boolean);
+        const show = key === "all" || list.indexOf(key) >= 0;
         card.hidden = !show;
         card.classList.toggle("is-filtered-out", !show);
       });
