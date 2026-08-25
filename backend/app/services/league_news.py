@@ -39,6 +39,9 @@ EDITION_FORECAST = "forecast"
 TOP_STORIES_MIN = 5
 TOP_STORIES_MAX = 8
 FORECAST_CANDIDATES = 5
+FORECAST_STORIES_MAX = 4
+FORECAST_CLUB_STACK_SIZE = 3
+FORECAST_CONTENT_VERSION = 2
 
 SYSTEM_PROMPT = """\
 Sos el redactor de League News de FutFantasy: una liga privada de fantasy entre amigos.
@@ -68,6 +71,10 @@ TONO
 - Si un fact trae "leagues" / "league_names" con más de una liga, ESCRIBÍ UNA sola historia
   cruzando Classic y H2H (ej. "le fue bien en X y también en Y"). NO repitas el mismo
   jugador/evento en otra story de la misma edición.
+- FORECAST: si el fact es kind "forecast_club" con lista "players", escribí UNA sola crónica
+  del club (mismo rival/FDR) nombrando a esos jugadores juntos — NO una story por jugador.
+  Titular tipo "LIV se come a XXX" / "triple amenaza en Anfield". Si es "forecast_pick"
+  individual, ahí sí enfocá a ese jugador.
 
 HECHOS (regla dura)
 - Recibís un JSON de FACTS ya rankeados por drama (de más brutal a menos).
@@ -160,12 +167,20 @@ def get_or_generate_edition(
         gameweek_number=int(gameweek_number),
     )
     if existing is not None and not force:
-        return {
-            "ok": True,
-            "cached": True,
-            "edition": existing,
-            "content": _loads(existing.content_json),
-        }
+        cached = _loads(existing.content_json)
+        # Stale Forecast (pre club-stack) → rebuild once with smarter package.
+        if (
+            edition_type == EDITION_FORECAST
+            and int(cached.get("forecast_version") or 1) < FORECAST_CONTENT_VERSION
+        ):
+            force = True
+        else:
+            return {
+                "ok": True,
+                "cached": True,
+                "edition": existing,
+                "content": cached,
+            }
 
     gw = db.query(Gameweek).filter(Gameweek.number == int(gameweek_number)).one_or_none()
     if gw is None:
@@ -190,6 +205,11 @@ def get_or_generate_edition(
     except Exception as exc:  # noqa: BLE001 — surface to caller, don't crash request cycle
         logger.exception("league_news gemini failed: %s", exc)
         return {"ok": False, "skipped": "api_error", "reason": str(exc)}
+
+    if edition_type == EDITION_FORECAST:
+        content["forecast_version"] = int(
+            package.get("forecast_version") or FORECAST_CONTENT_VERSION
+        )
 
     if existing is not None and force:
         existing.content_json = json.dumps(content, ensure_ascii=False)
@@ -517,22 +537,23 @@ def build_pre_gw_package(db: Session, league: League, gw: Gameweek) -> dict[str,
 
 
 def build_forecast_package(db: Session, gw: Gameweek) -> dict[str, Any]:
-    """Global next-GW forecast from real FDR + form/threat/creativity (not invented by AI)."""
+    """Smarter next-GW Forecast: stack same-club picks into one story.
+
+    Numbers from FDR + form/threat/creativity. Gemini only narrates.
+    """
     from app.services import fixtures as fixtures_svc
+    from app.models import Club
 
     fdr_by_club = fixtures_svc.club_next_fdr_map(db, from_gw=int(gw.number))
-    players = (
-        db.query(Player)
-        .filter(Player.status.in_(("a", "d")))
-        .all()
-    )
+    clubs = {c.code: c for c in db.query(Club).all() if c.code}
+
+    players = db.query(Player).filter(Player.status.in_(("a", "d"))).all()
     scored: list[dict[str, Any]] = []
     for pl in players:
         club = (pl.team_code or "").upper()
         fdr = fdr_by_club.get(club) or {}
         if not fdr:
             continue
-        # map_fdr: 1 easiest … 4 hardest — allow up to 3 so Forecast always has fuel
         difficulty = int(fdr.get("difficulty") or 3)
         if difficulty > 3:
             continue
@@ -547,72 +568,120 @@ def build_forecast_package(db: Session, gw: Gameweek) -> dict[str, Any]:
         signal = fdr_boost * 8.0 + max(form, 0.0) * 4.0 + (threat + creativity) / 80.0
         scored.append(
             {
-                "kind": "forecast_pick",
-                "drama": round(signal, 2),
                 "player_id": int(pl.id),
-                "fact": {
-                    "kind": "forecast_pick",
-                    "player_id": int(pl.id),
-                    "player_name": pl.name,
-                    "position": pl.position,
-                    "team_code": club,
-                    "opponent": fdr.get("opponent"),
-                    "venue": fdr.get("venue"),
-                    "fdr": difficulty,
-                    "form": round(form, 1),
-                    "threat": round(threat, 1),
-                    "creativity": round(creativity, 1),
-                    "signal": round(signal, 2),
-                    "gw": int(fdr.get("gw") or gw.number),
-                },
+                "player_name": pl.name,
+                "position": pl.position,
+                "team_code": club,
+                "team_name": getattr(clubs.get(club), "name", None) or club,
+                "opponent": fdr.get("opponent"),
+                "venue": fdr.get("venue"),
+                "fdr": difficulty,
+                "form": round(form, 1),
+                "threat": round(threat, 1),
+                "creativity": round(creativity, 1),
+                "signal": round(signal, 2),
+                "gw": int(fdr.get("gw") or gw.number),
             }
         )
-    scored.sort(key=lambda c: float(c.get("drama") or 0), reverse=True)
-    # Always keep top N by signal — don't starve Forecast with a high cutoff.
-    candidates = scored[: max(FORECAST_CANDIDATES * 2, 10)]
-    ranked = _select_top_stories(candidates)[:FORECAST_CANDIDATES]
-    # Hard fallback: any next-fixture players with best form if FDR map was sparse
-    if not ranked and scored:
-        ranked = _select_top_stories(scored[:FORECAST_CANDIDATES])
-    if not ranked and players:
-        # Last resort: top form among a/d players even without FDR row
-        soft: list[dict[str, Any]] = []
-        for pl in players:
-            stats = _loads(pl.season_stats_json or "{}")
-            try:
-                form = float(stats.get("form") or 0)
-            except (TypeError, ValueError):
-                form = 0.0
-            if form <= 0:
-                continue
-            soft.append(
+    scored.sort(key=lambda r: float(r.get("signal") or 0), reverse=True)
+
+    # Group by club — stack 2–3 names when they share the same soft fixture
+    by_club: dict[str, list[dict[str, Any]]] = {}
+    for row in scored:
+        by_club.setdefault(str(row["team_code"]), []).append(row)
+
+    club_stacks: list[dict[str, Any]] = []
+    solo_pool: list[dict[str, Any]] = []
+    for code, rows in by_club.items():
+        top = rows[:FORECAST_CLUB_STACK_SIZE]
+        if len(top) >= 2 and float(top[0].get("signal") or 0) >= 8.0:
+            # Combined drama: best signal + bonus per teammate + FDR ease
+            best = float(top[0].get("signal") or 0)
+            stack_bonus = 3.5 * (len(top) - 1)
+            fdr = int(top[0].get("fdr") or 3)
+            club_stacks.append(
                 {
-                    "kind": "forecast_pick",
-                    "drama": form,
-                    "player_id": int(pl.id),
+                    "kind": "forecast_club",
+                    "drama": round(best + stack_bonus + {1: 4.0, 2: 2.0, 3: 0.5}.get(fdr, 0), 2),
+                    "player_id": top[0]["player_id"],
                     "fact": {
-                        "kind": "forecast_pick",
-                        "player_id": int(pl.id),
-                        "player_name": pl.name,
-                        "position": pl.position,
-                        "team_code": (pl.team_code or "").upper(),
-                        "form": round(form, 1),
-                        "gw": int(gw.number),
+                        "kind": "forecast_club",
+                        "player_id": top[0]["player_id"],
+                        "player_name": top[0]["player_name"],
+                        "team_code": code,
+                        "team_name": top[0].get("team_name") or code,
+                        "opponent": top[0].get("opponent"),
+                        "venue": top[0].get("venue"),
+                        "fdr": fdr,
+                        "gw": top[0].get("gw"),
+                        "players": [
+                            {
+                                "player_id": p["player_id"],
+                                "player_name": p["player_name"],
+                                "position": p["position"],
+                                "form": p["form"],
+                                "threat": p["threat"],
+                                "creativity": p["creativity"],
+                                "signal": p["signal"],
+                            }
+                            for p in top
+                        ],
+                        "player_names": [p["player_name"] for p in top],
+                        "stack_size": len(top),
                     },
                 }
             )
-        soft.sort(key=lambda c: float(c.get("drama") or 0), reverse=True)
-        ranked = _select_top_stories(soft)[:FORECAST_CANDIDATES]
+        else:
+            solo_pool.extend(top[:1])
+
+    club_stacks.sort(key=lambda c: float(c.get("drama") or 0), reverse=True)
+    solo_pool.sort(key=lambda r: float(r.get("signal") or 0), reverse=True)
+
+    candidates: list[dict[str, Any]] = list(club_stacks)
+    used_clubs = {str((c.get("fact") or {}).get("team_code") or "") for c in club_stacks}
+    for row in solo_pool:
+        if str(row.get("team_code") or "") in used_clubs:
+            continue
+        candidates.append(
+            {
+                "kind": "forecast_pick",
+                "drama": float(row.get("signal") or 0),
+                "player_id": row["player_id"],
+                "fact": {
+                    "kind": "forecast_pick",
+                    **{k: row[k] for k in row.keys()},
+                },
+            }
+        )
+        used_clubs.add(str(row.get("team_code") or ""))
+        if len(candidates) >= FORECAST_STORIES_MAX:
+            break
+
+    if not candidates and scored:
+        # Last resort: top singles
+        for row in scored[:FORECAST_STORIES_MAX]:
+            candidates.append(
+                {
+                    "kind": "forecast_pick",
+                    "drama": float(row.get("signal") or 0),
+                    "player_id": row["player_id"],
+                    "fact": {"kind": "forecast_pick", **row},
+                }
+            )
+
+    ranked = _select_top_stories(candidates)[:FORECAST_STORIES_MAX]
     return {
         "edition_type": EDITION_FORECAST,
         "league_id": None,
         "league_name": "FORECAST",
         "league_type": "forecast",
         "gameweek_number": int(gw.number),
+        "forecast_version": FORECAST_CONTENT_VERSION,
         "stories": ranked,
         "prompt_note": (
-            "These are REAL next-GW candidates ranked by favorable FDR + form/threat/creativity. "
-            "Write a Forecast edition with humor negro — do not invent other players or numbers."
+            "Smarter Forecast: forecast_club facts list several players from the SAME club "
+            "vs the same opponent — write ONE story naming all of them together. "
+            "forecast_pick is a solo. Numbers are real; do not invent players."
         ),
     }
 
@@ -961,6 +1030,8 @@ def _select_top_stories(candidates: list[dict[str, Any]]) -> list[dict[str, Any]
         kind = str(c.get("kind") or "")
         if kind == "xi_dead_weight":
             key: tuple = ("xi_dead_weight",)
+        elif kind == "forecast_club":
+            key = ("forecast_club", fact.get("team_code") or c.get("player_id"))
         elif kind in ("broke_out", "blew_up"):
             key = (kind, c.get("player_id"), fact.get("manager_name"))
         else:
@@ -1058,6 +1129,10 @@ def call_gemini_for_edition(package: dict[str, Any]) -> dict[str, Any]:
         "roast_instruction",
         "league_names",
         "leagues",
+        "players",
+        "player_names",
+        "stack_size",
+        "team_name",
     )
     for i, story in enumerate(stories_out):
         if not isinstance(story, dict):
@@ -1534,6 +1609,8 @@ def build_manager_news_feed(db: Session, manager_id: int) -> dict[str, Any]:
                     "stats": _story_stat_chips(story),
                     "kind": story.get("kind"),
                     "manager_name": story.get("manager_name"),
+                    "team_code": story.get("team_code"),
+                    "player_names": story.get("player_names"),
                 }
             )
 
@@ -1561,6 +1638,8 @@ def _card_dedupe_key(card: dict[str, Any]) -> tuple:
     """Same player/event across Classic+H2H collapses to one magazine card."""
     kind = str(card.get("kind") or "")
     gw = int(card.get("gameweek_number") or 0)
+    if kind == "forecast_club":
+        return ("forecast_club", gw, card.get("team_code") or card.get("player_id"))
     if kind == "forecast_pick" or card.get("filter") == "forecast":
         return ("forecast", gw, card.get("player_id"), card.get("headline"))
     if kind == "xi_dead_weight":
