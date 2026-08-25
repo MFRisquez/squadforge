@@ -1,4 +1,4 @@
-"""Background auto-scoring after gameweek deadline."""
+"""Background auto-scoring after gameweek deadline + League News timing."""
 
 from __future__ import annotations
 
@@ -16,38 +16,59 @@ from app.services.fixtures import GW_SWEEP_INTERVAL_SEC
 logger = logging.getLogger("squadforge.auto_score")
 
 _lock = threading.Lock()
+_news_lock = threading.Lock()
 _last_run_at: float = 0.0
 _last_gw: Optional[int] = None
 _last_gw_sweep_at: float = 0.0
 _last_news_at: float = 0.0
 _thread: Optional[threading.Thread] = None
+_news_thread: Optional[threading.Thread] = None
 MIN_INTERVAL_SEC = 90.0
-NEWS_INTERVAL_SEC = 120.0
+NEWS_INTERVAL_SEC = 90.0
 
 
 def maybe_generate_league_news(*, force: bool = False) -> Optional[dict]:
-    """Generate due League News editions (post_gw / pre_gw). Throttled."""
+    """Generate due League News editions (post_gw / pre_gw). Throttled.
+
+    Runs on its own lock so Gemini never blocks live scoring.
+    """
     global _last_news_at
     now = time.time()
     if not force and (now - _last_news_at) < NEWS_INTERVAL_SEC:
         return None
-    db = SessionLocal()
-    try:
-        from app.services import league_news as news_svc
-
-        if not news_svc.news_enabled():
-            return None
-        result = news_svc.maybe_generate_due_editions(db)
-        _last_news_at = now
-        generated = result.get("generated") or []
-        if generated:
-            logger.info("league_news generated %s edition(s)", len(generated))
-        return result
-    except Exception:
-        logger.exception("league_news generation failed")
+    if not _news_lock.acquire(blocking=False):
         return None
+    try:
+        if not force and (time.time() - _last_news_at) < NEWS_INTERVAL_SEC:
+            return None
+        db = SessionLocal()
+        try:
+            from app.services import league_news as news_svc
+
+            if not news_svc.news_enabled():
+                return None
+            result = news_svc.maybe_generate_due_editions(db)
+            _last_news_at = time.time()
+            generated = result.get("generated") or []
+            if generated:
+                logger.info("league_news generated %s edition(s)", len(generated))
+            return result
+        except Exception:
+            logger.exception("league_news generation failed")
+            return None
+        finally:
+            db.close()
     finally:
-        db.close()
+        _news_lock.release()
+
+
+def kick_league_news(*, force: bool = False) -> None:
+    """Fire-and-forget news generation on a daemon thread."""
+
+    def _run() -> None:
+        maybe_generate_league_news(force=force)
+
+    threading.Thread(target=_run, name="squadforge-league-news", daemon=True).start()
 
 
 def maybe_score_locked_gw(*, force: bool = False) -> Optional[dict]:
@@ -62,13 +83,6 @@ def maybe_score_locked_gw(*, force: bool = False) -> Optional[dict]:
             gw = squad_svc.current_gameweek(db)
             if not deadline_svc.deadline_passed(gw):
                 return None
-            # Keep Fixture.started/finished in sync with FPL every cycle — same
-            # cadence as player points. Do not let a fixture refresh failure
-            # block scoring (ingest also refreshes, but this makes the daemon
-            # path explicit and logs skip reasons like missing club FPL ids).
-            #
-            # Hot path: live/resolving matches only (~2–4). Occasional GW sweep
-            # (~10) so upcoming kickoffs still flip to live without 380 upserts.
             try:
                 from app.services import fixtures as fixtures_svc
 
@@ -94,7 +108,6 @@ def maybe_score_locked_gw(*, force: bool = False) -> Optional[dict]:
                 logger.exception("auto-score fixture sync failed (continuing)")
 
             summary = live_svc.run_gameweek_scoring(db, prefer_live=True, force_demo=False)
-            # Never invent demo points in the background loop.
             if summary.get("ingest", {}).get("demo_skipped"):
                 logger.info(
                     "auto-score GW%s skipped demo (live empty) · managers=%s",
@@ -104,14 +117,8 @@ def maybe_score_locked_gw(*, force: bool = False) -> Optional[dict]:
             advanced = squad_svc.maybe_advance_finished_gameweek(db)
             if advanced:
                 logger.info("auto-advanced current gameweek after GW%s finished", gw.number)
-            # Post-GW news as soon as fixtures are done (same cycle).
-            try:
-                from app.services import league_news as news_svc
-
-                if news_svc.news_enabled():
-                    news_svc.maybe_generate_due_editions(db)
-            except Exception:
-                logger.exception("league_news after score failed")
+            # Post-GW news after fixtures/advance — never block this scoring thread.
+            kick_league_news(force=True)
             _last_run_at = now
             _last_gw = gw.number
             logger.info(
@@ -130,20 +137,26 @@ def maybe_score_locked_gw(*, force: bool = False) -> Optional[dict]:
 
 
 def start_auto_scorer(*, interval_sec: float = 120.0) -> None:
-    """Daemon thread: every `interval_sec`, score if GW is locked + news timing."""
-    global _thread
+    """Daemon: score locked GWs; separately tick League News (post/pre timing)."""
+    global _thread, _news_thread
     if _thread and _thread.is_alive():
         return
 
-    def loop() -> None:
-        # First delay — let seed / sync settle
+    def score_loop() -> None:
         time.sleep(8)
         while True:
-            # Pre-GW news can fire before the current deadline passes.
-            maybe_generate_league_news()
             maybe_score_locked_gw()
             time.sleep(interval_sec)
 
-    _thread = threading.Thread(target=loop, name="squadforge-auto-score", daemon=True)
+    def news_loop() -> None:
+        # Slightly offset so PRE (<48h) runs even when deadline not yet passed.
+        time.sleep(12)
+        while True:
+            maybe_generate_league_news()
+            time.sleep(interval_sec)
+
+    _thread = threading.Thread(target=score_loop, name="squadforge-auto-score", daemon=True)
     _thread.start()
-    logger.info("auto-scorer started (every %ss)", interval_sec)
+    _news_thread = threading.Thread(target=news_loop, name="squadforge-league-news-loop", daemon=True)
+    _news_thread.start()
+    logger.info("auto-scorer + league-news loops started (every %ss)", interval_sec)

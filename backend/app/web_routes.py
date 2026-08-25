@@ -700,8 +700,12 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
         from app.services import league_news as news_svc
         import threading
 
-        news_enabled = news_svc.news_enabled()
-        if news_enabled:
+        state = news_svc.ui_news_state(db, league)
+        news_enabled = bool(state.get("enabled"))
+        news_status = state.get("status")
+        news_edition = state.get("edition")
+        # Auto path only: when an edition is due, kick Gemini in the background.
+        if news_status == "generating":
             league_id = int(league.id)
 
             def _bg_ensure(lid: int = league_id) -> None:
@@ -722,9 +726,6 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
                     s.close()
 
             threading.Thread(target=_bg_ensure, daemon=True).start()
-            news_edition = news_svc.resolve_current_edition(db, league)
-            if news_edition is None:
-                news_status = "generating"
     except Exception:
         news_edition = None
         news_enabled = False
@@ -768,7 +769,7 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
 
 @router.post("/league/{league_id}/news/generate")
 def league_news_generate(league_id: int, request: Request, db: Session = Depends(get_db)):
-    """Force-generate due League News editions for this league (Gemini)."""
+    """Internal/recovery: force due editions. Product path is automatic (no UI button)."""
     from urllib.parse import quote
 
     from app.services import league_news as news_svc

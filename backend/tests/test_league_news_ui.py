@@ -101,8 +101,8 @@ def test_league_news_panel_shows_when_enabled_without_edition(db, monkeypatch):
         resp = client.get(f"/league/{league.id}")
     assert resp.status_code == 200
     assert "league-news-panel" in resp.text
-    assert "Todavía no hay crónica" in resp.text
-    assert "Generar ahora" in resp.text
+    assert "sale sola" in resp.text
+    assert "Generar ahora" not in resp.text
 
 
 def test_league_news_panel_shows_when_key_missing(db, monkeypatch):

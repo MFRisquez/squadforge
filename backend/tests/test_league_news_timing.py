@@ -99,6 +99,38 @@ def test_gw_ready_for_post_when_season_advanced(db):
     assert news_svc.pre_gw_window_open(gw, now=now, hours=48) is False
 
 
+def test_ui_news_state_waiting_vs_generating(db, monkeypatch):
+    monkeypatch.setattr(settings, "gemini_api_key", "test-key")
+    league = _league(db)
+    far = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat().replace("+00:00", "Z")
+    for g in db.query(Gameweek).all():
+        g.deadline_at = far
+        g.status = "upcoming"
+        g.is_current = 1 if int(g.number) == 1 else 0
+    gw1 = db.query(Gameweek).filter(Gameweek.number == 1).one()
+    # Unfinished fixture → not ready for post; deadlines far → pre closed
+    db.add(
+        Fixture(
+            fpl_id=90101,
+            gameweek_number=1,
+            home_club_code="ARS",
+            away_club_code="CHE",
+            finished=0,
+        )
+    )
+    db.commit()
+    state = news_svc.ui_news_state(db, league)
+    assert state["status"] == "waiting"
+    assert state["edition"] is None
+
+    fx = db.query(Fixture).filter(Fixture.fpl_id == 90101).one()
+    fx.finished = 1
+    gw1.status = "finished"
+    db.commit()
+    state2 = news_svc.ui_news_state(db, league)
+    assert state2["status"] == "generating"
+
+
 def test_resolve_current_prefers_pre_then_post(db, monkeypatch):
     monkeypatch.setattr(settings, "gemini_api_key", "test-key")
     league = _league(db)
