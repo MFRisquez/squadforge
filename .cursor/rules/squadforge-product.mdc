@@ -49,9 +49,10 @@ Cancel chips **before deadline** restores remaining count (FH also restores owne
 
 - Custom **per-position formulas** (see `docs/FORMULAS.md` + `backend/app/scoring/`)
 - Autosubs like FPL when BB off
-- UI: phone-first; nav **Home · Squad · Lineup · Fixtures · Table**
+- UI: phone-first; nav **Home · XI · Transfers · Fixtures · League · News · Rules**
 - Real FPL kits + player headshots (`photo` on kit portrait)
 - **Fixtures** tab: GW fixtures with live refresh / poll; tap match for goals & assists
+- **News** tab: magazine feed across all leagues (Classic + H2H) + global Forecast; not embedded in League
 - Next-3 FDR on Squad player sheet: FPL difficulty mapped to **4 bands** (FPL 5 → 4)
 
 ## When changing rules mid-season

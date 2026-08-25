@@ -1,16 +1,17 @@
 /* FutFantasy phone app shell */
-const CACHE = "futfantasy-v182";
+const CACHE = "futfantasy-v186";
 const PRECACHE = [
-  "/static/styles.css?v=182",
+  "/static/styles.css?v=186",
   "/static/ui.js",
   "/static/chips.js",
-  "/static/appshell.js?v=182",
-  "/static/lineup.js?v=182",
-  "/static/xi-side.js?v=182",
-  "/static/squadboard.js?v=182",
-  "/static/club-sheet.js?v=182",
-  "/static/fixtures.js?v=182",
-  "/static/league_h2h.js?v=182",
+  "/static/appshell.js?v=186",
+  "/static/lineup.js?v=186",
+  "/static/xi-side.js?v=186",
+  "/static/squadboard.js?v=186",
+  "/static/club-sheet.js?v=186",
+  "/static/fixtures.js?v=186",
+  "/static/league_h2h.js?v=186",
+  "/static/news.js?v=186",
   "/static/fonts/Vielma_Grotesk_Bold.woff2",
   "/static/fonts/Vielma_Grotesk_Bold.otf",
   "/static/manifest.webmanifest",

@@ -693,42 +693,6 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
     from app.services import awards as awards_svc
 
     awards = awards_svc.league_awards(db, league.id)
-    news_edition = None
-    news_enabled = False
-    news_status = None
-    try:
-        from app.services import league_news as news_svc
-        import threading
-
-        news_enabled = news_svc.news_enabled()
-        if news_enabled:
-            league_id = int(league.id)
-
-            def _bg_ensure(lid: int = league_id) -> None:
-                from app.db import SessionLocal as _SL
-                from app.models import League as _League
-                from app.services import league_news as _news
-
-                s = _SL()
-                try:
-                    lg = s.query(_League).filter(_League.id == lid).one_or_none()
-                    if lg is not None:
-                        _news.ensure_league_news(s, lg)
-                except Exception:
-                    __import__("logging").getLogger("squadforge.web").exception(
-                        "bg ensure_league_news failed league=%s", lid
-                    )
-                finally:
-                    s.close()
-
-            threading.Thread(target=_bg_ensure, daemon=True).start()
-            news_edition = news_svc.resolve_current_edition(db, league)
-            if news_edition is None:
-                news_status = "generating"
-    except Exception:
-        news_edition = None
-        news_enabled = False
-        news_status = "error"
     if view["edits_locked"]:
         from app.services.auto_score import maybe_score_locked_gw
         import threading
@@ -751,9 +715,6 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
             rival_card=rival_card,
             chips_board=chips_board,
             awards=awards,
-            news_edition=news_edition,
-            news_enabled=news_enabled,
-            news_status=news_status,
             deadline_label=view["deadline_label"],
             edits_locked=view["edits_locked"],
             prev_gw=view["prev_gw"],
@@ -766,39 +727,57 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
     )
 
 
-@router.post("/league/{league_id}/news/generate")
-def league_news_generate(league_id: int, request: Request, db: Session = Depends(get_db)):
-    """Force-generate due League News editions for this league (Gemini)."""
-    from urllib.parse import quote
-
-    from app.services import league_news as news_svc
-
+@router.get("/news", response_class=HTMLResponse)
+def news_page(request: Request, db: Session = Depends(get_db)):
+    """Magazine News tab — all leagues + global Forecast."""
     manager = current_manager(request, db)
     if not manager:
         return RedirectResponse("/login", status_code=303)
-    membership = (
-        db.query(Membership)
-        .filter(Membership.league_id == league_id, Membership.manager_id == manager.id)
-        .one_or_none()
+    if not manager_has_complete_squad(db, manager.id):
+        return RedirectResponse("/onboard", status_code=303)
+
+    from app.services import league_news as news_svc
+    import threading
+
+    mid = int(manager.id)
+
+    def _bg_ensure(manager_id: int = mid) -> None:
+        from app.db import SessionLocal as _SL
+        from app.services import league_news as _news
+
+        s = _SL()
+        try:
+            _news.ensure_manager_news(s, manager_id)
+        except Exception:
+            __import__("logging").getLogger("squadforge.web").exception(
+                "bg ensure_manager_news failed manager=%s", manager_id
+            )
+        finally:
+            s.close()
+
+    if news_svc.news_enabled():
+        threading.Thread(target=_bg_ensure, daemon=True).start()
+
+    feed = news_svc.build_manager_news_feed(db, mid)
+    return templates.TemplateResponse(
+        "news.html",
+        _ctx(
+            request,
+            db,
+            manager=manager,
+            news_feed=feed,
+            news_enabled=bool(feed.get("enabled")),
+        ),
     )
-    if not membership:
-        return RedirectResponse("/", status_code=303)
-    league = membership.league
-    if not news_svc.news_enabled():
-        msg = quote("Falta GEMINI_API_KEY en Render")
-        return RedirectResponse(f"/league/{league.id}?error={msg}", status_code=303)
-    result = news_svc.ensure_league_news(db, league)
-    if result.get("generated"):
-        msg = quote("Crónica generada — abrí News")
-        return RedirectResponse(f"/league/{league.id}?notice={msg}", status_code=303)
-    errors = result.get("errors") or []
-    if errors:
-        first = errors[0]
-        reason = first.get("reason") or first.get("skipped") or "sin datos"
-        msg = quote(f"No se pudo generar (GW{first.get('gw')}): {reason}"[:180])
-        return RedirectResponse(f"/league/{league.id}?error={msg}", status_code=303)
-    msg = quote("Nada nuevo que generar todavía")
-    return RedirectResponse(f"/league/{league.id}?notice={msg}", status_code=303)
+
+
+@router.post("/league/{league_id}/news/generate")
+def league_news_generate(league_id: int, request: Request, db: Session = Depends(get_db)):
+    """Legacy recovery endpoint — redirects to the News tab."""
+    manager = current_manager(request, db)
+    if not manager:
+        return RedirectResponse("/login", status_code=303)
+    return RedirectResponse("/news", status_code=303)
 
 
 @router.get("/league/{league_id}/awards", response_class=HTMLResponse)

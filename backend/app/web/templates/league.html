@@ -23,87 +23,6 @@
     </p>
   </header>
 
-  {% set _news_on = news_enabled if news_enabled is defined else false %}
-  {% set _news = news_edition if news_edition is defined else none %}
-  <section class="panel league-news-panel" aria-label="League News">
-    <button
-      type="button"
-      class="league-news-toggle"
-      id="leagueNewsToggle"
-      aria-expanded="false"
-      aria-controls="leagueNewsBody"
-    >
-      <span class="league-news-toggle-text">
-        <span class="section-title tight">News</span>
-        <span class="muted tiny league-news-eyebrow">
-          {% if _news and _news.edition_type == 'pre_gw' %}Pre · GW{{ _news.gameweek_number }}
-          {% elif _news %}Post · GW{{ _news.gameweek_number }}
-          {% elif _news_on %}Pronto
-          {% else %}Off{% endif %}
-        </span>
-      </span>
-      <span class="league-news-chevron" aria-hidden="true">▾</span>
-    </button>
-    <div class="league-news-body" id="leagueNewsBody" hidden>
-      {% if _news %}
-          {% if _news.title %}
-          <h3 class="league-news-title">{{ _news.title }}</h3>
-          {% endif %}
-          {% if _news.kicker %}
-          <p class="league-news-kicker">{{ _news.kicker }}</p>
-          {% endif %}
-          {% if _news.lede %}
-          <div class="league-news-lede">
-            {% for para in _news.lede.split('\n\n') %}
-            {% if para.strip() %}<p>{{ para.strip() }}</p>{% endif %}
-            {% endfor %}
-          </div>
-          {% endif %}
-          {% if _news.stories %}
-          <div class="league-news-stories">
-            {% for story in _news.stories %}
-            <article class="league-news-story">
-              {% if story.photo %}
-              <img
-                class="league-news-photo"
-                src="{{ story.photo }}"
-                {% if story.photo_fallback %}data-fallback="{{ story.photo_fallback }}"{% endif %}
-                alt="{{ story.player_name or '' }}"
-                loading="lazy"
-                onerror="if(this.dataset.fallback&&this.src!==this.dataset.fallback){this.src=this.dataset.fallback;}else{this.remove();}"
-              />
-              {% endif %}
-              <div class="league-news-story-copy">
-                <h4 class="league-news-headline">{{ story.headline }}</h4>
-                {% if story.body %}
-                <div class="league-news-copy">
-                  {% for para in story.body.split('\n\n') %}
-                  {% if para.strip() %}<p>{{ para.strip() }}</p>{% endif %}
-                  {% endfor %}
-                </div>
-                {% endif %}
-              </div>
-            </article>
-            {% endfor %}
-          </div>
-          {% endif %}
-      {% elif _news_on %}
-          <p class="muted league-news-empty">
-            Todavía no hay crónica. Tocá <strong>Generar ahora</strong> (usa Gemini con los
-            datos de la jornada terminada) — tarda ~15–20&nbsp;s.
-          </p>
-          <form method="post" action="/league/{{ league.id }}/news/generate" class="league-news-generate">
-            <button type="submit" class="btn">Generar ahora</button>
-          </form>
-      {% else %}
-          <p class="muted league-news-empty">
-            News está apagado: falta la variable <strong>GEMINI_API_KEY</strong> en el
-            Environment del servicio web en Render (y un redeploy después de agregarla).
-          </p>
-      {% endif %}
-    </div>
-  </section>
-
   <div class="league-desk">
     {# Col 1 — standings + H2H fixtures #}
     <div class="league-col league-col-standings">
@@ -389,7 +308,6 @@
       {% if league.league_type == 'h2h' %}H2H standings{% else %}Full standings{% endif %}
     </a>
     <a class="btn ghost" href="/league/{{ league.id }}/awards">Season awards</a>
-    <button type="button" class="btn ghost" id="leagueNewsToggleMobile" aria-controls="leagueNewsBody">News</button>
   </div>
 
   </div>
@@ -409,29 +327,6 @@
   </div>
 </div>
 <script id="h2hFixturesBoot" type="application/json">{{ h2h_cards | tojson }}</script>
-<script src="/static/league_h2h.js?v=183"></script>
+<script src="/static/league_h2h.js?v=186"></script>
 {% endif %}
-<script>
-(function () {
-  function bindNewsToggle(btn) {
-    if (!btn) return;
-    btn.addEventListener("click", function () {
-      var body = document.getElementById("leagueNewsBody");
-      var main = document.getElementById("leagueNewsToggle");
-      if (!body) return;
-      var open = body.hasAttribute("hidden");
-      if (open) body.removeAttribute("hidden");
-      else body.setAttribute("hidden", "");
-      if (main) {
-        main.setAttribute("aria-expanded", open ? "true" : "false");
-        main.classList.toggle("is-open", open);
-      }
-      var panel = document.querySelector(".league-news-panel");
-      if (panel && open) panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    });
-  }
-  bindNewsToggle(document.getElementById("leagueNewsToggle"));
-  bindNewsToggle(document.getElementById("leagueNewsToggleMobile"));
-})();
-</script>
 {% endblock %}

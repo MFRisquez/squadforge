@@ -30,7 +30,7 @@
     })();
   </script>
   <link rel="preload" href="/static/fonts/Vielma_Grotesk_Bold.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="/static/styles.css?v=184" />
+  <link rel="stylesheet" href="/static/styles.css?v=186" />
   <style>
     html, body, button, input, select, textarea {
       font-family: "Vielma Grotesk", sans-serif;
@@ -68,6 +68,7 @@
     {% else %}
     <a href="/leagues" class="{% if path.startswith('/standings') or path.startswith('/league') or path.startswith('/leagues') %}is-active{% endif %}">League</a>
     {% endif %}
+    <a href="/news" class="{% if path.startswith('/news') %}is-active{% endif %}">News</a>
     <a href="/rules" class="{% if path.startswith('/rules') %}is-active{% endif %}">Rules</a>
   </nav>
   {% endif %}
@@ -97,11 +98,11 @@
   </div>
   <script src="/static/ui.js"></script>
   <script src="/static/chips.js"></script>
-  <script src="/static/appshell.js?v=183"></script>
+  <script src="/static/appshell.js?v=186"></script>
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
-        navigator.serviceWorker.register("/static/sw.js?v=182").catch(() => {});
+        navigator.serviceWorker.register("/static/sw.js?v=186").catch(() => {});
       });
     }
   </script>

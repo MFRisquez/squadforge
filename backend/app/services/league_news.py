@@ -35,8 +35,10 @@ GEMINI_URL = (
 )
 EDITION_POST = "post_gw"
 EDITION_PRE = "pre_gw"
+EDITION_FORECAST = "forecast"
 TOP_STORIES_MIN = 5
 TOP_STORIES_MAX = 8
+FORECAST_CANDIDATES = 5
 
 SYSTEM_PROMPT = """\
 Sos el redactor de League News de FutFantasy: una liga privada de fantasy entre amigos.
@@ -107,40 +109,45 @@ def news_enabled() -> bool:
 def get_edition(
     db: Session,
     *,
-    league_id: int,
+    league_id: int | None,
     edition_type: str,
     gameweek_number: int,
 ) -> LeagueNewsEdition | None:
-    return (
-        db.query(LeagueNewsEdition)
-        .filter(
-            LeagueNewsEdition.league_id == int(league_id),
-            LeagueNewsEdition.edition_type == edition_type,
-            LeagueNewsEdition.gameweek_number == int(gameweek_number),
-        )
-        .one_or_none()
+    q = db.query(LeagueNewsEdition).filter(
+        LeagueNewsEdition.edition_type == edition_type,
+        LeagueNewsEdition.gameweek_number == int(gameweek_number),
     )
+    if league_id is None:
+        q = q.filter(LeagueNewsEdition.league_id.is_(None))
+    else:
+        q = q.filter(LeagueNewsEdition.league_id == int(league_id))
+    return q.one_or_none()
 
 
 def get_or_generate_edition(
     db: Session,
     *,
-    league: League,
+    league: League | None,
     edition_type: str,
     gameweek_number: int,
     force: bool = False,
 ) -> dict[str, Any]:
     """Return existing edition or generate once. Never regenerate unless force=True.
 
-    Returns a dict suitable for API/UI:
-      {ok, skipped?, reason?, edition?, content?}
+    ``league`` may be None for global ``forecast`` editions.
     """
     if not news_enabled():
         return {"ok": False, "skipped": "no_api_key", "reason": "GEMINI_API_KEY empty"}
 
+    league_id = int(league.id) if league is not None else None
+    if edition_type == EDITION_FORECAST:
+        league_id = None
+    elif league is None:
+        return {"ok": False, "skipped": "no_league", "reason": "league required"}
+
     existing = get_edition(
         db,
-        league_id=int(league.id),
+        league_id=league_id,
         edition_type=edition_type,
         gameweek_number=int(gameweek_number),
     )
@@ -157,9 +164,13 @@ def get_or_generate_edition(
         return {"ok": False, "skipped": "no_gameweek", "reason": f"GW{gameweek_number} missing"}
 
     if edition_type == EDITION_POST:
+        assert league is not None
         package = build_post_gw_package(db, league, gw)
     elif edition_type == EDITION_PRE:
+        assert league is not None
         package = build_pre_gw_package(db, league, gw)
+    elif edition_type == EDITION_FORECAST:
+        package = build_forecast_package(db, gw)
     else:
         return {"ok": False, "skipped": "bad_type", "reason": f"unknown edition_type={edition_type}"}
 
@@ -181,7 +192,7 @@ def get_or_generate_edition(
         row = existing
     else:
         row = LeagueNewsEdition(
-            league_id=int(league.id),
+            league_id=league_id,
             edition_type=edition_type,
             gameweek_number=int(gameweek_number),
             content_json=json.dumps(content, ensure_ascii=False),
@@ -495,6 +506,75 @@ def build_pre_gw_package(db: Session, league: League, gw: Gameweek) -> dict[str,
     }
 
 
+def build_forecast_package(db: Session, gw: Gameweek) -> dict[str, Any]:
+    """Global next-GW forecast from real FDR + form/threat/creativity (not invented by AI)."""
+    from app.services import fixtures as fixtures_svc
+
+    fdr_by_club = fixtures_svc.club_next_fdr_map(db, from_gw=int(gw.number))
+    players = (
+        db.query(Player)
+        .filter(Player.status.in_(("a", "d")))
+        .all()
+    )
+    candidates: list[dict[str, Any]] = []
+    for pl in players:
+        club = (pl.team_code or "").upper()
+        fdr = fdr_by_club.get(club) or {}
+        if not fdr:
+            continue
+        # map_fdr: 1 easiest … 4 hardest — lower is better for attacking upside
+        difficulty = int(fdr.get("difficulty") or 3)
+        if difficulty > 2:
+            continue
+        stats = _loads(pl.season_stats_json or "{}")
+        try:
+            form = float(stats.get("form") or 0)
+        except (TypeError, ValueError):
+            form = 0.0
+        threat = float(stats.get("threat") or 0)
+        creativity = float(stats.get("creativity") or 0)
+        # Favorable FDR weight + recent signal
+        fdr_boost = {1: 3.0, 2: 1.75}.get(difficulty, 0.0)
+        signal = fdr_boost * 8.0 + form * 4.0 + (threat + creativity) / 80.0
+        if signal < 6.0:
+            continue
+        candidates.append(
+            {
+                "kind": "forecast_pick",
+                "drama": round(signal, 2),
+                "player_id": int(pl.id),
+                "fact": {
+                    "kind": "forecast_pick",
+                    "player_id": int(pl.id),
+                    "player_name": pl.name,
+                    "position": pl.position,
+                    "team_code": club,
+                    "opponent": fdr.get("opponent"),
+                    "venue": fdr.get("venue"),
+                    "fdr": difficulty,
+                    "form": round(form, 1),
+                    "threat": round(threat, 1),
+                    "creativity": round(creativity, 1),
+                    "signal": round(signal, 2),
+                    "gw": int(fdr.get("gw") or gw.number),
+                },
+            }
+        )
+    ranked = _select_top_stories(candidates)[:FORECAST_CANDIDATES]
+    return {
+        "edition_type": EDITION_FORECAST,
+        "league_id": None,
+        "league_name": "FORECAST",
+        "league_type": "forecast",
+        "gameweek_number": int(gw.number),
+        "stories": ranked,
+        "prompt_note": (
+            "These are REAL next-GW candidates ranked by favorable FDR + form/threat/creativity. "
+            "Write a Forecast edition — do not invent other players or numbers."
+        ),
+    }
+
+
 def _league_transfers_for_news(
     db: Session, manager_ids: list[int], gameweek_id: int, *, limit: int = 5
 ) -> dict[str, Any] | None:
@@ -761,14 +841,46 @@ def call_gemini_for_edition(package: dict[str, Any]) -> dict[str, Any]:
 
     text = _extract_text(data)
     parsed = _parse_json_content(text)
-    # Attach player_ids from ranked facts if model omitted them
+    # Attach player_ids + drama/fact stats from ranked facts if model omitted them
     stories_in = package.get("stories") or []
     stories_out = parsed.get("stories") or []
+    fact_keys = (
+        "drama",
+        "kind",
+        "gw_points",
+        "rank",
+        "prev_rank",
+        "rank_delta",
+        "count",
+        "pct",
+        "delta",
+        "form",
+        "threat",
+        "creativity",
+        "signal",
+        "fdr",
+        "opponent",
+        "venue",
+        "team_code",
+        "position",
+        "manager_name",
+        "team_name",
+        "player_name",
+    )
     for i, story in enumerate(stories_out):
         if not isinstance(story, dict):
             continue
-        if story.get("player_id") is None and i < len(stories_in):
-            story["player_id"] = stories_in[i].get("player_id")
+        src = stories_in[i] if i < len(stories_in) else {}
+        if story.get("player_id") is None and src.get("player_id") is not None:
+            story["player_id"] = src.get("player_id")
+        for k in fact_keys:
+            if story.get(k) is None and src.get(k) is not None:
+                story[k] = src.get(k)
+        # Prefer package drama order as authority
+        if src.get("drama") is not None:
+            story["drama"] = src.get("drama")
+        if src.get("kind"):
+            story["kind"] = src.get("kind")
     parsed["stories"] = stories_out
     parsed["edition_type"] = package.get("edition_type")
     parsed["gameweek_number"] = package.get("gameweek_number")
@@ -878,10 +990,11 @@ def pre_gw_window_open(gw: Gameweek, *, now: datetime | None = None, hours: floa
 
 
 def maybe_generate_due_editions(db: Session) -> dict[str, Any]:
-    """Generate post_gw / pre_gw editions when timing rules say so.
+    """Generate post_gw / pre_gw / forecast editions when timing rules say so.
 
     - post_gw: once the GW is done (finished fixtures / status / advanced past)
     - pre_gw: once we are inside the 48h window before that GW's deadline
+    - forecast: global, once pre window is open for that GW (same timing as pre)
     Idempotent via get_or_generate_edition (no re-spend if row exists).
     """
     if not news_enabled():
@@ -939,6 +1052,17 @@ def maybe_generate_due_editions(db: Session) -> dict[str, Any]:
                             "gw": int(gw.number),
                         }
                     )
+            # Global Forecast once per GW (not per league)
+            fc = get_or_generate_edition(
+                db,
+                league=None,
+                edition_type=EDITION_FORECAST,
+                gameweek_number=int(gw.number),
+            )
+            if fc.get("ok") and not fc.get("cached"):
+                generated.append(
+                    {"league_id": None, "type": EDITION_FORECAST, "gw": int(gw.number)}
+                )
 
     return {"ok": True, "leagues": len(leagues), "generated": generated}
 
@@ -1002,14 +1126,7 @@ def ensure_league_news(db: Session, league: League) -> dict[str, Any]:
 
 
 def resolve_current_edition(db: Session, league: League) -> dict[str, Any] | None:
-    """Pick the edition the League UI should show right now.
-
-    Prefers pre_gw for a GW once its 48h window is open and no post yet for that GW;
-    otherwise the latest post_gw. Never deletes older rows.
-    """
-    if not news_enabled():
-        return None
-
+    """Pick the latest edition for one league (legacy helper; News tab uses feed)."""
     gws = db.query(Gameweek).order_by(Gameweek.number.desc()).all()
     for gw in gws:
         post = get_edition(
@@ -1029,7 +1146,6 @@ def resolve_current_edition(db: Session, league: League) -> dict[str, Any] | Non
         if pre is not None and pre_gw_window_open(gw):
             return _edition_view(db, pre)
 
-    # Fallback: most recent edition row for this league
     row = (
         db.query(LeagueNewsEdition)
         .filter(LeagueNewsEdition.league_id == int(league.id))
@@ -1070,3 +1186,183 @@ def _edition_view(db: Session, row: LeagueNewsEdition) -> dict[str, Any]:
     content["generated_at"] = row.generated_at.isoformat() if row.generated_at else None
     content["league_id"] = row.league_id
     return content
+
+
+def _story_summary(body: str | None, *, max_len: int = 140) -> str:
+    text = " ".join((body or "").replace("\n", " ").split())
+    if len(text) <= max_len:
+        return text
+    return text[: max_len - 1].rstrip() + "…"
+
+
+def _story_stat_chips(story: dict[str, Any]) -> list[dict[str, str]]:
+    """Numeric chips for the detail sheet (real facts, not AI fluff)."""
+    chips: list[dict[str, str]] = []
+    if story.get("gw_points") is not None:
+        chips.append({"label": "GW pts", "value": str(story.get("gw_points"))})
+    if story.get("rank_delta") is not None:
+        d = int(story.get("rank_delta") or 0)
+        chips.append({"label": "Rank", "value": f"{'+' if d > 0 else ''}{d}"})
+    if story.get("count") is not None:
+        chips.append({"label": "Count", "value": str(story.get("count"))})
+    if story.get("pct") is not None:
+        chips.append({"label": "Pick %", "value": f"{story.get('pct')}%"})
+    if story.get("form") is not None:
+        chips.append({"label": "Form", "value": str(story.get("form"))})
+    if story.get("fdr") is not None:
+        chips.append({"label": "FDR", "value": str(story.get("fdr"))})
+    if story.get("opponent"):
+        venue = story.get("venue") or ""
+        chips.append(
+            {
+                "label": "Next",
+                "value": f"{story.get('opponent')} ({venue})" if venue else str(story.get("opponent")),
+            }
+        )
+    if story.get("threat") is not None:
+        chips.append({"label": "Threat", "value": str(story.get("threat"))})
+    if story.get("creativity") is not None:
+        chips.append({"label": "Creat", "value": str(story.get("creativity"))})
+    if story.get("signal") is not None:
+        chips.append({"label": "Signal", "value": str(story.get("signal"))})
+    return chips
+
+
+def build_manager_news_feed(db: Session, manager_id: int) -> dict[str, Any]:
+    """Aggregate stories from all Classic + H2H leagues + global Forecast.
+
+    Returns magazine payload: featured card + grid cards with league labels.
+    """
+    from app.services import league as league_svc
+    from app.kits import kit_for
+
+    leagues = league_svc.manager_leagues(db, int(manager_id))
+    league_by_id = {int(lg.id): lg for lg in leagues}
+    league_ids = list(league_by_id.keys())
+
+    rows: list[LeagueNewsEdition] = []
+    if league_ids:
+        rows.extend(
+            db.query(LeagueNewsEdition)
+            .filter(LeagueNewsEdition.league_id.in_(league_ids))
+            .order_by(
+                LeagueNewsEdition.gameweek_number.desc(),
+                LeagueNewsEdition.generated_at.desc(),
+            )
+            .all()
+        )
+    # Global forecast editions (league_id NULL)
+    rows.extend(
+        db.query(LeagueNewsEdition)
+        .filter(
+            LeagueNewsEdition.edition_type == EDITION_FORECAST,
+            LeagueNewsEdition.league_id.is_(None),
+        )
+        .order_by(
+            LeagueNewsEdition.gameweek_number.desc(),
+            LeagueNewsEdition.generated_at.desc(),
+        )
+        .all()
+    )
+
+    cards: list[dict[str, Any]] = []
+    for row in rows:
+        content = _loads(row.content_json)
+        stories = content.get("stories") or []
+        is_forecast = row.edition_type == EDITION_FORECAST
+        lg = league_by_id.get(int(row.league_id)) if row.league_id is not None else None
+        if not is_forecast and lg is None:
+            continue
+        label = "FORECAST" if is_forecast else (lg.name if lg else "League")
+        league_type = "forecast" if is_forecast else ((lg.league_type if lg else "classic") or "classic")
+        filter_key = "forecast" if is_forecast else league_type
+        generated = row.generated_at.isoformat() if row.generated_at else None
+        for idx, story in enumerate(stories):
+            if not isinstance(story, dict):
+                continue
+            headline = (story.get("headline") or "").strip()
+            body = (story.get("body") or "").strip()
+            if not headline and not body:
+                continue
+            drama = story.get("drama")
+            if drama is None:
+                drama = float(TOP_STORIES_MAX - idx)
+            pid = story.get("player_id")
+            photo = story.get("photo")
+            photo_fallback = story.get("photo_fallback")
+            player_name = story.get("player_name")
+            if pid and not photo:
+                pl = db.query(Player).filter(Player.id == int(pid)).one_or_none()
+                if pl is not None:
+                    kit = kit_for(None, photo=pl.photo or "", player_id=pl.id)
+                    photo = kit.get("photo")
+                    photo_fallback = kit.get("photoFallback")
+                    player_name = player_name or pl.name
+            card_id = f"{row.id}-{idx}"
+            cards.append(
+                {
+                    "id": card_id,
+                    "edition_id": int(row.id),
+                    "story_index": idx,
+                    "headline": headline or "Sin titular",
+                    "summary": _story_summary(body),
+                    "body": body,
+                    "drama": float(drama or 0),
+                    "label": label,
+                    "league_id": int(lg.id) if lg else None,
+                    "league_type": league_type,
+                    "filter": filter_key,
+                    "edition_type": row.edition_type,
+                    "gameweek_number": int(row.gameweek_number),
+                    "generated_at": generated,
+                    "player_id": int(pid) if pid else None,
+                    "player_name": player_name,
+                    "photo": photo,
+                    "photo_fallback": photo_fallback,
+                    "stats": _story_stat_chips(story),
+                    "kind": story.get("kind"),
+                }
+            )
+
+    cards.sort(
+        key=lambda c: (
+            float(c.get("drama") or 0),
+            int(c.get("gameweek_number") or 0),
+            str(c.get("generated_at") or ""),
+        ),
+        reverse=True,
+    )
+    featured = cards[0] if cards else None
+    grid = cards[1:] if len(cards) > 1 else []
+    return {
+        "enabled": news_enabled(),
+        "featured": featured,
+        "grid": grid,
+        "cards": cards,
+        "league_count": len(leagues),
+    }
+
+
+def ensure_manager_news(db: Session, manager_id: int) -> dict[str, Any]:
+    """Kick due editions for every league the manager is in + global forecast."""
+    from app.services import league as league_svc
+
+    if not news_enabled():
+        return {"ok": False, "skipped": "no_api_key", "generated": []}
+
+    generated: list[dict[str, Any]] = []
+    for league in league_svc.manager_leagues(db, int(manager_id)):
+        result = ensure_league_news(db, league)
+        generated.extend(result.get("generated") or [])
+
+    for gw in db.query(Gameweek).order_by(Gameweek.number.asc()).all():
+        if pre_gw_window_open(gw):
+            fc = get_or_generate_edition(
+                db,
+                league=None,
+                edition_type=EDITION_FORECAST,
+                gameweek_number=int(gw.number),
+            )
+            if fc.get("ok") and not fc.get("cached"):
+                generated.append({"type": EDITION_FORECAST, "gw": int(gw.number)})
+    return {"ok": True, "generated": generated}

@@ -127,6 +127,16 @@ def _ensure_schema_patches() -> None:
         if "password_hash" not in cols:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE managers ADD COLUMN password_hash VARCHAR(255) DEFAULT ''"))
+    if "league_news_editions" in tables:
+        cols = {c["name"]: c for c in inspect(engine).get_columns("league_news_editions")}
+        league_col = cols.get("league_id")
+        # Forecast editions need nullable league_id (global, not per-league).
+        if league_col is not None and league_col.get("nullable") is False:
+            dialect = engine.dialect.name
+            with engine.begin() as conn:
+                if dialect == "postgresql":
+                    conn.execute(text("ALTER TABLE league_news_editions ALTER COLUMN league_id DROP NOT NULL"))
+                # SQLite cannot ALTER nullability; recreate is overkill — new DBs get nullable via models.
 
 
 @app.on_event("startup")

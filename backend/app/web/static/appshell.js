@@ -3,7 +3,7 @@
   const CATALOG_KEY = "ff_players_catalog_v3";
   const CATALOG_META = "ff_players_catalog_meta_v3";
   const WARM_KEY = "ff_shell_warmed_v1";
-  const SHELL_PATHS = new Set(["/", "/lineup", "/team", "/fixtures", "/rules", "/leagues", "/onboard"]);
+  const SHELL_PATHS = new Set(["/", "/lineup", "/team", "/fixtures", "/rules", "/leagues", "/news", "/onboard"]);
   const pageCache = new Map(); // full path+search -> { html, at }
   // Absolute script URL → Promise<string|null> (in-memory across soft-nav).
   const scriptTextCache = new Map();
@@ -12,12 +12,13 @@
   // Polls still refresh scores in-page.
   const LIVE_CACHE_TTL_MS = 20_000;
   const PAGE_SCRIPT_URLS = [
-    "/static/club-sheet.js?v=182",
-    "/static/xi-side.js?v=182",
-    "/static/lineup.js?v=182",
-    "/static/fixtures.js?v=182",
-    "/static/squadboard.js?v=182",
-    "/static/league_h2h.js?v=182",
+    "/static/club-sheet.js?v=186",
+    "/static/xi-side.js?v=186",
+    "/static/lineup.js?v=186",
+    "/static/fixtures.js?v=186",
+    "/static/squadboard.js?v=186",
+    "/static/league_h2h.js?v=186",
+    "/static/news.js?v=186",
   ];
   const DESK_MQ = window.matchMedia("(min-width: 900px)");
   let navigating = false;
@@ -127,6 +128,7 @@
       prefetch("/team"),
       prefetch("/fixtures"),
       prefetch(leagueWarmUrl()),
+      prefetch("/news"),
       prefetch("/rules"),
     ]);
     try {
@@ -179,6 +181,7 @@
         active = true;
       }
       if (aPath === "/fixtures" && clean.startsWith("/fixtures")) active = true;
+      if (aPath === "/news" && clean.startsWith("/news")) active = true;
       if (aPath === "/rules" && clean.startsWith("/rules")) active = true;
       if (
         (aPath === "/leagues" || aPath.startsWith("/standings/")) &&
@@ -397,20 +400,22 @@
       const warmScripts =
         pathOnlyWarm === "/lineup" || pathOnlyWarm === "/xi" || pathOnlyWarm === "/points"
           ? Promise.all([
-              loadScriptText("/static/club-sheet.js?v=182"),
-              loadScriptText("/static/xi-side.js?v=182"),
-              loadScriptText("/static/lineup.js?v=182"),
+              loadScriptText("/static/club-sheet.js?v=186"),
+              loadScriptText("/static/xi-side.js?v=186"),
+              loadScriptText("/static/lineup.js?v=186"),
             ])
           : pathOnlyWarm === "/fixtures"
-            ? loadScriptText("/static/fixtures.js?v=182")
+            ? loadScriptText("/static/fixtures.js?v=186")
             : pathOnlyWarm === "/team"
               ? Promise.all([
-                  loadScriptText("/static/club-sheet.js?v=182"),
-                  loadScriptText("/static/squadboard.js?v=182"),
+                  loadScriptText("/static/club-sheet.js?v=186"),
+                  loadScriptText("/static/squadboard.js?v=186"),
                 ])
-              : pathOnlyWarm.startsWith("/standings") || pathOnlyWarm.startsWith("/league")
-                ? loadScriptText("/static/league_h2h.js?v=182")
-                : Promise.resolve();
+              : pathOnlyWarm === "/news"
+                ? loadScriptText("/static/news.js?v=186")
+                : pathOnlyWarm.startsWith("/standings") || pathOnlyWarm.startsWith("/league")
+                  ? loadScriptText("/static/league_h2h.js?v=186")
+                  : Promise.resolve();
       const [fetched] = await Promise.all([fetchPageHtml(path), warmScripts]);
       const t2 = performance.now();
       if (fetched == null) return;
@@ -443,6 +448,7 @@
         pathOnly === "/fixtures" ||
         pathOnly === "/" ||
         pathOnly === "/rules" ||
+        pathOnly === "/news" ||
         pathOnly === "/leagues" ||
         pathOnly.startsWith("/standings/");
       if (paintBeforeScripts) {
