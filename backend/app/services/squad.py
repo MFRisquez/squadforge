@@ -100,6 +100,13 @@ def maybe_advance_finished_gameweek(db: Session) -> bool:
     if (nxt.status or "").lower() in ("", "upcoming"):
         nxt.status = "live"
     db.commit()
+    # Prefetch the new GW calendar so player next-3 / FDR aren't empty.
+    try:
+        from app.services import fixtures as fixtures_svc
+
+        fixtures_svc.ensure_upcoming_fixtures(db, from_gw=int(nxt.number))
+    except Exception:
+        pass
     return True
 
 
