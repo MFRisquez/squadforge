@@ -300,3 +300,29 @@ class H2HMatch(Base):
     # pending | home | away | draw
     result: Mapped[str] = mapped_column(String(16), default="pending")
 
+
+class LeagueNewsEdition(Base):
+    """AI-generated League News article for one league × GW × edition type.
+
+    Idempotent: one row per (league_id, edition_type, gameweek_number).
+    Old editions are kept as history — UI picks the current one.
+    """
+
+    __tablename__ = "league_news_editions"
+    __table_args__ = (
+        UniqueConstraint(
+            "league_id",
+            "edition_type",
+            "gameweek_number",
+            name="uq_league_news_edition",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    league_id: Mapped[int] = mapped_column(ForeignKey("leagues.id"), index=True)
+    # post_gw | pre_gw
+    edition_type: Mapped[str] = mapped_column(String(16), index=True)
+    gameweek_number: Mapped[int] = mapped_column(Integer, index=True)
+    content_json: Mapped[str] = mapped_column(Text, default="{}")
+    generated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
