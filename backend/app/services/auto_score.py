@@ -19,8 +19,35 @@ _lock = threading.Lock()
 _last_run_at: float = 0.0
 _last_gw: Optional[int] = None
 _last_gw_sweep_at: float = 0.0
+_last_news_at: float = 0.0
 _thread: Optional[threading.Thread] = None
 MIN_INTERVAL_SEC = 90.0
+NEWS_INTERVAL_SEC = 120.0
+
+
+def maybe_generate_league_news(*, force: bool = False) -> Optional[dict]:
+    """Generate due League News editions (post_gw / pre_gw). Throttled."""
+    global _last_news_at
+    now = time.time()
+    if not force and (now - _last_news_at) < NEWS_INTERVAL_SEC:
+        return None
+    db = SessionLocal()
+    try:
+        from app.services import league_news as news_svc
+
+        if not news_svc.news_enabled():
+            return None
+        result = news_svc.maybe_generate_due_editions(db)
+        _last_news_at = now
+        generated = result.get("generated") or []
+        if generated:
+            logger.info("league_news generated %s edition(s)", len(generated))
+        return result
+    except Exception:
+        logger.exception("league_news generation failed")
+        return None
+    finally:
+        db.close()
 
 
 def maybe_score_locked_gw(*, force: bool = False) -> Optional[dict]:
@@ -77,6 +104,14 @@ def maybe_score_locked_gw(*, force: bool = False) -> Optional[dict]:
             advanced = squad_svc.maybe_advance_finished_gameweek(db)
             if advanced:
                 logger.info("auto-advanced current gameweek after GW%s finished", gw.number)
+            # Post-GW news as soon as fixtures are done (same cycle).
+            try:
+                from app.services import league_news as news_svc
+
+                if news_svc.news_enabled():
+                    news_svc.maybe_generate_due_editions(db)
+            except Exception:
+                logger.exception("league_news after score failed")
             _last_run_at = now
             _last_gw = gw.number
             logger.info(
@@ -95,7 +130,7 @@ def maybe_score_locked_gw(*, force: bool = False) -> Optional[dict]:
 
 
 def start_auto_scorer(*, interval_sec: float = 120.0) -> None:
-    """Daemon thread: every `interval_sec`, score if GW is locked."""
+    """Daemon thread: every `interval_sec`, score if GW is locked + news timing."""
     global _thread
     if _thread and _thread.is_alive():
         return
@@ -104,6 +139,8 @@ def start_auto_scorer(*, interval_sec: float = 120.0) -> None:
         # First delay — let seed / sync settle
         time.sleep(8)
         while True:
+            # Pre-GW news can fire before the current deadline passes.
+            maybe_generate_league_news()
             maybe_score_locked_gw()
             time.sleep(interval_sec)
 
