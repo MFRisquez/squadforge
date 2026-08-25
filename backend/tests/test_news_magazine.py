@@ -219,11 +219,79 @@ def test_forecast_package_uses_real_fdr_signal(db, monkeypatch):
     package = news_svc.build_forecast_package(db, gw)
     assert package["edition_type"] == "forecast"
     assert package["league_id"] is None
+    assert package.get("forecast_version") == news_svc.FORECAST_CONTENT_VERSION
     assert package["stories"], "expected at least one forecast candidate"
     top = package["stories"][0]
     assert top.get("player_id")
+    assert top.get("kind") in ("forecast_club", "forecast_pick")
     assert top.get("fdr") in (1, 2, 3)
-    assert "form" in top
+    assert "form" in top or (top.get("players") and "form" in top["players"][0])
+
+
+def test_forecast_stacks_same_club_players(db, monkeypatch):
+    monkeypatch.setattr(settings, "gemini_api_key", "test-key")
+    gw = db.query(Gameweek).filter(Gameweek.number == 2).one()
+    club = db.query(Club).first()
+    assert club is not None
+    # Wipe other fixtures so this club's next FDR is the soft one we add
+    db.query(Fixture).filter(Fixture.gameweek_number >= 2).delete()
+    db.add(
+        Fixture(
+            fpl_id=99002,
+            gameweek_number=2,
+            home_club_code=club.code,
+            away_club_code="AAA",
+            home_difficulty=1,
+            away_difficulty=4,
+            finished=0,
+        )
+    )
+    mates = (
+        db.query(Player)
+        .filter(Player.team_code == club.code, Player.status == "a")
+        .limit(3)
+        .all()
+    )
+    if len(mates) < 3:
+        extras = db.query(Player).filter(Player.status == "a").limit(3).all()
+        mates = extras[:3]
+        for pl in mates:
+            pl.team_code = club.code
+    for i, pl in enumerate(mates):
+        pl.season_stats_json = json.dumps(
+            {"form": str(9.0 - i * 0.3), "threat": 500 - i * 40, "creativity": 300}
+        )
+    # Starve other clubs' signal so this stack wins ranking
+    other = (
+        db.query(Player)
+        .filter(Player.team_code != club.code, Player.status == "a")
+        .limit(40)
+        .all()
+    )
+    for pl in other:
+        pl.season_stats_json = json.dumps({"form": "0.5", "threat": 10, "creativity": 10})
+    db.commit()
+
+    package = news_svc.build_forecast_package(db, gw)
+    mate_ids = {int(p.id) for p in mates}
+    club_stories = [s for s in package["stories"] if s.get("kind") == "forecast_club"]
+    assert club_stories, package["stories"]
+    matched = None
+    for s in club_stories:
+        ids = {int(p["player_id"]) for p in (s.get("players") or [])}
+        if mate_ids & ids:
+            matched = s
+            break
+    assert matched is not None, package["stories"]
+    assert matched.get("team_code") == club.code
+    assert len(matched.get("players") or []) >= 2
+    # No separate singles for the same club
+    same_club_singles = [
+        s
+        for s in package["stories"]
+        if s.get("kind") == "forecast_pick" and s.get("team_code") == club.code
+    ]
+    assert same_club_singles == []
 
 
 def test_forecast_window_opens_for_current_gw(db):
