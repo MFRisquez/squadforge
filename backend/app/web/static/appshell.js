@@ -336,7 +336,8 @@
       pathOnly === "/lineup" ||
       pathOnly === "/xi" ||
       pathOnly === "/fixtures" ||
-      pathOnly === "/points";
+      pathOnly === "/points" ||
+      /^\/league\/\d+/.test(pathOnly);
     const ttl = livePage ? LIVE_CACHE_TTL_MS : CACHE_TTL_MS;
     if (!hasGw) {
       const hit = pageCache.get(key);

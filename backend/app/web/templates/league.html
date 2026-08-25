@@ -23,7 +23,8 @@
     </p>
   </header>
 
-  {% if news_enabled %}
+  {% set _news_on = news_enabled if news_enabled is defined else false %}
+  {% set _news = news_edition if news_edition is defined else none %}
   <section class="panel league-news-panel" aria-label="League News">
     <button
       type="button"
@@ -35,31 +36,32 @@
       <span class="league-news-toggle-text">
         <span class="section-title tight">News</span>
         <span class="muted tiny league-news-eyebrow">
-          {% if news_edition and news_edition.edition_type == 'pre_gw' %}Pre · GW{{ news_edition.gameweek_number }}
-          {% elif news_edition %}Post · GW{{ news_edition.gameweek_number }}
-          {% else %}Pronto{% endif %}
+          {% if _news and _news.edition_type == 'pre_gw' %}Pre · GW{{ _news.gameweek_number }}
+          {% elif _news %}Post · GW{{ _news.gameweek_number }}
+          {% elif _news_on %}Pronto
+          {% else %}Off{% endif %}
         </span>
       </span>
       <span class="league-news-chevron" aria-hidden="true">▾</span>
     </button>
     <div class="league-news-body" id="leagueNewsBody" hidden>
-      {% if news_edition %}
-          {% if news_edition.title %}
-          <h3 class="league-news-title">{{ news_edition.title }}</h3>
+      {% if _news %}
+          {% if _news.title %}
+          <h3 class="league-news-title">{{ _news.title }}</h3>
           {% endif %}
-          {% if news_edition.kicker %}
-          <p class="league-news-kicker">{{ news_edition.kicker }}</p>
+          {% if _news.kicker %}
+          <p class="league-news-kicker">{{ _news.kicker }}</p>
           {% endif %}
-          {% if news_edition.lede %}
+          {% if _news.lede %}
           <div class="league-news-lede">
-            {% for para in news_edition.lede.split('\n\n') %}
+            {% for para in _news.lede.split('\n\n') %}
             {% if para.strip() %}<p>{{ para.strip() }}</p>{% endif %}
             {% endfor %}
           </div>
           {% endif %}
-          {% if news_edition.stories %}
+          {% if _news.stories %}
           <div class="league-news-stories">
-            {% for story in news_edition.stories %}
+            {% for story in _news.stories %}
             <article class="league-news-story">
               {% if story.photo %}
               <img
@@ -85,15 +87,19 @@
             {% endfor %}
           </div>
           {% endif %}
+      {% elif _news_on %}
+          <p class="muted league-news-empty">
+            Todavía no hay crónica. Al abrir esta página se intenta generar el post de las
+            jornadas ya terminadas — esperá unos segundos y refrescá.
+          </p>
       {% else %}
           <p class="muted league-news-empty">
-            Todavía no hay crónica. Sale sola cuando terminan todos los partidos de la jornada
-            (post) o cuando faltan menos de 48&nbsp;h para el próximo deadline (pre).
+            News está apagado: falta la variable <strong>GEMINI_API_KEY</strong> en el
+            Environment del servicio web en Render (y un redeploy después de agregarla).
           </p>
       {% endif %}
     </div>
   </section>
-  {% endif %}
 
   <div class="league-desk">
     {# Col 1 — standings + H2H fixtures #}
@@ -380,9 +386,7 @@
       {% if league.league_type == 'h2h' %}H2H standings{% else %}Full standings{% endif %}
     </a>
     <a class="btn ghost" href="/league/{{ league.id }}/awards">Season awards</a>
-    {% if news_enabled %}
     <button type="button" class="btn ghost" id="leagueNewsToggleMobile" aria-controls="leagueNewsBody">News</button>
-    {% endif %}
   </div>
 
   </div>
@@ -402,9 +406,8 @@
   </div>
 </div>
 <script id="h2hFixturesBoot" type="application/json">{{ h2h_cards | tojson }}</script>
-<script src="/static/league_h2h.js?v=182"></script>
+<script src="/static/league_h2h.js?v=183"></script>
 {% endif %}
-{% if news_enabled %}
 <script>
 (function () {
   function bindNewsToggle(btn) {
@@ -428,5 +431,4 @@
   bindNewsToggle(document.getElementById("leagueNewsToggleMobile"));
 })();
 </script>
-{% endif %}
 {% endblock %}
