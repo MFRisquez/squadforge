@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}News · {{ app_name }}{% endblock %}
+{% block body_class %}page-fit page-news{% endblock %}
+{% block content %}
+{% set feed = news_feed if news_feed is defined else {} %}
+{% set featured = feed.featured if feed else none %}
+{% set grid = feed.grid if feed else [] %}
+{% set cards = feed.cards if feed else [] %}
+{% set _on = news_enabled if news_enabled is defined else false %}
+
+<div class="desk-board desk-page">
+  <div class="desk-main desk-news">
+    <header class="news-hero">
+      <h1 class="news-page-title">News</h1>
+      <p class="muted tiny news-page-sub">Crónicas de todas tus ligas · Forecast de la Premier</p>
+    </header>
+
+    <nav class="news-filters" aria-label="Filtrar News" data-news-filters>
+      <button type="button" class="news-filter is-active" data-filter="all">All</button>
+      <button type="button" class="news-filter" data-filter="classic">Classic</button>
+      <button type="button" class="news-filter" data-filter="h2h">H2H</button>
+      <button type="button" class="news-filter" data-filter="forecast">Forecast</button>
+    </nav>
+
+    {% if featured %}
+    <button
+      type="button"
+      class="news-featured"
+      data-news-card
+      data-filter="{{ featured.filter }}"
+      data-card-id="{{ featured.id }}"
+      aria-label="{{ featured.headline }}"
+    >
+      <span class="news-featured-media" aria-hidden="true">
+        {% if featured.photo %}
+        <img
+          class="news-featured-photo"
+          src="{{ featured.photo }}"
+          {% if featured.photo_fallback %}data-fallback="{{ featured.photo_fallback }}"{% endif %}
+          alt=""
+          loading="eager"
+          onerror="if(this.dataset.fallback&&this.src!==this.dataset.fallback){this.src=this.dataset.fallback;}else{this.remove();}"
+        />
+        {% endif %}
+        <span class="news-featured-scrim"></span>
+      </span>
+      <span class="news-featured-copy">
+        <span class="news-label {% if featured.filter == 'forecast' %}is-forecast{% endif %}">{{ featured.label }}</span>
+        <span class="news-featured-headline">{{ featured.headline }}</span>
+        <span class="news-meta muted tiny">
+          GW{{ featured.gameweek_number }}
+          {% if featured.generated_at %} · {{ featured.generated_at[:10] }}{% endif %}
+        </span>
+      </span>
+    </button>
+    {% elif _on %}
+    <p class="muted news-empty">
+      Todavía no hay crónicas. Salen solas cuando terminan los partidos de cada GW
+      (y el Forecast dentro de las 48&nbsp;h previas al deadline).
+    </p>
+    {% else %}
+    <p class="muted news-empty">
+      News está apagado: falta <strong>GEMINI_API_KEY</strong> en Render.
+    </p>
+    {% endif %}
+
+    {% if grid %}
+    <div class="news-grid" data-news-grid>
+      {% for card in grid %}
+      <button
+        type="button"
+        class="news-card"
+        data-news-card
+        data-filter="{{ card.filter }}"
+        data-card-id="{{ card.id }}"
+        aria-label="{{ card.headline }}"
+      >
+        <span class="news-card-media" aria-hidden="true">
+          {% if card.photo %}
+          <img
+            class="news-card-photo"
+            src="{{ card.photo }}"
+            {% if card.photo_fallback %}data-fallback="{{ card.photo_fallback }}"{% endif %}
+            alt=""
+            loading="lazy"
+            onerror="if(this.dataset.fallback&&this.src!==this.dataset.fallback){this.src=this.dataset.fallback;}else{this.remove();}"
+          />
+          {% endif %}
+        </span>
+        <span class="news-card-copy">
+          <span class="news-label {% if card.filter == 'forecast' %}is-forecast{% endif %}">{{ card.label }}</span>
+          <span class="news-card-headline">{{ card.headline }}</span>
+          {% if card.summary %}
+          <span class="news-card-summary muted">{{ card.summary }}</span>
+          {% endif %}
+          <span class="news-meta muted tiny">GW{{ card.gameweek_number }}{% if card.generated_at %} · {{ card.generated_at[:10] }}{% endif %}</span>
+        </span>
+      </button>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="drawer" id="newsDetail" hidden>
+  <div class="drawer-sheet news-detail-sheet" role="dialog" aria-modal="true" aria-labelledby="newsDetailTitle">
+    <header class="drawer-head">
+      <div>
+        <p class="eyebrow" id="newsDetailEyebrow">News</p>
+        <h2 id="newsDetailTitle">—</h2>
+      </div>
+      <button type="button" class="icon-btn" id="closeNewsDetail" aria-label="Close">✕</button>
+    </header>
+    <div class="match-detail-body news-detail-body" id="newsDetailBody"></div>
+  </div>
+</div>
+
+<script id="newsFeedBoot" type="application/json">{{ {"cards": cards} | tojson }}</script>
+<script src="/static/news.js?v=186"></script>
+{% endblock %}
