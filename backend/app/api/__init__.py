@@ -362,8 +362,8 @@ def api_fixtures(gw: Optional[int] = None) -> dict:
 def api_fixtures_refresh(gw: Optional[int] = None) -> dict:
     """Pull latest FPL fixture scores/stats, then return the selected GW list.
 
-    Also kicks fantasy live scoring (minutes → PlayerPoints) so Lineup/League
-    stay in sync without waiting only for the 120s daemon.
+    Fantasy scoring is owned by the background auto-scorer. A soft kick with
+    force=False may run if MIN_INTERVAL_SEC allows — never force a GW sweep.
     """
     import threading
 
@@ -405,11 +405,11 @@ def api_fixtures_refresh(gw: Optional[int] = None) -> dict:
         }
     finally:
         db.close()
-        # Score after closing the list DB so we don't hold the connection.
+        # Soft kick only — respects MIN_INTERVAL_SEC; never force GW sweep from polls.
         def _score() -> None:
             from app.services.auto_score import maybe_score_locked_gw
 
-            maybe_score_locked_gw(force=True)
+            maybe_score_locked_gw(force=False)
 
         threading.Thread(target=_score, daemon=True).start()
 
@@ -418,8 +418,9 @@ def api_fixtures_refresh(gw: Optional[int] = None) -> dict:
 def api_xi_live_points(request: Request, gw: Optional[int] = None) -> dict:
     """Pollable live PlayerPoints + fixture-started map for the locked Lineup.
 
-    Kick scoring in a background thread — never block the sole uvicorn worker on
-    a full FPL ingest (that was a common Render 502 under live GW traffic).
+    Read-only: do NOT kick maybe_score_locked_gw from user polls (every 30s × N
+    clients with force=True bypassed the 90s throttle and forced GW fixture
+    sweeps). Scoring stays on the background auto-scorer (~2 min).
     """
     import json
 
@@ -428,9 +429,7 @@ def api_xi_live_points(request: Request, gw: Optional[int] = None) -> dict:
     from app.models import Fixture, ManagerGameweekScore, PlayerPoints
     from app.services import deadline as deadline_svc
     from app.services import squad as squad_svc
-    from app.services.auto_score import maybe_score_locked_gw
 
-    should_score = False
     gw_number: Optional[int] = int(gw) if gw is not None else None
     db = SessionLocal()
     try:
@@ -441,20 +440,11 @@ def api_xi_live_points(request: Request, gw: Optional[int] = None) -> dict:
             gameweek = deadline_svc.get_gameweek(db, gw_number)
         except Exception:
             return {"ok": False, "error": "gameweek"}
-        current = squad_svc.current_gameweek(db)
-        should_score = gameweek.id == current.id and deadline_svc.deadline_passed(current)
         manager_id = manager.id
         gameweek_id = gameweek.id
         gameweek_number = int(gameweek.number)
     finally:
         db.close()
-
-    if should_score:
-        threading.Thread(
-            target=lambda: maybe_score_locked_gw(force=True),
-            daemon=True,
-            name="xi-live-points-score",
-        ).start()
 
     db = SessionLocal()
     try:
