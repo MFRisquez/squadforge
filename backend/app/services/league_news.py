@@ -135,6 +135,8 @@ def get_or_generate_edition(
     Returns a dict suitable for API/UI:
       {ok, skipped?, reason?, edition?, content?}
     """
+    from sqlalchemy.exc import IntegrityError
+
     if not news_enabled():
         return {"ok": False, "skipped": "no_api_key", "reason": "GEMINI_API_KEY empty"}
 
@@ -166,11 +168,29 @@ def get_or_generate_edition(
     if not package.get("stories"):
         return {"ok": False, "skipped": "no_stories", "reason": "no ranked facts to write"}
 
+    # Release DB work before the slow Gemini HTTP call (don't hold pool slots).
+    db.commit()
+
     try:
         content = call_gemini_for_edition(package)
     except Exception as exc:  # noqa: BLE001 — surface to caller, don't crash request cycle
         logger.exception("league_news gemini failed: %s", exc)
         return {"ok": False, "skipped": "api_error", "reason": str(exc)}
+
+    # Another worker may have won the race while we waited on Gemini.
+    existing = get_edition(
+        db,
+        league_id=int(league.id),
+        edition_type=edition_type,
+        gameweek_number=int(gameweek_number),
+    )
+    if existing is not None and not force:
+        return {
+            "ok": True,
+            "cached": True,
+            "edition": existing,
+            "content": _loads(existing.content_json),
+        }
 
     if existing is not None and force:
         existing.content_json = json.dumps(content, ensure_ascii=False)
@@ -188,7 +208,24 @@ def get_or_generate_edition(
             generated_at=datetime.utcnow(),
         )
         db.add(row)
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            raced = get_edition(
+                db,
+                league_id=int(league.id),
+                edition_type=edition_type,
+                gameweek_number=int(gameweek_number),
+            )
+            if raced is not None:
+                return {
+                    "ok": True,
+                    "cached": True,
+                    "edition": raced,
+                    "content": _loads(raced.content_json),
+                }
+            raise
         db.refresh(row)
 
     return {"ok": True, "cached": False, "edition": row, "content": content, "package": package}
@@ -1006,10 +1043,8 @@ def resolve_current_edition(db: Session, league: League) -> dict[str, Any] | Non
 
     Prefers pre_gw for a GW once its 48h window is open and no post yet for that GW;
     otherwise the latest post_gw. Never deletes older rows.
+    Works even when GEMINI_API_KEY is off (historical editions still display).
     """
-    if not news_enabled():
-        return None
-
     gws = db.query(Gameweek).order_by(Gameweek.number.desc()).all()
     for gw in gws:
         post = get_edition(
@@ -1042,6 +1077,54 @@ def resolve_current_edition(db: Session, league: League) -> dict[str, Any] | Non
     if row is None:
         return None
     return _edition_view(db, row)
+
+
+def has_due_missing_edition(db: Session, league: League) -> bool:
+    """True when timing says generate and this league still lacks that row."""
+    for gw in db.query(Gameweek).order_by(Gameweek.number.asc()).all():
+        if gw_ready_for_post(db, gw):
+            if (
+                get_edition(
+                    db,
+                    league_id=int(league.id),
+                    edition_type=EDITION_POST,
+                    gameweek_number=int(gw.number),
+                )
+                is None
+            ):
+                return True
+        if pre_gw_window_open(gw):
+            if (
+                get_edition(
+                    db,
+                    league_id=int(league.id),
+                    edition_type=EDITION_PRE,
+                    gameweek_number=int(gw.number),
+                )
+                is None
+            ):
+                return True
+    return False
+
+
+def ui_news_state(db: Session, league: League) -> dict[str, Any]:
+    """League page / poll payload: status + optional edition view.
+
+    status:
+      - ready: edition to show
+      - generating: fixtures/window due, Gemini run in flight or about to start
+      - waiting: key on, but GW not finished / pre window not open yet
+      - off: no GEMINI_API_KEY
+    """
+    edition = resolve_current_edition(db, league)
+    enabled = news_enabled()
+    if edition is not None:
+        return {"status": "ready", "enabled": enabled, "edition": edition}
+    if not enabled:
+        return {"status": "off", "enabled": False, "edition": None}
+    if has_due_missing_edition(db, league):
+        return {"status": "generating", "enabled": True, "edition": None}
+    return {"status": "waiting", "enabled": True, "edition": None}
 
 
 def _edition_view(db: Session, row: LeagueNewsEdition) -> dict[str, Any]:

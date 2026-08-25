@@ -653,3 +653,42 @@ def api_h2h_rival(league_id: int, request: Request, gw: Optional[int] = None) ->
         return {"ok": True, "gw": int(gameweek.number), "rival": snap}
     finally:
         db.close()
+
+
+@router.get("/league/{league_id}/news")
+def api_league_news(league_id: int, request: Request) -> dict:
+    """Poll League News status (auto generation — no manual regenerate)."""
+    from app.auth import current_manager
+    from app.models import Membership
+    from app.services import league_news as news_svc
+
+    db = SessionLocal()
+    try:
+        manager = current_manager(request, db)
+        if not manager:
+            return {"ok": False, "error": "auth"}
+        membership = (
+            db.query(Membership)
+            .filter(Membership.league_id == league_id, Membership.manager_id == manager.id)
+            .one_or_none()
+        )
+        if not membership:
+            return {"ok": False, "error": "forbidden"}
+        state = news_svc.ui_news_state(db, membership.league)
+        edition = state.get("edition")
+        # Strip heavy fields for poll; UI only needs status + title signal
+        slim = None
+        if edition:
+            slim = {
+                "edition_type": edition.get("edition_type"),
+                "gameweek_number": edition.get("gameweek_number"),
+                "title": edition.get("title"),
+            }
+        return {
+            "ok": True,
+            "enabled": bool(state.get("enabled")),
+            "status": state.get("status"),
+            "edition": slim,
+        }
+    finally:
+        db.close()

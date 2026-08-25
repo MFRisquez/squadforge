@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-from pydantic import field_validator
-from pydantic_settings import BaseSettings
+from pydantic import AliasChoices, Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"
@@ -26,16 +26,24 @@ def normalize_database_url(url: str) -> str:
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(extra="ignore")
+
     app_name: str = "Fut Fantasy"
     debug: bool = True
     secret_key: str = "squadforge-dev-change-me"
     # Local default: SQLite file. On Render, set DATABASE_URL to Supabase Postgres.
     database_url: str = f"sqlite:///{DATA_DIR / 'squadforge.db'}"
     # Optional API-Football key (Render: API_FOOTBALL_KEY). Empty = skip advanced stats.
-    api_football_key: str = ""
+    api_football_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("API_FOOTBALL_KEY", "api_football_key"),
+    )
     api_football_season: int = 2026
     # Optional Gemini key (Render: GEMINI_API_KEY). Empty = League News off.
-    gemini_api_key: str = ""
+    gemini_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("GEMINI_API_KEY", "gemini_api_key"),
+    )
     formula_version: str = "v0.2.1-cameo"
     budget: float = 100.0
     max_per_club: int = 3

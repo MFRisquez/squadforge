@@ -25,7 +25,13 @@
 
   {% set _news_on = news_enabled if news_enabled is defined else false %}
   {% set _news = news_edition if news_edition is defined else none %}
-  <section class="panel league-news-panel" aria-label="League News">
+  {% set _news_status = news_status if news_status is defined else none %}
+  <section
+    class="panel league-news-panel"
+    aria-label="League News"
+    data-league-id="{{ league.id }}"
+    data-news-status="{{ _news_status or '' }}"
+  >
     <button
       type="button"
       class="league-news-toggle"
@@ -38,6 +44,8 @@
         <span class="muted tiny league-news-eyebrow">
           {% if _news and _news.edition_type == 'pre_gw' %}Pre · GW{{ _news.gameweek_number }}
           {% elif _news %}Post · GW{{ _news.gameweek_number }}
+          {% elif _news_status == 'generating' %}Escribiendo…
+          {% elif _news_status == 'waiting' %}Cuando termine la GW
           {% elif _news_on %}Pronto
           {% else %}Off{% endif %}
         </span>
@@ -87,14 +95,15 @@
             {% endfor %}
           </div>
           {% endif %}
+      {% elif _news_status == 'generating' %}
+          <p class="muted league-news-empty" data-news-poll="1">
+            Escribiendo la crónica de la jornada… sale sola en ~20&nbsp;s.
+          </p>
       {% elif _news_on %}
           <p class="muted league-news-empty">
-            Todavía no hay crónica. Tocá <strong>Generar ahora</strong> (usa Gemini con los
-            datos de la jornada terminada) — tarda ~15–20&nbsp;s.
+            La crónica sale sola cuando terminen todos los partidos de la GW
+            (y el pre, dentro de las 48&nbsp;h previas al deadline). No hace falta regenerar.
           </p>
-          <form method="post" action="/league/{{ league.id }}/news/generate" class="league-news-generate">
-            <button type="submit" class="btn">Generar ahora</button>
-          </form>
       {% else %}
           <p class="muted league-news-empty">
             News está apagado: falta la variable <strong>GEMINI_API_KEY</strong> en el
@@ -432,6 +441,32 @@
   }
   bindNewsToggle(document.getElementById("leagueNewsToggle"));
   bindNewsToggle(document.getElementById("leagueNewsToggleMobile"));
+
+  // Auto News: when Gemini is writing, poll until the edition lands, then soft-reload.
+  var panel = document.querySelector(".league-news-panel");
+  if (panel && panel.getAttribute("data-news-status") === "generating") {
+    var lid = panel.getAttribute("data-league-id");
+    var tries = 0;
+    var maxTries = 24; // ~2 min at 5s
+    function pollNews() {
+      tries += 1;
+      fetch("/api/league/" + lid + "/news", { credentials: "same-origin" })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data && data.status === "ready" && data.edition) {
+            window.location.reload();
+            return;
+          }
+          if (tries < maxTries && data && data.status === "generating") {
+            setTimeout(pollNews, 5000);
+          }
+        })
+        .catch(function () {
+          if (tries < maxTries) setTimeout(pollNews, 5000);
+        });
+    }
+    setTimeout(pollNews, 4000);
+  }
 })();
 </script>
 {% endblock %}
