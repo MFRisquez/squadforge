@@ -90,7 +90,18 @@ Una story por fact, en el mismo orden. player_id del fact si existe; si no, null
 
 
 def news_enabled() -> bool:
-    return bool((settings.gemini_api_key or "").strip())
+    import os
+
+    key = (settings.gemini_api_key or "").strip()
+    if not key:
+        key = (os.environ.get("GEMINI_API_KEY") or "").strip()
+        if key:
+            # Keep settings in sync if env arrived after import (rare) or Blueprint lag.
+            try:
+                settings.gemini_api_key = key
+            except Exception:
+                pass
+    return bool(key)
 
 
 def get_edition(
@@ -194,11 +205,12 @@ def build_post_gw_package(db: Session, league: League, gw: Gameweek) -> dict[str
 
     candidates: list[dict[str, Any]] = []
 
-    # Rank movers
+    # Rank movers (and GW1 fallback: biggest haul / worst GW score)
     if (league.league_type or "classic") == "h2h":
         rows, _fixtures = standings_svc.h2h_standings(db, league, gw)
     else:
         rows = standings_svc.classic_standings(db, league, gw)
+    any_rank_move = False
     for row in rows:
         delta = row.get("rank_delta")
         if delta is None:
@@ -206,6 +218,7 @@ def build_post_gw_package(db: Session, league: League, gw: Gameweek) -> dict[str
         d = int(delta)
         if d == 0:
             continue
+        any_rank_move = True
         mgr = row.get("manager")
         name = getattr(mgr, "display_name", None) or row.get("team_name") or "?"
         team = row.get("team_name") or getattr(mgr, "team_name", "") or ""
@@ -226,11 +239,42 @@ def build_post_gw_package(db: Session, league: League, gw: Gameweek) -> dict[str
                 },
             }
         )
+    if not any_rank_move and rows:
+        scored = sorted(
+            rows,
+            key=lambda r: float(r.get("gw_points") or 0),
+            reverse=True,
+        )
+        for kind, row, drama_boost in (
+            ("gw_leader", scored[0], 1.0),
+            ("gw_lantern", scored[-1], 0.85),
+        ):
+            if row is None:
+                continue
+            mgr = row.get("manager")
+            name = getattr(mgr, "display_name", None) or row.get("team_name") or "?"
+            team = row.get("team_name") or getattr(mgr, "team_name", "") or ""
+            pts = float(row.get("gw_points") or 0)
+            candidates.append(
+                {
+                    "kind": kind,
+                    "drama": max(1.0, abs(pts) * drama_boost),
+                    "player_id": None,
+                    "fact": {
+                        "kind": kind,
+                        "manager_name": name,
+                        "team_name": team,
+                        "rank": row.get("rank"),
+                        "gw_points": pts,
+                    },
+                }
+            )
 
-    # Transfers most IN / OUT
-    xfers = desk_side_svc.league_top_transfers(
-        db, league_id=int(league.id), gameweek_id=int(gw.id), limit=5
-    )
+    # Transfers most IN / OUT (News ignores the desk "min 4 managers" gate)
+    from app.services.desk_side import _member_ids
+
+    mids = _member_ids(db, int(league.id))
+    xfers = _league_transfers_for_news(db, mids, int(gw.id), limit=5)
     if xfers:
         for row in xfers.get("most_in") or []:
             candidates.append(
@@ -451,8 +495,57 @@ def build_pre_gw_package(db: Session, league: League, gw: Gameweek) -> dict[str,
     }
 
 
+def _league_transfers_for_news(
+    db: Session, manager_ids: list[int], gameweek_id: int, *, limit: int = 5
+) -> dict[str, Any] | None:
+    """Most IN/OUT for News — works even with small leagues (desk UI needs 4+)."""
+    from sqlalchemy import func
+
+    from app.models import TransferLog
+
+    mids = [int(m) for m in manager_ids]
+    if not mids:
+        return None
+    ins = (
+        db.query(TransferLog.player_in_id, func.count().label("n"))
+        .filter(TransferLog.gameweek_id == gameweek_id, TransferLog.manager_id.in_(mids))
+        .group_by(TransferLog.player_in_id)
+        .order_by(func.count().desc(), TransferLog.player_in_id.asc())
+        .limit(limit)
+        .all()
+    )
+    outs = (
+        db.query(TransferLog.player_out_id, func.count().label("n"))
+        .filter(TransferLog.gameweek_id == gameweek_id, TransferLog.manager_id.in_(mids))
+        .group_by(TransferLog.player_out_id)
+        .order_by(func.count().desc(), TransferLog.player_out_id.asc())
+        .limit(limit)
+        .all()
+    )
+    pids = {int(r[0]) for r in ins if r[0]} | {int(r[0]) for r in outs if r[0]}
+    names: dict[int, str] = {}
+    if pids:
+        for row in db.query(Player.id, Player.name).filter(Player.id.in_(pids)).all():
+            names[int(row[0])] = row[1]
+
+    def _rows(raw: list) -> list[dict[str, Any]]:
+        out: list[dict[str, Any]] = []
+        for pid, n in raw:
+            if not pid or not n:
+                continue
+            out.append(
+                {"player_id": int(pid), "name": names.get(int(pid), f"#{pid}"), "count": int(n)}
+            )
+        return out
+
+    most_in, most_out = _rows(ins), _rows(outs)
+    if not most_in and not most_out:
+        return None
+    return {"most_in": most_in, "most_out": most_out, "manager_count": len(mids)}
+
+
 def _manager_player_swings(db: Session, league: League, gw: Gameweek) -> list[dict[str, Any]]:
-    """Best / worst XI player vs that player's historical SquadForge GW average."""
+    """Best / worst XI player vs historical avg — or absolute pts on GW1."""
     from app.services.desk_side import _member_ids
     from app.services.standings import _parse_breakdown
 
@@ -472,8 +565,7 @@ def _manager_player_swings(db: Session, league: League, gw: Gameweek) -> list[di
         .all()
     )
     managers = {
-        int(m.id): m
-        for m in db.query(Manager).filter(Manager.id.in_(mids)).all()
+        int(m.id): m for m in db.query(Manager).filter(Manager.id.in_(mids)).all()
     }
     player_cache: dict[int, Player] = {}
 
@@ -487,19 +579,29 @@ def _manager_player_swings(db: Session, league: League, gw: Gameweek) -> list[di
         for line in players:
             if not isinstance(line, dict):
                 continue
-            # Prefer raw player performance (base); fall back to credited points.
             if line.get("bench") and not line.get("autosub") and not line.get("super_sub"):
-                if line.get("bench_boost"):
-                    pass
-                else:
+                if not line.get("bench_boost"):
                     continue
             pid = line.get("player_id")
             if pid is None:
                 continue
             pid_i = int(pid)
-            gw_pts = float(line.get("base") if line.get("base") is not None else line.get("points") or 0)
+            gw_pts = float(
+                line.get("base") if line.get("base") is not None else line.get("points") or 0
+            )
             avg = hist.get(pid_i)
             if avg is None:
+                # First GW / no history: score by absolute haul or blank.
+                payload = {
+                    "player_id": pid_i,
+                    "gw_points": round(gw_pts, 1),
+                    "historical_avg": None,
+                    "delta": round(gw_pts, 1),
+                }
+                if best is None or gw_pts > best[0]:
+                    best = (gw_pts, payload)
+                if worst is None or gw_pts < worst[0]:
+                    worst = (gw_pts, payload)
                 continue
             delta = gw_pts - float(avg)
             payload = {
@@ -513,13 +615,23 @@ def _manager_player_swings(db: Session, league: League, gw: Gameweek) -> list[di
             if worst is None or delta < worst[0]:
                 worst = (delta, payload)
 
-        for label, hit in (("broke_out", best), ("blew_up", worst)):
+        for label, hit, min_abs in (("broke_out", best, 2.0), ("blew_up", worst, 2.0)):
             if hit is None:
                 continue
-            delta, payload = hit
-            # Skip tiny noise
-            if abs(delta) < 2.0:
-                continue
+            score_val, payload = hit
+            # Absolute mode (no hist): haul needs ≥6, blank ≤2
+            if payload.get("historical_avg") is None:
+                if label == "broke_out" and float(payload["gw_points"]) < 6.0:
+                    continue
+                if label == "blew_up" and float(payload["gw_points"]) > 2.0:
+                    continue
+                drama = float(payload["gw_points"]) if label == "broke_out" else (
+                    6.0 - float(payload["gw_points"])
+                )
+            else:
+                if abs(float(payload["delta"])) < min_abs:
+                    continue
+                drama = float(abs(payload["delta"]))
             pid_i = int(payload["player_id"])
             pl = player_cache.get(pid_i)
             if pl is None:
@@ -529,7 +641,7 @@ def _manager_player_swings(db: Session, league: League, gw: Gameweek) -> list[di
             out.append(
                 {
                     "kind": label,
-                    "drama": float(abs(delta)),
+                    "drama": max(1.0, drama),
                     "player_id": pid_i,
                     "fact": {
                         "kind": label,
@@ -641,7 +753,10 @@ def call_gemini_for_edition(package: dict[str, Any]) -> dict[str, Any]:
     }
     with httpx.Client(timeout=90.0) as client:
         resp = client.post(GEMINI_URL, headers=headers, json=body)
-        resp.raise_for_status()
+        status = int(getattr(resp, "status_code", 0) or 0)
+        if status >= 400:
+            detail = (getattr(resp, "text", None) or "")[:500]
+            raise RuntimeError(f"Gemini HTTP {status}: {detail}")
         data = resp.json()
 
     text = _extract_text(data)
@@ -835,9 +950,10 @@ def ensure_league_news(db: Session, league: League) -> dict[str, Any]:
     in the DB creates the post article without waiting for the daemon.
     """
     if not news_enabled():
-        return {"ok": False, "skipped": "no_api_key"}
+        return {"ok": False, "skipped": "no_api_key", "reason": "GEMINI_API_KEY empty", "errors": []}
 
     generated: list[dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
     gws = db.query(Gameweek).order_by(Gameweek.number.asc()).all()
     for gw in gws:
         if gw_ready_for_post(db, gw):
@@ -850,6 +966,13 @@ def ensure_league_news(db: Session, league: League) -> dict[str, Any]:
             if result.get("ok") and not result.get("cached"):
                 generated.append({"type": EDITION_POST, "gw": int(gw.number)})
             elif not result.get("ok"):
+                err = {
+                    "type": EDITION_POST,
+                    "gw": int(gw.number),
+                    "skipped": result.get("skipped"),
+                    "reason": result.get("reason"),
+                }
+                errors.append(err)
                 logger.info(
                     "ensure_league_news post GW%s league=%s skipped=%s reason=%s",
                     gw.number,
@@ -866,7 +989,16 @@ def ensure_league_news(db: Session, league: League) -> dict[str, Any]:
             )
             if result.get("ok") and not result.get("cached"):
                 generated.append({"type": EDITION_PRE, "gw": int(gw.number)})
-    return {"ok": True, "generated": generated}
+            elif not result.get("ok"):
+                errors.append(
+                    {
+                        "type": EDITION_PRE,
+                        "gw": int(gw.number),
+                        "skipped": result.get("skipped"),
+                        "reason": result.get("reason"),
+                    }
+                )
+    return {"ok": True, "generated": generated, "errors": errors}
 
 
 def resolve_current_edition(db: Session, league: League) -> dict[str, Any] | None:

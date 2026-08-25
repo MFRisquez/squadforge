@@ -695,21 +695,40 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
     awards = awards_svc.league_awards(db, league.id)
     news_edition = None
     news_enabled = False
+    news_status = None
     try:
         from app.services import league_news as news_svc
+        import threading
 
         news_enabled = news_svc.news_enabled()
         if news_enabled:
-            # Sync: if GW1 (etc.) already finished but no edition row, create it now.
-            try:
-                news_svc.ensure_league_news(db, league)
-            except Exception:
-                logger = __import__("logging").getLogger("squadforge.web")
-                logger.exception("ensure_league_news failed league=%s", league.id)
+            league_id = int(league.id)
+
+            def _bg_ensure(lid: int = league_id) -> None:
+                from app.db import SessionLocal as _SL
+                from app.models import League as _League
+                from app.services import league_news as _news
+
+                s = _SL()
+                try:
+                    lg = s.query(_League).filter(_League.id == lid).one_or_none()
+                    if lg is not None:
+                        _news.ensure_league_news(s, lg)
+                except Exception:
+                    __import__("logging").getLogger("squadforge.web").exception(
+                        "bg ensure_league_news failed league=%s", lid
+                    )
+                finally:
+                    s.close()
+
+            threading.Thread(target=_bg_ensure, daemon=True).start()
             news_edition = news_svc.resolve_current_edition(db, league)
+            if news_edition is None:
+                news_status = "generating"
     except Exception:
         news_edition = None
         news_enabled = False
+        news_status = "error"
     if view["edits_locked"]:
         from app.services.auto_score import maybe_score_locked_gw
         import threading
@@ -734,6 +753,7 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
             awards=awards,
             news_edition=news_edition,
             news_enabled=news_enabled,
+            news_status=news_status,
             deadline_label=view["deadline_label"],
             edits_locked=view["edits_locked"],
             prev_gw=view["prev_gw"],
@@ -744,6 +764,41 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
             error=request.query_params.get("error"),
         ),
     )
+
+
+@router.post("/league/{league_id}/news/generate")
+def league_news_generate(league_id: int, request: Request, db: Session = Depends(get_db)):
+    """Force-generate due League News editions for this league (Gemini)."""
+    from urllib.parse import quote
+
+    from app.services import league_news as news_svc
+
+    manager = current_manager(request, db)
+    if not manager:
+        return RedirectResponse("/login", status_code=303)
+    membership = (
+        db.query(Membership)
+        .filter(Membership.league_id == league_id, Membership.manager_id == manager.id)
+        .one_or_none()
+    )
+    if not membership:
+        return RedirectResponse("/", status_code=303)
+    league = membership.league
+    if not news_svc.news_enabled():
+        msg = quote("Falta GEMINI_API_KEY en Render")
+        return RedirectResponse(f"/league/{league.id}?error={msg}", status_code=303)
+    result = news_svc.ensure_league_news(db, league)
+    if result.get("generated"):
+        msg = quote("Crónica generada — abrí News")
+        return RedirectResponse(f"/league/{league.id}?notice={msg}", status_code=303)
+    errors = result.get("errors") or []
+    if errors:
+        first = errors[0]
+        reason = first.get("reason") or first.get("skipped") or "sin datos"
+        msg = quote(f"No se pudo generar (GW{first.get('gw')}): {reason}"[:180])
+        return RedirectResponse(f"/league/{league.id}?error={msg}", status_code=303)
+    msg = quote("Nada nuevo que generar todavía")
+    return RedirectResponse(f"/league/{league.id}?notice={msg}", status_code=303)
 
 
 @router.get("/league/{league_id}/awards", response_class=HTMLResponse)

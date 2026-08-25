@@ -146,6 +146,7 @@ def _seed_scores_and_history(db, league, managers, gw2):
 
 def test_news_disabled_without_api_key(db, monkeypatch):
     monkeypatch.setattr(settings, "gemini_api_key", "")
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     assert news_svc.news_enabled() is False
     league, _, gw = _league_with_members(db)
     result = news_svc.get_or_generate_edition(

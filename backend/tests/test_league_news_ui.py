@@ -102,10 +102,12 @@ def test_league_news_panel_shows_when_enabled_without_edition(db, monkeypatch):
     assert resp.status_code == 200
     assert "league-news-panel" in resp.text
     assert "Todavía no hay crónica" in resp.text
+    assert "Generar ahora" in resp.text
 
 
 def test_league_news_panel_shows_when_key_missing(db, monkeypatch):
     monkeypatch.setattr(settings, "gemini_api_key", "")
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     mgr = league_svc.register_manager(
         db,
         display_name="NoKey",
