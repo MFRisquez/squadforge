@@ -67,7 +67,11 @@ def test_league_news_accordion_renders(db, monkeypatch):
 
     client = _client()
     client.post("/login", data={"login": "NewsFan", "password": "secret12"}, follow_redirects=False)
-    resp = client.get(f"/league/{league.id}")
+    from app.services import league_news as news_svc
+    from unittest.mock import patch
+
+    with patch.object(news_svc, "ensure_league_news", return_value={"ok": True, "generated": []}):
+        resp = client.get(f"/league/{league.id}")
     assert resp.status_code == 200
     html = resp.text
     assert "league-news-panel" in html
@@ -98,3 +102,22 @@ def test_league_news_panel_shows_when_enabled_without_edition(db, monkeypatch):
     assert resp.status_code == 200
     assert "league-news-panel" in resp.text
     assert "Todavía no hay crónica" in resp.text
+
+
+def test_league_news_panel_shows_when_key_missing(db, monkeypatch):
+    monkeypatch.setattr(settings, "gemini_api_key", "")
+    mgr = league_svc.register_manager(
+        db,
+        display_name="NoKey",
+        password="secret12",
+        email="nokey@example.com",
+        team_name="NoKey FC",
+    )
+    league = league_svc.create_league(db, "NoKey Desk", mgr, league_type="classic")
+    client = _client()
+    client.post("/login", data={"login": "NoKey", "password": "secret12"}, follow_redirects=False)
+    resp = client.get(f"/league/{league.id}")
+    assert resp.status_code == 200
+    assert "league-news-panel" in resp.text
+    assert "GEMINI_API_KEY" in resp.text
+    assert ">Off<" in resp.text or "Off" in resp.text
