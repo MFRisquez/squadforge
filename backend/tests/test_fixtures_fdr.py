@@ -90,6 +90,38 @@ def test_next_fixtures_for_player_perspective():
         db.close()
 
 
+def test_next_fixtures_skips_finished_and_backfills_empty_window():
+    """After GW roll-forward, finished rows are skipped; empty windows backfill."""
+    from unittest.mock import patch
+
+    db = SessionLocal()
+    try:
+        liv = db.query(Player).filter(Player.team_code == "LIV").first()
+        assert liv is not None
+        # Mark GW2 LIV fixture finished — next-3 should start at GW3.
+        fx2 = db.query(Fixture).filter(Fixture.fpl_id == 101).one()
+        fx2.finished = 1
+        db.commit()
+        items = fixtures_svc.next_fixtures_for_club(db, club_code="LIV", from_gw=2, limit=3)
+        assert [i["gw"] for i in items] == [3, 4, 5]
+        assert items[0]["opponent"] == "CHE"
+
+        # Empty window (from GW10 with nothing stored) triggers sync of those events.
+        calls: list[int] = []
+
+        def _fake_sync(_db, rows=None, event=None, only_active=False):
+            calls.append(int(event or 0))
+            return {"fixtures": 0, "event": event}
+
+        with patch.object(fixtures_svc, "sync_fixtures", side_effect=_fake_sync):
+            with patch.object(fixtures_svc, "ensure_fixtures_ready", return_value={"ok": True}):
+                info = fixtures_svc.ensure_upcoming_fixtures(db, from_gw=10, ahead=2)
+        assert info["synced"] == 0
+        assert calls == [10, 11, 12]
+    finally:
+        db.close()
+
+
 def test_fixture_detail_parses_goals_and_assists():
     db = SessionLocal()
     try:

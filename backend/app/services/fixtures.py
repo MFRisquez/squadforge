@@ -188,8 +188,13 @@ def next_fixtures_for_club(
     from_gw: int,
     limit: int = 3,
 ) -> list[dict[str, Any]]:
-    """Upcoming fixtures for a club starting at from_gw (inclusive), max `limit`."""
+    """Upcoming fixtures for a club starting at from_gw (inclusive), max `limit`.
+
+    Skips already-finished matches so Squad / player sheets show the true next
+    three (not the GW that just wrapped).
+    """
     club_code = (club_code or "").upper()
+    ensure_upcoming_fixtures(db, from_gw=int(from_gw))
     clubs = {c.code: c for c in db.query(Club).all()}
     rows = (
         db.query(Fixture)
@@ -199,13 +204,15 @@ def next_fixtures_for_club(
             ((Fixture.home_club_code == club_code) | (Fixture.away_club_code == club_code)),
         )
         .order_by(Fixture.gameweek_number.asc(), Fixture.kickoff_at.asc())
-        .limit(limit * 2)  # DGW may produce 2 in same GW
+        .limit(max(12, limit * 4))  # skip finished / DGW headroom
         .all()
     )
     out: list[dict[str, Any]] = []
     for fx in rows:
         if len(out) >= limit:
             break
+        if fx.finished:
+            continue
         home = fx.home_club_code == club_code
         opp_code = fx.away_club_code if home else fx.home_club_code
         fpl_diff = fx.home_difficulty if home else fx.away_difficulty
@@ -218,7 +225,7 @@ def next_fixtures_for_club(
                 "home": home,
                 "venue": "H" if home else "A",
                 "difficulty": map_fdr(fpl_diff),
-                "fpl_difficulty": int(fpl_diff),
+                "fpl_difficulty": int(fpl_diff or 3),
                 "kickoff": fx.kickoff_at,
                 "fixture_id": fx.id,
                 "fpl_id": fx.fpl_id,
@@ -238,6 +245,7 @@ def club_next_fdr_map(
     Pass ``clubs`` when the caller already loaded them (avoids a duplicate
     SELECT on catalog rebuild).
     """
+    ensure_upcoming_fixtures(db, from_gw=int(from_gw))
     if clubs is None:
         clubs = {c.code: c for c in db.query(Club).all() if c.code}
     else:
@@ -250,6 +258,8 @@ def club_next_fdr_map(
     )
     out: dict[str, dict[str, Any]] = {}
     for fx in rows:
+        if fx.finished:
+            continue
         for code, home in ((fx.home_club_code, True), (fx.away_club_code, False)):
             if code in out or code not in clubs:
                 continue
@@ -300,13 +310,53 @@ def ensure_fixtures_ready(db: Session) -> dict[str, Any]:
     return info
 
 
+def ensure_upcoming_fixtures(db: Session, *, from_gw: int, ahead: int = 5) -> dict[str, Any]:
+    """Make sure FDR / next-3 have calendar rows from ``from_gw`` forward.
+
+    Live/GW sync only upserts the current gameweek. After rolling to GW+1 the DB
+    often still only has the finished GW — player sheets then show
+    \"No fixtures yet\". Pull the next few events (not the full 380) when empty.
+    """
+    ensure_fixtures_ready(db)
+    start = max(1, int(from_gw or 1))
+    end = min(38, start + max(1, int(ahead)))
+    have = (
+        db.query(Fixture)
+        .filter(Fixture.gameweek_number >= start, Fixture.gameweek_number <= end)
+        .count()
+    )
+    # Any calendar rows in the window → trust them. Empty window (common right
+    # after rolling to GW+1 when we only ever synced the previous GW) → pull.
+    if have > 0:
+        return {"ok": True, "had": have, "synced": 0, "from_gw": start, "to_gw": end}
+
+    synced = 0
+    errors: list[str] = []
+    for ev in range(start, end + 1):
+        try:
+            info = sync_fixtures(db, event=ev, only_active=False)
+            synced += int(info.get("fixtures") or 0)
+        except Exception as exc:  # noqa: BLE001 — soft-fail; sheet still renders
+            errors.append(f"GW{ev}:{exc}")
+    return {
+        "ok": not errors or synced > 0,
+        "had": have,
+        "synced": synced,
+        "from_gw": start,
+        "to_gw": end,
+        "errors": errors[:3],
+    }
+
+
 def next_fixtures_for_player(db: Session, *, player_id: int, limit: int = 3) -> list[dict[str, Any]]:
     ensure_fixtures_ready(db)
     player = db.query(Player).filter(Player.id == player_id).one_or_none()
     if not player or not player.team_code:
         return []
-    current = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
-    from_gw = current.number if current else 1
+    from app.services import squad as squad_svc
+
+    current = squad_svc._gameweek_is_current(db)
+    from_gw = int(current.number) if current else 1
     return next_fixtures_for_club(db, club_code=player.team_code, from_gw=from_gw, limit=limit)
 
 
@@ -1133,7 +1183,9 @@ def refresh_fixtures(
     move off the seed snapshot.
     """
     if gw_number is None and scope in {"live", "gw"}:
-        current = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
+        from app.services import squad as squad_svc
+
+        current = squad_svc._gameweek_is_current(db)
         gw_number = int(current.number) if current else None
 
     def _run() -> dict[str, int]:
