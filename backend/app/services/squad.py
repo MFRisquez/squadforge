@@ -107,7 +107,7 @@ def get_transfer_state(db: Session, manager_id: int) -> TransferState:
     state = db.query(TransferState).filter(TransferState.manager_id == manager_id).one_or_none()
     if state:
         return state
-    state = TransferState(manager_id=manager_id, free_transfers=1, last_banked_gw=1, has_squad=0)
+    state = TransferState(manager_id=manager_id, free_transfers=0, last_banked_gw=1, has_squad=0)
     db.add(state)
     db.commit()
     db.refresh(state)
@@ -115,7 +115,12 @@ def get_transfer_state(db: Session, manager_id: int) -> TransferState:
 
 
 def bank_free_transfers(db: Session, manager_id: int, gw_number: int) -> TransferState:
-    """Each new GW after GW1 adds +1 FT (cumulative, capped)."""
+    """Each new GW after GW1 adds +1 FT (cumulative, capped at 5).
+
+    GW1 is unlimited (no FT balance). Entering GW2 credits the first FT;
+    unused FTs bank up to ``FT_CAP``. Starting balance is 0 so GW2 shows 1,
+    not 2 (legacy bug: default 1 + bank at GW2).
+    """
     from app.services import chips as chips_svc
 
     state = get_transfer_state(db, manager_id)
@@ -127,6 +132,10 @@ def bank_free_transfers(db: Session, manager_id: int, gw_number: int) -> Transfe
         state.last_banked_gw += 1
         if state.last_banked_gw >= 2:
             state.free_transfers = min(FT_CAP, state.free_transfers + 1)
+    # Clamp legacy double-credit (started at 1 FT then banked again at GW2).
+    max_held = min(FT_CAP, max(0, int(state.last_banked_gw) - 1))
+    if state.free_transfers > max_held:
+        state.free_transfers = max_held
     db.commit()
     db.refresh(state)
     # After rolling into a new GW, restore any expired Free Hit squads
