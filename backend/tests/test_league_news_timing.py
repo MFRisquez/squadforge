@@ -68,7 +68,26 @@ def test_all_fixtures_finished(db):
     assert news_svc.all_fixtures_finished(db, gw) is True
 
 
-def test_pre_gw_window_open(db):
+def test_gw_ready_for_post_when_season_advanced(db):
+    gw1 = db.query(Gameweek).filter(Gameweek.number == 1).one()
+    gw2 = db.query(Gameweek).filter(Gameweek.number == 2).one()
+    gw1.status = "live"
+    gw1.is_current = 0
+    gw2.status = "live"
+    gw2.is_current = 1
+    # One unfinished fixture would block all_fixtures_finished
+    db.add(
+        Fixture(
+            fpl_id=90011,
+            gameweek_number=1,
+            home_club_code="ARS",
+            away_club_code="CHE",
+            finished=0,
+        )
+    )
+    db.commit()
+    assert news_svc.all_fixtures_finished(db, gw1) is False
+    assert news_svc.gw_ready_for_post(db, gw1) is True
     gw = db.query(Gameweek).filter(Gameweek.number == 2).one()
     now = datetime(2026, 8, 20, 12, 0, tzinfo=timezone.utc)
     gw.deadline_at = (now + timedelta(hours=24)).isoformat().replace("+00:00", "Z")

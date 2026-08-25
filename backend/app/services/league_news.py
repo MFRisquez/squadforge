@@ -724,6 +724,27 @@ def all_fixtures_finished(db: Session, gw: Gameweek) -> bool:
     return (gw.status or "").lower() == "finished"
 
 
+def gw_ready_for_post(db: Session, gw: Gameweek) -> bool:
+    """Post-GW news can run once the jornada is done in practice.
+
+    Covers: all fixtures finished, GW status finished, or the season has
+    already advanced past this GW (scores exist even if a fixture flag lagged).
+    """
+    if (gw.status or "").lower() == "finished":
+        return True
+    if all_fixtures_finished(db, gw):
+        return True
+    current = (
+        db.query(Gameweek)
+        .filter(Gameweek.is_current == 1)
+        .order_by(Gameweek.number.desc())
+        .first()
+    )
+    if current is not None and int(current.number) > int(gw.number):
+        return True
+    return False
+
+
 def pre_gw_window_open(gw: Gameweek, *, now: datetime | None = None, hours: float = 48.0) -> bool:
     """True from (deadline − hours) until the GW is finished (pre stays current until post)."""
     from app.services import deadline as deadline_svc
@@ -744,7 +765,7 @@ def pre_gw_window_open(gw: Gameweek, *, now: datetime | None = None, hours: floa
 def maybe_generate_due_editions(db: Session) -> dict[str, Any]:
     """Generate post_gw / pre_gw editions when timing rules say so.
 
-    - post_gw: once all fixtures for a GW are finished
+    - post_gw: once the GW is done (finished fixtures / status / advanced past)
     - pre_gw: once we are inside the 48h window before that GW's deadline
     Idempotent via get_or_generate_edition (no re-spend if row exists).
     """
@@ -759,7 +780,7 @@ def maybe_generate_due_editions(db: Session) -> dict[str, Any]:
     generated: list[dict[str, Any]] = []
 
     for gw in gws:
-        if all_fixtures_finished(db, gw):
+        if gw_ready_for_post(db, gw):
             for league in leagues:
                 result = get_or_generate_edition(
                     db,
@@ -780,10 +801,11 @@ def maybe_generate_due_editions(db: Session) -> dict[str, Any]:
                     "no_api_key",
                 ):
                     logger.info(
-                        "league_news post GW%s league=%s skipped=%s",
+                        "league_news post GW%s league=%s skipped=%s reason=%s",
                         gw.number,
                         league.id,
                         result.get("skipped"),
+                        result.get("reason"),
                     )
 
         if pre_gw_window_open(gw):
@@ -804,6 +826,47 @@ def maybe_generate_due_editions(db: Session) -> dict[str, Any]:
                     )
 
     return {"ok": True, "leagues": len(leagues), "generated": generated}
+
+
+def ensure_league_news(db: Session, league: League) -> dict[str, Any]:
+    """Generate missing editions for one league (used on League page load).
+
+    Prefer this over the global sweep so opening League with GW1 data already
+    in the DB creates the post article without waiting for the daemon.
+    """
+    if not news_enabled():
+        return {"ok": False, "skipped": "no_api_key"}
+
+    generated: list[dict[str, Any]] = []
+    gws = db.query(Gameweek).order_by(Gameweek.number.asc()).all()
+    for gw in gws:
+        if gw_ready_for_post(db, gw):
+            result = get_or_generate_edition(
+                db,
+                league=league,
+                edition_type=EDITION_POST,
+                gameweek_number=int(gw.number),
+            )
+            if result.get("ok") and not result.get("cached"):
+                generated.append({"type": EDITION_POST, "gw": int(gw.number)})
+            elif not result.get("ok"):
+                logger.info(
+                    "ensure_league_news post GW%s league=%s skipped=%s reason=%s",
+                    gw.number,
+                    league.id,
+                    result.get("skipped"),
+                    result.get("reason"),
+                )
+        if pre_gw_window_open(gw):
+            result = get_or_generate_edition(
+                db,
+                league=league,
+                edition_type=EDITION_PRE,
+                gameweek_number=int(gw.number),
+            )
+            if result.get("ok") and not result.get("cached"):
+                generated.append({"type": EDITION_PRE, "gw": int(gw.number)})
+    return {"ok": True, "generated": generated}
 
 
 def resolve_current_edition(db: Session, league: League) -> dict[str, Any] | None:
