@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -705,3 +705,173 @@ def _loads(raw: str | None) -> dict[str, Any]:
     except json.JSONDecodeError:
         return {}
     return data if isinstance(data, dict) else {}
+
+
+# ── Fase 2: timing ──────────────────────────────────────────────────────────
+
+
+def all_fixtures_finished(db: Session, gw: Gameweek) -> bool:
+    """True when every Fixture for this GW is finished (or GW marked finished)."""
+    from app.models import Fixture
+
+    flags = (
+        db.query(Fixture.finished)
+        .filter(Fixture.gameweek_number == int(gw.number))
+        .all()
+    )
+    if flags:
+        return all(int(row[0] or 0) == 1 for row in flags)
+    return (gw.status or "").lower() == "finished"
+
+
+def pre_gw_window_open(gw: Gameweek, *, now: datetime | None = None, hours: float = 48.0) -> bool:
+    """True from (deadline − hours) until the GW is finished (pre stays current until post)."""
+    from app.services import deadline as deadline_svc
+
+    if (gw.status or "").lower() == "finished":
+        return False
+    dl = deadline_svc.parse_deadline(gw)
+    if not dl:
+        return False
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    from datetime import timedelta
+
+    return now >= (dl - timedelta(hours=hours))
+
+
+def maybe_generate_due_editions(db: Session) -> dict[str, Any]:
+    """Generate post_gw / pre_gw editions when timing rules say so.
+
+    - post_gw: once all fixtures for a GW are finished
+    - pre_gw: once we are inside the 48h window before that GW's deadline
+    Idempotent via get_or_generate_edition (no re-spend if row exists).
+    """
+    if not news_enabled():
+        return {"ok": False, "skipped": "no_api_key"}
+
+    leagues = db.query(League).all()
+    if not leagues:
+        return {"ok": True, "leagues": 0, "generated": []}
+
+    gws = db.query(Gameweek).order_by(Gameweek.number.asc()).all()
+    generated: list[dict[str, Any]] = []
+
+    for gw in gws:
+        if all_fixtures_finished(db, gw):
+            for league in leagues:
+                result = get_or_generate_edition(
+                    db,
+                    league=league,
+                    edition_type=EDITION_POST,
+                    gameweek_number=int(gw.number),
+                )
+                if result.get("ok") and not result.get("cached"):
+                    generated.append(
+                        {
+                            "league_id": int(league.id),
+                            "type": EDITION_POST,
+                            "gw": int(gw.number),
+                        }
+                    )
+                elif not result.get("ok") and result.get("skipped") not in (
+                    "no_stories",
+                    "no_api_key",
+                ):
+                    logger.info(
+                        "league_news post GW%s league=%s skipped=%s",
+                        gw.number,
+                        league.id,
+                        result.get("skipped"),
+                    )
+
+        if pre_gw_window_open(gw):
+            for league in leagues:
+                result = get_or_generate_edition(
+                    db,
+                    league=league,
+                    edition_type=EDITION_PRE,
+                    gameweek_number=int(gw.number),
+                )
+                if result.get("ok") and not result.get("cached"):
+                    generated.append(
+                        {
+                            "league_id": int(league.id),
+                            "type": EDITION_PRE,
+                            "gw": int(gw.number),
+                        }
+                    )
+
+    return {"ok": True, "leagues": len(leagues), "generated": generated}
+
+
+def resolve_current_edition(db: Session, league: League) -> dict[str, Any] | None:
+    """Pick the edition the League UI should show right now.
+
+    Prefers pre_gw for a GW once its 48h window is open and no post yet for that GW;
+    otherwise the latest post_gw. Never deletes older rows.
+    """
+    if not news_enabled():
+        return None
+
+    gws = db.query(Gameweek).order_by(Gameweek.number.desc()).all()
+    for gw in gws:
+        post = get_edition(
+            db,
+            league_id=int(league.id),
+            edition_type=EDITION_POST,
+            gameweek_number=int(gw.number),
+        )
+        pre = get_edition(
+            db,
+            league_id=int(league.id),
+            edition_type=EDITION_PRE,
+            gameweek_number=int(gw.number),
+        )
+        if post is not None:
+            return _edition_view(db, post)
+        if pre is not None and pre_gw_window_open(gw):
+            return _edition_view(db, pre)
+
+    # Fallback: most recent edition row for this league
+    row = (
+        db.query(LeagueNewsEdition)
+        .filter(LeagueNewsEdition.league_id == int(league.id))
+        .order_by(
+            LeagueNewsEdition.gameweek_number.desc(),
+            LeagueNewsEdition.generated_at.desc(),
+        )
+        .first()
+    )
+    if row is None:
+        return None
+    return _edition_view(db, row)
+
+
+def _edition_view(db: Session, row: LeagueNewsEdition) -> dict[str, Any]:
+    """Content dict + photo URLs for stories that carry a player_id."""
+    from app.kits import kit_for
+
+    content = _loads(row.content_json)
+    stories = content.get("stories") or []
+    enriched: list[dict[str, Any]] = []
+    for story in stories:
+        if not isinstance(story, dict):
+            continue
+        item = dict(story)
+        pid = item.get("player_id")
+        if pid:
+            pl = db.query(Player).filter(Player.id == int(pid)).one_or_none()
+            if pl is not None:
+                kit = kit_for(None, photo=pl.photo or "", player_id=pl.id)
+                item["photo"] = kit.get("photo")
+                item["photo_fallback"] = kit.get("photoFallback")
+                item["player_name"] = item.get("player_name") or pl.name
+        enriched.append(item)
+    content["stories"] = enriched
+    content["edition_type"] = row.edition_type
+    content["gameweek_number"] = row.gameweek_number
+    content["generated_at"] = row.generated_at.isoformat() if row.generated_at else None
+    content["league_id"] = row.league_id
+    return content

@@ -23,6 +23,70 @@
     </p>
   </header>
 
+  {% if news_edition %}
+  <section class="panel league-news-panel" aria-label="League News">
+    <button
+      type="button"
+      class="league-news-toggle"
+      id="leagueNewsToggle"
+      aria-expanded="false"
+      aria-controls="leagueNewsBody"
+    >
+      <span class="league-news-toggle-text">
+        <span class="section-title tight">News</span>
+        <span class="muted tiny league-news-eyebrow">
+          {% if news_edition.edition_type == 'pre_gw' %}Pre · GW{{ news_edition.gameweek_number }}
+          {% else %}Post · GW{{ news_edition.gameweek_number }}{% endif %}
+        </span>
+      </span>
+      <span class="league-news-chevron" aria-hidden="true">▾</span>
+    </button>
+    <div class="league-news-body" id="leagueNewsBody" hidden>
+      {% if news_edition.title %}
+      <h3 class="league-news-title">{{ news_edition.title }}</h3>
+      {% endif %}
+      {% if news_edition.kicker %}
+      <p class="league-news-kicker">{{ news_edition.kicker }}</p>
+      {% endif %}
+      {% if news_edition.lede %}
+      <div class="league-news-lede">
+        {% for para in news_edition.lede.split('\n\n') %}
+        {% if para.strip() %}<p>{{ para.strip() }}</p>{% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if news_edition.stories %}
+      <div class="league-news-stories">
+        {% for story in news_edition.stories %}
+        <article class="league-news-story">
+          {% if story.photo %}
+          <img
+            class="league-news-photo"
+            src="{{ story.photo }}"
+            {% if story.photo_fallback %}data-fallback="{{ story.photo_fallback }}"{% endif %}
+            alt="{{ story.player_name or '' }}"
+            loading="lazy"
+            onerror="if(this.dataset.fallback&&this.src!==this.dataset.fallback){this.src=this.dataset.fallback;}else{this.remove();}"
+          />
+          {% endif %}
+          <div class="league-news-story-copy">
+            <h4 class="league-news-headline">{{ story.headline }}</h4>
+            {% if story.body %}
+            <div class="league-news-copy">
+              {% for para in story.body.split('\n\n') %}
+              {% if para.strip() %}<p>{{ para.strip() }}</p>{% endif %}
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </section>
+  {% endif %}
+
   <div class="league-desk">
     {# Col 1 — standings + H2H fixtures #}
     <div class="league-col league-col-standings">
@@ -308,6 +372,9 @@
       {% if league.league_type == 'h2h' %}H2H standings{% else %}Full standings{% endif %}
     </a>
     <a class="btn ghost" href="/league/{{ league.id }}/awards">Season awards</a>
+    {% if news_edition %}
+    <button type="button" class="btn ghost" id="leagueNewsToggleMobile" aria-controls="leagueNewsBody">News</button>
+    {% endif %}
   </div>
 
   </div>
@@ -328,5 +395,30 @@
 </div>
 <script id="h2hFixturesBoot" type="application/json">{{ h2h_cards | tojson }}</script>
 <script src="/static/league_h2h.js?v=182"></script>
+{% endif %}
+{% if news_edition %}
+<script>
+(function () {
+  function bindNewsToggle(btn) {
+    if (!btn) return;
+    btn.addEventListener("click", function () {
+      var body = document.getElementById("leagueNewsBody");
+      var main = document.getElementById("leagueNewsToggle");
+      if (!body) return;
+      var open = body.hasAttribute("hidden");
+      if (open) body.removeAttribute("hidden");
+      else body.setAttribute("hidden", "");
+      if (main) {
+        main.setAttribute("aria-expanded", open ? "true" : "false");
+        main.classList.toggle("is-open", open);
+      }
+      var panel = document.querySelector(".league-news-panel");
+      if (panel && open) panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  }
+  bindNewsToggle(document.getElementById("leagueNewsToggle"));
+  bindNewsToggle(document.getElementById("leagueNewsToggleMobile"));
+})();
+</script>
 {% endif %}
 {% endblock %}

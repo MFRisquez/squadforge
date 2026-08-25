@@ -693,6 +693,14 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
     from app.services import awards as awards_svc
 
     awards = awards_svc.league_awards(db, league.id)
+    news_edition = None
+    try:
+        from app.services import league_news as news_svc
+
+        if news_svc.news_enabled():
+            news_edition = news_svc.resolve_current_edition(db, league)
+    except Exception:
+        news_edition = None
     if view["edits_locked"]:
         from app.services.auto_score import maybe_score_locked_gw
         import threading
@@ -715,6 +723,7 @@ def league_home(league_id: int, request: Request, db: Session = Depends(get_db))
             rival_card=rival_card,
             chips_board=chips_board,
             awards=awards,
+            news_edition=news_edition,
             deadline_label=view["deadline_label"],
             edits_locked=view["edits_locked"],
             prev_gw=view["prev_gw"],
