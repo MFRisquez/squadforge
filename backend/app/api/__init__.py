@@ -29,7 +29,13 @@ class ScoreRequest(BaseModel):
 
 @router.get("/health")
 def health() -> dict:
-    return {"ok": True, "service": "squadforge"}
+    from app.services import league_news as news_svc
+
+    return {
+        "ok": True,
+        "service": "squadforge",
+        "gemini_configured": news_svc.news_enabled(),
+    }
 
 
 @router.get("/debug/live-ingest")

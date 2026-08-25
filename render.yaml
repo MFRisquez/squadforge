@@ -27,3 +27,6 @@ services:
         sync: false
       - key: API_FOOTBALL_SEASON
         value: "2026"
+      # League News (Google AI Studio). Paste key in Render dashboard.
+      - key: GEMINI_API_KEY
+        sync: false

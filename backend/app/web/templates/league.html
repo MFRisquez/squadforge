@@ -89,9 +89,12 @@
           {% endif %}
       {% elif _news_on %}
           <p class="muted league-news-empty">
-            Todavía no hay crónica. Al abrir esta página se intenta generar el post de las
-            jornadas ya terminadas — esperá unos segundos y refrescá.
+            Todavía no hay crónica. Tocá <strong>Generar ahora</strong> (usa Gemini con los
+            datos de la jornada terminada) — tarda ~15–20&nbsp;s.
           </p>
+          <form method="post" action="/league/{{ league.id }}/news/generate" class="league-news-generate">
+            <button type="submit" class="btn">Generar ahora</button>
+          </form>
       {% else %}
           <p class="muted league-news-empty">
             News está apagado: falta la variable <strong>GEMINI_API_KEY</strong> en el
