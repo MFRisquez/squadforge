@@ -74,9 +74,14 @@ def test_td_can_change_before_first_deadline():
         db.commit()
         db.refresh(manager)
         gw = db.query(Gameweek).filter(Gameweek.number == 1).one()
-        # Far-future deadline so can_edit is true
+        # Far-future deadline so can_edit is true (seed may have marked GW1 finished).
+        db.query(Gameweek).update({"is_current": 0})
         gw.deadline_at = "2099-08-21T17:30:00Z"
+        gw.status = "live"
         gw.is_current = 1
+        from app.models import Fixture
+
+        db.query(Fixture).filter(Fixture.gameweek_number == 1).update({"finished": 0})
         db.commit()
 
         first = td_svc.set_td_pick(db, manager_id=manager.id, club_code="LIV", gw_number=1)

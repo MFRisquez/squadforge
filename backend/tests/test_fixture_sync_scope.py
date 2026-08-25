@@ -46,10 +46,25 @@ def test_fpl_row_is_active_live_and_kickoff_passed():
         },
         now=now,
     )
-    assert not fixtures_svc._fpl_row_finished(
+    # Provisional counts as finished for FT / GW advance.
+    assert fixtures_svc._fpl_row_finished(
         {"finished": False, "finished_provisional": True}
     )
     assert fixtures_svc._fpl_row_finished({"finished": True, "finished_provisional": True})
+    assert not fixtures_svc._fpl_row_fully_finished(
+        {"finished": False, "finished_provisional": True}
+    )
+    assert fixtures_svc._fpl_row_fully_finished({"finished": True})
+    # Fully finished drops off the live hot path.
+    assert not fixtures_svc._fpl_row_is_active(
+        {
+            "started": True,
+            "finished": True,
+            "finished_provisional": True,
+            "kickoff_time": "2026-08-22T14:00:00Z",
+        },
+        now=now,
+    )
 
 
 def test_sync_fixtures_only_active_skips_finished_and_far_upcoming(db_session=None):
@@ -150,7 +165,8 @@ def test_sync_fixtures_only_active_skips_finished_and_far_upcoming(db_session=No
         assert db.query(Fixture).filter(Fixture.fpl_id == 88002).one_or_none() is None
         assert db.query(Fixture).filter(Fixture.fpl_id == 88003).one_or_none() is None
         prov = db.query(Fixture).filter(Fixture.fpl_id == 88004).one()
-        assert prov.finished == 0
+        # Provisional → finished for UI/advance, but still upserted on live path.
+        assert prov.finished == 1
         assert prov.home_score == 2 and prov.away_score == 2
     finally:
         db.close()

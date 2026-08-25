@@ -28,9 +28,28 @@ class SquadError(ValueError):
     pass
 
 
+def _gameweek_is_current(db: Session) -> Gameweek | None:
+    """Return the current GW row, repairing duplicate ``is_current`` flags if needed."""
+    rows = (
+        db.query(Gameweek)
+        .filter(Gameweek.is_current == 1)
+        .order_by(Gameweek.number.desc())
+        .all()
+    )
+    if not rows:
+        return None
+    if len(rows) > 1:
+        keep = rows[0]
+        for extra in rows[1:]:
+            extra.is_current = 0
+        db.commit()
+        return keep
+    return rows[0]
+
+
 def current_gameweek(db: Session) -> Gameweek:
     maybe_advance_finished_gameweek(db)
-    gw = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
+    gw = _gameweek_is_current(db)
     if not gw:
         gw = db.query(Gameweek).order_by(Gameweek.number).first()
     if not gw:
@@ -41,12 +60,14 @@ def current_gameweek(db: Session) -> Gameweek:
 def maybe_advance_finished_gameweek(db: Session) -> bool:
     """When the current GW is fully finished, flip ``is_current`` to the next GW.
 
-    Uses fixture ``finished`` flags when present; otherwise trusts ``Gameweek.status``.
+    Uses fixture ``finished`` flags when present (includes FPL provisional → we
+    store finished=1 so the app rolls to GW+1 and unlocks transfers without a
+    manual poke). Otherwise trusts ``Gameweek.status``.
     Returns True when a roll-forward happened.
     """
     from app.models import Fixture
 
-    gw = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
+    gw = _gameweek_is_current(db)
     if not gw:
         return False
 
@@ -71,6 +92,8 @@ def maybe_advance_finished_gameweek(db: Session) -> bool:
     if not nxt:
         return False
 
+    # Clear any stray current flags, then point at next.
+    db.query(Gameweek).filter(Gameweek.is_current == 1).update({"is_current": 0})
     gw.is_current = 0
     gw.status = "finished"
     nxt.is_current = 1

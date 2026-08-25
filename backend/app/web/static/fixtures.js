@@ -736,6 +736,11 @@
     fetch(`/api/fixtures/refresh?gw=${BOOT.gw}`, { method: "POST" })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => {
+        // GW rolled forward (e.g. all matches provisionally finished) — follow.
+        if (data && data.gw != null && Number(data.gw) !== Number(BOOT.gw)) {
+          window.location.assign(`/fixtures?gw=${encodeURIComponent(data.gw)}`);
+          return;
+        }
         renderList(data.fixtures || []);
         // Keep open match sheet fresh (score/clock + possession/SOT via preview).
         if (!selectedId) return;

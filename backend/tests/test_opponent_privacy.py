@@ -77,6 +77,7 @@ def test_gw1_before_deadline_hides_opponent_squad():
         league_svc.join_league(db, league.invite_code, rival)
 
         gw1 = db.query(Gameweek).filter(Gameweek.number == 1).one()
+        db.query(Gameweek).update({"is_current": 0})
         gw1.is_current = 1
         gw1.status = "upcoming"
         gw1.deadline_at = (
@@ -84,8 +85,11 @@ def test_gw1_before_deadline_hides_opponent_squad():
             .isoformat()
             .replace("+00:00", "Z")
         )
-        for other in db.query(Gameweek).filter(Gameweek.number != 1).all():
-            other.is_current = 0
+        # Seed/FPL sync may have marked GW1 fixtures finished — keep us on GW1.
+        from app.models import Fixture
+
+        db.query(Fixture).filter(Fixture.gameweek_number == 1).update({"finished": 0})
+        db.commit()
 
         squad = _legal_15(db)
         ids = [p.id for p in squad]
@@ -148,6 +152,7 @@ def test_gw1_after_deadline_shows_opponent_squad():
         league_svc.join_league(db, league.invite_code, rival)
 
         gw1 = db.query(Gameweek).filter(Gameweek.number == 1).one()
+        db.query(Gameweek).update({"is_current": 0})
         gw1.is_current = 1
         gw1.status = "live"
         gw1.deadline_at = (
@@ -155,8 +160,10 @@ def test_gw1_after_deadline_shows_opponent_squad():
             .isoformat()
             .replace("+00:00", "Z")
         )
-        for other in db.query(Gameweek).filter(Gameweek.number != 1).all():
-            other.is_current = 0
+        from app.models import Fixture
+
+        db.query(Fixture).filter(Fixture.gameweek_number == 1).update({"finished": 0})
+        db.commit()
 
         squad = _legal_15(db)
         ids = [p.id for p in squad]

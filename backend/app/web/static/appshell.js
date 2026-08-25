@@ -12,12 +12,12 @@
   // Polls still refresh scores in-page.
   const LIVE_CACHE_TTL_MS = 20_000;
   const PAGE_SCRIPT_URLS = [
-    "/static/club-sheet.js?v=181",
-    "/static/xi-side.js?v=181",
-    "/static/lineup.js?v=181",
-    "/static/fixtures.js?v=181",
-    "/static/squadboard.js?v=181",
-    "/static/league_h2h.js?v=181",
+    "/static/club-sheet.js?v=182",
+    "/static/xi-side.js?v=182",
+    "/static/lineup.js?v=182",
+    "/static/fixtures.js?v=182",
+    "/static/squadboard.js?v=182",
+    "/static/league_h2h.js?v=182",
   ];
   const DESK_MQ = window.matchMedia("(min-width: 900px)");
   let navigating = false;
@@ -396,19 +396,19 @@
       const warmScripts =
         pathOnlyWarm === "/lineup" || pathOnlyWarm === "/xi" || pathOnlyWarm === "/points"
           ? Promise.all([
-              loadScriptText("/static/club-sheet.js?v=181"),
-              loadScriptText("/static/xi-side.js?v=181"),
-              loadScriptText("/static/lineup.js?v=181"),
+              loadScriptText("/static/club-sheet.js?v=182"),
+              loadScriptText("/static/xi-side.js?v=182"),
+              loadScriptText("/static/lineup.js?v=182"),
             ])
           : pathOnlyWarm === "/fixtures"
-            ? loadScriptText("/static/fixtures.js?v=181")
+            ? loadScriptText("/static/fixtures.js?v=182")
             : pathOnlyWarm === "/team"
               ? Promise.all([
-                  loadScriptText("/static/club-sheet.js?v=181"),
-                  loadScriptText("/static/squadboard.js?v=181"),
+                  loadScriptText("/static/club-sheet.js?v=182"),
+                  loadScriptText("/static/squadboard.js?v=182"),
                 ])
               : pathOnlyWarm.startsWith("/standings") || pathOnlyWarm.startsWith("/league")
-                ? loadScriptText("/static/league_h2h.js?v=181")
+                ? loadScriptText("/static/league_h2h.js?v=182")
                 : Promise.resolve();
       const [fetched] = await Promise.all([fetchPageHtml(path), warmScripts]);
       const t2 = performance.now();

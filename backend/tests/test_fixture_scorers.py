@@ -70,8 +70,11 @@ def test_format_pulse_goal_minute():
     assert pl_content.format_pulse_goal_minute("90+9'00") == "90+9'"
 
 
-def test_fpl_row_finished_ignores_provisional_only():
-    assert not fixtures_svc._fpl_row_finished(
+def test_fpl_row_finished_includes_provisional():
+    assert fixtures_svc._fpl_row_finished(
         {"finished": False, "finished_provisional": True}
     )
     assert fixtures_svc._fpl_row_finished({"finished": True})
+    assert not fixtures_svc._fpl_row_fully_finished(
+        {"finished": False, "finished_provisional": True}
+    )

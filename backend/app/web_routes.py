@@ -1939,6 +1939,7 @@ def fixtures_page(request: Request, db: Session = Depends(get_db)):
 @router.post("/fixtures/refresh")
 def fixtures_refresh(request: Request, db: Session = Depends(get_db)):
     from app.services import fixtures as fixtures_svc
+    from app.services import squad as squad_svc
     from urllib.parse import quote
 
     manager = current_manager(request, db)
@@ -1948,8 +1949,13 @@ def fixtures_refresh(request: Request, db: Session = Depends(get_db)):
     gw = view["gw"]
     try:
         info = fixtures_svc.refresh_fixtures(db, scope="gw", gw_number=int(gw.number))
+        advanced = squad_svc.maybe_advance_finished_gameweek(db)
+        target_gw = int(gw.number)
+        if advanced:
+            cur = squad_svc.current_gameweek(db)
+            target_gw = int(cur.number)
         notice = quote(f"Updated {info.get('fixtures', 0)} fixtures from FPL")
-        return RedirectResponse(f"/fixtures?gw={gw.number}&notice={notice}", status_code=303)
+        return RedirectResponse(f"/fixtures?gw={target_gw}&notice={notice}", status_code=303)
     except Exception as exc:
         return RedirectResponse(f"/fixtures?gw={gw.number}&error={exc}", status_code=303)
 

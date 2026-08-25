@@ -56,13 +56,21 @@ def fetch_fixtures(
 
 
 def _fpl_row_finished(fx: dict[str, Any]) -> bool:
-    """True only when FPL marks the fixture fully finished.
+    """True when the match is over for UI / GW advance (FT, not still kickoff).
 
-    ``finished_provisional`` alone is NOT enough — FPL often flips provisional
-    during stoppage while late goals (and scoreline) are still arriving. Treating
-    provisional as finished froze our live upsert and showed Full time too early
-    (e.g. NEW–LIV Szoboszlai 90+9' on the scoreboard).
+    FPL flips ``finished_provisional`` at the whistle and keeps ``finished`` false
+    for hours while BPS settles. We treat provisional as finished for status/FT
+    and rolling the gameweek forward — otherwise every card stays LIVE at 90+10'
+    and transfers stay locked on the old GW.
+
+    Late score updates during provisional are handled separately: ``_fpl_row_is_active``
+    keeps upserting until FPL sets ``finished=true``.
     """
+    return bool(fx.get("finished") or fx.get("finished_provisional"))
+
+
+def _fpl_row_fully_finished(fx: dict[str, Any]) -> bool:
+    """True only when FPL has fully closed the fixture (BPS done)."""
     return bool(fx.get("finished"))
 
 
@@ -71,11 +79,11 @@ def _fpl_row_is_active(fx: dict[str, Any], *, now: datetime | None = None) -> bo
 
     Includes kickoff-passed rows where FPL has not flipped ``started`` yet,
     and provisionally-finished rows (still accepting late goals/score updates).
-    Skips fully finished matches and far-future kickoffs.
+    Skips only when FPL ``finished`` is true (fully settled).
     """
-    if _fpl_row_finished(fx):
+    if _fpl_row_fully_finished(fx):
         return False
-    if fx.get("started"):
+    if fx.get("started") or fx.get("finished_provisional"):
         return True
     ko = fx.get("kickoff_time")
     if not ko:
