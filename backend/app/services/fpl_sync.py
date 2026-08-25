@@ -167,7 +167,12 @@ def sync_from_fpl(db: Session, data: dict[str, Any] | None = None) -> dict[str, 
     db.flush()
     # Prefer FPL's idea of current, but never roll *backward* if we already
     # advanced locally (FPL often keeps the old event ``is_current`` until BPS).
-    local_current = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
+    local_current = (
+        db.query(Gameweek)
+        .filter(Gameweek.is_current == 1)
+        .order_by(Gameweek.number.desc())
+        .first()
+    )
     if current_number is None:
         current_number = int(local_current.number) if local_current else 1
     elif local_current is not None and int(local_current.number) > int(current_number):

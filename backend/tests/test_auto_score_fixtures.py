@@ -29,6 +29,7 @@ def test_auto_score_refreshes_fixture_started_before_scoring():
     db = SessionLocal()
     try:
         auto_svc._last_run_at = 0.0
+        db.query(Gameweek).update({"is_current": 0})
         gw = db.query(Gameweek).filter(Gameweek.number == 1).one()
         gw.deadline_at = (
             (datetime.now(timezone.utc) - timedelta(hours=1))
@@ -42,6 +43,8 @@ def test_auto_score_refreshes_fixture_started_before_scoring():
             if not club.fpl_team_id:
                 club.fpl_team_id = i
         db.query(Fixture).filter(Fixture.gameweek_number == 1).delete()
+        # Also clear finished flags on any other leftover rows.
+        db.query(Fixture).update({"finished": 0})
         db.add(
             Fixture(
                 fpl_id=99001,
@@ -111,15 +114,20 @@ def test_refresh_fixtures_failure_does_not_block_auto_score():
     db = SessionLocal()
     try:
         auto_svc._last_run_at = 0.0
+        db.query(Gameweek).update({"is_current": 0})
         gw = db.query(Gameweek).filter(Gameweek.number == 1).one()
         gw.deadline_at = (
             (datetime.now(timezone.utc) - timedelta(hours=1))
             .isoformat()
             .replace("+00:00", "Z")
         )
+        gw.is_current = 1
+        gw.status = "live"
+        # Keep advance from jumping off GW1 mid-test.
+        db.query(Fixture).filter(Fixture.gameweek_number == 1).update({"finished": 0})
         db.commit()
 
-        def _boom(_session):
+        def _boom(_session, **_kwargs):
             raise RuntimeError("FPL fixtures down")
 
         with patch("app.services.fixtures.refresh_fixtures", side_effect=_boom):

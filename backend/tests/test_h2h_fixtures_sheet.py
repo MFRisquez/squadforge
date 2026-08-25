@@ -55,6 +55,7 @@ def test_h2h_fixture_cards_and_league_page_sheet():
             db.add(gw)
             db.flush()
         else:
+            db.query(Gameweek).update({"is_current": 0})
             gw.status = "live"
             gw.is_current = 1
         # Past deadline required for scores / top XI to be public
@@ -63,6 +64,9 @@ def test_h2h_fixture_cards_and_league_page_sheet():
             .isoformat()
             .replace("+00:00", "Z")
         )
+        from app.models import Fixture
+
+        db.query(Fixture).filter(Fixture.gameweek_number == 1).update({"finished": 0})
         player = db.query(Player).first()
         assert player is not None
         breakdown = json.dumps(
@@ -145,6 +149,7 @@ def test_h2h_fixture_cards_hide_top_player_before_deadline():
         league = league_svc.create_league(db, "Pre Deadline Cup", a, league_type="h2h")
         league_svc.join_league(db, league.invite_code, b)
         gw = db.query(Gameweek).filter(Gameweek.number == 1).one()
+        db.query(Gameweek).update({"is_current": 0})
         gw.status = "live"
         gw.is_current = 1
         gw.deadline_at = (
@@ -152,6 +157,9 @@ def test_h2h_fixture_cards_hide_top_player_before_deadline():
             .isoformat()
             .replace("+00:00", "Z")
         )
+        from app.models import Fixture
+
+        db.query(Fixture).filter(Fixture.gameweek_number == 1).update({"finished": 0})
         player = db.query(Player).first()
         assert player is not None
         db.add(
@@ -372,6 +380,9 @@ def test_league_chips_board_and_rival_snapshot_on_page():
             .isoformat()
             .replace("+00:00", "Z")
         )
+        from app.models import Fixture
+
+        db.query(Fixture).filter(Fixture.gameweek_number == 1).update({"finished": 0})
         db.add(
             H2HMatch(
                 league_id=league.id,
