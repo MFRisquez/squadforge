@@ -11,7 +11,7 @@ const PRECACHE = [
   "/static/club-sheet.js?v=186",
   "/static/fixtures.js?v=186",
   "/static/league_h2h.js?v=186",
-  "/static/news.js?v=186",
+  "/static/news.js?v=187",
   "/static/fonts/Vielma_Grotesk_Bold.woff2",
   "/static/fonts/Vielma_Grotesk_Bold.otf",
   "/static/manifest.webmanifest",

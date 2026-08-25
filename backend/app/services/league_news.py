@@ -47,7 +47,12 @@ de fútbol, crónica de grupo de WhatsApp — en español natural. NO mezcles po
 calques raros del brasileño.
 
 TONO
-- Jocoso, con humor negro y picante entre amigos. Podés bardear (sin insultos personales feos).
+- Jocoso, con humor negro y picante entre amigos. Podés bardear fuerte (sin doxxing ni
+  amenazas reales). El grupo se banca la cargada.
+- Humor negro de verdad: funerales de fantasy, "lo dejaron plantado", "jugó con muletas
+  mentales", "mandó al hospital el XI". Si el fact pide roast explícito (kind xi_dead_weight),
+  andá a fondo: decí sin filtro que son maricos por dejar lesionados o expulsados en el XI
+  titular y cosechar cero. Podés agrupar a todos los culpables en UNA sola historia.
 - Lenguaje oral argentino/mexicano que suene de verdad: "se mandó la cagada", "lo vendieron
   como pan caliente", "quedó en offside", "se fue al tacho", "está que arde", "no da más",
   "le llovieron las cargadas", "papelón", "se durmió en los postes", "figuritá difícil".
@@ -60,6 +65,9 @@ TONO
   "impresionante marca", "sólida cosecha", "reclama el trono", "estratega de elite".
 - Preferí algo que diría un amigo en el grupo después del partido.
 - Nombres de managers/equipos: usalos tal cual vienen en los datos.
+- Si un fact trae "leagues" / "league_names" con más de una liga, ESCRIBÍ UNA sola historia
+  cruzando Classic y H2H (ej. "le fue bien en X y también en Y"). NO repitas el mismo
+  jugador/evento en otra story de la misma edición.
 
 HECHOS (regla dura)
 - Recibís un JSON de FACTS ya rankeados por drama (de más brutal a menos).
@@ -397,6 +405,8 @@ def build_post_gw_package(db: Session, league: League, gw: Gameweek) -> dict[str
 
     # Per-manager best / worst vs that player's historical league average
     candidates.extend(_manager_player_swings(db, league, gw))
+    # XI dead weight: injured/suspended/unavailable or red-carded starters with 0 pts
+    candidates.extend(_xi_dead_weight_candidates(db, league, gw))
 
     ranked = _select_top_stories(candidates)
     return {
@@ -516,15 +526,15 @@ def build_forecast_package(db: Session, gw: Gameweek) -> dict[str, Any]:
         .filter(Player.status.in_(("a", "d")))
         .all()
     )
-    candidates: list[dict[str, Any]] = []
+    scored: list[dict[str, Any]] = []
     for pl in players:
         club = (pl.team_code or "").upper()
         fdr = fdr_by_club.get(club) or {}
         if not fdr:
             continue
-        # map_fdr: 1 easiest … 4 hardest — lower is better for attacking upside
+        # map_fdr: 1 easiest … 4 hardest — allow up to 3 so Forecast always has fuel
         difficulty = int(fdr.get("difficulty") or 3)
-        if difficulty > 2:
+        if difficulty > 3:
             continue
         stats = _loads(pl.season_stats_json or "{}")
         try:
@@ -533,12 +543,9 @@ def build_forecast_package(db: Session, gw: Gameweek) -> dict[str, Any]:
             form = 0.0
         threat = float(stats.get("threat") or 0)
         creativity = float(stats.get("creativity") or 0)
-        # Favorable FDR weight + recent signal
-        fdr_boost = {1: 3.0, 2: 1.75}.get(difficulty, 0.0)
-        signal = fdr_boost * 8.0 + form * 4.0 + (threat + creativity) / 80.0
-        if signal < 6.0:
-            continue
-        candidates.append(
+        fdr_boost = {1: 3.0, 2: 1.75, 3: 0.85}.get(difficulty, 0.0)
+        signal = fdr_boost * 8.0 + max(form, 0.0) * 4.0 + (threat + creativity) / 80.0
+        scored.append(
             {
                 "kind": "forecast_pick",
                 "drama": round(signal, 2),
@@ -560,7 +567,42 @@ def build_forecast_package(db: Session, gw: Gameweek) -> dict[str, Any]:
                 },
             }
         )
+    scored.sort(key=lambda c: float(c.get("drama") or 0), reverse=True)
+    # Always keep top N by signal — don't starve Forecast with a high cutoff.
+    candidates = scored[: max(FORECAST_CANDIDATES * 2, 10)]
     ranked = _select_top_stories(candidates)[:FORECAST_CANDIDATES]
+    # Hard fallback: any next-fixture players with best form if FDR map was sparse
+    if not ranked and scored:
+        ranked = _select_top_stories(scored[:FORECAST_CANDIDATES])
+    if not ranked and players:
+        # Last resort: top form among a/d players even without FDR row
+        soft: list[dict[str, Any]] = []
+        for pl in players:
+            stats = _loads(pl.season_stats_json or "{}")
+            try:
+                form = float(stats.get("form") or 0)
+            except (TypeError, ValueError):
+                form = 0.0
+            if form <= 0:
+                continue
+            soft.append(
+                {
+                    "kind": "forecast_pick",
+                    "drama": form,
+                    "player_id": int(pl.id),
+                    "fact": {
+                        "kind": "forecast_pick",
+                        "player_id": int(pl.id),
+                        "player_name": pl.name,
+                        "position": pl.position,
+                        "team_code": (pl.team_code or "").upper(),
+                        "form": round(form, 1),
+                        "gw": int(gw.number),
+                    },
+                }
+            )
+        soft.sort(key=lambda c: float(c.get("drama") or 0), reverse=True)
+        ranked = _select_top_stories(soft)[:FORECAST_CANDIDATES]
     return {
         "edition_type": EDITION_FORECAST,
         "league_id": None,
@@ -570,7 +612,7 @@ def build_forecast_package(db: Session, gw: Gameweek) -> dict[str, Any]:
         "stories": ranked,
         "prompt_note": (
             "These are REAL next-GW candidates ranked by favorable FDR + form/threat/creativity. "
-            "Write a Forecast edition — do not invent other players or numbers."
+            "Write a Forecast edition with humor negro — do not invent other players or numbers."
         ),
     }
 
@@ -768,6 +810,147 @@ def _player_historical_averages(
     return {pid: sum(vals) / len(vals) for pid, vals in buckets.items() if vals}
 
 
+def _xi_dead_weight_candidates(
+    db: Session, league: League, gw: Gameweek
+) -> list[dict[str, Any]]:
+    """Managers who started injured/suspended/unavailable or red-carded players that scored 0.
+
+    One high-drama fact listing every offender — Gemini writes a single roast story.
+    """
+    from app.models import Membership, SquadPick
+    from app.services.fpl_sync import availability_flag
+    from app.services.live_scoring import metrics_for_player, player_points_map
+
+    members = (
+        db.query(Membership)
+        .filter(Membership.league_id == int(league.id))
+        .all()
+    )
+    if not members:
+        return []
+    pts_map = player_points_map(db, gw)
+    offenders: list[dict[str, Any]] = []
+    photo_player_id: int | None = None
+
+    for mem in members:
+        mgr = db.query(Manager).filter(Manager.id == int(mem.manager_id)).one_or_none()
+        if mgr is None:
+            continue
+        picks = (
+            db.query(SquadPick)
+            .filter(
+                SquadPick.manager_id == int(mgr.id),
+                SquadPick.gameweek_id == int(gw.id),
+                SquadPick.is_starter == 1,
+            )
+            .all()
+        )
+        if not picks:
+            continue
+        bad: list[dict[str, Any]] = []
+        for pick in picks:
+            pl = db.query(Player).filter(Player.id == int(pick.player_id)).one_or_none()
+            if pl is None:
+                continue
+            gw_pts = float(pts_map.get(int(pl.id), 0.0) or 0.0)
+            if gw_pts > 0:
+                continue
+            flag = availability_flag(
+                getattr(pl, "status", "a") or "a",
+                getattr(pl, "chance_of_playing", None),
+            )
+            metrics = metrics_for_player(db, int(gw.id), int(pl.id))
+            reds = float(metrics.get("red_cards") or 0)
+            reasons: list[str] = []
+            if flag == "out":
+                reasons.append("lesionado/suspendido/no disponible")
+            if reds >= 1:
+                reasons.append("roja")
+            # Also catch unavailable_xi list from manager score breakdown
+            if not reasons:
+                continue
+            bad.append(
+                {
+                    "player_id": int(pl.id),
+                    "player_name": pl.name,
+                    "gw_points": 0,
+                    "reasons": reasons,
+                    "status": getattr(pl, "status", "a") or "a",
+                    "red_cards": int(reds),
+                }
+            )
+            if photo_player_id is None:
+                photo_player_id = int(pl.id)
+        if not bad:
+            # Fallback: unavailable_xi_players on score breakdown even if status recovered
+            score = (
+                db.query(ManagerGameweekScore)
+                .filter(
+                    ManagerGameweekScore.manager_id == int(mgr.id),
+                    ManagerGameweekScore.gameweek_id == int(gw.id),
+                )
+                .one_or_none()
+            )
+            if score is not None:
+                bd = _loads(score.breakdown_json or "{}")
+                for pid in bd.get("unavailable_xi_players") or []:
+                    try:
+                        pid_i = int(pid)
+                    except (TypeError, ValueError):
+                        continue
+                    if float(pts_map.get(pid_i, 0.0) or 0.0) > 0:
+                        continue
+                    pl = db.query(Player).filter(Player.id == pid_i).one_or_none()
+                    if pl is None:
+                        continue
+                    bad.append(
+                        {
+                            "player_id": pid_i,
+                            "player_name": pl.name,
+                            "gw_points": 0,
+                            "reasons": ["lesionado/suspendido/no disponible"],
+                            "status": getattr(pl, "status", "a") or "a",
+                            "red_cards": 0,
+                        }
+                    )
+                    if photo_player_id is None:
+                        photo_player_id = pid_i
+        if bad:
+            offenders.append(
+                {
+                    "manager_id": int(mgr.id),
+                    "manager_name": mgr.display_name,
+                    "team_name": mgr.team_name or "",
+                    "players": bad,
+                }
+            )
+
+    if not offenders:
+        return []
+
+    n_players = sum(len(o["players"]) for o in offenders)
+    return [
+        {
+            "kind": "xi_dead_weight",
+            "drama": 20.0 + 4.0 * len(offenders) + 2.0 * n_players,
+            "player_id": photo_player_id,
+            "fact": {
+                "kind": "xi_dead_weight",
+                "player_id": photo_player_id,
+                "roast": True,
+                "roast_instruction": (
+                    "Roast hard with humor negro: these managers left injured/suspended/"
+                    "unavailable or red-carded players in the Starting XI and got 0 pts. "
+                    "Call them maricos. One story covering ALL offenders listed."
+                ),
+                "offenders": offenders,
+                "offender_count": len(offenders),
+                "dead_player_count": n_players,
+            },
+        }
+    ]
+
+
 def _select_top_stories(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Sort by drama desc, keep top 5–8, de-dupe near-identical stories."""
     ranked = sorted(candidates, key=lambda c: float(c.get("drama") or 0), reverse=True)
@@ -776,8 +959,10 @@ def _select_top_stories(candidates: list[dict[str, Any]]) -> list[dict[str, Any]
     for c in ranked:
         fact = c.get("fact") or {}
         kind = str(c.get("kind") or "")
-        if kind in ("broke_out", "blew_up"):
-            key: tuple = (kind, c.get("player_id"), fact.get("manager_name"))
+        if kind == "xi_dead_weight":
+            key: tuple = ("xi_dead_weight",)
+        elif kind in ("broke_out", "blew_up"):
+            key = (kind, c.get("player_id"), fact.get("manager_name"))
         else:
             key = (kind, c.get("player_id"))
         if key in seen:
@@ -866,6 +1051,13 @@ def call_gemini_for_edition(package: dict[str, Any]) -> dict[str, Any]:
         "manager_name",
         "team_name",
         "player_name",
+        "offenders",
+        "offender_count",
+        "dead_player_count",
+        "roast",
+        "roast_instruction",
+        "league_names",
+        "leagues",
     )
     for i, story in enumerate(stories_out):
         if not isinstance(story, dict):
@@ -989,26 +1181,37 @@ def pre_gw_window_open(gw: Gameweek, *, now: datetime | None = None, hours: floa
     return now >= (dl - timedelta(hours=hours))
 
 
+def forecast_window_open(gw: Gameweek, *, now: datetime | None = None) -> bool:
+    """Forecast for the next/current GW: 7 days before deadline, or current upcoming GW."""
+    if (gw.status or "").lower() == "finished":
+        return False
+    if int(getattr(gw, "is_current", 0) or 0) == 1 and (gw.status or "").lower() in {
+        "upcoming",
+        "current",
+        "",
+    }:
+        # Always try Forecast for the live current GW (even outside 48h pre window).
+        return True
+    return pre_gw_window_open(gw, now=now, hours=168.0)  # 7 days
+
+
 def maybe_generate_due_editions(db: Session) -> dict[str, Any]:
     """Generate post_gw / pre_gw / forecast editions when timing rules say so.
 
     - post_gw: once the GW is done (finished fixtures / status / advanced past)
     - pre_gw: once we are inside the 48h window before that GW's deadline
-    - forecast: global, once pre window is open for that GW (same timing as pre)
+    - forecast: global; current GW or within 7 days of deadline (not blocked by empty leagues)
     Idempotent via get_or_generate_edition (no re-spend if row exists).
     """
     if not news_enabled():
         return {"ok": False, "skipped": "no_api_key"}
 
     leagues = db.query(League).all()
-    if not leagues:
-        return {"ok": True, "leagues": 0, "generated": []}
-
     gws = db.query(Gameweek).order_by(Gameweek.number.asc()).all()
     generated: list[dict[str, Any]] = []
 
     for gw in gws:
-        if gw_ready_for_post(db, gw):
+        if leagues and gw_ready_for_post(db, gw):
             for league in leagues:
                 result = get_or_generate_edition(
                     db,
@@ -1036,7 +1239,7 @@ def maybe_generate_due_editions(db: Session) -> dict[str, Any]:
                         result.get("reason"),
                     )
 
-        if pre_gw_window_open(gw):
+        if leagues and pre_gw_window_open(gw):
             for league in leagues:
                 result = get_or_generate_edition(
                     db,
@@ -1052,7 +1255,8 @@ def maybe_generate_due_editions(db: Session) -> dict[str, Any]:
                             "gw": int(gw.number),
                         }
                     )
-            # Global Forecast once per GW (not per league)
+
+        if forecast_window_open(gw):
             fc = get_or_generate_edition(
                 db,
                 league=None,
@@ -1062,6 +1266,13 @@ def maybe_generate_due_editions(db: Session) -> dict[str, Any]:
             if fc.get("ok") and not fc.get("cached"):
                 generated.append(
                     {"league_id": None, "type": EDITION_FORECAST, "gw": int(gw.number)}
+                )
+            elif not fc.get("ok"):
+                logger.info(
+                    "league_news forecast GW%s skipped=%s reason=%s",
+                    gw.number,
+                    fc.get("skipped"),
+                    fc.get("reason"),
                 )
 
     return {"ok": True, "leagues": len(leagues), "generated": generated}
@@ -1312,6 +1523,7 @@ def build_manager_news_feed(db: Session, manager_id: int) -> dict[str, Any]:
                     "league_id": int(lg.id) if lg else None,
                     "league_type": league_type,
                     "filter": filter_key,
+                    "filters": [filter_key],
                     "edition_type": row.edition_type,
                     "gameweek_number": int(row.gameweek_number),
                     "generated_at": generated,
@@ -1321,9 +1533,11 @@ def build_manager_news_feed(db: Session, manager_id: int) -> dict[str, Any]:
                     "photo_fallback": photo_fallback,
                     "stats": _story_stat_chips(story),
                     "kind": story.get("kind"),
+                    "manager_name": story.get("manager_name"),
                 }
             )
 
+    cards = _merge_cross_league_cards(cards)
     cards.sort(
         key=lambda c: (
             float(c.get("drama") or 0),
@@ -1343,6 +1557,73 @@ def build_manager_news_feed(db: Session, manager_id: int) -> dict[str, Any]:
     }
 
 
+def _card_dedupe_key(card: dict[str, Any]) -> tuple:
+    """Same player/event across Classic+H2H collapses to one magazine card."""
+    kind = str(card.get("kind") or "")
+    gw = int(card.get("gameweek_number") or 0)
+    if kind == "forecast_pick" or card.get("filter") == "forecast":
+        return ("forecast", gw, card.get("player_id"), card.get("headline"))
+    if kind == "xi_dead_weight":
+        return ("xi_dead_weight", gw)
+    if card.get("player_id"):
+        return (kind or "player", gw, int(card["player_id"]))
+    mgr = (card.get("manager_name") or "").strip().lower()
+    if mgr:
+        return (kind or "manager", gw, mgr)
+    # Fall back to headline so near-duplicates still merge
+    return (kind or "headline", gw, (card.get("headline") or "").strip().lower())
+
+
+def _merge_cross_league_cards(cards: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """One card per event: relate Classic + H2H instead of repeating."""
+    merged: dict[tuple, dict[str, Any]] = {}
+    order: list[tuple] = []
+    for card in cards:
+        key = _card_dedupe_key(card)
+        if key not in merged:
+            merged[key] = dict(card)
+            merged[key]["filters"] = list(card.get("filters") or [card.get("filter")])
+            order.append(key)
+            continue
+        keep = merged[key]
+        other_label = card.get("label") or ""
+        labels = [x.strip() for x in str(keep.get("label") or "").split("·") if x.strip()]
+        if other_label and other_label not in labels and other_label != "FORECAST":
+            labels.append(other_label)
+            keep["label"] = " · ".join(labels)
+            # Cross-league bridge in body once
+            bridge = (
+                f"\n\nTambién en {other_label}: misma historia, doble cargada."
+            )
+            body = keep.get("body") or ""
+            if other_label not in body:
+                keep["body"] = (body + bridge).strip()
+                keep["summary"] = _story_summary(keep["body"])
+        for f in card.get("filters") or [card.get("filter")]:
+            if f and f not in keep["filters"]:
+                keep["filters"].append(f)
+        # Show in every matching filter tab
+        if "classic" in keep["filters"] and "h2h" in keep["filters"]:
+            keep["filter"] = keep["filters"][0]
+        keep["drama"] = max(float(keep.get("drama") or 0), float(card.get("drama") or 0))
+        # Prefer longer / higher-drama body
+        if float(card.get("drama") or 0) >= float(keep.get("drama") or 0) and len(
+            card.get("body") or ""
+        ) >= len(keep.get("body") or ""):
+            keep["headline"] = card.get("headline") or keep.get("headline")
+            keep["body"] = card.get("body") or keep.get("body")
+            keep["summary"] = _story_summary(keep["body"])
+        elif len(card.get("body") or "") > len(keep.get("body") or ""):
+            keep["body"] = card.get("body")
+            keep["summary"] = _story_summary(keep["body"])
+            keep["headline"] = card.get("headline") or keep.get("headline")
+        if not keep.get("photo") and card.get("photo"):
+            keep["photo"] = card.get("photo")
+            keep["photo_fallback"] = card.get("photo_fallback")
+            keep["player_name"] = card.get("player_name") or keep.get("player_name")
+    return [merged[k] for k in order]
+
+
 def ensure_manager_news(db: Session, manager_id: int) -> dict[str, Any]:
     """Kick due editions for every league the manager is in + global forecast."""
     from app.services import league as league_svc
@@ -1356,7 +1637,7 @@ def ensure_manager_news(db: Session, manager_id: int) -> dict[str, Any]:
         generated.extend(result.get("generated") or [])
 
     for gw in db.query(Gameweek).order_by(Gameweek.number.asc()).all():
-        if pre_gw_window_open(gw):
+        if forecast_window_open(gw):
             fc = get_or_generate_edition(
                 db,
                 league=None,
@@ -1365,4 +1646,11 @@ def ensure_manager_news(db: Session, manager_id: int) -> dict[str, Any]:
             )
             if fc.get("ok") and not fc.get("cached"):
                 generated.append({"type": EDITION_FORECAST, "gw": int(gw.number)})
+            elif not fc.get("ok"):
+                logger.info(
+                    "ensure_manager_news forecast GW%s skipped=%s reason=%s",
+                    gw.number,
+                    fc.get("skipped"),
+                    fc.get("reason"),
+                )
     return {"ok": True, "generated": generated}

@@ -18,7 +18,7 @@
     "/static/fixtures.js?v=186",
     "/static/squadboard.js?v=186",
     "/static/league_h2h.js?v=186",
-    "/static/news.js?v=186",
+    "/static/news.js?v=187",
   ];
   const DESK_MQ = window.matchMedia("(min-width: 900px)");
   let navigating = false;
@@ -412,7 +412,7 @@
                   loadScriptText("/static/squadboard.js?v=186"),
                 ])
               : pathOnlyWarm === "/news"
-                ? loadScriptText("/static/news.js?v=186")
+                ? loadScriptText("/static/news.js?v=187")
                 : pathOnlyWarm.startsWith("/standings") || pathOnlyWarm.startsWith("/league")
                   ? loadScriptText("/static/league_h2h.js?v=186")
                   : Promise.resolve();

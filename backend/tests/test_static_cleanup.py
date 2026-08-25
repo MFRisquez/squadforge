@@ -138,7 +138,7 @@ def test_transfer_rail_hidden_on_phone_page_fit():
     assert "/static/fixtures.js?v=186" in sw
     assert "/static/league_h2h.js?v=186" in sw
     assert "/static/club-sheet.js?v=186" in sw
-    assert "/static/news.js?v=186" in sw
+    assert "/static/news.js?v=187" in sw
     assert 'BADGE_CDN_HOST = "resources.premierleague.com"' in sw
     assert "isBadgeCdn" in sw
     assert "isStatic || isCatalog || isBadgeCdn" in sw
@@ -162,7 +162,7 @@ def test_transfer_rail_hidden_on_phone_page_fit():
     fx_tpl = (TEMPLATES / "fixtures.html").read_text(encoding="utf-8")
     assert "fixtures.js?v=186" in fx_tpl
     news_tpl = (TEMPLATES / "news.html").read_text(encoding="utf-8")
-    assert "news.js?v=186" in news_tpl
+    assert "news.js?v=187" in news_tpl
     assert "news-featured" in news_tpl
     assert "news-grid" in news_tpl
     assert 'data-filter="forecast"' in news_tpl
