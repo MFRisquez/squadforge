@@ -177,7 +177,7 @@ class TransferState(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     manager_id: Mapped[int] = mapped_column(ForeignKey("managers.id"), index=True)
-    free_transfers: Mapped[int] = mapped_column(Integer, default=1)
+    free_transfers: Mapped[int] = mapped_column(Integer, default=0)
     last_banked_gw: Mapped[int] = mapped_column(Integer, default=1)
     has_squad: Mapped[int] = mapped_column(Integer, default=0)
 

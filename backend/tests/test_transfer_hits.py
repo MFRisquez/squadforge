@@ -56,9 +56,9 @@ def test_hit_after_free_transfers_exhausted():
         db.query(Gameweek).filter(Gameweek.number == 1).update({"is_current": 0})
         db.commit()
 
-        # Bank into GW2 → should have at least 1 FT
+        # Bank into GW2 → exactly 1 FT (not 2)
         state = squad_svc.bank_free_transfers(db, manager.id, 2)
-        assert state.free_transfers >= 1
+        assert state.free_transfers == 1
         start_ft = state.free_transfers
 
         owned = {p.id for p in squad_svc.owned_players(db, manager.id)}
@@ -100,5 +100,28 @@ def test_hit_after_free_transfers_exhausted():
         assert squad_svc.transfer_hit_points(db, manager.id, gw2.id) == -4.0
         state = squad_svc.get_transfer_state(db, manager.id)
         assert state.free_transfers == 0
+    finally:
+        db.close()
+
+
+def test_one_free_transfer_per_gameweek_after_gw1():
+    db = SessionLocal()
+    try:
+        manager = Manager(display_name="FTer", pin="5555", team_name="FT FC")
+        db.add(manager)
+        db.commit()
+        db.refresh(manager)
+        s1 = squad_svc.bank_free_transfers(db, manager.id, 1)
+        assert s1.free_transfers == 0
+        s2 = squad_svc.bank_free_transfers(db, manager.id, 2)
+        assert s2.free_transfers == 1
+        s3 = squad_svc.bank_free_transfers(db, manager.id, 3)
+        assert s3.free_transfers == 2
+        # Legacy double-credit clamp
+        s3.free_transfers = 9
+        s3.last_banked_gw = 3
+        db.commit()
+        s3b = squad_svc.bank_free_transfers(db, manager.id, 3)
+        assert s3b.free_transfers == 2
     finally:
         db.close()
