@@ -34,8 +34,8 @@ class Settings(BaseSettings):
     # Optional API-Football key (Render: API_FOOTBALL_KEY). Empty = skip advanced stats.
     api_football_key: str = ""
     api_football_season: int = 2026
-    # Optional Anthropic key (Render: ANTHROPIC_API_KEY). Empty = League News off.
-    anthropic_api_key: str = ""
+    # Optional Gemini key (Render: GEMINI_API_KEY). Empty = League News off.
+    gemini_api_key: str = ""
     formula_version: str = "v0.2.1-cameo"
     budget: float = 100.0
     max_per_club: int = 3

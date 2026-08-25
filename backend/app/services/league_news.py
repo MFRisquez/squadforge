@@ -1,7 +1,7 @@
 """League News — AI sports-chronicle editions per league × gameweek.
 
-Fase 1: pack ranked facts → Claude → persist ``LeagueNewsEdition``.
-Empty ``settings.anthropic_api_key`` disables the feature (no-op).
+Fase 1: pack ranked facts → Gemini → persist ``LeagueNewsEdition``.
+Empty ``settings.gemini_api_key`` disables the feature (no-op).
 """
 
 from __future__ import annotations
@@ -28,9 +28,11 @@ from app.models import (
 
 logger = logging.getLogger("squadforge.league_news")
 
-ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
-ANTHROPIC_MODEL = "claude-sonnet-4-6"
-ANTHROPIC_VERSION = "2023-06-01"
+GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_URL = (
+    f"https://generativelanguage.googleapis.com/v1beta/models/"
+    f"{GEMINI_MODEL}:generateContent"
+)
 EDITION_POST = "post_gw"
 EDITION_PRE = "pre_gw"
 TOP_STORIES_MIN = 5
@@ -67,7 +69,7 @@ when present; otherwise null.
 
 
 def news_enabled() -> bool:
-    return bool((settings.anthropic_api_key or "").strip())
+    return bool((settings.gemini_api_key or "").strip())
 
 
 def get_edition(
@@ -102,7 +104,7 @@ def get_or_generate_edition(
       {ok, skipped?, reason?, edition?, content?}
     """
     if not news_enabled():
-        return {"ok": False, "skipped": "no_api_key", "reason": "ANTHROPIC_API_KEY empty"}
+        return {"ok": False, "skipped": "no_api_key", "reason": "GEMINI_API_KEY empty"}
 
     existing = get_edition(
         db,
@@ -133,9 +135,9 @@ def get_or_generate_edition(
         return {"ok": False, "skipped": "no_stories", "reason": "no ranked facts to write"}
 
     try:
-        content = call_anthropic_for_edition(package)
+        content = call_gemini_for_edition(package)
     except Exception as exc:  # noqa: BLE001 — surface to caller, don't crash request cycle
-        logger.exception("league_news anthropic failed: %s", exc)
+        logger.exception("league_news gemini failed: %s", exc)
         return {"ok": False, "skipped": "api_error", "reason": str(exc)}
 
     if existing is not None and force:
@@ -583,13 +585,13 @@ def _select_top_stories(candidates: list[dict[str, Any]]) -> list[dict[str, Any]
     return out
 
 
-# ── Anthropic call ──────────────────────────────────────────────────────────
+# ── Gemini call ─────────────────────────────────────────────────────────────
 
 
-def call_anthropic_for_edition(package: dict[str, Any]) -> dict[str, Any]:
-    key = (settings.anthropic_api_key or "").strip()
+def call_gemini_for_edition(package: dict[str, Any]) -> dict[str, Any]:
+    key = (settings.gemini_api_key or "").strip()
     if not key:
-        raise RuntimeError("ANTHROPIC_API_KEY empty")
+        raise RuntimeError("GEMINI_API_KEY empty")
 
     user_payload = {
         "instruction": (
@@ -599,23 +601,25 @@ def call_anthropic_for_edition(package: dict[str, Any]) -> dict[str, Any]:
         "facts": package,
     }
     body = {
-        "model": ANTHROPIC_MODEL,
-        "max_tokens": 4096,
-        "system": SYSTEM_PROMPT,
-        "messages": [
+        "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+        "contents": [
             {
                 "role": "user",
-                "content": json.dumps(user_payload, ensure_ascii=False),
+                "parts": [{"text": json.dumps(user_payload, ensure_ascii=False)}],
             }
         ],
+        "generationConfig": {
+            "temperature": 0.7,
+            "maxOutputTokens": 4096,
+            "responseMimeType": "application/json",
+        },
     }
     headers = {
-        "x-api-key": key,
-        "anthropic-version": ANTHROPIC_VERSION,
+        "x-goog-api-key": key,
         "content-type": "application/json",
     }
     with httpx.Client(timeout=90.0) as client:
-        resp = client.post(ANTHROPIC_URL, headers=headers, json=body)
+        resp = client.post(GEMINI_URL, headers=headers, json=body)
         resp.raise_for_status()
         data = resp.json()
 
@@ -637,18 +641,23 @@ def call_anthropic_for_edition(package: dict[str, Any]) -> dict[str, Any]:
 
 
 def _extract_text(data: dict[str, Any]) -> str:
-    content = data.get("content") or []
-    parts: list[str] = []
-    for block in content:
-        if isinstance(block, dict) and block.get("type") == "text":
-            parts.append(str(block.get("text") or ""))
-    return "\n".join(parts).strip()
+    """Pull plain text from a Gemini generateContent response."""
+    candidates = data.get("candidates") or []
+    parts_out: list[str] = []
+    for cand in candidates:
+        if not isinstance(cand, dict):
+            continue
+        content = cand.get("content") or {}
+        for part in content.get("parts") or []:
+            if isinstance(part, dict) and part.get("text"):
+                parts_out.append(str(part["text"]))
+    return "\n".join(parts_out).strip()
 
 
 def _parse_json_content(text: str) -> dict[str, Any]:
     raw = (text or "").strip()
     if not raw:
-        raise ValueError("empty Anthropic response")
+        raise ValueError("empty Gemini response")
     # Strip accidental markdown fences
     fence = re.match(r"^```(?:json)?\s*([\s\S]*?)\s*```$", raw)
     if fence:
@@ -663,9 +672,9 @@ def _parse_json_content(text: str) -> dict[str, Any]:
             raise
         data = json.loads(raw[start : end + 1])
     if not isinstance(data, dict):
-        raise ValueError("Anthropic JSON root must be an object")
+        raise ValueError("Gemini JSON root must be an object")
     if "stories" not in data or not isinstance(data["stories"], list):
-        raise ValueError("Anthropic JSON missing stories list")
+        raise ValueError("Gemini JSON missing stories list")
     return data
 
 

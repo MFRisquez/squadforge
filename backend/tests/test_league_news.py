@@ -145,7 +145,7 @@ def _seed_scores_and_history(db, league, managers, gw2):
 
 
 def test_news_disabled_without_api_key(db, monkeypatch):
-    monkeypatch.setattr(settings, "anthropic_api_key", "")
+    monkeypatch.setattr(settings, "gemini_api_key", "")
     assert news_svc.news_enabled() is False
     league, _, gw = _league_with_members(db)
     result = news_svc.get_or_generate_edition(
@@ -177,7 +177,7 @@ def test_build_post_gw_package_ranks_by_drama(db):
 
 
 def test_get_or_generate_persists_once(db, monkeypatch):
-    monkeypatch.setattr(settings, "anthropic_api_key", "test-key-not-real")
+    monkeypatch.setattr(settings, "gemini_api_key", "test-key-not-real")
     league, managers, gw2 = _league_with_members(db, n=4)
     _seed_scores_and_history(db, league, managers, gw2)
 
@@ -189,7 +189,7 @@ def test_get_or_generate_persists_once(db, monkeypatch):
         ],
     }
 
-    with patch.object(news_svc, "call_anthropic_for_edition", return_value=fake_content) as mock_call:
+    with patch.object(news_svc, "call_gemini_for_edition", return_value=fake_content) as mock_call:
         first = news_svc.get_or_generate_edition(
             db, league=league, edition_type="post_gw", gameweek_number=gw2.number
         )
@@ -211,8 +211,8 @@ def test_get_or_generate_persists_once(db, monkeypatch):
     assert json.loads(rows[0].content_json)["title"] == "GW2 — locura"
 
 
-def test_call_anthropic_parses_json(monkeypatch):
-    monkeypatch.setattr(settings, "anthropic_api_key", "test-key")
+def test_call_gemini_parses_json(monkeypatch):
+    monkeypatch.setattr(settings, "gemini_api_key", "test-key")
     package = {
         "edition_type": "post_gw",
         "league_id": 1,
@@ -220,16 +220,21 @@ def test_call_anthropic_parses_json(monkeypatch):
         "stories": [{"kind": "rank_move", "drama": 3, "player_id": None, "rank_delta": 3}],
     }
     api_body = {
-        "content": [
+        "candidates": [
             {
-                "type": "text",
-                "text": json.dumps(
-                    {
-                        "title": "T",
-                        "kicker": "K",
-                        "stories": [{"headline": "H", "body": "B", "player_id": None}],
-                    }
-                ),
+                "content": {
+                    "parts": [
+                        {
+                            "text": json.dumps(
+                                {
+                                    "title": "T",
+                                    "kicker": "K",
+                                    "stories": [{"headline": "H", "body": "B", "player_id": None}],
+                                }
+                            )
+                        }
+                    ]
+                }
             }
         ]
     }
@@ -243,11 +248,13 @@ def test_call_anthropic_parses_json(monkeypatch):
         client.__exit__.return_value = False
         client.post.return_value = mock_resp
         client_cls.return_value = client
-        out = news_svc.call_anthropic_for_edition(package)
+        out = news_svc.call_gemini_for_edition(package)
 
     assert out["title"] == "T"
     assert len(out["stories"]) == 1
     kwargs = client.post.call_args
-    assert kwargs[0][0] == news_svc.ANTHROPIC_URL
+    assert kwargs[0][0] == news_svc.GEMINI_URL
+    assert "gemini-2.5-flash" in kwargs[0][0]
     sent = kwargs[1]["json"]
-    assert sent["model"] == "claude-sonnet-4-6"
+    assert sent["generationConfig"]["responseMimeType"] == "application/json"
+    assert kwargs[1]["headers"]["x-goog-api-key"] == "test-key"

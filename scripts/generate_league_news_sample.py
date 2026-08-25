@@ -2,7 +2,7 @@
 """Generate a League News sample (post_gw) for tone review.
 
 Usage (from repo root):
-  PYTHONPATH=backend ANTHROPIC_API_KEY=sk-... python3 scripts/generate_league_news_sample.py
+  PYTHONPATH=backend GEMINI_API_KEY=... python3 scripts/generate_league_news_sample.py
 
 Without a key, prints the drama-ranked facts package only (no API call).
 """
@@ -160,7 +160,7 @@ def main() -> int:
 
         if not news_svc.news_enabled():
             print(
-                "\nANTHROPIC_API_KEY empty — skipping Claude call. "
+                "\nGEMINI_API_KEY empty — skipping Gemini call. "
                 "Add the key and re-run for a real article sample.",
                 file=sys.stderr,
             )
