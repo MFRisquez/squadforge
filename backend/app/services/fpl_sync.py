@@ -165,8 +165,13 @@ def sync_from_fpl(db: Session, data: dict[str, Any] | None = None) -> dict[str, 
                 gw.deadline_at = deadline
 
     db.flush()
+    # Prefer FPL's idea of current, but never roll *backward* if we already
+    # advanced locally (FPL often keeps the old event ``is_current`` until BPS).
+    local_current = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
     if current_number is None:
-        current_number = 1
+        current_number = int(local_current.number) if local_current else 1
+    elif local_current is not None and int(local_current.number) > int(current_number):
+        current_number = int(local_current.number)
     for gw in db.query(Gameweek).all():
         gw.is_current = 1 if gw.number == current_number else 0
 
@@ -179,6 +184,17 @@ def sync_from_fpl(db: Session, data: dict[str, Any] | None = None) -> dict[str, 
         fixture_info = fixtures_svc.sync_fixtures(db)
     except Exception:
         fixture_info = {"fixtures": 0}
+
+    # After fixture flags land, roll current GW forward if every match is done.
+    try:
+        from app.services import squad as squad_svc
+
+        if squad_svc.maybe_advance_finished_gameweek(db):
+            cur = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
+            if cur:
+                current_number = int(cur.number)
+    except Exception:
+        pass
 
     return {
         "clubs": club_count,

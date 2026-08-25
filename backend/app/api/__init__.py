@@ -338,11 +338,15 @@ def api_club_detail(club_code: str, gw: Optional[int] = None) -> dict:
 def api_fixtures(gw: Optional[int] = None) -> dict:
     db = SessionLocal()
     try:
+        from app.services import squad as squad_svc
+
         if gw is None:
-            current = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
-            gw_number = current.number if current else 1
+            current = squad_svc.current_gameweek(db)
+            gw_number = current.number
         else:
             gw_number = int(gw)
+            # Still try to roll forward so soft-nav stays on the new GW.
+            squad_svc.maybe_advance_finished_gameweek(db)
         return {"gw": gw_number, "fixtures": fixtures_svc.fixtures_for_gameweek(db, gw_number=gw_number)}
     finally:
         db.close()
@@ -373,7 +377,15 @@ def api_fixtures_refresh(gw: Optional[int] = None) -> dict:
         except Exception as exc:
             info = {"fixtures": 0, "error": str(exc)}
 
-        squad_svc.maybe_advance_finished_gameweek(db)
+        advanced = squad_svc.maybe_advance_finished_gameweek(db)
+        current = db.query(Gameweek).filter(Gameweek.is_current == 1).one_or_none()
+        if current and (
+            gw is None
+            or (advanced and int(gw_number) < int(current.number))
+        ):
+            # Default refresh, or client was still on the GW that just closed —
+            # follow ``is_current`` so fixtures/transfers unlock without a manual reload.
+            gw_number = int(current.number)
         matches = fixtures_svc.fixtures_for_gameweek(db, gw_number=gw_number)
         try:
             matches = fixtures_svc.enrich_live_scorer_minutes(db, matches)
@@ -382,6 +394,7 @@ def api_fixtures_refresh(gw: Optional[int] = None) -> dict:
         return {
             "gw": gw_number,
             "synced": info,
+            "advanced": bool(advanced),
             "fixtures": matches,
         }
     finally:

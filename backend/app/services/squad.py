@@ -41,7 +41,9 @@ def current_gameweek(db: Session) -> Gameweek:
 def maybe_advance_finished_gameweek(db: Session) -> bool:
     """When the current GW is fully finished, flip ``is_current`` to the next GW.
 
-    Uses fixture ``finished`` flags when present; otherwise trusts ``Gameweek.status``.
+    Uses fixture ``finished`` flags when present (includes FPL provisional → we
+    store finished=1 so the app rolls to GW+1 and unlocks transfers without a
+    manual poke). Otherwise trusts ``Gameweek.status``.
     Returns True when a roll-forward happened.
     """
     from app.models import Fixture
