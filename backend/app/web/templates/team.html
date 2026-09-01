@@ -119,7 +119,7 @@
       <input type="hidden" name="player_out_id" id="outId" />
       <input type="hidden" name="player_in_id" id="inId" />
       <p id="swapSummary" class="swap-summary"></p>
-      <button class="btn" type="submit" id="confirmSwap" disabled>Confirm swap</button>
+      <!-- Confirm retired: Save on the pitch commits the swap. Cancel stays for mid-edit. -->
       <button class="btn ghost" type="button" id="clearSwap">Cancel</button>
     </form>
   </div>
@@ -351,6 +351,6 @@
 <script id="initialSquad" type="application/json">{{ initial_squad | tojson }}</script>
 <script id="tdBoot" type="application/json">{{ {"banned": (td_info.banned_club if td_info else none), "can_set": can_set_td|default(false)} | tojson }}</script>
 <script src="/static/club-sheet.js?v=186"></script>
-<script src="/static/squadboard.js?v=186"></script>
+<script src="/static/squadboard.js?v=187"></script>
 {% endblock %}
 

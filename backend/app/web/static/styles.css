@@ -2445,6 +2445,21 @@ html[data-theme="dark"] .cv-btn.is-v:not(:disabled):hover {
   color: #dff5e4;
   border-color: rgba(255,255,255,0.25);
 }
+/* Phone: keep Cancel + “Save to confirm” hint visible above the pitch */
+@media (max-width: 899px) {
+  body.page-squad .desk-main-top .swap-bar:not([hidden]) {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    margin: 0 0 0.35rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 0.7rem;
+  }
+  body.page-squad .desk-main-top .swap-bar .swap-summary {
+    font-size: 0.78rem;
+    flex: 1 1 auto;
+  }
+}
 .slot-row .shirt.empty,
 .bench .shirt.empty {
   background: #F2F2F2;

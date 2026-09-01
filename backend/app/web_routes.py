@@ -1712,28 +1712,36 @@ def transfers_page(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/transfers/make")
-def transfers_make(
+async def transfers_make(
     request: Request,
     player_out_id: int = Form(...),
     player_in_id: int = Form(...),
     db: Session = Depends(get_db),
 ):
     from app.services import deadline as deadline_svc
+    from fastapi.responses import JSONResponse
 
+    wants_json = _wants_json(request)
     manager = current_manager(request, db)
     if not manager:
+        if wants_json:
+            return JSONResponse({"error": "login_required"}, status_code=401)
         return RedirectResponse("/login", status_code=303)
     try:
         gw = squad_svc.current_gameweek(db)
     except squad_svc.SquadError as exc:
+        if wants_json:
+            return JSONResponse({"error": str(exc)}, status_code=400)
         return RedirectResponse(f"/?error={quote(str(exc))}", status_code=303)
     if not deadline_svc.can_edit(gw):
+        if wants_json:
+            return JSONResponse({"error": "Deadline passed — transfers locked"}, status_code=400)
         return RedirectResponse("/team?error=Deadline+passed+—+transfers+locked", status_code=303)
     out_player = db.query(Player).filter(Player.id == player_out_id).one_or_none()
     in_player = db.query(Player).filter(Player.id == player_in_id).one_or_none()
     try:
         before_hits = squad_svc.hit_transfers_this_gw(db, manager.id, gw.id)
-        squad_svc.make_transfer(
+        state = squad_svc.make_transfer(
             db,
             manager_id=manager.id,
             gameweek=gw,
@@ -1742,13 +1750,30 @@ def transfers_make(
         )
         after_hits = squad_svc.hit_transfers_this_gw(db, manager.id, gw.id)
     except squad_svc.SquadError as exc:
+        if wants_json:
+            return JSONResponse({"error": str(exc)}, status_code=400)
         return RedirectResponse(f"/team?error={quote(str(exc))}", status_code=303)
+    is_hit = after_hits > before_hits
+    if wants_json:
+        return JSONResponse(
+            {
+                "ok": True,
+                "out": out_player.name if out_player else f"#{player_out_id}",
+                "in": in_player.name if in_player else f"#{player_in_id}",
+                "ft_left": int(state.free_transfers),
+                "unlimited": bool(
+                    squad_svc.transfers_are_unlimited(db, manager.id, gw)
+                ),
+                "is_hit": bool(is_hit),
+                "hit_cost": squad_svc.HIT_COST if is_hit else 0,
+            }
+        )
     q = {
         "ok": "1",
         "out": (out_player.name if out_player else f"#{player_out_id}"),
         "in": (in_player.name if in_player else f"#{player_in_id}"),
     }
-    if after_hits > before_hits:
+    if is_hit:
         q["notice"] = f"Transfer done (−{squad_svc.HIT_COST} hit)."
     return RedirectResponse(f"/team?{urlencode(q)}", status_code=303)
 

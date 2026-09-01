@@ -160,7 +160,7 @@
     },
   };
   const LOCKED = Boolean(INITIAL.locked);
-  const FT_LEFT = Number(INITIAL.ft || 0);
+  let FT_LEFT = Number(INITIAL.ft || 0);
   const HIT_COST = Number(INITIAL.hitCost || 4);
   const NEED = { GK: 2, DEF: 5, MID: 5, ATT: 3 };
   const ORDER = ["GK", "DEF", "MID", "ATT"];
@@ -217,7 +217,6 @@
   const outIdEl = document.getElementById("outId");
   const inIdEl = document.getElementById("inId");
   const swapSummary = document.getElementById("swapSummary");
-  const confirmSwap = document.getElementById("confirmSwap");
   const saveSquadBtn = document.getElementById("saveSquadBtn");
   const clearSwapBtn = document.getElementById("clearSwap");
   const squadForm = document.getElementById("squadForm");
@@ -325,13 +324,22 @@
     return Boolean(INITIAL.requireTd) || !INITIAL.hasSquad || isOnboardPage();
   }
 
+  /** Pending Out→In swap ready to commit via Save (FT mode — no Confirm swap). */
+  function pendingTransferReady() {
+    return Boolean(outPlayer && inPlayer && removedSlot && isComplete());
+  }
+
   function canSaveSquadPlayers() {
     return freeEdit() && isComplete() && squadDirty() && !outPlayer && spend() <= BUDGET + 0.001;
   }
 
   function canSave() {
-    if (LOCKED || outPlayer) return false;
+    if (LOCKED) return false;
     if (requiresTdToSave() && !currentTd()) return false;
+    // Mid-swap: wait until replacement is on the pitch, then Save commits it.
+    if (outPlayer && !inPlayer) return false;
+    if (pendingTransferReady() && spend() <= BUDGET + 0.001) return true;
+    if (outPlayer) return false;
     if (tdDirty() && !squadDirty()) return true;
     return canSaveSquadPlayers();
   }
@@ -360,6 +368,8 @@
       saveSquadBtn.disabled = !ok;
       let aria = "Unsaved squad changes";
       if (requiresTdToSave() && !currentTd()) aria = "Pick a DT club before saving";
+      else if (outPlayer && !inPlayer) aria = "Pick a replacement, then Save";
+      else if (pendingTransferReady()) aria = "Save transfer";
       else if (tdDirty() && !squadDirty()) aria = "Unsaved DT change";
       saveSquadBtn.setAttribute("aria-label", aria);
     } else if (state === "saved") {
@@ -511,11 +521,12 @@
       }
     } else if (outPlayer && !inPlayer) {
       if (modeHint) {
-        modeHint.textContent = `${outPlayer.name} out — pick a ${outPlayer.position} from the list.`;
+        modeHint.textContent = `${outPlayer.name} out — pick a ${outPlayer.position}, then Save.`;
       }
     } else if (outPlayer && inPlayer) {
       if (modeHint) {
-        modeHint.textContent = `Confirm ${outPlayer.name} → ${inPlayer.name} below, or cancel.`;
+        const hitNote = !UNLIMITED && FT_LEFT < 1 ? ` (−${HIT_COST} hit)` : "";
+        modeHint.textContent = `Tap Save: ${outPlayer.name} → ${inPlayer.name}${hitNote}`;
       }
     } else {
       if (modeHint) {
@@ -840,39 +851,56 @@
   }
 
   function refreshSwapBar() {
-    if (!outPlayer || freeEdit()) {
+    // No Confirm swap — Save commits. Keep a Cancel strip while a transfer is pending
+    // so mid-edit can be aborted (especially on phone where the old confirm was easy to miss).
+    if (!transferForm) return;
+    if (!outPlayer || freeEdit() || LOCKED) {
       transferForm.hidden = true;
-      outIdEl.value = "";
-      inIdEl.value = "";
-      confirmSwap.disabled = true;
+      if (outIdEl) outIdEl.value = "";
+      if (inIdEl) inIdEl.value = "";
+      if (swapSummary) swapSummary.textContent = "";
       return;
     }
     transferForm.hidden = false;
-    outIdEl.value = String(outPlayer.id);
-    if (inPlayer) {
-      inIdEl.value = String(inPlayer.id);
-      confirmSwap.disabled = false;
-      const delta = inPlayer.price - outPlayer.price;
-      const sign = delta >= 0 ? `+£${delta.toFixed(1)}m` : `−£${Math.abs(delta).toFixed(1)}m`;
-      const hitNote = !UNLIMITED && FT_LEFT < 1 ? ` · −${HIT_COST} hit` : "";
-      swapSummary.textContent = `${outPlayer.name} → ${inPlayer.name} (${sign})${hitNote}`;
-    } else {
-      inIdEl.value = "";
-      confirmSwap.disabled = true;
-      const hitHint = !UNLIMITED && FT_LEFT < 1 ? ` (−${HIT_COST} hit)` : "";
-      swapSummary.textContent = `${outPlayer.name} out${hitHint} — tap empty ${outPlayer.position} slot to search`;
+    if (outIdEl) outIdEl.value = String(outPlayer.id);
+    if (inIdEl) inIdEl.value = inPlayer ? String(inPlayer.id) : "";
+    if (swapSummary) {
+      if (inPlayer) {
+        const delta = inPlayer.price - outPlayer.price;
+        const sign = delta >= 0 ? `+£${delta.toFixed(1)}m` : `−£${Math.abs(delta).toFixed(1)}m`;
+        const hitNote = !UNLIMITED && FT_LEFT < 1 ? ` · −${HIT_COST} hit` : "";
+        swapSummary.textContent = `Save to confirm: ${outPlayer.name} → ${inPlayer.name} (${sign})${hitNote}`;
+      } else {
+        const hitHint = !UNLIMITED && FT_LEFT < 1 ? ` (−${HIT_COST} hit)` : "";
+        swapSummary.textContent = `${outPlayer.name} out${hitHint} — pick ${outPlayer.position}, then Save`;
+      }
     }
+  }
+
+  function clearTransferState() {
+    outPlayer = null;
+    inPlayer = null;
+    removedSlot = null;
+    active = null;
   }
 
   function clearPendingTransfer() {
     if (removedSlot && outPlayer) {
       slots[removedSlot.pos][removedSlot.index] = outPlayer.id;
     }
-    outPlayer = null;
-    inPlayer = null;
-    removedSlot = null;
-    active = null;
+    clearTransferState();
     render();
+  }
+
+  function updateFtDisplayLocal(ftLeft, unlimited) {
+    if (typeof unlimited === "boolean") UNLIMITED = unlimited;
+    if (ftLeft != null && Number.isFinite(Number(ftLeft))) FT_LEFT = Number(ftLeft);
+    const strong = document.querySelector(
+      ".stat-strip .stat:nth-child(2) strong, #ftValue"
+    );
+    const sub = document.querySelector(".stat-strip .stat:nth-child(2) .stat-sub, #ftSub");
+    if (strong) strong.textContent = UNLIMITED ? "∞" : String(FT_LEFT);
+    if (sub) sub.textContent = UNLIMITED ? "unlimited" : "banked";
   }
 
   function removeFromSquad(pos, index, opts = {}) {
@@ -1429,12 +1457,13 @@
     if (squadForm) {
       squadForm.addEventListener("submit", async (e) => {
         e.preventDefault();
-        const needSquad = squadDirty();
+        const needTransfer = pendingTransferReady();
+        const needSquad = squadDirty() && freeEdit() && !outPlayer;
         const needTd = tdDirty();
         const goHomeAfter = isOnboardPage() || (!INITIAL.hasSquad && needSquad);
-        if (!needSquad && !needTd) return;
-        if (outPlayer) {
-          alert("Finish or cancel the transfer first.");
+        if (!needTransfer && !needSquad && !needTd) return;
+        if (outPlayer && !inPlayer) {
+          alert("Pick a replacement player, then tap Save.");
           return;
         }
         if (requiresTdToSave() && !currentTd()) {
@@ -1442,10 +1471,6 @@
           return;
         }
         if (needSquad) {
-          if (!freeEdit()) {
-            alert("Use Confirm swap for transfers this week.");
-            return;
-          }
           if (!isComplete()) {
             alert("Fill all 15 slots (2 GK, 5 DEF, 5 MID, 3 ATT).");
             return;
@@ -1455,10 +1480,53 @@
             return;
           }
         }
+        if (needTransfer && spend() > BUDGET + 0.001) {
+          alert("Squad is over budget.");
+          return;
+        }
         syncHidden();
         saveVisual = "saving";
         paintSaveBtn();
         try {
+          if (needTransfer) {
+            const body = new URLSearchParams();
+            body.set("player_out_id", String(outPlayer.id));
+            body.set("player_in_id", String(inPlayer.id));
+            const res = await fetch("/transfers/make?format=json", {
+              method: "POST",
+              headers: {
+                Accept: "application/json",
+                "Content-Type": "application/x-www-form-urlencoded",
+                "X-Requested-With": "fetch",
+              },
+              credentials: "same-origin",
+              redirect: "manual",
+              body,
+            });
+            if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
+              throw new Error("Could not save transfer — try again");
+            }
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.error || !data.ok) {
+              throw new Error(data.error || "Could not save transfer");
+            }
+            appendMyGwTransfers([
+              {
+                out: outPlayer.name,
+                in: inPlayer.name,
+                is_hit: Boolean(data.is_hit),
+              },
+            ]);
+            if (typeof data.ft_left === "number") {
+              updateFtDisplayLocal(data.ft_left, data.unlimited);
+            } else if (typeof data.unlimited === "boolean") {
+              updateFtDisplayLocal(FT_LEFT, data.unlimited);
+            }
+            clearTransferState();
+            INITIAL.hasSquad = true;
+            INITIAL.selected = filledIds().slice();
+            captureBaseline();
+          }
           if (needSquad) {
             const body = new URLSearchParams();
             filledIds().forEach((id) => body.append("player_id", String(id)));
@@ -1723,8 +1791,9 @@
     for (const c of changes) {
       const outName = String(c.out || "—");
       const inName = String(c.in || "—");
+      const hit = c.is_hit ? `<span class="sc-hit">hit</span>` : "";
       const li = document.createElement("li");
-      li.innerHTML = `<span class="sc-out">${outName}</span><span class="sc-arrow" aria-hidden="true">→</span><span class="sc-in">${inName}</span>`;
+      li.innerHTML = `<span class="sc-out">${outName}</span><span class="sc-arrow" aria-hidden="true">→</span><span class="sc-in">${inName}</span>${hit}`;
       list.appendChild(li);
     }
   }
