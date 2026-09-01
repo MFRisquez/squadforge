@@ -80,6 +80,7 @@ def test_transfers_make_json_returns_ft_left():
         squad_svc.save_ownership(
             db, manager_id=manager.id, player_ids=[p.id for p in squad], gw_number=1
         )
+        db.query(Gameweek).update({"is_current": 0})
         gw2 = db.query(Gameweek).filter(Gameweek.number == 2).one()
         gw2.deadline_at = (
             (datetime.now(timezone.utc) + timedelta(days=2))
@@ -87,7 +88,12 @@ def test_transfers_make_json_returns_ft_left():
             .replace("+00:00", "Z")
         )
         gw2.is_current = 1
-        db.query(Gameweek).filter(Gameweek.number == 1).update({"is_current": 0})
+        gw2.status = "live"
+        db.commit()
+        # Avoid auto-advance from leftover finished seed fixtures on GW2.
+        from app.models import Fixture
+
+        db.query(Fixture).filter(Fixture.gameweek_number == 2).delete()
         db.commit()
         squad_svc.bank_free_transfers(db, manager.id, 2)
         out_p = next(p for p in squad if p.position == "DEF")

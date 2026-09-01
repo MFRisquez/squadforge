@@ -69,6 +69,11 @@ def test_maybe_advance_finished_gameweek_rolls_to_next():
         assert g2.is_current == 1
         assert g2.status == "live"
 
+        # Seed may leave finished fixtures on GW2 — clear them so the next
+        # call is a true no-op (otherwise we cascade GW2 → GW3).
+        db.query(Fixture).filter(Fixture.gameweek_number == 2).delete()
+        db.commit()
+
         # Idempotent once already advanced
         assert squad_svc.maybe_advance_finished_gameweek(db) is False
         cur = squad_svc.current_gameweek(db)
