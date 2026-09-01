@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from app.config import settings
 from app.db import Base, SessionLocal, engine
 from app.main import app
-from app.models import ChipState, Gameweek, H2HMatch, ManagerGameweekScore, Player
+from app.models import ChipState, Fixture, Gameweek, H2HMatch, ManagerGameweekScore, Player
 from app.services import league as league_svc
 from app.services import standings as standings_svc
 from app.services.seed import seed_if_empty
@@ -203,6 +203,7 @@ def test_h2h_fixture_cards_include_season_record():
         league_svc.join_league(db, league.invite_code, b)
         gw1 = db.query(Gameweek).filter(Gameweek.number == 1).one()
         gw2 = db.query(Gameweek).filter(Gameweek.number == 2).one()
+        db.query(Gameweek).update({"is_current": 0})
         gw2.status = "live"
         gw2.is_current = 1
         gw1.is_current = 0
@@ -210,6 +211,20 @@ def test_h2h_fixture_cards_include_season_record():
             (datetime.now(timezone.utc) - timedelta(hours=1))
             .isoformat()
             .replace("+00:00", "Z")
+        )
+        # Keep GW2 from auto-rolling to GW3 on page load (seed fixtures may be FT).
+        db.query(Fixture).filter(Fixture.gameweek_number == 2).delete()
+        db.add(
+            Fixture(
+                fpl_id=92002,
+                gameweek_number=2,
+                home_club_code="ARS",
+                away_club_code="CHE",
+                started=1,
+                finished=0,
+                home_score=0,
+                away_score=0,
+            )
         )
         # Prior settled meetings: A beat B twice, B beat A once (orientation flips)
         db.add(

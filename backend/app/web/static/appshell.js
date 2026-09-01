@@ -16,7 +16,7 @@
     "/static/xi-side.js?v=186",
     "/static/lineup.js?v=186",
     "/static/fixtures.js?v=186",
-    "/static/squadboard.js?v=186",
+    "/static/squadboard.js?v=187",
     "/static/league_h2h.js?v=186",
     "/static/news.js?v=187",
   ];
@@ -409,7 +409,7 @@
             : pathOnlyWarm === "/team"
               ? Promise.all([
                   loadScriptText("/static/club-sheet.js?v=186"),
-                  loadScriptText("/static/squadboard.js?v=186"),
+                  loadScriptText("/static/squadboard.js?v=187"),
                 ])
               : pathOnlyWarm === "/news"
                 ? loadScriptText("/static/news.js?v=187")
