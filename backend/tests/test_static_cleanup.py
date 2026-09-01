@@ -124,7 +124,7 @@ def test_transfer_rail_hidden_on_phone_page_fit():
 
     # SW cache bump so phones drop stale CSS / catalog that showed wrong avail flags
     sw = (STATIC / "sw.js").read_text(encoding="utf-8")
-    assert 'CACHE = "futfantasy-v186"' in sw
+    assert 'CACHE = "futfantasy-v187"' in sw
     assert "if (isStatic || isBadgeCdn) return cached || fetched" in sw
     # All static CSS/JS are cache-first; shell HTML + catalog stay network-first.
     assert "All static CSS/JS: cache-first" in sw
@@ -132,7 +132,8 @@ def test_transfer_rail_hidden_on_phone_page_fit():
     assert "isCss || isJs" in sw
     # Must not cache-first the catalog (stale availability after FPL sync).
     assert "if (isStatic || isCatalog || isBadgeCdn) return cached || fetched" not in sw
-    assert "/static/styles.css?v=186" in sw
+    assert "/static/styles.css?v=187" in sw
+    assert "/static/squadboard.js?v=187" in sw
     assert "/static/lineup.js?v=186" in sw
     assert "/static/appshell.js?v=186" in sw
     assert "/static/fixtures.js?v=186" in sw
@@ -143,8 +144,8 @@ def test_transfer_rail_hidden_on_phone_page_fit():
     assert "isBadgeCdn" in sw
     assert "isStatic || isCatalog || isBadgeCdn" in sw
     base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
-    assert "sw.js?v=186" in base
-    assert "styles.css?v=186" in base
+    assert "sw.js?v=187" in base
+    assert "styles.css?v=187" in base
     assert "appshell.js?v=186" in base
     assert 'href="/news"' in base
     appshell = (STATIC / "appshell.js").read_text(encoding="utf-8")
